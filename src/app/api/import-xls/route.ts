@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
           variety_id: variety.id,
           variety_name: parsed.variety_name,
           length_str: parsed.length_str,
-          length_cm: parsed.length_num,
+          length_cm: parsed.length_cm,
           pack_size: parsed.pack_size,
           category: parsed.category,
           name: row.name,
