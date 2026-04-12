@@ -11,8 +11,11 @@ export default async function HomePage() {
       stock (price, qty, qty_reserved, is_available)
     `)
     .eq('is_active', true)
-    .eq('stock.is_available', true)
     .order('name')
 
-  return <PriceTable products={products ?? []} />
+  return (
+    <main className="max-w-5xl mx-auto px-4 py-8">
+      <PriceTable products={products ?? []} />
+    </main>
+  )
 }
