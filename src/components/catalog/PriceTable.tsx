@@ -3,16 +3,25 @@
 import { useState, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCart } from '@/lib/cart-store'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean } | null
 type Product = {
-  id: number; name: string; category: string
-  length_cm: number | null; pot_diameter: number | null
+  id: number
+  name: string
+  variety_name: string | null
+  length_str: string | null
+  length_cm: number | null
+  category: string
+  pack_size: number
   stock: Stock[] | Stock
+}
+
+type VarietyGroup = {
+  variety_name: string
+  category: string
+  sizes: Product[]
 }
 
 function getStock(s: Stock[] | Stock): Stock {
@@ -20,110 +29,146 @@ function getStock(s: Stock[] | Stock): Stock {
   return s
 }
 
-function QtyBadge({ qty, reserved }: { qty: number; reserved: number }) {
-  const available = qty - reserved
-  if (available <= 5) return <Badge variant="destructive">{available} шт</Badge>
-  if (available <= 30) return <Badge className="bg-orange-500 hover:bg-orange-600">{available} шт</Badge>
-  return <Badge className="bg-green-600 hover:bg-green-700">{available} шт</Badge>
+function getAvailable(s: Stock[] | Stock): number {
+  const st = getStock(s)
+  if (!st) return 0
+  return Math.max(0, st.qty - st.qty_reserved)
 }
 
-function formatPrice(p: number) {
-  return p.toLocaleString('ru-RU') + ' ₸'
+function getPrice(s: Stock[] | Stock): number {
+  const st = getStock(s)
+  return st?.price ?? 0
 }
 
-function ProductTable({ products }: { products: Product[] }) {
-  const { add, items } = useCart()
+function StockBadge({ qty }: { qty: number }) {
+  if (qty <= 5) return <Badge variant="destructive">{qty} шт</Badge>
+  if (qty <= 30) return <Badge className="bg-orange-500 hover:bg-orange-600">{qty} шт</Badge>
+  return <Badge className="bg-green-600 hover:bg-green-700">{qty} шт</Badge>
+}
 
-  if (products.length === 0) {
-    return <p className="text-center text-muted-foreground py-12">Нет позиций</p>
+function groupByVariety(products: Product[]): VarietyGroup[] {
+  const map = new Map<string, VarietyGroup>()
+  for (const p of products) {
+    const key = p.variety_name || p.name
+    if (!map.has(key)) {
+      map.set(key, { variety_name: key, category: p.category, sizes: [] })
+    }
+    map.get(key)!.sizes.push(p)
   }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Наименование</TableHead>
-          <TableHead className="text-center">Размер</TableHead>
-          <TableHead className="text-center">Остаток</TableHead>
-          <TableHead className="text-right">Цена</TableHead>
-          <TableHead></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {products.map(p => {
-          const s = getStock(p.stock)
-          if (!s) return null
-          const available = s.qty - s.qty_reserved
-          const size = p.length_cm ? `${p.length_cm} см` : p.pot_diameter ? `⌀${p.pot_diameter} см` : '—'
-          const inCart = items.find(i => i.id === p.id)
-          return (
-            <TableRow key={p.id}>
-              <TableCell className="font-medium">{p.name}</TableCell>
-              <TableCell className="text-center text-muted-foreground">{size}</TableCell>
-              <TableCell className="text-center">
-                <QtyBadge qty={s.qty} reserved={s.qty_reserved} />
-              </TableCell>
-              <TableCell className="text-right font-bold">{formatPrice(s.price)}</TableCell>
-              <TableCell className="text-right">
-                <Button
-                  size="sm"
-                  variant={inCart ? 'secondary' : 'outline'}
-                  disabled={available === 0}
-                  onClick={() => add({
-                    id: p.id, name: p.name,
-                    price: s.price, available,
-                    category: p.category
-                  })}
-                  className="text-xs"
-                >
-                  {inCart ? `✓ ${inCart.qty} шт` : '+ В корзину'}
-                </Button>
-              </TableCell>
-            </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
+  for (const g of map.values()) {
+    g.sizes.sort((a, b) => (a.length_cm ?? 0) - (b.length_cm ?? 0))
+  }
+  return Array.from(map.values()).sort((a, b) =>
+    a.variety_name.localeCompare(b.variety_name, 'ru')
   )
 }
 
 export default function PriceTable({ products }: { products: Product[] }) {
   const [search, setSearch] = useState('')
+  const [tab, setTab] = useState('all')
+  const { items, add, update } = useCart()
+
+  const getQty = (id: number) => items.find(i => i.id === id)?.qty ?? 0
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase()
-    return products.filter(p => p.name.toLowerCase().includes(q))
-  }, [products, search])
+    return products.filter(p => {
+      const available = getAvailable(p.stock)
+      if (available <= 0) return false
+      const name = (p.variety_name || p.name).toLowerCase()
+      if (search && !name.includes(search.toLowerCase())) return false
+      if (tab === 'cut' && p.category !== 'cut') return false
+      if (tab === 'pot' && p.category !== 'pot') return false
+      return true
+    })
+  }, [products, search, tab])
 
-  const cut = filtered.filter(p => p.category === 'cut')
-  const pot = filtered.filter(p => p.category === 'pot')
+  const groups = useMemo(() => groupByVariety(filtered), [filtered])
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 sticky top-0 z-10 bg-white py-2 border-b">
         <Input
-          placeholder="🔍 Поиск по названию..."
+          placeholder="Поиск по сорту..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="max-w-sm"
+          className="max-w-xs h-8 text-sm"
         />
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="h-8">
+            <TabsTrigger value="all" className="text-xs px-3">Все</TabsTrigger>
+            <TabsTrigger value="cut" className="text-xs px-3">Срез</TabsTrigger>
+            <TabsTrigger value="pot" className="text-xs px-3">Горшечные</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <span className="text-xs text-gray-400 ml-auto">{groups.length} сортов</span>
       </div>
-      <Tabs defaultValue="cut">
-        <TabsList className="mb-4">
-          <TabsTrigger value="cut">✂️ Срезные ({cut.length})</TabsTrigger>
-          <TabsTrigger value="pot">🪴 Горшечные ({pot.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="cut">
-          <div className="rounded-lg border bg-white shadow-sm">
-            <ProductTable products={cut} />
-          </div>
-        </TabsContent>
-        <TabsContent value="pot">
-          <div className="rounded-lg border bg-white shadow-sm">
-            <ProductTable products={pot} />
-          </div>
-        </TabsContent>
-      </Tabs>
+
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b text-xs text-gray-400">
+            <th className="text-left py-2 pl-3 w-48">Сорт</th>
+            <th className="text-left py-2">Размеры / Остаток / Цена</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map(group => (
+            <tr key={group.variety_name} className="border-b hover:bg-gray-50">
+              <td className="py-2 pl-3 font-medium align-top pt-3">
+                {group.variety_name}
+              </td>
+              <td className="py-2 pr-3">
+                <div className="flex flex-wrap gap-2">
+                  {group.sizes.map(product => {
+                    const available = getAvailable(product.stock)
+                    const price = getPrice(product.stock)
+                    const qty = getQty(product.id)
+                    return (
+                      <div key={product.id} className="flex items-center gap-2 border rounded px-2 py-1 bg-white min-w-[200px]">
+                        <span className="text-xs font-mono w-12 text-gray-500">
+                          {product.length_str ? product.length_str + ' см' : '—'}
+                        </span>
+                        <StockBadge qty={available} />
+                        <span className="text-xs text-gray-500 w-16">
+                          {price.toLocaleString('ru-RU')} ₸
+                        </span>
+                        <div className="flex items-center gap-1 ml-auto">
+                          <button
+                            className="w-6 h-6 border rounded text-xs hover:bg-gray-100 disabled:opacity-30"
+                            onClick={() => update(product.id, qty - 1)}
+                            disabled={qty === 0}
+                          >−</button>
+                          <span className="w-5 text-center text-xs">{qty}</span>
+                          <button
+                            className="w-6 h-6 border rounded text-xs hover:bg-gray-100 disabled:opacity-30"
+                            onClick={() => {
+                              if (qty === 0) {
+                                add({
+                                  id: product.id,
+                                  name: group.variety_name + (product.length_str ? ' ' + product.length_str : ''),
+                                  price,
+                                  available,
+                                  category: product.category,
+                                })
+                              } else {
+                                update(product.id, qty + 1)
+                              }
+                            }}
+                            disabled={qty >= available}
+                          >+</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {groups.length === 0 && (
+        <div className="text-center text-gray-400 py-12">Ничего не найдено</div>
+      )}
     </div>
   )
 }
