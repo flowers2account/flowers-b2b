@@ -23,16 +23,54 @@ export async function POST(req: NextRequest) {
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][]
 
-  // Парсим строки: пропускаем заголовок и пустые
+  // Парсим строки из формата 1С
+  // Формат: [пусто, Наименование, Количество, Цена, Стоимость]
+  // или старый формат: [Наименование, Количество, Цена]
   const rows: { name: string; qty: number; price: number }[] = []
+
   for (const row of rawRows) {
     if (!Array.isArray(row)) continue
-    const name = String(row[0] ?? '').trim()
-    const qty = Number(row[1])
-    const price = Number(row[2])
-    if (!name || name.toLowerCase().includes('наименов')) continue
-    if (isNaN(qty) || qty <= 0 || isNaN(price) || price <= 0) continue
-    rows.push({ name, qty: Math.round(qty), price })
+
+    // Определяем формат: если col[0] пустой и col[1] - строка - это формат 1С
+    const col0 = String(row[0] ?? '').trim()
+    const col1 = String(row[1] ?? '').trim()
+    const col2 = String(row[2] ?? '').trim()
+    const col3 = String(row[3] ?? '').trim()
+
+    let name = '', qtyRaw = '', priceRaw = ''
+
+    if (!col0 && col1 && col1.length > 2) {
+      // Формат 1С: пустая первая колонка
+      name = col1
+      qtyRaw = col2
+      priceRaw = col3
+    } else if (col0 && col0.length > 2) {
+      // Старый формат: наименование в первой колонке
+      name = col0
+      qtyRaw = col1
+      priceRaw = col2
+    } else {
+      continue
+    }
+
+    // Пропускаем заголовки и итоги
+    const nameLower = name.toLowerCase()
+    if (nameLower.includes('наименов') || nameLower.includes('номенклат') ||
+        nameLower.includes('итог') || nameLower.includes('склад') ||
+        nameLower.includes('период') || nameLower.includes('показател') ||
+        nameLower.includes('группировк') || nameLower.includes('отбор')) continue
+
+    // Парсим числа (формат 1С: "1 234,56" или "1234.56")
+    const parseNum = (s: string) => {
+      const cleaned = String(s).replace(/\s/g, '').replace(',', '.')
+      return parseFloat(cleaned)
+    }
+
+    const qty = parseNum(qtyRaw)
+    const price = parseNum(priceRaw)
+
+    if (!name || isNaN(qty) || qty <= 0 || isNaN(price) || price <= 0) continue
+    rows.push({ name: name.trim(), qty: Math.round(qty), price })
   }
 
   if (rows.length === 0)
