@@ -3,10 +3,10 @@
 import { useState, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useCart } from '@/lib/cart-store'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean } | null
 type Product = {
@@ -32,9 +32,12 @@ function formatPrice(p: number) {
 }
 
 function ProductTable({ products }: { products: Product[] }) {
+  const { add, items } = useCart()
+
   if (products.length === 0) {
     return <p className="text-center text-muted-foreground py-12">Нет позиций</p>
   }
+
   return (
     <Table>
       <TableHeader>
@@ -43,13 +46,16 @@ function ProductTable({ products }: { products: Product[] }) {
           <TableHead className="text-center">Размер</TableHead>
           <TableHead className="text-center">Остаток</TableHead>
           <TableHead className="text-right">Цена</TableHead>
+          <TableHead></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {products.map(p => {
           const s = getStock(p.stock)
           if (!s) return null
+          const available = s.qty - s.qty_reserved
           const size = p.length_cm ? `${p.length_cm} см` : p.pot_diameter ? `⌀${p.pot_diameter} см` : '—'
+          const inCart = items.find(i => i.id === p.id)
           return (
             <TableRow key={p.id}>
               <TableCell className="font-medium">{p.name}</TableCell>
@@ -58,6 +64,21 @@ function ProductTable({ products }: { products: Product[] }) {
                 <QtyBadge qty={s.qty} reserved={s.qty_reserved} />
               </TableCell>
               <TableCell className="text-right font-bold">{formatPrice(s.price)}</TableCell>
+              <TableCell className="text-right">
+                <Button
+                  size="sm"
+                  variant={inCart ? 'secondary' : 'outline'}
+                  disabled={available === 0}
+                  onClick={() => add({
+                    id: p.id, name: p.name,
+                    price: s.price, available,
+                    category: p.category
+                  })}
+                  className="text-xs"
+                >
+                  {inCart ? `✓ ${inCart.qty} шт` : '+ В корзину'}
+                </Button>
+              </TableCell>
             </TableRow>
           )
         })}
@@ -78,18 +99,7 @@ export default function PriceTable({ products }: { products: Product[] }) {
   const pot = filtered.filter(p => p.category === 'pot')
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* Шапка */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-green-900 font-serif">
-          🌸 Цветы Уральска
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Оптовый прайс-лист остатков · {new Date().toLocaleDateString('ru-RU')}
-        </p>
-      </div>
-
-      {/* Поиск */}
+    <div>
       <div className="mb-6">
         <Input
           placeholder="🔍 Поиск по названию..."
@@ -98,8 +108,6 @@ export default function PriceTable({ products }: { products: Product[] }) {
           className="max-w-sm"
         />
       </div>
-
-      {/* Вкладки */}
       <Tabs defaultValue="cut">
         <TabsList className="mb-4">
           <TabsTrigger value="cut">✂️ Срезные ({cut.length})</TabsTrigger>

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import Cart from './Cart'
 
 async function signOut() {
   'use server'
@@ -32,6 +33,7 @@ export default async function Header() {
           <span className="text-muted-foreground text-xs ml-2">оптовый склад</span>
         </div>
         <div className="flex items-center gap-3">
+          <Cart />
           {user ? (
             <>
               <span className="text-sm text-muted-foreground hidden sm:block">{user.email}</span>
