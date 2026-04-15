@@ -81,9 +81,17 @@ export async function POST(req: NextRequest) {
   const errorLog: string[] = []
   const today = new Date().toISOString().split('T')[0]
 
+  // Определяем категорию по имени файла
+  const fileNameLower = file.name.toLowerCase()
+  const categoryOverride: 'cut' | 'pot' | null =
+    fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
+    fileNameLower.includes('срез') ? 'cut' : null
+
   for (const row of rows) {
     try {
       const parsed = parseNomenclature(row.name)
+      // Переопределяем категорию по имени файла если известно
+      if (categoryOverride) parsed.category = categoryOverride
 
       // 1. Создаём или находим сорт (variety)
       const { data: variety, error: vErr } = await supabase
