@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       // 1. Создаём или находим сорт (variety)
       const { data: variety, error: vErr } = await supabase
         .from('varieties')
-        .upsert({ name: parsed.variety_name, category: parsed.category }, { onConflict: 'name' })
+        .upsert({ name: parsed.variety_name, category: categoryOverride ?? parsed.category }, { onConflict: 'name' })
         .select('id').single()
       if (vErr || !variety) throw new Error('Ошибка variety: ' + vErr?.message)
 
