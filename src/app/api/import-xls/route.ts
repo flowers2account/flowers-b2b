@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     try {
       const parsed = parseNomenclature(row.name)
       // Переопределяем категорию по имени файла если известно
-      if (categoryOverride) parsed.category = categoryOverride
+      if (categoryOverride) (parsed as any).category = categoryOverride
 
       // 1. Создаём или находим сорт (variety)
       const { data: variety, error: vErr } = await supabase
