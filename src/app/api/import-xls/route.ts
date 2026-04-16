@@ -177,5 +177,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success, errors, errorLog })
+  return NextResponse.json({ success, errors, errorLog, debug_filename: file.name, debug_override: categoryOverride })
 }
