@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
 
   // Определяем категорию по имени файла
   const fileNameLower = file.name.toLowerCase()
+  console.log('FILE NAME:', file.name, 'LOWER:', file.name.toLowerCase())
   const categoryOverride: 'cut' | 'pot' | null =
     fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
     fileNameLower.includes('срез') ? 'cut' : null
