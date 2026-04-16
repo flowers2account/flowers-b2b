@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
           length_str: parsed.length_str,
           length_cm: parsed.length_cm,
           pack_size: parsed.pack_size,
-          category: parsed.category,
+          category: categoryOverride ?? parsed.category,
           name: row.name,
           is_active: true,
         }, { onConflict: 'variety_id,length_str' })
