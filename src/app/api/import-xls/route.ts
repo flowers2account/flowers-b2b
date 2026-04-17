@@ -60,7 +60,8 @@ export async function POST(req: NextRequest) {
     if (nameLower.includes('наименов') || nameLower.includes('номенклат') ||
         nameLower.includes('итог') || nameLower.includes('склад') ||
         nameLower.includes('период') || nameLower.includes('показател') ||
-        nameLower.includes('группировк') || nameLower.includes('отбор')) continue
+        nameLower.includes('группировк') || nameLower.includes('отбор') ||
+        nameLower === 'основная' || nameLower === 'основной склад' || nameLower === 'основной') continue
 
     // Парсим числа (формат 1С: "1 234,56" или "1234.56")
     const parseNum = (s: string) => {
@@ -109,11 +110,11 @@ export async function POST(req: NextRequest) {
           variety_name: parsed.variety_name,
           length_str: parsed.length_str,
           length_cm: parsed.length_cm,
-          pack_size: parsed.pack_size,
+          pack_size: 5,
           category: categoryOverride ?? parsed.category,
           name: row.name,
           is_active: true,
-        }, { onConflict: 'variety_id,length_str' })
+        }, { onConflict: 'variety_id,length_str', ignoreDuplicates: true })
         .select('id').single()
       if (pErr || !product) throw new Error('Ошибка product: ' + pErr?.message)
 
