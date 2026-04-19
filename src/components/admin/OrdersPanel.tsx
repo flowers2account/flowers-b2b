@@ -30,10 +30,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`
-        id, status, total, notes, created_at, client_id,
-        order_items(id, product_id, qty, price, product:product_id(name, pack_size))
-      `)
+      .select(`id, status, total, notes, created_at, client_id, order_items(id, product_id, qty, price, product:product_id(name, pack_size))`)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) console.error('Orders error:', error)
@@ -55,6 +52,7 @@ export default function OrdersPanel() {
 
   const statusLabel: Record<string, string> = {
     pending: '⏳ Новый',
+    reserved: '🔒 В брони',
     confirmed: '✅ Подтверждён',
     cancelled: '❌ Отменён',
     delivered: '📦 Выдан',
@@ -62,10 +60,13 @@ export default function OrdersPanel() {
 
   const statusColor: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
+    reserved: 'bg-purple-100 text-purple-800',
     confirmed: 'bg-green-100 text-green-800',
     cancelled: 'bg-red-100 text-red-800',
     delivered: 'bg-blue-100 text-blue-800',
   }
+
+  const fmt = (n: number) => n?.toLocaleString('ru-RU') + ' T'
 
   if (loading) return <div className="text-sm text-gray-400 py-4">Загрузка...</div>
   if (orders.length === 0) return <div className="text-sm text-gray-400 py-4">Заказов нет</div>
@@ -84,13 +85,11 @@ export default function OrdersPanel() {
                 {new Date(order.created_at).toLocaleString('ru-RU')}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{order.total?.toLocaleString('ru-RU')} ₸</span>
-            </div>
+            <span className="text-sm font-medium">{fmt(order.total)}</span>
           </div>
 
           {order.client_id && (
-            <div className="text-xs text-gray-500">Клиент ID: {order.client_id.slice(0,8)}...</div>
+            <div className="text-xs text-gray-500">Клиент: {order.client_id.slice(0,8)}...</div>
           )}
 
           <table className="w-full text-sm">
@@ -105,13 +104,13 @@ export default function OrdersPanel() {
             <tbody>
               {order.order_items.map(item => (
                 <tr key={item.id} className="border-b last:border-0">
-                  <td className="py-1.5 text-sm">{item.product?.name ?? `Товар #${item.product_id}`}</td>
+                  <td className="py-1.5">{item.product?.name ?? `Товар #${item.product_id}`}</td>
                   <td className="py-1.5 text-center">
-                    {order.status === 'pending' ? (
+                    {order.status === 'pending' || order.status === 'reserved' ? (
                       <input
                         type="number"
-                        value={item.qty}
-                        onChange={e => updateQty(item.id, parseInt(e.target.value))}
+                        defaultValue={item.qty}
+                        onBlur={e => updateQty(item.id, parseInt(e.target.value))}
                         className="w-20 text-center border rounded px-1 py-0.5 text-sm"
                         min={item.product?.pack_size ?? 1}
                         step={item.product?.pack_size ?? 1}
@@ -120,10 +119,8 @@ export default function OrdersPanel() {
                       <span>{item.qty}</span>
                     )}
                   </td>
-                  <td className="py-1.5 text-right text-sm">{item.price?.toLocaleString('ru-RU')} ₸</td>
-                  <td className="py-1.5 text-right text-sm font-medium">
-                    {(item.qty * item.price)?.toLocaleString('ru-RU')} ₸
-                  </td>
+                  <td className="py-1.5 text-right">{fmt(item.price)}</td>
+                  <td className="py-1.5 text-right font-medium">{fmt(item.qty * item.price)}</td>
                 </tr>
               ))}
             </tbody>
@@ -133,32 +130,41 @@ export default function OrdersPanel() {
             <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">{order.notes}</div>
           )}
 
-          {order.status === 'pending' && (
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => updateStatus(order.id, 'confirmed')}
-                className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-              >
-                ✅ Подтвердить
+          <div className="flex gap-2 pt-1">
+            {order.status === 'pending' && (
+              <>
+                <button onClick={() => updateStatus(order.id, 'reserved')}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700">
+                  🔒 Взять в работу
+                </button>
+                <button onClick={() => updateStatus(order.id, 'cancelled')}
+                  className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200">
+                  ❌ Отменить
+                </button>
+              </>
+            )}
+            {order.status === 'reserved' && (
+              <>
+                <button onClick={() => updateStatus(order.id, 'confirmed')}
+                  className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">
+                  ✅ Подтвердить
+                </button>
+                <button onClick={() => updateStatus(order.id, 'cancelled')}
+                  className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200">
+                  ❌ Отменить
+                </button>
+              </>
+            )}
+            {order.status === 'confirmed' && (
+              <button onClick={() => updateStatus(order.id, 'delivered')}
+                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                📦 Выдан
               </button>
-              <button
-                onClick={() => updateStatus(order.id, 'cancelled')}
-                className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200"
-              >
-                ❌ Отменить
-              </button>
-            </div>
-          )}
-          {order.status === 'confirmed' && (
-            <button
-              onClick={() => updateStatus(order.id, 'delivered')}
-              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-            >
-              📦 Выдан
-            </button>
-          )}
+            )}
+          </div>
         </div>
       ))}
     </div>
   )
 }
+
