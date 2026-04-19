@@ -33,6 +33,27 @@ export default function Cart() {
     }
     setLoading(true)
 
+    // Резервируем товары
+    const reserveErrors: string[] = []
+    for (const item of items) {
+      const res = await fetch('/api/reserve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: item.id, qty: item.qty })
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        reserveErrors.push(data.available !== undefined
+          ? item.name + ': доступно только ' + data.available + ' шт'
+          : item.name + ': недостаточно остатков')
+      }
+    }
+    if (reserveErrors.length > 0) {
+      alert('Недостаточно товара:\n' + reserveErrors.join('\n'))
+      setLoading(false)
+      return
+    }
+
     // Получаем client_id
     const { data: client } = await supabase
       .from('clients')
