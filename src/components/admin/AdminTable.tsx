@@ -71,6 +71,14 @@ function StockRow({ product, onSaved }: { product: Product; onSaved: () => void 
         />
       </TableCell>
       <TableCell>
+        <Input
+          type="number"
+          value={packSize}
+          onChange={e => setPackSize(e.target.value)}
+          className="w-20 h-8 text-center"
+        />
+      </TableCell>
+      <TableCell>
         <Button
           size="sm"
           onClick={save}
@@ -114,6 +122,7 @@ export default function AdminTable({ products }: { products: Product[] }) {
               <TableHead className="text-center">Остаток</TableHead>
               <TableHead className="text-center">Доступно</TableHead>
               <TableHead className="text-center">Цена (₸)</TableHead>
+              <TableHead className="text-center">Уп.</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
