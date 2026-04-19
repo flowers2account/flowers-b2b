@@ -150,7 +150,7 @@ export default function PriceTable({ products }: { products: Product[] }) {
                                   category: product.category,
                                 })
                               } else {
-                                update(product.id, qty + pack)
+                                update(product.id, qty + (product.pack_size || 5))
                               }
                             }}
                             disabled={qty >= available}
