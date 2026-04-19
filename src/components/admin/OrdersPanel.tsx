@@ -17,7 +17,7 @@ type Order = {
   total: number
   notes: string | null
   created_at: string
-  client: { email: string } | null
+  client_id: string | null
   order_items: OrderItem[]
 }
 
@@ -28,15 +28,15 @@ export default function OrdersPanel() {
 
   async function loadOrders() {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('orders')
       .select(`
-        id, status, total, notes, created_at,
-        client:client_id(email),
+        id, status, total, notes, created_at, client_id,
         order_items(id, product_id, qty, price, product:product_id(name, pack_size))
       `)
       .order('created_at', { ascending: false })
       .limit(50)
+    if (error) console.error('Orders error:', error)
     setOrders((data as any) ?? [])
     setLoading(false)
   }
@@ -89,8 +89,8 @@ export default function OrdersPanel() {
             </div>
           </div>
 
-          {order.client && (
-            <div className="text-xs text-gray-500">Клиент: {order.client.email}</div>
+          {order.client_id && (
+            <div className="text-xs text-gray-500">Клиент ID: {order.client_id.slice(0,8)}...</div>
           )}
 
           <table className="w-full text-sm">
