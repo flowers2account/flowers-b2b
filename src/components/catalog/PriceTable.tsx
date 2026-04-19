@@ -141,6 +141,7 @@ export default function PriceTable({ products }: { products: Product[] }) {
                           <button
                             className="w-6 h-6 border rounded text-xs hover:bg-gray-100 disabled:opacity-30"
                             onClick={() => {
+                              const packSize = product.pack_size || 5
                               if (qty === 0) {
                                 add({
                                   id: product.id,
@@ -149,8 +150,9 @@ export default function PriceTable({ products }: { products: Product[] }) {
                                   available,
                                   category: product.category,
                                 })
+                                update(product.id, packSize)
                               } else {
-                                update(product.id, qty + (product.pack_size || 5))
+                                update(product.id, qty + packSize)
                               }
                             }}
                             disabled={qty >= available}
