@@ -134,7 +134,7 @@ export default function PriceTable({ products }: { products: Product[] }) {
                         <div className="flex items-center gap-1 ml-auto">
                           <button
                             className="w-6 h-6 border rounded text-xs hover:bg-gray-100 disabled:opacity-30"
-                            onClick={() => update(product.id, Math.max(0, qty - pack))}
+                            onClick={() => update(product.id, Math.max(0, qty - (product.pack_size || 5)))}
                             disabled={qty === 0}
                           >−</button>
                           <span className="w-5 text-center text-xs">{qty}</span>
