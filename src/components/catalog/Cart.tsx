@@ -53,6 +53,12 @@ export default function Cart() {
       .single()
 
     if (order) {
+      // Привязываем резервы к заказу
+      await supabase.from('reservations')
+        .update({ order_id: order.id })
+        .eq('user_id', user.id)
+        .is('order_id', null)
+
       // Добавляем позиции
       await supabase.from('order_items').insert(
         items.map(i => ({
