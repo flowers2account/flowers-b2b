@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     .eq('product_id', product_id)
     .single()
 
-  if (!stock) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  if (!stock) return NextResponse.json({ error: 'Product not found', product_id, env_url: !!process.env.NEXT_PUBLIC_SUPABASE_URL, env_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY }, { status: 404 })
 
   const { data: activeReservations } = await admin
     .from('reservations')
