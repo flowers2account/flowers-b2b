@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,23 +11,17 @@ export async function POST(req: NextRequest) {
   const { product_id, qty } = await req.json()
   if (!product_id || !qty) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
-  // Используем service role для обхода RLS
-  const admin = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
 
-  const { data: stock } = await admin
+  const { data: stock, error: stockError } = await supabase
     .from('stock')
     .select('qty, qty_reserved')
     .eq('product_id', product_id)
     .single()
 
-  if (!stock) return NextResponse.json({ error: 'Product not found', product_id, env_url: !!process.env.NEXT_PUBLIC_SUPABASE_URL, env_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY }, { status: 404 })
+  if (!stock) return NextResponse.json({ error: 'Product not found', stockError, product_id }, { status: 404 })
 
-  const { data: activeReservations } = await admin
+  const { data: activeReservations } = await supabase
     .from('reservations')
     .select('qty')
     .eq('product_id', product_id)
@@ -42,16 +35,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Insufficient stock', available }, { status: 409 })
   }
 
-  await admin.from('reservations')
+  await supabase.from('reservations')
     .delete()
     .eq('product_id', product_id)
     .eq('user_id', user.id)
 
-  if (qty === 0) {
-    return NextResponse.json({ success: true })
-  }
+  if (qty === 0) return NextResponse.json({ success: true })
 
-  const { error } = await admin.from('reservations').insert({
+  const { error } = await supabase.from('reservations').insert({
     product_id,
     qty,
     user_id: user.id,
