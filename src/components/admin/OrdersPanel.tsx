@@ -42,6 +42,12 @@ export default function OrdersPanel() {
 
   async function updateStatus(orderId: number, status: string) {
     await supabase.from('orders').update({ status }).eq('id', orderId)
+    
+    // При подтверждении — списываем остатки
+    if (status === 'confirmed') {
+      await supabase.rpc('confirm_order_fifo', { p_order_id: orderId })
+    }
+    
     loadOrders()
   }
 
