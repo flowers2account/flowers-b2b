@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   )
 
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+  const now = new Date().toISOString()
 
   const { data: stock } = await publicClient
     .from('stock')
@@ -27,7 +28,15 @@ export async function POST(req: NextRequest) {
 
   if (!stock) return NextResponse.json({ error: 'Product not found', product_id }, { status: 404 })
 
-  const available = stock.qty - stock.qty_reserved
+  const { data: otherReservations } = await publicClient
+    .from('reservations')
+    .select('qty')
+    .eq('product_id', product_id)
+    .gt('expires_at', now)
+    .neq('user_id', user.id)
+
+  const othersReserved = (otherReservations ?? []).reduce((s, r) => s + r.qty, 0)
+  const available = stock.qty - stock.qty_reserved - othersReserved
 
   if (qty > available) {
     return NextResponse.json({ error: 'Insufficient stock', available }, { status: 409 })

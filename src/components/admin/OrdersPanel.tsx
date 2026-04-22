@@ -42,7 +42,6 @@ export default function OrdersPanel() {
 
   async function updateStatus(orderId: number, status: string) {
     if (status === 'confirmed') {
-      console.log('CONFIRMING ORDER', orderId)
       await fetch('/api/confirm-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
