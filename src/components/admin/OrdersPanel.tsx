@@ -41,12 +41,14 @@ export default function OrdersPanel() {
   useEffect(() => { loadOrders() }, [])
 
   async function updateStatus(orderId: number, status: string) {
-    await supabase.from('orders').update({ status }).eq('id', orderId)
-    
-    // При подтверждении — списываем остатки
     if (status === 'confirmed') {
-      const { error: rpcError } = await supabase.rpc('confirm_order_fifo', { p_order_id: orderId })
-      if (rpcError) console.error('RPC error:', rpcError)
+      await fetch('/api/confirm-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId })
+      })
+    } else {
+      await supabase.from('orders').update({ status }).eq('id', orderId)
     }
     
     loadOrders()
