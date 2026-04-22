@@ -45,7 +45,8 @@ export default function OrdersPanel() {
     
     // При подтверждении — списываем остатки
     if (status === 'confirmed') {
-      await supabase.rpc('confirm_order_fifo', { p_order_id: orderId })
+      const { error: rpcError } = await supabase.rpc('confirm_order_fifo', { p_order_id: orderId })
+      if (rpcError) console.error('RPC error:', rpcError)
     }
     
     loadOrders()
