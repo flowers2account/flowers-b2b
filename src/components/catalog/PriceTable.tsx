@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCart } from '@/lib/cart-store'
 
-type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean } | null
+type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; available_qty?: number; reserved_qty?: number } | null
 type Product = {
   id: number
   name: string
@@ -32,7 +32,7 @@ function getStock(s: Stock[] | Stock): Stock {
 function getAvailable(s: Stock[] | Stock): number {
   const st = getStock(s)
   if (!st) return 0
-  return Math.max(0, st.qty - st.qty_reserved)
+  return st.available_qty ?? Math.max(0, st.qty - st.qty_reserved)
 }
 
 function getPrice(s: Stock[] | Stock): number {
