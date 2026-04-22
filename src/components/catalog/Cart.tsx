@@ -20,6 +20,7 @@ export default function Cart() {
   const [authDialog, setAuthDialog] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [stockError, setStockError] = useState<string>('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -49,10 +50,11 @@ export default function Cart() {
       }
     }
     if (reserveErrors.length > 0) {
-      alert('Недостаточно товара:\n' + reserveErrors.join('\n'))
+      setStockError(reserveErrors.join(', '))
       setLoading(false)
       return
     }
+    setStockError('')
 
     // Получаем client_id
     const { data: client } = await supabase
@@ -155,7 +157,8 @@ export default function Cart() {
                   <span>Итого:</span>
                   <span className="text-green-800">{formatPrice(total())}</span>
                 </div>
-                <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handleCheckout} disabled={loading}>
+                {stockError && <p className="text-red-500 text-xs">{stockError}</p>}
+          <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handleCheckout} disabled={loading}>
                   {loading ? 'Оформляем...' : '✅ Оформить заказ'}
                 </Button>
                 <Button variant="ghost" className="w-full text-red-500" onClick={clear}>
