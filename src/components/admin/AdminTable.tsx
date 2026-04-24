@@ -116,10 +116,9 @@ export default function AdminTable({ products }: { products: Product[] }) {
 
   useEffect(() => {
     async function fetchReservations() {
-      const { data } = await supabase
-        .from('reservations')
-        .select('product_id, qty, expires_at')
-        .gt('expires_at', new Date().toISOString())
+      // Используем API route с service role — обходим RLS и видим все резервы
+      const res = await fetch('/api/admin/reservations')
+      const data: Array<{ product_id: number; qty: number; expires_at: string }> = await res.json()
 
       const map: Record<number, Reservation[]> = {}
       for (const r of (data ?? [])) {

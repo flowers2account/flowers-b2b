@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createPublicClient } from '@supabase/supabase-js'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,23 +12,25 @@ export async function POST(req: NextRequest) {
   const { product_id, qty } = await req.json()
   if (!product_id || !qty) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
-  const publicClient = createPublicClient(
+  // Service role bypasses RLS — видит ВСЕ резервы всех пользователей
+  const serviceClient = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
   const now = new Date().toISOString()
 
-  const { data: stock } = await publicClient
+  const { data: stock } = await serviceClient
     .from('stock')
-    .select('qty, qty_reserved')
+    .select('qty')
     .eq('product_id', product_id)
     .single()
 
   if (!stock) return NextResponse.json({ error: 'Product not found', product_id }, { status: 404 })
 
-  const { data: otherReservations } = await publicClient
+  // Считаем все активные резервы других пользователей (RLS обходим через service role)
+  const { data: otherReservations } = await serviceClient
     .from('reservations')
     .select('qty')
     .eq('product_id', product_id)
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
     .neq('user_id', user.id)
 
   const othersReserved = (otherReservations ?? []).reduce((s, r) => s + r.qty, 0)
-  const available = stock.qty - stock.qty_reserved - othersReserved
+  const available = stock.qty - othersReserved
 
   if (qty > available) {
     return NextResponse.json({ error: 'Insufficient stock', available }, { status: 409 })
