@@ -27,10 +27,14 @@ export default async function AdminPage() {
     reservedByProduct[r.product_id] = (reservedByProduct[r.product_id] ?? 0) + r.qty
   }
 
-  const productsWithReserved = (products ?? []).map(p => ({
-    ...p,
-    active_reserved: reservedByProduct[p.id] ?? 0,
-  }))
+  const productsWithReserved = (products ?? []).map(p => {
+    const reserved = reservedByProduct[p.id] ?? 0
+    const stockRaw = p.stock
+    const stockWithReserved = Array.isArray(stockRaw)
+      ? stockRaw.map(s => s ? { ...s, reserved_qty: reserved } : s)
+      : stockRaw ? { ...stockRaw, reserved_qty: reserved } : stockRaw
+    return { ...p, stock: stockWithReserved, active_reserved: reserved }
+  })
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
