@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
   const { order_id } = await req.json()
   if (!order_id) return NextResponse.json({ error: 'Missing order_id' }, { status: 400 })
 
-  // Проверяем что заказ принадлежит клиенту
+  // Проверяем что заказ принадлежит клиенту (через user client, с RLS)
   const { data: order } = await supabase
     .from('orders')
     .select('id')
@@ -21,11 +22,10 @@ export async function POST(req: NextRequest) {
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-  // Удаляем резервы привязанные к заказу
-  await supabase.from('reservations').delete().eq('order_id', order_id)
-
-  // Меняем статус на cancelled
-  await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order_id)
+  // Мутации через admin client (service role) — обходим RLS
+  const admin = createAdminClient()
+  await admin.from('reservations').delete().eq('order_id', order_id)
+  await admin.from('orders').update({ status: 'cancelled' }).eq('id', order_id)
 
   return NextResponse.json({ success: true })
 }

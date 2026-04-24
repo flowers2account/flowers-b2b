@@ -101,11 +101,14 @@ export default function OrdersPageClient() {
   }
 
   async function updateQty(itemId: number, rawValue: number, packSize: number, currentQty: number, availableQty: number) {
-    // currentQty уже зарезервировано, поэтому максимум = currentQty + то что ещё доступно
     const maxQty = currentQty + availableQty
     const clamped = Math.min(rawValue, maxQty)
     const rounded = Math.max(packSize, Math.round(clamped / packSize) * packSize)
-    await supabase.from('order_items').update({ qty: rounded }).eq('id', itemId)
+    await fetch('/api/update-order-qty', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, qty: rounded }),
+    })
     loadOrders()
     return rounded
   }
