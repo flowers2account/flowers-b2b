@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -11,13 +11,18 @@ import {
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean } | null
 type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock; active_reserved?: number }
+type Reservation = { qty: number; expires_at: string }
 
 function getStock(s: Stock[] | Stock): Stock {
   if (Array.isArray(s)) return s[0] ?? null
   return s
 }
 
-function StockRow({ product, onSaved }: { product: Product; onSaved: () => void }) {
+function StockRow({ product, productReservations, onSaved }: {
+  product: Product
+  productReservations: Reservation[]
+  onSaved: () => void
+}) {
   const s = getStock(product.stock)
   const [qty, setQty] = useState(String(s?.qty ?? 0))
   const [price, setPrice] = useState(String(s?.price ?? 0))
@@ -43,6 +48,15 @@ function StockRow({ product, onSaved }: { product: Product; onSaved: () => void 
 
   const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
 
+  const now = new Date()
+  const tenMinFromNow = new Date(now.getTime() + 10 * 60 * 1000)
+  const activeRes = productReservations.filter(r => new Date(r.expires_at) > now)
+  const activeReserved = activeRes.reduce((sum, r) => sum + r.qty, 0)
+  const hasNearExpiry = activeRes.some(r => new Date(r.expires_at) <= tenMinFromNow)
+  const reserveClass = activeReserved > 0
+    ? (hasNearExpiry ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold')
+    : 'text-muted-foreground'
+
   return (
     <TableRow>
       <TableCell className="font-medium">{product.name}</TableCell>
@@ -62,8 +76,8 @@ function StockRow({ product, onSaved }: { product: Product; onSaved: () => void 
       <TableCell className="text-center text-sm text-muted-foreground">
         {available} шт
       </TableCell>
-      <TableCell className="text-center text-sm text-muted-foreground">
-        {product.active_reserved ?? 0} шт
+      <TableCell className={`text-center text-sm ${reserveClass}`}>
+        {activeReserved} шт
       </TableCell>
       <TableCell>
         <Input
@@ -97,7 +111,35 @@ function StockRow({ product, onSaved }: { product: Product; onSaved: () => void 
 
 export default function AdminTable({ products }: { products: Product[] }) {
   const [search, setSearch] = useState('')
-  const [refresh, setRefresh] = useState(0)
+  const [reservations, setReservations] = useState<Record<number, Reservation[]>>({})
+  const supabase = createClient()
+
+  useEffect(() => {
+    async function fetchReservations() {
+      const { data } = await supabase
+        .from('reservations')
+        .select('product_id, qty, expires_at')
+        .gt('expires_at', new Date().toISOString())
+
+      const map: Record<number, Reservation[]> = {}
+      for (const r of (data ?? [])) {
+        if (!map[r.product_id]) map[r.product_id] = []
+        map[r.product_id].push({ qty: r.qty, expires_at: r.expires_at })
+      }
+      setReservations(map)
+    }
+
+    fetchReservations()
+
+    const channel = supabase
+      .channel('admin-reservations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => {
+        fetchReservations()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -132,7 +174,12 @@ export default function AdminTable({ products }: { products: Product[] }) {
           </TableHeader>
           <TableBody>
             {filtered.map(p => (
-              <StockRow key={p.id} product={p} onSaved={() => setRefresh(r => r + 1)} />
+              <StockRow
+                key={p.id}
+                product={p}
+                productReservations={reservations[p.id] ?? []}
+                onSaved={() => {}}
+              />
             ))}
           </TableBody>
         </Table>

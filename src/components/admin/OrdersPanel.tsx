@@ -38,7 +38,18 @@ export default function OrdersPanel() {
     setLoading(false)
   }
 
-  useEffect(() => { loadOrders() }, [])
+  useEffect(() => {
+    loadOrders()
+
+    const channel = supabase
+      .channel('admin-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        loadOrders()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   async function updateStatus(orderId: number, status: string) {
     if (status === 'confirmed') {
