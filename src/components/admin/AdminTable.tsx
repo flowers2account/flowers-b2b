@@ -119,7 +119,9 @@ export default function AdminTable({ products }: { products: Product[] }) {
       // Используем API route с service role — обходим RLS и видим все резервы
       const res = await fetch('/api/admin/reservations')
       if (!res.ok) return
-      const data: Array<{ product_id: number; qty: number; expires_at: string }> = await res.json()
+      const json = await res.json()
+      if (json.error) console.error('Reservations error:', json.error)
+      const data: Array<{ product_id: number; qty: number; expires_at: string }> = json.data ?? []
 
       const map: Record<number, Reservation[]> = {}
       for (const r of (Array.isArray(data) ? data : [])) {

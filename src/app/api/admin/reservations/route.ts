@@ -14,8 +14,8 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('reservations')
-    .select('product_id, qty, expires_at')
+    .select('*')
     .gt('expires_at', new Date().toISOString())
 
-  return NextResponse.json(data ?? [])
+  return NextResponse.json({ data: data ?? [], error })
 }
