@@ -55,20 +55,11 @@ export default function OrdersPageClient() {
   const supabase = createClient()
 
   async function loadOrders() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
     setLoading(true)
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        id, status, total, notes, created_at, client_id,
-        order_items(id, product_id, qty, price, product:product_id(name, pack_size, stock:stock_available(available_qty))),
-        reservations(expires_at)
-      `)
-      .eq('client_id', user.id)
-      .order('created_at', { ascending: false })
-    if (error) console.error('Orders error:', error)
-    setOrders((data as any) ?? [])
+    const res = await fetch('/api/my-orders')
+    if (res.ok) {
+      setOrders(await res.json())
+    }
     setLoading(false)
   }
 
