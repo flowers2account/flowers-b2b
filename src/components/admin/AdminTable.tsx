@@ -62,6 +62,9 @@ function StockRow({ product, onSaved }: { product: Product; onSaved: () => void 
       <TableCell className="text-center text-sm text-muted-foreground">
         {available} шт
       </TableCell>
+      <TableCell className="text-center text-sm text-muted-foreground">
+        {s?.qty_reserved ?? 0} шт
+      </TableCell>
       <TableCell>
         <Input
           type="number"
@@ -121,6 +124,7 @@ export default function AdminTable({ products }: { products: Product[] }) {
               <TableHead>Категория</TableHead>
               <TableHead className="text-center">Остаток</TableHead>
               <TableHead className="text-center">Доступно</TableHead>
+              <TableHead className="text-center">Резерв</TableHead>
               <TableHead className="text-center">Цена (₸)</TableHead>
               <TableHead className="text-center">Уп.</TableHead>
               <TableHead></TableHead>
