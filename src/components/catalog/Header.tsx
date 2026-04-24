@@ -33,6 +33,11 @@ export default async function Header() {
           <span className="text-muted-foreground text-xs ml-2">оптовый склад</span>
         </div>
         <div className="flex items-center gap-3">
+          {user && (
+            <Link href="/orders">
+              <Button variant="outline" size="sm">📋 Мои заказы</Button>
+            </Link>
+          )}
           <Cart />
           {user ? (
             <>
