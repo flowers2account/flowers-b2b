@@ -31,8 +31,8 @@ export default async function AdminPage() {
     const reserved = reservedByProduct[p.id] ?? 0
     const stockRaw = p.stock
     const stockWithReserved = Array.isArray(stockRaw)
-      ? stockRaw.map(s => s ? { ...s, reserved_qty: reserved } : s)
-      : stockRaw ? { ...stockRaw, reserved_qty: reserved } : stockRaw
+      ? stockRaw.map(s => s ? { ...(s as any), reserved_qty: reserved } : s)
+      : stockRaw ? { ...(stockRaw as any), reserved_qty: reserved } : stockRaw
     return { ...p, stock: stockWithReserved, active_reserved: reserved }
   })
 
