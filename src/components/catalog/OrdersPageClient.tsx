@@ -82,7 +82,11 @@ export default function OrdersPageClient() {
 
   async function cancelOrder(orderId: number) {
     if (!confirm('Отменить заказ?')) return
-    await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId)
+    await fetch('/api/cancel-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId }),
+    })
     loadOrders()
   }
 

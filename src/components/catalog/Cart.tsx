@@ -93,9 +93,14 @@ export default function Cart() {
         }))
       )
 
-      // Обновляем total
+      // Пересчитываем total по всем позициям заказа
+      const { data: allItems } = await supabase
+        .from('order_items')
+        .select('qty, price')
+        .eq('order_id', orderId)
+      const newTotal = (allItems ?? []).reduce((sum, i) => sum + i.qty * i.price, 0)
       await supabase.from('orders')
-        .update({ total: existingOrder.total + total() })
+        .update({ total: newTotal })
         .eq('id', orderId)
     } else {
       isNewOrder = true
