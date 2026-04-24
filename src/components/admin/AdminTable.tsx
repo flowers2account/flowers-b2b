@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -100,8 +100,19 @@ function StockRow({ product, onSaved }: {
   )
 }
 
-export default function AdminTable({ products }: { products: Product[] }) {
+export default function AdminTable({ products, onReload }: { products: Product[]; onReload?: () => void }) {
   const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('reservations-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => {
+        onReload?.()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [onReload])
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())

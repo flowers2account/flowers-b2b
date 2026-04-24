@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCart } from '@/lib/cart-store'
+import { createClient } from '@/lib/supabase/client'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; available_qty?: number; reserved_qty?: number } | null
 type Product = {
@@ -63,10 +64,24 @@ function groupByVariety(products: Product[]): VarietyGroup[] {
   )
 }
 
-export default function PriceTable({ products }: { products: Product[] }) {
+export default function PriceTable({ products: initialProducts }: { products: Product[] }) {
+  const [products, setProducts] = useState(initialProducts)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('all')
   const { items, add, update } = useCart()
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('stock-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock' }, async () => {
+        const res = await fetch('/api/products')
+        const data = await res.json()
+        if (data) setProducts(data)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const getQty = (id: number) => items.find(i => i.id === id)?.qty ?? 0
 

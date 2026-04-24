@@ -37,7 +37,7 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
       {tab === 'stock' && (
         <>
           <ImportXLS onImported={reload} />
-          <AdminTable products={products} />
+          <AdminTable products={products} onReload={reload} />
         </>
       )}
 
