@@ -64,45 +64,86 @@ export default function Cart() {
       .single()
 
     if (!client) {
-      // Создаём клиента если нет
       await supabase.from('clients').insert({ id: user.id })
     }
 
-    // Создаём заказ
-    const { data: order } = await supabase
+    // Ищем активный заказ (pending или reserved)
+    const { data: existingOrder } = await supabase
       .from('orders')
-      .insert({ client_id: user.id, status: 'pending', total: total() })
-      .select()
-      .single()
+      .select('id, total')
+      .eq('client_id', user.id)
+      .in('status', ['pending', 'reserved'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    if (order) {
-      // Привязываем резервы к заказу
-      await supabase.from('reservations')
-        .update({ order_id: order.id })
-        .eq('user_id', user.id)
-        .is('order_id', null)
+    let orderId = ''
+    let isNewOrder = false
 
-      // Добавляем позиции
+    if (existingOrder) {
+      orderId = existingOrder.id
+
+      // Добавляем товары к существующему заказу
       await supabase.from('order_items').insert(
         items.map(i => ({
-          order_id: order.id,
+          order_id: orderId,
           product_id: i.id,
           qty: i.qty,
           price: i.price
         }))
       )
 
-      // WhatsApp сообщение
-      const msg = `🌸 Новый заказ #${order.id}\n\n` +
-        items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
-        `\n\nИтого: ${formatPrice(total())}\n\nКлиент: ${user.email}`
+      // Обновляем total
+      await supabase.from('orders')
+        .update({ total: existingOrder.total + total() })
+        .eq('id', orderId)
+    } else {
+      isNewOrder = true
 
-      window.open(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`, '_blank')
+      // Создаём новый заказ
+      const { data: order } = await supabase
+        .from('orders')
+        .insert({ client_id: user.id, status: 'pending', total: total() })
+        .select()
+        .single()
 
-      clear()
-      setDone(true)
-      setOpen(false)
+      if (!order) {
+        setLoading(false)
+        return
+      }
+
+      orderId = order.id
+
+      // Добавляем позиции
+      await supabase.from('order_items').insert(
+        items.map(i => ({
+          order_id: orderId,
+          product_id: i.id,
+          qty: i.qty,
+          price: i.price
+        }))
+      )
     }
+
+    // Привязываем незакреплённые резервы к заказу
+    await supabase.from('reservations')
+      .update({ order_id: orderId })
+      .eq('user_id', user.id)
+      .is('order_id', null)
+
+    // WhatsApp сообщение
+    const msgHeader = isNewOrder
+      ? `🌸 Новый заказ #${orderId}`
+      : `🌸 Обновление заказа #${orderId}`
+    const msg = msgHeader + '\n\n' +
+      items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
+      `\n\nДобавлено: ${formatPrice(total())}\n\nКлиент: ${user.email}`
+
+    window.open(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`, '_blank')
+
+    clear()
+    setDone(true)
+    setOpen(false)
     setLoading(false)
   }
 
