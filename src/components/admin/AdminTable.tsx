@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -9,18 +9,16 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table'
 
-type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock; active_reserved?: number }
-type Reservation = { qty: number; expires_at: string }
+type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty: number } | null
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock }
 
 function getStock(s: Stock[] | Stock): Stock {
   if (Array.isArray(s)) return s[0] ?? null
   return s
 }
 
-function StockRow({ product, productReservations, onSaved }: {
+function StockRow({ product, onSaved }: {
   product: Product
-  productReservations: Reservation[]
   onSaved: () => void
 }) {
   const s = getStock(product.stock)
@@ -47,15 +45,8 @@ function StockRow({ product, productReservations, onSaved }: {
   }
 
   const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
-
-  const now = new Date()
-  const tenMinFromNow = new Date(now.getTime() + 10 * 60 * 1000)
-  const activeRes = productReservations.filter(r => new Date(r.expires_at) > now)
-  const activeReserved = activeRes.reduce((sum, r) => sum + r.qty, 0)
-  const hasNearExpiry = activeRes.some(r => new Date(r.expires_at) <= tenMinFromNow)
-  const reserveClass = activeReserved > 0
-    ? (hasNearExpiry ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold')
-    : 'text-muted-foreground'
+  const activeReserved = s?.reserved_qty ?? 0
+  const reserveClass = activeReserved > 0 ? 'text-green-600 font-semibold' : 'text-muted-foreground'
 
   return (
     <TableRow>
@@ -111,37 +102,6 @@ function StockRow({ product, productReservations, onSaved }: {
 
 export default function AdminTable({ products }: { products: Product[] }) {
   const [search, setSearch] = useState('')
-  const [reservations, setReservations] = useState<Record<number, Reservation[]>>({})
-  const supabase = createClient()
-
-  useEffect(() => {
-    async function fetchReservations() {
-      // Используем API route с service role — обходим RLS и видим все резервы
-      const res = await fetch('/api/admin/reservations')
-      if (!res.ok) return
-      const json = await res.json()
-      if (json.error) console.error('Reservations error:', json.error)
-      const data: Array<{ product_id: number; qty: number; expires_at: string }> = json.data ?? []
-
-      const map: Record<number, Reservation[]> = {}
-      for (const r of (Array.isArray(data) ? data : [])) {
-        if (!map[r.product_id]) map[r.product_id] = []
-        map[r.product_id].push({ qty: r.qty, expires_at: r.expires_at })
-      }
-      setReservations(map)
-    }
-
-    fetchReservations()
-
-    const channel = supabase
-      .channel('admin-reservations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => {
-        fetchReservations()
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [])
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -179,7 +139,6 @@ export default function AdminTable({ products }: { products: Product[] }) {
               <StockRow
                 key={p.id}
                 product={p}
-                productReservations={reservations[p.id] ?? []}
                 onSaved={() => {}}
               />
             ))}
