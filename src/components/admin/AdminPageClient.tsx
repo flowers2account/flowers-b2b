@@ -5,7 +5,7 @@ import ImportXLS from './ImportXLS'
 import OrdersPanel from './OrdersPanel'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock }
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock; active_reserved?: number }
 
 export default function AdminPageClient({ initialProducts }: { initialProducts: Product[] }) {
   const [tab, setTab] = useState('stock')

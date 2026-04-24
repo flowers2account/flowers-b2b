@@ -17,12 +17,27 @@ export default async function AdminPage() {
     .select(`id, name, category, is_active, pack_size, stock (price, qty, qty_reserved, is_available)`)
     .order('category').order('name')
 
+  const { data: activeReservations } = await supabase
+    .from('reservations')
+    .select('product_id, qty')
+    .gt('expires_at', new Date().toISOString())
+
+  const reservedByProduct: Record<number, number> = {}
+  for (const r of (activeReservations ?? [])) {
+    reservedByProduct[r.product_id] = (reservedByProduct[r.product_id] ?? 0) + r.qty
+  }
+
+  const productsWithReserved = (products ?? []).map(p => ({
+    ...p,
+    active_reserved: reservedByProduct[p.id] ?? 0,
+  }))
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-green-900 font-serif mb-6">
         ⚙️ Управление остатками
       </h1>
-      <AdminPageClient initialProducts={products ?? []} />
+      <AdminPageClient initialProducts={productsWithReserved} />
     </main>
   )
 }

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock }
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock; active_reserved?: number }
 
 function getStock(s: Stock[] | Stock): Stock {
   if (Array.isArray(s)) return s[0] ?? null
@@ -63,7 +63,7 @@ function StockRow({ product, onSaved }: { product: Product; onSaved: () => void 
         {available} шт
       </TableCell>
       <TableCell className="text-center text-sm text-muted-foreground">
-        {s?.qty_reserved ?? 0} шт
+        {product.active_reserved ?? 0} шт
       </TableCell>
       <TableCell>
         <Input
