@@ -52,6 +52,7 @@ export default function OrdersPageClient() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [editingItem, setEditingItem] = useState<number | null>(null)
   const supabase = createClient()
 
   async function loadOrders() {
@@ -132,11 +133,11 @@ export default function OrdersPageClient() {
                   {statusLabel[order.status] ?? order.status}
                 </span>
                 <span className="text-xs text-gray-400">
-                  {new Date(order.created_at).toLocaleString('ru-RU')}
+                  {new Date(order.created_at).toLocaleString()}
                 </span>
                 {expiresAt && (
                   <span className="text-xs text-orange-600 font-medium">
-                    🕐 Бронь до: {new Date(expiresAt).toLocaleString('ru-RU')}
+                    🕐 Бронь до: {new Date(expiresAt).toLocaleString()}
                   </span>
                 )}
               </div>
@@ -167,20 +168,29 @@ export default function OrdersPageClient() {
                           <td className="py-1.5">{item.product?.name ?? `Товар #${item.product_id}`}</td>
                           <td className="py-1.5 text-center">
                             {canEdit ? (
-                              <input
-                                type="number"
-                                defaultValue={item.qty}
-                                max={maxQty}
-                                onBlur={async e => {
-                                  const v = parseInt(e.target.value) || 0
-                                  const ps = item.product?.pack_size ?? 1
-                                  const rounded = await updateQty(item.id, v, ps, item.qty, availableQty)
-                                  e.target.value = String(rounded)
-                                }}
-                                className="w-20 text-center border rounded px-1 py-0.5 text-sm bg-white"
-                                min={item.product?.pack_size ?? 1}
-                                step={item.product?.pack_size ?? 1}
-                              />
+                              <div className="flex items-center gap-1 justify-center">
+                                <input
+                                  type="number"
+                                  defaultValue={item.qty}
+                                  max={maxQty}
+                                  id={`qty-${item.id}`}
+                                  className="w-20 text-center border rounded px-1 py-0.5 text-sm bg-white"
+                                  min={item.product?.pack_size ?? 1}
+                                  step={item.product?.pack_size ?? 1}
+                                />
+                                <button
+                                  onClick={async () => {
+                                    const input = document.getElementById(`qty-${item.id}`) as HTMLInputElement
+                                    const v = parseInt(input.value) || 0
+                                    const ps = item.product?.pack_size ?? 1
+                                    await updateQty(item.id, v, ps, item.qty, availableQty)
+                                    setEditingItem(null)
+                                  }}
+                                  className="px-2 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                                >
+                                  ✓
+                                </button>
+                              </div>
                             ) : (
                               <span>{item.qty}</span>
                             )}
