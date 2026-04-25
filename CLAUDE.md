@@ -65,6 +65,7 @@ B2B платформа для оптовой торговли цветами. С
 | `/api/my-orders` | GET | Получить заказы текущего клиента |
 | `/api/import-xls` | POST | Импорт товаров из Excel (только администраторы) |
 | `/api/reserve` | POST | Создать резервирование товара |
+| `/api/cron/cleanup` | GET | Cron: удаляет истекшие резервирования каждые 5 минут (защита CRON_SECRET) |
 
 ## Роли и доступ
 
@@ -99,6 +100,7 @@ src/
 | `NEXT_PUBLIC_SUPABASE_URL` | URL Supabase проекта | Браузер + Backend |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (anon) key для Supabase | Браузер + Backend |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (не использовать на Vercel!) | Только локальная разработка |
+| `CRON_SECRET` | Секретный ключ для защиты cron endpoints | Vercel (только для cron задач) |
 
 ### Конфигурация
 
@@ -107,10 +109,12 @@ src/
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # только для локальных тестов
+CRON_SECRET=your-secret-key-here      # для тестирования cron endpoints
 ```
 
 **Vercel Settings** (production):
-- Добавить только `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Добавить `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Добавить `CRON_SECRET` (сгенерировать случайную строку для безопасности)
 - ⚠️ НЕ добавлять `SUPABASE_SERVICE_ROLE_KEY` (не работает в serverless)
 
 ## Known Issues
