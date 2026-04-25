@@ -133,11 +133,11 @@ export default function OrdersPageClient() {
                   {statusLabel[order.status] ?? order.status}
                 </span>
                 <span className="text-xs text-gray-400">
-                  {new Date(order.created_at).toLocaleString()}
+                  {new Date(order.created_at).toLocaleString('ru-RU', { timeZone: 'Asia/Oral' })}
                 </span>
                 {expiresAt && (
                   <span className="text-xs text-orange-600 font-medium">
-                    🕐 Бронь до: {new Date(expiresAt).toLocaleString()}
+                    🕐 Бронь до: {new Date(expiresAt).toLocaleString('ru-RU', { timeZone: 'Asia/Oral' })}
                   </span>
                 )}
               </div>
