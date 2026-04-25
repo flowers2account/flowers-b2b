@@ -1,8 +1,8 @@
 -- Create profiles table if it doesn't exist
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  name TEXT,
-  company TEXT,
+  full_name TEXT,
+  company_name TEXT,
   phone TEXT,
   role TEXT DEFAULT 'client',
   created_at TIMESTAMP DEFAULT NOW(),
@@ -13,13 +13,13 @@ CREATE TABLE IF NOT EXISTS profiles (
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-    WHERE table_name='profiles' AND column_name='name') THEN
-    ALTER TABLE profiles ADD COLUMN name TEXT;
+    WHERE table_name='profiles' AND column_name='full_name') THEN
+    ALTER TABLE profiles ADD COLUMN full_name TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-    WHERE table_name='profiles' AND column_name='company') THEN
-    ALTER TABLE profiles ADD COLUMN company TEXT;
+    WHERE table_name='profiles' AND column_name='company_name') THEN
+    ALTER TABLE profiles ADD COLUMN company_name TEXT;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
@@ -60,18 +60,18 @@ CREATE POLICY IF NOT EXISTS "profiles_admin_select_all" ON profiles FOR SELECT
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, name, phone, company, role)
+  INSERT INTO public.profiles (id, full_name, phone, company_name, role)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     COALESCE(NEW.raw_user_meta_data->>'phone', ''),
     COALESCE(NEW.raw_user_meta_data->>'company_name', ''),
     'client'
   )
   ON CONFLICT (id) DO UPDATE SET
-    name = COALESCE(EXCLUDED.name, profiles.name),
+    full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
     phone = COALESCE(EXCLUDED.phone, profiles.phone),
-    company = COALESCE(EXCLUDED.company, profiles.company);
+    company_name = COALESCE(EXCLUDED.company_name, profiles.company_name);
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

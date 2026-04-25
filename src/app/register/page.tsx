@@ -52,7 +52,7 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        data: { name, company_name: company, phone }
+        data: { full_name: name, company_name: company, phone }
       }
     })
     if (error) {
