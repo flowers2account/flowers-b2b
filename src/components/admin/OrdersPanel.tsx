@@ -19,6 +19,7 @@ type Order = {
   created_at: string
   client_id: string | null
   order_items: OrderItem[]
+  reservations: { expires_at: string }[]
 }
 
 export default function OrdersPanel() {
@@ -30,7 +31,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, order_items(id, product_id, qty, price, product:product_id(name, pack_size))`)
+      .select(`id, status, total, notes, created_at, client_id, order_items(id, product_id, qty, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) console.error('Orders error:', error)
@@ -88,22 +89,37 @@ export default function OrdersPanel() {
 
   const fmt = (n: number) => n?.toLocaleString('ru-RU') + ' T'
 
+  function minExpiresAt(reservations: { expires_at: string }[]): string | null {
+    if (!reservations?.length) return null
+    return reservations.reduce((min, r) => r.expires_at < min ? r.expires_at : min, reservations[0].expires_at)
+  }
+
   if (loading) return <div className="text-sm text-gray-400 py-4">Загрузка...</div>
   if (orders.length === 0) return <div className="text-sm text-gray-400 py-4">Заказов нет</div>
 
   return (
     <div className="space-y-4">
-      {orders.map(order => (
+      {orders.map(order => {
+        const expiresAt = (order.status === 'pending' || order.status === 'reserved') ? minExpiresAt(order.reservations ?? []) : null
+
+        return (
         <div key={order.id} className="border rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="font-medium text-sm">Заказ #{order.id}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[order.status] ?? 'bg-gray-100'}`}>
-                {statusLabel[order.status] ?? order.status}
-              </span>
-              <span className="text-xs text-gray-400">
-                {new Date(order.created_at).toLocaleString('ru-RU', { timeZone: 'Asia/Oral' })}
-              </span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <span className="font-medium text-sm">Заказ #{order.id}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[order.status] ?? 'bg-gray-100'}`}>
+                  {statusLabel[order.status] ?? order.status}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {new Date(order.created_at).toLocaleString('ru-RU', { timeZone: 'Asia/Oral' })}
+                </span>
+              </div>
+              {expiresAt && (
+                <span className="text-xs text-orange-600 font-medium ml-0">
+                  🕐 Бронь до: {new Date(expiresAt).toLocaleString('ru-RU', { timeZone: 'Asia/Oral' })}
+                </span>
+              )}
             </div>
             <span className="text-sm font-medium">{fmt(order.total)}</span>
           </div>
@@ -183,7 +199,8 @@ export default function OrdersPanel() {
             )}
           </div>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
