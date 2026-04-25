@@ -7,7 +7,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 function formatPrice(p: number) {
@@ -21,7 +20,6 @@ export default function Cart() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState<string>('')
-  const router = useRouter()
   const supabase = createClient()
 
   const count = items.reduce((s, i) => s + i.qty, 0)
@@ -33,113 +31,28 @@ export default function Cart() {
       return
     }
     setLoading(true)
+    setStockError('')
 
-    // Резервируем товары
-    const reserveErrors: string[] = []
-    for (const item of items) {
-      const res = await fetch('/api/reserve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: item.id, qty: item.qty })
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name }))
       })
-      if (!res.ok) {
-        const data = await res.json()
-        reserveErrors.push(data.available !== undefined
-          ? item.name + ': доступно только ' + data.available + ' шт'
-          : item.name + ': недостаточно остатков')
-      }
-    }
-    if (reserveErrors.length > 0) {
-      setStockError(reserveErrors.join(', '))
+    })
+
+    if (!res.ok) {
+      const data = await res.json()
+      setStockError(data.error ?? 'Ошибка при оформлении заказа')
       setLoading(false)
       return
     }
-    setStockError('')
 
-    // Получаем client_id
-    const { data: client } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('id', user.id)
-      .single()
+    const { order_id, is_new_order } = await res.json()
 
-    if (!client) {
-      await supabase.from('clients').insert({ id: user.id })
-    }
-
-    // Ищем активный заказ (pending или reserved)
-    const { data: existingOrder } = await supabase
-      .from('orders')
-      .select('id, total')
-      .eq('client_id', user.id)
-      .in('status', ['pending', 'reserved'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    let orderId = ''
-    let isNewOrder = false
-
-    if (existingOrder) {
-      orderId = existingOrder.id
-
-      // Добавляем товары к существующему заказу
-      await supabase.from('order_items').insert(
-        items.map(i => ({
-          order_id: orderId,
-          product_id: i.id,
-          qty: i.qty,
-          price: i.price
-        }))
-      )
-
-      // Пересчитываем total по всем позициям заказа
-      const { data: allItems } = await supabase
-        .from('order_items')
-        .select('qty, price')
-        .eq('order_id', orderId)
-      const newTotal = (allItems ?? []).reduce((sum, i) => sum + i.qty * i.price, 0)
-      await supabase.from('orders')
-        .update({ total: newTotal })
-        .eq('id', orderId)
-    } else {
-      isNewOrder = true
-
-      // Создаём новый заказ
-      const { data: order } = await supabase
-        .from('orders')
-        .insert({ client_id: user.id, status: 'pending', total: total() })
-        .select()
-        .single()
-
-      if (!order) {
-        setLoading(false)
-        return
-      }
-
-      orderId = order.id
-
-      // Добавляем позиции
-      await supabase.from('order_items').insert(
-        items.map(i => ({
-          order_id: orderId,
-          product_id: i.id,
-          qty: i.qty,
-          price: i.price
-        }))
-      )
-    }
-
-    // Привязываем незакреплённые резервы к заказу
-    await supabase.from('reservations')
-      .update({ order_id: orderId })
-      .eq('user_id', user.id)
-      .is('order_id', null)
-
-    // WhatsApp сообщение
-    const msgHeader = isNewOrder
-      ? `🌸 Новый заказ #${orderId}`
-      : `🌸 Обновление заказа #${orderId}`
+    const msgHeader = is_new_order
+      ? `🌸 Новый заказ #${order_id}`
+      : `🌸 Обновление заказа #${order_id}`
     const msg = msgHeader + '\n\n' +
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
       `\n\nДобавлено: ${formatPrice(total())}\n\nКлиент: ${user.email}`
@@ -204,7 +117,7 @@ export default function Cart() {
                   <span className="text-green-800">{formatPrice(total())}</span>
                 </div>
                 {stockError && <p className="text-red-500 text-xs">{stockError}</p>}
-          <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handleCheckout} disabled={loading}>
+                <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handleCheckout} disabled={loading}>
                   {loading ? 'Оформляем...' : '✅ Оформить заказ'}
                 </Button>
                 <Button variant="ghost" className="w-full text-red-500" onClick={clear}>

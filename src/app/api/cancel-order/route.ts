@@ -12,19 +12,34 @@ export async function POST(req: NextRequest) {
   const { order_id } = await req.json()
   if (!order_id) return NextResponse.json({ error: 'Missing order_id' }, { status: 400 })
 
-  // Проверяем что заказ принадлежит клиенту (через user client, с RLS)
-  const { data: order } = await supabase
+  const admin = createAdminClient()
+
+  // Verify order belongs to this client
+  const { data: order } = await admin
     .from('orders')
-    .select('id')
+    .select('id, client_id')
     .eq('id', order_id)
-    .eq('client_id', user.id)
     .single()
 
-  if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  if (!order || (order as any).client_id !== user.id) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
 
-  // Мутации через admin client (service role) — обходим RLS
-  const admin = createAdminClient()
+  // Get order items to know which products to unreserve
+  const { data: orderItems } = await admin
+    .from('order_items')
+    .select('product_id')
+    .eq('order_id', order_id)
+  const productIds = (orderItems ?? []).map((i: any) => i.product_id)
+
+  // Delete reservations linked by order_id OR by user+product (fallback for older records)
   await admin.from('reservations').delete().eq('order_id', order_id)
+  if (productIds.length > 0) {
+    await admin.from('reservations').delete()
+      .eq('user_id', user.id)
+      .in('product_id', productIds)
+  }
+
   await admin.from('orders').update({ status: 'cancelled' }).eq('id', order_id)
 
   return NextResponse.json({ success: true })
