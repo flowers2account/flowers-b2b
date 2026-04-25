@@ -102,7 +102,7 @@ export default function OrdersPanel() {
                 {statusLabel[order.status] ?? order.status}
               </span>
               <span className="text-xs text-gray-400">
-                {new Date(order.created_at).toLocaleString('ru-RU')}
+                {new Date(order.created_at).toLocaleString('ru-RU', { timeZone: 'Asia/Oral' })}
               </span>
             </div>
             <span className="text-sm font-medium">{fmt(order.total)}</span>
