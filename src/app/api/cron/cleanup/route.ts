@@ -20,13 +20,18 @@ export async function GET(req: NextRequest) {
 
     const now = new Date().toISOString()
 
-    // Get expired reservations
+    // Get expired reservations with details
     const { data: expiredReservations } = await supabase
       .from('reservations')
-      .select('product_id')
+      .select('product_id, qty')
       .lt('expires_at', now)
 
-    const affectedProductIds = [...new Set((expiredReservations ?? []).map((r: any) => r.product_id))]
+    // Group by product_id to calculate total qty_reserved reduction
+    const qtyByProduct = new Map<number, number>()
+    for (const res of expiredReservations ?? []) {
+      const current = qtyByProduct.get(res.product_id) || 0
+      qtyByProduct.set(res.product_id, current + res.qty)
+    }
 
     // Delete expired reservations
     const { error: deleteError } = await supabase
@@ -39,24 +44,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to delete reservations' }, { status: 500 })
     }
 
-    // Recalculate qty_reserved for affected products
-    for (const productId of affectedProductIds) {
-      // Get count of active reservations for this product
-      const { data: activeReservations } = await supabase
-        .from('reservations')
-        .select('qty')
+    // Update qty_reserved for affected products
+    for (const [productId, deletedQty] of qtyByProduct.entries()) {
+      const { data: stock } = await supabase
+        .from('stock')
+        .select('qty_reserved')
         .eq('product_id', productId)
+        .single()
 
-      const qtyReserved = (activeReservations ?? []).reduce((sum: number, r: any) => sum + r.qty, 0)
-
-      // Update stock
+      const newQtyReserved = Math.max(0, (stock?.qty_reserved ?? 0) - deletedQty)
       await supabase
         .from('stock')
-        .update({ qty_reserved: qtyReserved })
+        .update({ qty_reserved: newQtyReserved })
         .eq('product_id', productId)
     }
 
     const deletedCount = expiredReservations?.length ?? 0
+    const affectedProductIds = Array.from(qtyByProduct.keys())
 
     return NextResponse.json({
       success: true,

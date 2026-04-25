@@ -98,11 +98,25 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Create reservations linked to the order
+  // Create/update reservations linked to the order
   for (const item of items) {
+    // Get existing reservation to calculate qty change
+    const { data: existingRes } = await supabase
+      .from('reservations')
+      .select('qty')
+      .eq('product_id', item.id)
+      .eq('user_id', user.id)
+      .single()
+
+    const oldQty = existingRes?.qty ?? 0
+    const qtyChange = item.qty - oldQty
+
+    // Delete old reservation
     await supabase.from('reservations').delete()
       .eq('product_id', item.id)
       .eq('user_id', user.id)
+
+    // Create new reservation
     await supabase.from('reservations').insert({
       product_id: item.id,
       qty: item.qty,
@@ -110,6 +124,21 @@ export async function POST(req: NextRequest) {
       expires_at,
       order_id: orderId,
     })
+
+    // Update qty_reserved in stock
+    if (qtyChange !== 0) {
+      const { data: stock } = await supabase
+        .from('stock')
+        .select('qty_reserved')
+        .eq('product_id', item.id)
+        .single()
+
+      const newQtyReserved = (stock?.qty_reserved ?? 0) + qtyChange
+      await supabase
+        .from('stock')
+        .update({ qty_reserved: newQtyReserved })
+        .eq('product_id', item.id)
+    }
   }
 
   return NextResponse.json({ success: true, order_id: orderId, is_new_order: isNewOrder, expires_at })

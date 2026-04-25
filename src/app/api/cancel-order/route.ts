@@ -29,12 +29,40 @@ export async function POST(req: NextRequest) {
     .eq('order_id', order_id)
   const productIds = (orderItems ?? []).map((i: any) => i.product_id)
 
+  // Get reservations before deletion to calculate qty changes
+  const { data: restoDelete } = await supabase
+    .from('reservations')
+    .select('product_id, qty')
+    .eq('order_id', order_id)
+
+  // Group by product_id to calculate total qty reduction
+  const qtyByProduct = new Map<number, number>()
+  for (const res of restoDelete ?? []) {
+    const current = qtyByProduct.get(res.product_id) || 0
+    qtyByProduct.set(res.product_id, current + res.qty)
+  }
+
   // Delete reservations linked by order_id OR by user+product (fallback for older records)
   await supabase.from('reservations').delete().eq('order_id', order_id)
   if (productIds.length > 0) {
     await supabase.from('reservations').delete()
       .eq('user_id', user.id)
       .in('product_id', productIds)
+  }
+
+  // Update qty_reserved in stock for affected products
+  for (const [productId, deletedQty] of qtyByProduct.entries()) {
+    const { data: stock } = await supabase
+      .from('stock')
+      .select('qty_reserved')
+      .eq('product_id', productId)
+      .single()
+
+    const newQtyReserved = Math.max(0, (stock?.qty_reserved ?? 0) - deletedQty)
+    await supabase
+      .from('stock')
+      .update({ qty_reserved: newQtyReserved })
+      .eq('product_id', productId)
   }
 
   const { error: updateError } = await supabase
