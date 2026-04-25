@@ -90,21 +90,67 @@ src/
 └── store/                # Zustand стор для состояния
 ```
 
+## Environment Variables
+
+### Обязательные переменные
+
+| Переменная | Описание | Где использовать |
+|------------|---------|------------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL Supabase проекта | Браузер + Backend |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (anon) key для Supabase | Браузер + Backend |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (не использовать на Vercel!) | Только локальная разработка |
+
+### Конфигурация
+
+**.env.local** (локальная разработка):
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # только для локальных тестов
+```
+
+**Vercel Settings** (production):
+- Добавить только `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- ⚠️ НЕ добавлять `SUPABASE_SERVICE_ROLE_KEY` (не работает в serverless)
+
+## Known Issues
+
+### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
+- **Проблема**: Service role key не доступен в функциях на Vercel
+- **Решение**: Используется `createClient()` (client role) + RLS политики
+- **Статус**: Постоянное ограничение архитектуры Vercel
+
+### 🟡 Realtime обновления каталога не работают (PriceTable)
+- **Проблема**: Изменения цен в реальном времени не отражаются на фронтенде
+- **Причина**: Supabase Realtime требует explicit подписки на события
+- **Временное решение**: Пользователь должен перезагрузить страницу для обновления цен
+- **TODO**: Добавить WebSocket слушатель на изменения products и stock
+
+### 🟡 WhatsApp уведомление открывается только с разрешением всплывающих окон
+- **Проблема**: При отправке WhatsApp уведомления ссылка не открывается, если отключены popup'ы
+- **Причина**: Используется `window.open()` для перенаправления на WhatsApp Web
+- **Решение для пользователя**: Разрешить всплывающие окна для сайта в настройках браузера
+- **TODO**: Рассмотреть альтернативный способ (redirect вместо popup, или QR код)
+
 ## Локальная разработка
 
 ```bash
 # Переменные окружения (.env.local)
 NEXT_PUBLIC_SUPABASE_URL=<url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<не используется на Vercel, только локально для тестов>
+SUPABASE_SERVICE_ROLE_KEY=<используется только локально, не на Vercel>
 
 # Запуск
+npm install
 npm run dev
+
+# Сборка для production
+npm run build
 ```
 
 ## Развёртывание
 
-- Репозиторий: GitHub (связан с Vercel)
-- При push на main — автоматический деплой
-- Production БД: Supabase (тот же проект)
-- Environment переменные хранятся в Vercel Settings
+- **Репозиторий**: GitHub (связан с Vercel)
+- **Deploy**: При push на main — автоматический деплой в Vercel
+- **База данных**: Supabase (тот же проект для prod и dev)
+- **Переменные окружения**: Хранятся в Vercel Settings (без service role key)
