@@ -52,9 +52,34 @@ export async function POST(req: NextRequest) {
 
   if (existingOrder) {
     orderId = existingOrder.id
-    await supabase.from('order_items').insert(
-      items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
-    )
+
+    // Check which products already exist in this order
+    const { data: existingItems } = await supabase
+      .from('order_items')
+      .select('product_id')
+      .eq('order_id', orderId)
+
+    const existingProductIds = new Set((existingItems ?? []).map(i => i.product_id))
+
+    // Split items into updates and inserts
+    const itemsToUpdate = items.filter((i: any) => existingProductIds.has(i.id))
+    const itemsToInsert = items.filter((i: any) => !existingProductIds.has(i.id))
+
+    // Update existing items
+    for (const item of itemsToUpdate) {
+      await supabase.from('order_items')
+        .update({ qty: item.qty, price: item.price })
+        .eq('order_id', orderId)
+        .eq('product_id', item.id)
+    }
+
+    // Insert new items
+    if (itemsToInsert.length > 0) {
+      await supabase.from('order_items').insert(
+        itemsToInsert.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
+      )
+    }
+
     const { data: allItems } = await supabase.from('order_items').select('qty, price').eq('order_id', orderId)
     const newTotal = (allItems ?? []).reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
     await supabase.from('orders').update({ total: newTotal }).eq('id', orderId)
