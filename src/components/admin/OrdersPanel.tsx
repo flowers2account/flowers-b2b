@@ -11,6 +11,8 @@ type OrderItem = {
   product: { name: string; pack_size: number } | null
 }
 
+type Client = { name: string | null; phone: string | null } | null
+
 type Order = {
   id: number
   status: string
@@ -18,6 +20,9 @@ type Order = {
   notes: string | null
   created_at: string
   client_id: string | null
+  guest_phone: string | null
+  guest_name: string | null
+  client: Client
   order_items: OrderItem[]
   reservations: { expires_at: string }[]
 }
@@ -31,7 +36,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, order_items(id, product_id, qty, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, client:client_id(name, phone), order_items(id, product_id, qty, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) console.error('Orders error:', error)
@@ -124,9 +129,17 @@ export default function OrdersPanel() {
             <span className="text-sm font-medium">{fmt(order.total)}</span>
           </div>
 
-          {order.client_id && (
-            <div className="text-xs text-gray-500">Клиент: {order.client_id.slice(0,8)}...</div>
-          )}
+          {(() => {
+            const clientName = order.client?.name ?? order.guest_name
+            const clientPhone = order.client?.phone ?? order.guest_phone
+            if (!clientName && !clientPhone) return null
+            return (
+              <div className="text-xs text-gray-600 flex gap-3">
+                {clientName && <span>👤 {clientName}</span>}
+                {clientPhone && <span>📞 {clientPhone}</span>}
+              </div>
+            )
+          })()}
 
           <table className="w-full text-sm">
             <thead>

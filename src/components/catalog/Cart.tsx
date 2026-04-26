@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
 
 const PHONE_KEY = 'guest_phone'
+const NAME_KEY = 'guest_name'
 
 function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
@@ -37,13 +38,16 @@ export default function Cart() {
   // Phone dialog state (for unauthenticated users)
   const [phoneDialog, setPhoneDialog] = useState(false)
   const [phone, setPhone] = useState('')
+  const [name, setName] = useState('')
   const [phoneError, setPhoneError] = useState('')
 
   const supabase = createClient()
 
   useEffect(() => {
-    const saved = localStorage.getItem(PHONE_KEY)
-    if (saved) setPhone(saved)
+    const savedPhone = localStorage.getItem(PHONE_KEY)
+    const savedName = localStorage.getItem(NAME_KEY)
+    if (savedPhone) setPhone(savedPhone)
+    if (savedName) setName(savedName)
   }, [])
 
   const count = items.reduce((s, i) => s + i.qty, 0)
@@ -57,7 +61,7 @@ export default function Cart() {
       return
     }
 
-    await submitOrder(user.email ?? null, null)
+    await submitOrder(user.email ?? null, null, null)
   }
 
   async function handlePhoneSubmit() {
@@ -69,10 +73,11 @@ export default function Cart() {
     setPhoneError('')
     setPhoneDialog(false)
     localStorage.setItem(PHONE_KEY, normalized)
-    await submitOrder(null, normalized)
+    if (name.trim()) localStorage.setItem(NAME_KEY, name.trim())
+    await submitOrder(null, normalized, name.trim() || null)
   }
 
-  async function submitOrder(email: string | null, guestPhone: string | null) {
+  async function submitOrder(email: string | null, guestPhone: string | null, guestName: string | null) {
     setLoading(true)
     setStockError('')
 
@@ -82,6 +87,7 @@ export default function Cart() {
       body: JSON.stringify({
         items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
         phone: guestPhone,
+        name: guestName,
       })
     })
 
@@ -101,7 +107,7 @@ export default function Cart() {
     const clientLine = email
       ? `\n\nКлиент: ${email}`
       : guestPhone
-        ? `\n\nТелефон: ${guestPhone}`
+        ? `\n\n${guestName ? `Имя: ${guestName}\n` : ''}Телефон: ${guestPhone}`
         : ''
 
     const msg = msgHeader + '\n\n' +
@@ -184,12 +190,18 @@ export default function Cart() {
       <Dialog open={phoneDialog} onOpenChange={setPhoneDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Укажите номер телефона</DialogTitle>
+            <DialogTitle>Укажите ваши данные</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
             Менеджер свяжется с вами для подтверждения заказа.
           </p>
           <div className="space-y-3 mt-1">
+            <Input
+              placeholder="Ваше имя (необязательно)"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handlePhoneSubmit()}
+            />
             <Input
               placeholder="+7XXXXXXXXXX"
               value={phone}

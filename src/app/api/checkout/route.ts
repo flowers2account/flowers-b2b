@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { items, phone } = await req.json()
+  const { items, phone, name } = await req.json()
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
 
   const now = new Date().toISOString()
@@ -95,6 +95,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Update phone+name in clients record if provided
+    if (phone || name) {
+      await supabase.rpc('upsert_client_contact', { p_phone: phone ?? '', p_name: name ?? '' })
+    }
+
     // Create/update reservations for authenticated user
     for (const item of items) {
       const { data: existingRes } = await supabase
@@ -132,6 +137,7 @@ export async function POST(req: NextRequest) {
   } else {
     // Guest: find existing pending order by phone, or create new
     const guestPhone = phone ?? null
+    const guestName = name ?? null
     let existingOrderId: number | null = null
 
     if (guestPhone) {
@@ -152,13 +158,13 @@ export async function POST(req: NextRequest) {
       )
 
       const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
-      await supabase.from('orders').update({ total, guest_phone: guestPhone }).eq('id', orderId)
+      await supabase.from('orders').update({ total, guest_phone: guestPhone, guest_name: guestName }).eq('id', orderId)
     } else {
       isNewOrder = true
       const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
       const { data: order } = await supabase
         .from('orders')
-        .insert({ client_id: null, status: 'pending', total, guest_phone: guestPhone })
+        .insert({ client_id: null, status: 'pending', total, guest_phone: guestPhone, guest_name: guestName })
         .select()
         .single()
       if (!order) return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
