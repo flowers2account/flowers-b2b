@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
           category: categoryOverride ?? parsed.category,
           name: row.name,
           is_active: true,
-        }, { onConflict: 'variety_id,length_str', ignoreDuplicates: true })
+        }, { onConflict: 'variety_id,length_str', ignoreDuplicates: false })
         .select('id').single()
       if (pErr || !product) throw new Error('Ошибка product: ' + pErr?.message)
 
