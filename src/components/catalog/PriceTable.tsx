@@ -134,8 +134,10 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
             <tr key={group.variety_name} className="border-b hover:bg-gray-50">
               <td className="py-2 pl-3 font-medium align-top pt-3">
                 <div className="flex items-center gap-2">
-                  {group.image_url && (
-                    <img src={group.image_url} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                  {group.image_url ? (
+                    <img src={group.image_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <span className="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center text-xl flex-shrink-0 select-none">🌸</span>
                   )}
                   {group.variety_name}
                 </div>
