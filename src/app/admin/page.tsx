@@ -14,7 +14,7 @@ export default async function AdminPage() {
 
   const { data: products } = await supabase
     .from('products')
-    .select(`id, name, category, is_active, pack_size, stock (price, qty, qty_reserved, is_available)`)
+    .select(`id, name, category, is_active, pack_size, image_url, stock (price, qty, qty_reserved, is_available)`)
     .order('category').order('name')
 
   const { data: activeReservations } = await supabase
