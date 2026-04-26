@@ -12,6 +12,22 @@ import {
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
 type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; stock: Stock[] | Stock }
 
+const TRANSLIT: Record<string, string> = {
+  а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
+  к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',
+  х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',
+}
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .split('')
+    .map(c => TRANSLIT[c] ?? c)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 function getStock(s: Stock[] | Stock): Stock {
   if (Array.isArray(s)) return s[0] ?? null
   return s
@@ -53,7 +69,7 @@ function StockRow({ product, onSaved }: {
     setUploading(true)
 
     const ext = file.name.split('.').pop()
-    const path = `product-${product.id}.${ext}`
+    const path = `${slugify(product.name)}.${ext}`
 
     const { error } = await supabase.storage
       .from('product-images')
