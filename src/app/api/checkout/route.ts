@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { items } = await req.json()
+  const { items, phone } = await req.json()
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
 
   const now = new Date().toISOString()
@@ -130,19 +130,43 @@ export async function POST(req: NextRequest) {
       }
     }
   } else {
-    // Guest: always create a new order with client_id = null
-    isNewOrder = true
-    const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
-    const { data: order } = await supabase
-      .from('orders')
-      .insert({ client_id: null, status: 'pending', total })
-      .select()
-      .single()
-    if (!order) return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
-    orderId = (order as any).id
-    await supabase.from('order_items').insert(
-      items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
-    )
+    // Guest: find existing pending order by phone, or create new
+    const guestPhone = phone ?? null
+    let existingOrderId: number | null = null
+
+    if (guestPhone) {
+      const { data } = await supabase.rpc('get_pending_guest_order_id', { p_phone: guestPhone })
+      existingOrderId = data ?? null
+    }
+
+    if (existingOrderId) {
+      orderId = existingOrderId
+
+      // Delete old guest reservations for this order to replace them
+      await supabase.from('reservations').delete().eq('order_id', orderId).is('user_id', null)
+
+      // Replace order items
+      await supabase.from('order_items').delete().eq('order_id', orderId)
+      await supabase.from('order_items').insert(
+        items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
+      )
+
+      const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
+      await supabase.from('orders').update({ total, guest_phone: guestPhone }).eq('id', orderId)
+    } else {
+      isNewOrder = true
+      const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
+      const { data: order } = await supabase
+        .from('orders')
+        .insert({ client_id: null, status: 'pending', total, guest_phone: guestPhone })
+        .select()
+        .single()
+      if (!order) return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+      orderId = (order as any).id
+      await supabase.from('order_items').insert(
+        items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
+      )
+    }
 
     // Create reservations with user_id = null for guest
     for (const item of items) {

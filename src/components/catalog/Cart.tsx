@@ -1,15 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCart } from '@/lib/cart-store'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
 
+const PHONE_KEY = 'guest_phone'
+
 function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
+}
+
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('8') && digits.length === 11) return '+7' + digits.slice(1)
+  if (digits.startsWith('7') && digits.length === 11) return '+' + digits
+  if (digits.length === 10) return '+7' + digits
+  return raw
+}
+
+function isValidPhone(p: string): boolean {
+  return /^\+7\d{10}$/.test(p)
 }
 
 export default function Cart() {
@@ -18,21 +33,55 @@ export default function Cart() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState<string>('')
+
+  // Phone dialog state (for unauthenticated users)
+  const [phoneDialog, setPhoneDialog] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState('')
+
   const supabase = createClient()
+
+  useEffect(() => {
+    const saved = localStorage.getItem(PHONE_KEY)
+    if (saved) setPhone(saved)
+  }, [])
 
   const count = items.reduce((s, i) => s + i.qty, 0)
 
   async function handleCheckout() {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      // Show phone dialog for guests
+      setPhoneDialog(true)
+      return
+    }
+
+    await submitOrder(user.email ?? null, null)
+  }
+
+  async function handlePhoneSubmit() {
+    const normalized = normalizePhone(phone)
+    if (!isValidPhone(normalized)) {
+      setPhoneError('Введите номер в формате +7XXXXXXXXXX')
+      return
+    }
+    setPhoneError('')
+    setPhoneDialog(false)
+    localStorage.setItem(PHONE_KEY, normalized)
+    await submitOrder(null, normalized)
+  }
+
+  async function submitOrder(email: string | null, guestPhone: string | null) {
     setLoading(true)
     setStockError('')
-
-    const { data: { user } } = await supabase.auth.getUser()
 
     const res = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name }))
+        items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
+        phone: guestPhone,
       })
     })
 
@@ -48,7 +97,13 @@ export default function Cart() {
     const msgHeader = is_new_order
       ? `🌸 Новый заказ #${order_id}`
       : `🌸 Обновление заказа #${order_id}`
-    const clientLine = user ? `\n\nКлиент: ${user.email}` : ''
+
+    const clientLine = email
+      ? `\n\nКлиент: ${email}`
+      : guestPhone
+        ? `\n\nТелефон: ${guestPhone}`
+        : ''
+
     const msg = msgHeader + '\n\n' +
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
       `\n\nИтого: ${formatPrice(total())}` + clientLine
@@ -124,6 +179,31 @@ export default function Cart() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Диалог ввода телефона для гостей */}
+      <Dialog open={phoneDialog} onOpenChange={setPhoneDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Укажите номер телефона</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Менеджер свяжется с вами для подтверждения заказа.
+          </p>
+          <div className="space-y-3 mt-1">
+            <Input
+              placeholder="+7XXXXXXXXXX"
+              value={phone}
+              onChange={e => { setPhone(e.target.value); setPhoneError('') }}
+              onKeyDown={e => e.key === 'Enter' && handlePhoneSubmit()}
+              autoFocus
+            />
+            {phoneError && <p className="text-red-500 text-xs">{phoneError}</p>}
+            <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handlePhoneSubmit}>
+              📲 Отправить заказ
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Успешный заказ */}
       <Dialog open={done} onOpenChange={setDone}>
