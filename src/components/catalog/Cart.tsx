@@ -7,7 +7,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
 
 function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
@@ -16,7 +15,6 @@ function formatPrice(p: number) {
 export default function Cart() {
   const { items, remove, update, clear, total } = useCart()
   const [open, setOpen] = useState(false)
-  const [authDialog, setAuthDialog] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState<string>('')
@@ -25,13 +23,22 @@ export default function Cart() {
   const count = items.reduce((s, i) => s + i.qty, 0)
 
   async function handleCheckout() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setAuthDialog(true)
-      return
-    }
     setLoading(true)
     setStockError('')
+
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      const msg = '🌸 Заказ\n\n' +
+        items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
+        `\n\nИтого: ${formatPrice(total())}`
+      window.open(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`, '_blank')
+      clear()
+      setDone(true)
+      setOpen(false)
+      setLoading(false)
+      return
+    }
 
     const res = await fetch('/api/checkout', {
       method: 'POST',
@@ -118,7 +125,7 @@ export default function Cart() {
                 </div>
                 {stockError && <p className="text-red-500 text-xs">{stockError}</p>}
                 <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handleCheckout} disabled={loading}>
-                  {loading ? 'Оформляем...' : '✅ Оформить заказ'}
+                  {loading ? 'Оформляем...' : '📲 Отправить в WhatsApp'}
                 </Button>
                 <Button variant="ghost" className="w-full text-red-500" onClick={clear}>
                   Очистить корзину
@@ -128,24 +135,6 @@ export default function Cart() {
           )}
         </SheetContent>
       </Sheet>
-
-      {/* Диалог авторизации */}
-      <Dialog open={authDialog} onOpenChange={setAuthDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Для оформления заказа нужен аккаунт</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-sm">Ваша корзина сохранится после входа.</p>
-          <div className="flex flex-col gap-3 mt-2">
-            <Link href="/login" onClick={() => setAuthDialog(false)}>
-              <Button className="w-full bg-green-700 hover:bg-green-800">Войти</Button>
-            </Link>
-            <Link href="/register" onClick={() => setAuthDialog(false)}>
-              <Button variant="outline" className="w-full">Зарегистрироваться</Button>
-            </Link>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Успешный заказ */}
       <Dialog open={done} onOpenChange={setDone}>
