@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stock: Stock[] | Stock }
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; stock: Stock[] | Stock }
 
 function getStock(s: Stock[] | Stock): Stock {
   if (Array.isArray(s)) return s[0] ?? null
@@ -27,6 +27,9 @@ function StockRow({ product, onSaved }: {
   const [packSize, setPackSize] = useState(String(product.pack_size ?? 5))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
   async function save() {
@@ -37,11 +40,38 @@ function StockRow({ product, onSaved }: {
       .eq('product_id', product.id)
     await supabase.from('products')
       .update({ pack_size: parseInt(packSize) })
-      .eq('product_id', product.id)
+      .eq('id', product.id)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     onSaved()
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+
+    const ext = file.name.split('.').pop()
+    const path = `product-${product.id}.${ext}`
+
+    const { error } = await supabase.storage
+      .from('product-images')
+      .upload(path, file, { upsert: true })
+
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(path)
+
+      // Append cache-buster so browser shows fresh image
+      const urlWithBust = `${publicUrl}?t=${Date.now()}`
+      await supabase.from('products').update({ image_url: publicUrl }).eq('id', product.id)
+      setImageUrl(urlWithBust)
+    }
+
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
@@ -50,7 +80,16 @@ function StockRow({ product, onSaved }: {
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{product.name}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          {imageUrl ? (
+            <img src={imageUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
+          )}
+          <span className="font-medium">{product.name}</span>
+        </div>
+      </TableCell>
       <TableCell>
         <Badge variant={product.category === 'cut' ? 'default' : 'secondary'}>
           {product.category === 'cut' ? '✂️ Срез' : '🪴 Горшок'}
@@ -87,14 +126,32 @@ function StockRow({ product, onSaved }: {
         />
       </TableCell>
       <TableCell>
-        <Button
-          size="sm"
-          onClick={save}
-          disabled={saving}
-          className={saved ? 'bg-green-600 hover:bg-green-700' : ''}
-        >
-          {saving ? '...' : saved ? '✓ Сохранено' : 'Сохранить'}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            onClick={save}
+            disabled={saving}
+            className={saved ? 'bg-green-600 hover:bg-green-700' : ''}
+          >
+            {saving ? '...' : saved ? '✓' : 'Сохранить'}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+            title="Загрузить фото"
+          >
+            {uploading ? '...' : '📷'}
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   )

@@ -16,12 +16,14 @@ type Product = {
   length_cm: number | null
   category: string
   pack_size: number
+  image_url?: string | null
   stock: Stock[] | Stock
 }
 
 type VarietyGroup = {
   variety_name: string
   category: string
+  image_url: string | null
   sizes: Product[]
 }
 
@@ -52,7 +54,9 @@ function groupByVariety(products: Product[]): VarietyGroup[] {
   for (const p of products) {
     const key = p.variety_name || p.name
     if (!map.has(key)) {
-      map.set(key, { variety_name: key, category: p.category, sizes: [] })
+      map.set(key, { variety_name: key, category: p.category, image_url: p.image_url ?? null, sizes: [] })
+    } else if (!map.get(key)!.image_url && p.image_url) {
+      map.get(key)!.image_url = p.image_url
     }
     map.get(key)!.sizes.push(p)
   }
@@ -129,7 +133,12 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
           {groups.map(group => (
             <tr key={group.variety_name} className="border-b hover:bg-gray-50">
               <td className="py-2 pl-3 font-medium align-top pt-3">
-                {group.variety_name}
+                <div className="flex items-center gap-2">
+                  {group.image_url && (
+                    <img src={group.image_url} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                  )}
+                  {group.variety_name}
+                </div>
               </td>
               <td className="py-2 pr-3">
                 <div className="flex flex-wrap gap-2">
