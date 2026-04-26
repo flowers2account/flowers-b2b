@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
   let errors = 0
   const errorLog: string[] = []
   const today = new Date().toISOString().split('T')[0]
+  const importedProductIds = new Set<number>()
 
   // Определяем категорию по имени файла
   const fileNameLower = file.name.toLowerCase()
@@ -172,6 +173,7 @@ export async function POST(req: NextRequest) {
         created_by: user.id,
       })
 
+      importedProductIds.add(product.id)
       success++
     } catch (e) {
       errors++
@@ -179,5 +181,30 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success, errors, errorLog })
+  // Zero out products of the same category that were absent from the file
+  let zeroed = 0
+  if (categoryOverride && importedProductIds.size > 0) {
+    const { data: allCategoryProducts } = await supabase
+      .from('products')
+      .select('id')
+      .eq('category', categoryOverride)
+      .eq('is_active', true)
+
+    const toZero = (allCategoryProducts ?? []).filter(p => !importedProductIds.has(p.id))
+
+    for (const p of toZero) {
+      await supabase.from('batches').update({ is_active: false }).eq('product_id', p.id)
+      await supabase.from('stock').update({ qty: 0, is_available: false }).eq('product_id', p.id)
+      await supabase.from('inventory_ledger').insert({
+        product_id: p.id,
+        action: 'import',
+        quantity: 0,
+        reference_type: 'import',
+        created_by: user.id,
+      })
+      zeroed++
+    }
+  }
+
+  return NextResponse.json({ success, errors, zeroed, errorLog })
 }
