@@ -28,18 +28,6 @@ export default function Cart() {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      const msg = '🌸 Заказ\n\n' +
-        items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
-        `\n\nИтого: ${formatPrice(total())}`
-      window.open(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`, '_blank')
-      clear()
-      setDone(true)
-      setOpen(false)
-      setLoading(false)
-      return
-    }
-
     const res = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,9 +48,10 @@ export default function Cart() {
     const msgHeader = is_new_order
       ? `🌸 Новый заказ #${order_id}`
       : `🌸 Обновление заказа #${order_id}`
+    const clientLine = user ? `\n\nКлиент: ${user.email}` : ''
     const msg = msgHeader + '\n\n' +
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
-      `\n\nДобавлено: ${formatPrice(total())}\n\nКлиент: ${user.email}`
+      `\n\nИтого: ${formatPrice(total())}` + clientLine
 
     window.open(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`, '_blank')
 
