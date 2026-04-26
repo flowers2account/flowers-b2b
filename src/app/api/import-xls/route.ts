@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         .from('varieties')
         .upsert({ name: parsed.variety_name, category: categoryOverride ?? parsed.category }, { onConflict: 'name', ignoreDuplicates: false })
         .select('id').single()
-      if (vErr || !variety) throw new Error('Ошибка variety: ' + vErr?.message)
+      if (vErr || !variety) throw new Error(`variety: ${vErr?.code} ${vErr?.message}`)
 
       // 2. Создаём или находим товар (product)
       const { data: product, error: pErr } = await supabase
@@ -117,51 +117,38 @@ export async function POST(req: NextRequest) {
           is_active: true,
         }, { onConflict: 'variety_id,length_str', ignoreDuplicates: false })
         .select('id').single()
-      if (pErr || !product) throw new Error('Ошибка product: ' + pErr?.message)
+      if (pErr || !product) throw new Error(`product: ${pErr?.code} ${pErr?.message}`)
 
-      // 3. Партия (batch) — если цена совпадает, суммируем; иначе новая партия
-      const { data: existingBatch } = await supabase
-        .from('batches')
-        .select('id, stock')
+      // 3. Заменяем партии: деактивируем старые, создаём одну свежую
+      await supabase.from('batches')
+        .update({ is_active: false })
         .eq('product_id', product.id)
-        .eq('price', row.price)
         .eq('is_active', true)
-        .order('arrival_date', { ascending: true })
-        .limit(1)
+
+      await supabase.from('batches').insert({
+        product_id: product.id,
+        price: row.price,
+        stock: row.qty,
+        stock_reserved: 0,
+        arrival_date: today,
+        is_active: true,
+      })
+
+      // 4. Обновляем stock — qty из файла, qty_reserved сохраняем
+      const { data: existingStock } = await supabase
+        .from('stock')
+        .select('qty_reserved')
+        .eq('product_id', product.id)
         .maybeSingle()
 
-      if (existingBatch) {
-        await supabase.from('batches')
-          .update({ stock: existingBatch.stock + row.qty })
-          .eq('id', existingBatch.id)
-      } else {
-        await supabase.from('batches').insert({
-          product_id: product.id,
-          price: row.price,
-          stock: row.qty,
-          stock_reserved: 0,
-          arrival_date: today,
-          is_active: true,
-        })
-      }
-
-      // 4. Обновляем агрегированный stock
-      const { data: allBatches } = await supabase
-        .from('batches')
-        .select('price, stock, stock_reserved')
-        .eq('product_id', product.id)
-        .eq('is_active', true)
-
-      const totalQty = (allBatches ?? []).reduce((s, b) => s + b.stock, 0)
-      const totalReserved = (allBatches ?? []).reduce((s, b) => s + b.stock_reserved, 0)
-      const minPrice = Math.min(...(allBatches ?? []).map(b => b.price))
+      const qtyReserved = existingStock?.qty_reserved ?? 0
 
       await supabase.from('stock').upsert({
         product_id: product.id,
-        qty: totalQty,
-        qty_reserved: totalReserved,
-        price: minPrice,
-        is_available: totalQty > totalReserved,
+        qty: row.qty,
+        qty_reserved: qtyReserved,
+        price: row.price,
+        is_available: row.qty > qtyReserved,
       }, { onConflict: 'product_id' })
 
       // 5. Запись в ledger
