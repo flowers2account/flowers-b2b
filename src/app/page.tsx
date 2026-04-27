@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import PriceTable from '@/components/catalog/PriceTable'
+import CartSidebar from '@/components/catalog/CartSidebar'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -10,9 +11,13 @@ export default async function HomePage() {
     .order('variety_name')
     .order('length_cm')
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
-      <PriceTable products={products ?? []} />
+    <main className="max-w-6xl mx-auto px-4 py-6">
+      <div className="flex gap-6 items-start">
+        <div className="flex-1 min-w-0">
+          <PriceTable products={products ?? []} />
+        </div>
+        <CartSidebar />
+      </div>
     </main>
   )
 }
-// deploy trigger
