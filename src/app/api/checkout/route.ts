@@ -156,10 +156,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const orderId_str = orderId
-  const itemsList = items.map((i: any) => `• ${i.name} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`).join('\n')
-  const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
-  const tgMessage = `🌸 Новый заказ #${orderId_str}\n👤 ${name} | 📞 ${phone}\n\n${itemsList}\n\n💰 Итого: ${total.toLocaleString('ru-RU')} ₸`
+const itemsList = items
+    .map((i: any) => `• ${i.name} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`)
+    .join('\n')
+  const totalSum = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
+  const tgMessage = [
+    isNewOrder ? `🌸 Новый заказ #${orderId}` : `🔄 Обновление заказа #${orderId}`,
+    `👤 ${name || '—'} | 📞 ${phone}`,
+    ``,
+    itemsList,
+    ``,
+    `💰 Итого: ${totalSum.toLocaleString('ru-RU')} ₸`,
+  ].join('\n')
 
   try {
     await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
