@@ -3,9 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(req: NextRequest) {
   const phone = req.nextUrl.searchParams.get('phone')
-  if (!phone) {
-    return NextResponse.json({ error: 'phone is required' }, { status: 400 })
-  }
+  if (!phone) return NextResponse.json({ error: 'phone is required' }, { status: 400 })
 
   const supabase = await createClient()
 
@@ -15,9 +13,7 @@ export async function GET(req: NextRequest) {
     .eq('phone', phone)
     .maybeSingle()
 
-  if (!client) {
-    return NextResponse.json({ orders: [] })
-  }
+  if (!client) return NextResponse.json({ orders: [] })
 
   const { data: orders } = await supabase
     .from('orders')
@@ -27,7 +23,7 @@ export async function GET(req: NextRequest) {
       created_at,
       order_items (
         id,
-        quantity,
+        qty,
         price,
         product:products ( name )
       )
