@@ -1,83 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useCart } from '@/lib/cart-store'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { createClient } from '@/lib/supabase/client'
-
-const PHONE_KEY = 'guest_phone'
-const NAME_KEY = 'guest_name'
 
 function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
 }
 
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '')
-  if (digits.startsWith('8') && digits.length === 11) return '+7' + digits.slice(1)
-  if (digits.startsWith('7') && digits.length === 11) return '+' + digits
-  if (digits.length === 10) return '+7' + digits
-  return raw
-}
-
-function isValidPhone(p: string): boolean {
-  return /^\+7\d{10}$/.test(p)
-}
-
 export default function Cart() {
   const { items, remove, update, clear, total } = useCart()
   const [open, setOpen] = useState(false)
+  const [contactDialog, setContactDialog] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState<string>('')
-
-  // Phone dialog state (for unauthenticated users)
-  const [phoneDialog, setPhoneDialog] = useState(false)
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
-  const [phoneError, setPhoneError] = useState('')
-
-  const supabase = createClient()
-
-  useEffect(() => {
-    const savedPhone = localStorage.getItem(PHONE_KEY)
-    const savedName = localStorage.getItem(NAME_KEY)
-    if (savedPhone) setPhone(savedPhone)
-    if (savedName) setName(savedName)
-  }, [])
 
   const count = items.reduce((s, i) => s + i.qty, 0)
 
-  async function handleCheckout() {
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      // Show phone dialog for guests
-      setPhoneDialog(true)
-      return
-    }
-
-    await submitOrder(user.email ?? null, null, null)
-  }
-
-  async function handlePhoneSubmit() {
-    const normalized = normalizePhone(phone)
-    if (!isValidPhone(normalized)) {
-      setPhoneError('Введите номер в формате +7XXXXXXXXXX')
-      return
-    }
-    setPhoneError('')
-    setPhoneDialog(false)
-    localStorage.setItem(PHONE_KEY, normalized)
-    if (name.trim()) localStorage.setItem(NAME_KEY, name.trim())
-    await submitOrder(null, normalized, name.trim() || null)
-  }
-
-  async function submitOrder(email: string | null, guestPhone: string | null, guestName: string | null) {
+  async function submitOrder(phone: string, name: string) {
     setLoading(true)
     setStockError('')
 
@@ -86,8 +32,8 @@ export default function Cart() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
-        phone: guestPhone,
-        name: guestName,
+        phone,
+        name,
       })
     })
 
@@ -103,16 +49,9 @@ export default function Cart() {
     const msgHeader = is_new_order
       ? `🌸 Новый заказ #${order_id}`
       : `🌸 Обновление заказа #${order_id}`
-
-    const clientLine = email
-      ? `\n\nКлиент: ${email}`
-      : guestPhone
-        ? `\n\n${guestName ? `Имя: ${guestName}\n` : ''}Телефон: ${guestPhone}`
-        : ''
-
     const msg = msgHeader + '\n\n' +
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
-      `\n\nИтого: ${formatPrice(total())}` + clientLine
+      `\n\nДобавлено: ${formatPrice(total())}\n\nКлиент: ${phone}`
 
     window.open(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`, '_blank')
 
@@ -120,6 +59,26 @@ export default function Cart() {
     setDone(true)
     setOpen(false)
     setLoading(false)
+  }
+
+  function handleCheckout() {
+    const savedPhone = localStorage.getItem('customer_phone')
+    const savedName = localStorage.getItem('customer_name') ?? ''
+    if (savedPhone) {
+      submitOrder(savedPhone, savedName)
+    } else {
+      setPhone('')
+      setName('')
+      setContactDialog(true)
+    }
+  }
+
+  function handleContactSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    localStorage.setItem('customer_phone', phone)
+    localStorage.setItem('customer_name', name)
+    setContactDialog(false)
+    submitOrder(phone, name)
   }
 
   return (
@@ -175,7 +134,7 @@ export default function Cart() {
                 </div>
                 {stockError && <p className="text-red-500 text-xs">{stockError}</p>}
                 <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handleCheckout} disabled={loading}>
-                  {loading ? 'Оформляем...' : '📲 Отправить в WhatsApp'}
+                  {loading ? 'Оформляем...' : '✅ Оформить заказ'}
                 </Button>
                 <Button variant="ghost" className="w-full text-red-500" onClick={clear}>
                   Очистить корзину
@@ -186,34 +145,39 @@ export default function Cart() {
         </SheetContent>
       </Sheet>
 
-      {/* Диалог ввода телефона для гостей */}
-      <Dialog open={phoneDialog} onOpenChange={setPhoneDialog}>
+      {/* Диалог ввода контактов */}
+      <Dialog open={contactDialog} onOpenChange={setContactDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Укажите ваши данные</DialogTitle>
+            <DialogTitle>Контактные данные</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-sm">
-            Менеджер свяжется с вами для подтверждения заказа.
-          </p>
-          <div className="space-y-3 mt-1">
-            <Input
-              placeholder="Ваше имя (необязательно)"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handlePhoneSubmit()}
-            />
-            <Input
-              placeholder="+7XXXXXXXXXX"
-              value={phone}
-              onChange={e => { setPhone(e.target.value); setPhoneError('') }}
-              onKeyDown={e => e.key === 'Enter' && handlePhoneSubmit()}
-              autoFocus
-            />
-            {phoneError && <p className="text-red-500 text-xs">{phoneError}</p>}
-            <Button className="w-full bg-green-700 hover:bg-green-800" onClick={handlePhoneSubmit}>
-              📲 Отправить заказ
+          <form onSubmit={handleContactSubmit} className="flex flex-col gap-3 mt-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Номер телефона</label>
+              <input
+                type="tel"
+                required
+                placeholder="+7 (777) 000-00-00"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                className="border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Ваше имя</label>
+              <input
+                type="text"
+                required
+                placeholder="Имя"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
+            <Button type="submit" className="w-full bg-green-700 hover:bg-green-800 mt-1">
+              Продолжить
             </Button>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
