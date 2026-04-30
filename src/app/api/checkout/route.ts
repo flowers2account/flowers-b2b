@@ -156,5 +156,23 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const orderId_str = orderId
+  const itemsList = items.map((i: any) => `• ${i.name} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`).join('\n')
+  const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
+  const tgMessage = `🌸 Новый заказ #${orderId_str}\n👤 ${name} | 📞 ${phone}\n\n${itemsList}\n\n💰 Итого: ${total.toLocaleString('ru-RU')} ₸`
+
+  try {
+    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: process.env.TELEGRAM_CHAT_ID,
+        text: tgMessage,
+      })
+    })
+  } catch (e) {
+    console.error('Telegram notify failed:', e)
+  }
+
   return NextResponse.json({ success: true, order_id: orderId, is_new_order: isNewOrder, expires_at })
 }
