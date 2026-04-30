@@ -20,6 +20,7 @@ export default function Cart() {
   const [stockError, setStockError] = useState<string>('')
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
+  const [whatsappUrl, setWhatsappUrl] = useState('')
 
   const count = items.reduce((s, i) => s + i.qty, 0)
 
@@ -53,7 +54,7 @@ export default function Cart() {
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
       `\n\nДобавлено: ${formatPrice(total())}\n\nКлиент: ${phone}`
 
-    window.open(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`, '_blank')
+    setWhatsappUrl(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`)
 
     clear()
     setDone(true)
@@ -188,7 +189,10 @@ export default function Cart() {
             <DialogTitle>🎉 Заказ оформлен!</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">Менеджер получил заказ в WhatsApp и свяжется с вами.</p>
-          <Button className="w-full bg-green-700 hover:bg-green-800 mt-2" onClick={() => setDone(false)}>
+          <Button className="w-full bg-green-700 hover:bg-green-800 mt-2" onClick={() => window.open(whatsappUrl, '_blank')}>
+            📲 Открыть WhatsApp
+          </Button>
+          <Button variant="outline" className="w-full mt-2" onClick={() => setDone(false)}>
             Отлично!
           </Button>
         </DialogContent>
