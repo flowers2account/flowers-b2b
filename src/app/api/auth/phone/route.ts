@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('clients')
     .select('id, name, phone, company_name')
-    .or(phone.eq.\,phone.eq.\)
+    .or(`phone.eq.${normalized},phone.eq.${phone}`)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
