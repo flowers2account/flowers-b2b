@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import ClientAuthButton from './ClientAuthButton'
 
 async function signOut() {
   'use server'

@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCart } from '@/lib/cart-store'
 import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/lib/auth-store'
+import PhoneAuthModal from './PhoneAuthModal'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; available_qty?: number; reserved_qty?: number } | null
 type Product = {
@@ -72,7 +74,19 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
   const [products, setProducts] = useState(initialProducts)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('all')
+  const [showAuth, setShowAuth] = useState(false)
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
   const { items, add, update } = useCart()
+  const { isAuthed } = useAuthStore()
+
+  function requireAuth(action: () => void) {
+    if (isAuthed) {
+      action()
+    } else {
+      setPendingAction(() => action)
+      setShowAuth(true)
+    }
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -155,18 +169,20 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
                         </span>
                         <StockBadge qty={available} />
                         <span className="text-xs text-gray-500 w-16">
-                          {price.toLocaleString('ru-RU')} ₸
+                          {isAuthed
+                            ? `${price.toLocaleString('ru-RU')} ₸`
+                            : <span className="text-gray-300 select-none">●●● ₸</span>}
                         </span>
                         <div className="flex items-center gap-1 ml-auto">
                           <button
                             className="w-6 h-6 border rounded text-xs hover:bg-gray-100 disabled:opacity-30"
-                            onClick={() => update(product.id, Math.max(0, qty - (product.pack_size || 5)))}
+                            onClick={() => requireAuth(() => update(product.id, Math.max(0, qty - (product.pack_size || 5))))}
                             disabled={qty === 0}
                           >−</button>
                           <span className="w-5 text-center text-xs">{qty}</span>
                           <button
                             className="w-6 h-6 border rounded text-xs hover:bg-gray-100 disabled:opacity-30"
-                            onClick={() => {
+                            onClick={() => requireAuth(() => {
                               const packSize = product.pack_size || 5
                               if (qty === 0) {
                                 add({
@@ -180,7 +196,7 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
                               } else {
                                 update(product.id, qty + packSize)
                               }
-                            }}
+                            })}
                             disabled={qty >= available}
                           >+</button>
                         </div>
@@ -196,6 +212,13 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
 
       {groups.length === 0 && (
         <div className="text-center text-gray-400 py-12">Ничего не найдено</div>
+      )}
+
+      {showAuth && (
+        <PhoneAuthModal
+          onClose={() => { setShowAuth(false); setPendingAction(null) }}
+          onSuccess={() => { pendingAction?.() }}
+        />
       )}
     </div>
   )
