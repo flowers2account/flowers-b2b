@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+﻿code src\app\api\auth\phone\route.tsimport { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     id: data.id,
-    name: data.name || data.company_name || 'Клиент',
-    phone: data.phone,
+name: data.name || data.company_name || 'Клиент',
+phone: data.phone,
   })
 }
