@@ -1,29 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
-import { Button } from '@/components/ui/button'
+'use client'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import ClientAuthButton from './ClientAuthButton'
+import { useAuthStore } from '@/lib/auth-store'
+import { useState } from 'react'
+import PhoneAuthModal from './PhoneAuthModal'
 
-async function signOut() {
-  'use server'
-  const supabase = await createClient()
-  await supabase.auth.signOut()
-  redirect('/')
-}
-
-export default async function Header() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  let role = null
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-    role = profile?.role
-  }
+export default function Header() {
+  const { isAuthed, clientName, logout } = useAuthStore()
+  const [showAuth, setShowAuth] = useState(false)
 
   return (
     <header className="border-b bg-white sticky top-0 z-50 shadow-sm">
@@ -33,30 +16,32 @@ export default async function Header() {
           <span className="text-muted-foreground text-xs ml-2">оптовый склад</span>
         </div>
         <div className="flex items-center gap-3">
-          {user && (
-            <Link href="/orders">
-              <Button variant="outline" size="sm">📋 Мои заказы</Button>
-            </Link>
-          )}
-          {user ? (
+          {isAuthed ? (
             <>
-              <span className="text-sm text-muted-foreground hidden sm:block">{user.email}</span>
-              {role === 'admin' && (
-                <Link href="/admin">
-                  <Button variant="outline" size="sm">⚙️ Админка</Button>
-                </Link>
-              )}
-              <form action={signOut}>
-                <Button variant="ghost" size="sm" type="submit">Выйти</Button>
-              </form>
+              <Link href="/cabinet" className="text-sm text-gray-600 hover:text-gray-800">
+                📋 Мои заказы
+              </Link>
+              <span className="text-sm text-gray-600">👤 {clientName}</span>
+              <button
+                onClick={logout}
+                className="text-sm text-gray-400 hover:text-gray-600"
+              >
+                Выйти
+              </button>
             </>
           ) : (
-            <Link href="/login">
-              <Button size="sm" className="bg-green-700 hover:bg-green-800">Войти</Button>
-            </Link>
+            <button
+              onClick={() => setShowAuth(true)}
+              className="text-sm bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600"
+            >
+              Войти
+            </button>
           )}
         </div>
       </div>
+      {showAuth && (
+        <PhoneAuthModal onClose={() => setShowAuth(false)} />
+      )}
     </header>
   )
 }
