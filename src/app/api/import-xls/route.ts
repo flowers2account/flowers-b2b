@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
 
         const currentPrice = currentStock?.price ?? null
         const isPriceDown = currentPrice && row.price < currentPrice
+        console.log('currentPrice:', currentPrice, 'newPrice:', row.price, 'isPriceDown:', isPriceDown)
 
         const { data: updatedProduct, error: pErr } = await supabase
           .from('products')
