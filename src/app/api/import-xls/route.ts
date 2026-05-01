@@ -8,16 +8,9 @@ import { parseNomenclature } from '@/lib/parse-nomenclature'
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (!['admin', 'manager'].includes(profile?.role))
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
   const formData = await req.formData()
   const file = formData.get('file') as File
+  const userId = formData.get('userId') as string
   if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
   const buffer = await file.arrayBuffer()
@@ -157,7 +150,7 @@ export async function POST(req: NextRequest) {
         action: 'import',
         quantity: row.qty,
         reference_type: 'import',
-        created_by: user.id,
+        created_by: userId,
       })
 
       importedProductIds.add(product.id)
@@ -187,7 +180,7 @@ export async function POST(req: NextRequest) {
         action: 'import',
         quantity: 0,
         reference_type: 'import',
-        created_by: user.id,
+        created_by: userId,
       })
       zeroed++
     }

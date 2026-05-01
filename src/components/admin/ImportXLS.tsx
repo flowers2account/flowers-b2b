@@ -2,12 +2,14 @@
 
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
+import { useAuthStore } from '@/lib/auth-store'
 
 export default function ImportXLS({ onImported }: { onImported: () => void }) {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ success: number; errors: number; errorLog: string[] } | null>(null)
   const [fileName, setFileName] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const user = useAuthStore(s => s.user)
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0]
@@ -16,6 +18,7 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
     setResult(null)
     const formData = new FormData()
     formData.append('file', file)
+    if (user?.id) formData.append('userId', user.id)
     try {
       const res = await fetch('/api/import-xls', { method: 'POST', body: formData })
       const data = await res.json()
