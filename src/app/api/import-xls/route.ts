@@ -123,6 +123,16 @@ export async function POST(req: NextRequest) {
 
       let product
       if (existingProduct) {
+        // получаем текущую цену из stock для сравнения
+        const { data: currentStock } = await supabase
+          .from('stock')
+          .select('price')
+          .eq('product_id', existingProduct.id)
+          .maybeSingle()
+
+        const currentPrice = currentStock?.price ?? null
+        const isPriceDown = currentPrice && row.price < currentPrice
+
         const { data: updatedProduct, error: pErr } = await supabase
           .from('products')
           .update({
@@ -131,6 +141,7 @@ export async function POST(req: NextRequest) {
             category: categoryOverride ?? parsed.category,
             name: row.name,
             is_active: true,
+            previous_price: isPriceDown ? currentPrice : null,
           })
           .eq('id', existingProduct.id)
           .select('id').single()

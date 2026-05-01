@@ -19,6 +19,7 @@ type Product = {
   category: string
   pack_size: number
   image_url?: string | null
+  previous_price?: number | null
   stock: Stock[] | Stock
 }
 
@@ -168,10 +169,24 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
                           {product.length_str ? product.length_str + ' см' : '—'}
                         </span>
                         <StockBadge qty={available} />
-                        <span className="text-xs text-gray-500 w-16">
-                          {isAuthed
-                            ? `${price.toLocaleString('ru-RU')} ₸`
-                            : <span className="text-gray-300 select-none">●●● ₸</span>}
+                        <span className="text-xs text-gray-500">
+                          {isAuthed ? (
+                            <>
+                              {`${price.toLocaleString('ru-RU')} ₸`}
+                              {product.previous_price && product.previous_price > price && (
+                                <span className="text-xs line-through text-gray-400 ml-1">
+                                  {product.previous_price.toLocaleString('ru-RU')} T
+                                </span>
+                              )}
+                              {product.previous_price && product.previous_price > price && (
+                                <span className="text-xs bg-red-100 text-red-600 px-1 rounded ml-1">
+                                  Уценка
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-gray-300 select-none">●●● ₸</span>
+                          )}
                         </span>
                         <div className="flex items-center gap-1 ml-auto">
                           <button
