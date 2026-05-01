@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     const supabase = createClient()
 
-    supabase.auth.onAuthStateChange(async (_event: string, session) => {
+    supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!session?.user) {
         set({ user: null, role: null, phone: null, isAuthed: false })
         return
