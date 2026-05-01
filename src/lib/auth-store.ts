@@ -73,23 +73,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     const digits = normalizePhone(phone)
     const email = `${digits}@flowers.local`
 
-    console.log('LOGIN ATTEMPT:', { email, pin, pinLength: pin.length })
-    console.log('email:', email, 'password:', pin)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pin })
-    console.log('AUTH RESULT:', { userId: data.user?.id, error: error?.message })
-    if (error || !data.user) {
+    console.log('AUTH RESULT:', { userId: data?.user?.id, error: error?.message })
+
+    if (error || !data?.user) {
       return { error: 'Неверный телефон или PIN' }
     }
 
-    const { data: profile } = await supabase
+    const userId = data.user.id
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, phone')
-      .eq('id', data.user.id)
+      .eq('id', userId)
       .single()
-    console.log('PROFILE:', { profile, role: profile?.role })
+
+    console.log('PROFILE:', { profile, profileError: profileError?.message })
 
     set({
-      user: { id: data.user.id },
+      user: { id: userId },
       role: (profile?.role ?? null) as Role,
       phone: profile?.phone ?? digits,
       isAuthed: true,
