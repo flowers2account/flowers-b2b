@@ -241,7 +241,7 @@ export default function OrdersPanel() {
             {order.status === 'confirmed' && (
               <button onClick={() => updateStatus(order.id, 'delivered')}
                 className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                📦 Передано клиенту
+                📦 Передать клиенту
               </button>
             )}
             <button
