@@ -8,15 +8,20 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const admin = supabase
-  const { data, error } = await admin
+  const { data: profile } = await supabase.from('profiles').select('phone').eq('id', user.id).single()
+  if (!profile?.phone) return NextResponse.json([])
+
+  const { data: client } = await supabase.from('clients').select('id').eq('phone', '+' + profile.phone).maybeSingle()
+  if (!client) return NextResponse.json([])
+
+  const { data, error } = await supabase
     .from('orders')
     .select(`
       id, status, total, notes, created_at, client_id,
       order_items(id, product_id, qty, price, product:product_id(name, pack_size, stock:stock_available(available_qty))),
       reservations(expires_at)
     `)
-    .eq('client_id', user.id)
+    .eq('client_id', client.id)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
