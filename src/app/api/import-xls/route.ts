@@ -98,20 +98,45 @@ export async function POST(req: NextRequest) {
       if (vErr || !variety) throw new Error(`variety: ${vErr?.code} ${vErr?.message}`)
 
       // 2. Создаём или находим товар (product)
-      const { data: product, error: pErr } = await supabase
+      const { data: existingProduct } = await supabase
         .from('products')
-        .upsert({
-          variety_id: variety.id,
-          variety_name: parsed.variety_name,
-          length_str: parsed.length_str,
-          length_cm: parsed.length_cm,
-          pack_size: 5,
-          category: categoryOverride ?? parsed.category,
-          name: row.name,
-          is_active: true,
-        }, { onConflict: 'variety_id,length_str', ignoreDuplicates: false })
-        .select('id').single()
-      if (pErr || !product) throw new Error(`product: ${pErr?.code} ${pErr?.message}`)
+        .select('id, pack_size')
+        .eq('variety_id', variety.id)
+        .is('length_str', parsed.length_str ?? null)
+        .maybeSingle()
+
+      let product
+      if (existingProduct) {
+        const { data: updatedProduct, error: pErr } = await supabase
+          .from('products')
+          .update({
+            variety_name: parsed.variety_name,
+            length_cm: parsed.length_cm,
+            category: categoryOverride ?? parsed.category,
+            name: row.name,
+            is_active: true,
+          })
+          .eq('id', existingProduct.id)
+          .select('id').single()
+        if (pErr || !updatedProduct) throw new Error(`product update: ${pErr?.code} ${pErr?.message}`)
+        product = updatedProduct
+      } else {
+        const { data: newProduct, error: pErr } = await supabase
+          .from('products')
+          .insert({
+            variety_id: variety.id,
+            variety_name: parsed.variety_name,
+            length_str: parsed.length_str,
+            length_cm: parsed.length_cm,
+            pack_size: 5,
+            category: categoryOverride ?? parsed.category,
+            name: row.name,
+            is_active: true,
+          })
+          .select('id').single()
+        if (pErr || !newProduct) throw new Error(`product insert: ${pErr?.code} ${pErr?.message}`)
+        product = newProduct
+      }
 
       // 3. Заменяем партии: деактивируем старые, создаём одну свежую
       await supabase.from('batches')
