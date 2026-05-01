@@ -7,6 +7,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
   const { items, phone, name } = await req.json()
+  const normalizedPhone = phone.startsWith('+') ? phone : '+' + phone
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
   if (!phone) return NextResponse.json({ error: 'Phone is required' }, { status: 400 })
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   const { data: existingClient } = await supabase
     .from('clients')
     .select('id')
-    .eq('phone', phone)
+    .eq('phone', normalizedPhone)
     .maybeSingle()
 
   let clientId: string
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   } else {
     const { data: newClient } = await supabase
       .from('clients')
-      .insert({ phone, name: name ?? null })
+      .insert({ phone: normalizedPhone, name: name ?? null })
       .select('id')
       .single()
     if (!newClient) return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
