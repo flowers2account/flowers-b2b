@@ -12,6 +12,10 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
 
   async function handleUpload() {
     if (!files.length) return
+    const confirmed = confirm(
+      `Загрузка файлов обнулит ВСЕ текущие остатки категории перед записью новых данных.\n\nФайлы: ${files.map(f => f.name).join(', ')}\n\nПродолжить?`
+    )
+    if (!confirmed) return
     setLoading(true)
     setResults([])
 
