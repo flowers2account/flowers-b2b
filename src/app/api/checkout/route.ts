@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
       await supabase.from('clients').update({ name }).eq('id', clientId)
     }
   } else {
-    const { data: newClient } = await supabase
-      .from('clients')
-      .insert({ phone: normalizedPhone, name: name ?? null })
-      .select('id')
-      .single()
-    if (!newClient) return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
+    const { data: newClient, error: clientError } = await supabase
+  .from('clients')
+  .insert({ phone: normalizedPhone, name: name ?? null })
+  .select('id')
+  .single()
+if (!newClient) return NextResponse.json({ error: 'Failed to create client', detail: clientError?.message }, { status: 500 })
     clientId = newClient.id
   }
 
