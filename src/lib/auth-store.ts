@@ -30,36 +30,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   init: async () => {
     if (_initialized) return
     _initialized = true
-
     const supabase = createClient()
-
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session?.user) {
-        set({ user: null, role: null, phone: null, isAuthed: false })
-        return
-      }
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, phone')
-        .eq('id', session.user.id)
-        .single()
-      set({
-        user: { id: session.user.id },
-        role: (profile?.role ?? null) as Role,
-        phone: profile?.phone ?? null,
-        isAuthed: true,
-      })
-    })
-
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, phone')
       .eq('id', user.id)
       .single()
-
     set({
       user: { id: user.id },
       role: (profile?.role ?? null) as Role,
