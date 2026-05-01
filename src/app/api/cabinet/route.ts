@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { normalizePhone } from '@/lib/phone'
 
 export async function GET(req: NextRequest) {
   const phone = req.nextUrl.searchParams.get('phone')
@@ -7,10 +8,11 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createClient()
 
+  const normalizedPhone = normalizePhone(phone)
   const { data: client } = await supabase
     .from('clients')
     .select('id, name, phone')
-    .eq('phone', phone)
+    .eq('phone', normalizedPhone)
     .maybeSingle()
 
   if (!client) return NextResponse.json({ orders: [] })

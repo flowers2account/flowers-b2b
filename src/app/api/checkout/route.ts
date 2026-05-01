@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { normalizePhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,7 +8,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
   const { items, phone, name } = await req.json()
-  const normalizedPhone = phone.startsWith('+') ? phone : '+' + phone
+  const normalizedPhone = normalizePhone(phone)
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
   if (!phone) return NextResponse.json({ error: 'Phone is required' }, { status: 400 })
 

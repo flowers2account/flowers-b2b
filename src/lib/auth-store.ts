@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createClient } from '@/lib/supabase/client'
+import { normalizePhone } from '@/lib/phone'
 
 type Role = 'admin' | 'manager' | 'client' | null
 
@@ -13,11 +14,6 @@ interface AuthState {
   logout: () => Promise<void>
 }
 
-function normalizePhone(phone: string): string {
-  let digits = phone.replace(/\D/g, '')
-  if (digits.startsWith('8')) digits = '7' + digits.slice(1)
-  return digits
-}
 
 let _initialized = false
 
@@ -70,7 +66,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       user: { id: userId },
       role: (profile?.role ?? null) as Role,
-      phone: profile?.phone ?? digits,
+      phone: normalizePhone(profile?.phone ?? digits),
       isAuthed: true,
     })
 
