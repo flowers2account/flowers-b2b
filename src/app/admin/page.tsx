@@ -43,7 +43,7 @@ export default function AdminPage() {
         reservedByProduct[r.product_id] = (reservedByProduct[r.product_id] ?? 0) + r.qty
       }
 
-      const productsWithReserved = (productRows ?? []).map(p => {
+      const productsWithReserved = (productRows ?? []).map((p: any) => {
         const reserved = reservedByProduct[p.id] ?? 0
         const stockRaw = p.stock
         const stockWithReserved = Array.isArray(stockRaw)
