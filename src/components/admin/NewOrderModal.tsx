@@ -24,19 +24,20 @@ export default function NewOrderModal({ onClose, onCreated }: { onClose: () => v
 
   useEffect(() => {
     if (productSearch.length < 2) { setProducts([]); return }
-    supabase.from('stock_available')
-      .select('product_id, price, available_qty, products:product_id(id, name, pack_size)')
-      .ilike('products.name', `%${productSearch}%`)
-      .gt('available_qty', 0)
-      .limit(10)
-      .then(({ data }: { data: StockRow[] | null }) => {
+    supabase.from('products')
+      .select('id, name, pack_size, stock_available!inner(price, available_qty)')
+      .ilike('name', `%${productSearch}%`)
+      .eq('is_active', true)
+      .gt('stock_available.available_qty', 0)
+      .limit(15)
+      .then(({ data }: { data: any[] | null }) => {
         const mapped = (data ?? []).map(d => ({
-          id: d.product_id,
-          name: d.products?.name ?? '',
-          price: d.price,
-          pack_size: d.products?.pack_size ?? 1,
-          available_qty: d.available_qty,
-        })).filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+          id: d.id,
+          name: d.name,
+          price: d.stock_available?.[0]?.price ?? 0,
+          pack_size: d.pack_size ?? 1,
+          available_qty: d.stock_available?.[0]?.available_qty ?? 0,
+        }))
         setProducts(mapped)
       })
   }, [productSearch])
