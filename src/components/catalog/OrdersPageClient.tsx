@@ -207,22 +207,30 @@ export default function OrdersPageClient() {
                   <div className="text-xs text-gray-500 bg-white rounded p-2 border">{order.notes}</div>
                 )}
 
-                {canEdit && (
-                  <div className="flex gap-2 pt-1 flex-wrap">
-                    <Link
-                      href="/"
-                      className="px-3 py-1.5 bg-green-700 text-white text-sm rounded hover:bg-green-800"
-                    >
-                      + Добавить товары
-                    </Link>
-                    <button
-                      onClick={() => cancelOrder(order.id)}
-                      className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200"
-                    >
-                      ❌ Отменить заказ
-                    </button>
-                  </div>
-                )}
+                <div className="flex gap-2 pt-1 flex-wrap">
+                  {canEdit && (
+                    <>
+                      <Link
+                        href="/"
+                        className="px-3 py-1.5 bg-green-700 text-white text-sm rounded hover:bg-green-800"
+                      >
+                        + Добавить товары
+                      </Link>
+                      <button
+                        onClick={() => cancelOrder(order.id)}
+                        className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200"
+                      >
+                        ❌ Отменить заказ
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => window.open(`/print/order/${order.id}`, '_blank', 'width=800,height=700')}
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
+                  >
+                    🖨 Печать
+                  </button>
+                </div>
               </div>
             )}
           </div>

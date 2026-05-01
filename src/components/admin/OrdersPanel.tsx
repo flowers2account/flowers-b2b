@@ -195,7 +195,7 @@ export default function OrdersPanel() {
             <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">{order.notes}</div>
           )}
 
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-1 flex-wrap">
             {order.status === 'pending' && (
               <>
                 <button onClick={() => updateStatus(order.id, 'reserved')}
@@ -226,6 +226,11 @@ export default function OrdersPanel() {
                 📦 Выдан
               </button>
             )}
+            <button
+              onClick={() => window.open(`/print/order/${order.id}`, '_blank', 'width=800,height=700')}
+              className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 ml-auto">
+              🖨 Печать
+            </button>
           </div>
         </div>
         )
