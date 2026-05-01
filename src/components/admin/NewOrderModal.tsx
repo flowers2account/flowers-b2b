@@ -18,7 +18,7 @@ export default function NewOrderModal({ onClose, onCreated }: { onClose: () => v
 
   useEffect(() => {
     supabase.from('clients').select('id, name, phone')
-      .order('name').then(({ data }) => setClients(data ?? []))
+      .order('name').then(({ data }: { data: Client[] | null }) => setClients(data ?? []))
   }, [])
 
   useEffect(() => {
