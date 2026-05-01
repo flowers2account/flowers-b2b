@@ -73,6 +73,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     const digits = normalizePhone(phone)
     const email = `${digits}@flowers.local`
 
+    console.log('LOGIN ATTEMPT:', { email, pin, pinLength: pin.length })
+    console.log('email:', email, 'password:', pin)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pin })
     if (error || !data.user) {
       return { error: 'Неверный телефон или PIN' }
