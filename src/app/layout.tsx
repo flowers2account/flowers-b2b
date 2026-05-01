@@ -1,18 +1,26 @@
 import type { Metadata } from 'next'
-import { Inter, Montserrat } from 'next/font/google'
+import { Golos_Text, Playfair_Display, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/catalog/Header'
 
-const inter = Inter({
+const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
-  weight: ['300', '400', '500'],
-  variable: '--font-inter'
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-golos'
 })
 
-const montserrat = Montserrat({
+const playfair = Playfair_Display({
   subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-montserrat'
+  weight: ['400', '500'],
+  style: ['normal', 'italic'],
+  variable: '--font-playfair'
+})
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500'],
+  style: ['normal', 'italic'],
+  variable: '--font-cormorant'
 })
 
 export const metadata: Metadata = {
@@ -22,8 +30,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={`${inter.variable} ${montserrat.variable}`}>
-      <body className="font-[family-name:var(--font-inter)]">
+    <html lang="ru" className={`${golos.variable} ${playfair.variable} ${cormorant.variable}`}>
+      <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}
       </body>
