@@ -110,12 +110,16 @@ export async function POST(req: NextRequest) {
       if (vErr || !variety) throw new Error(`variety: ${vErr?.code} ${vErr?.message}`)
 
       // 2. Создаём или находим товар (product)
-      const { data: existingProduct } = await supabase
+      const productQuery = supabase
         .from('products')
         .select('id, pack_size')
         .eq('variety_id', variety.id)
-        .is('length_str', parsed.length_str ?? null)
-        .maybeSingle()
+
+      const { data: existingProduct } = await (
+        parsed.length_str
+          ? productQuery.eq('length_str', parsed.length_str)
+          : productQuery.is('length_str', null)
+      ).maybeSingle()
 
       let product
       if (existingProduct) {
