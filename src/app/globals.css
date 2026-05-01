@@ -49,20 +49,25 @@
 }
 
 :root {
-  --accent: #8B1A1A;
-  --accent-mid: #A52020;
-  --accent-light: #F9EEEE;
-  --header-bg: #8B1A1A;
-  --pink: #E8B4B8;
-  --avail-green: #3aaa5c;
-  --text: #1A1A1A;
-  --text-mid: #555;
-  --text-light: #888;
+  --accent: #8B3A5A;
+  --accent-mid: #C97A92;
+  --accent-light: #F7EEF2;
+  --header-bg: #8B3A5A;
+  --pink: #E8B4C0;
+  --petal-bg: #F7EEF2;
+  --fern: #3D6B50;
+  --dew: #D6EAD8;
+  --sand: #F5EFE6;
+  --earth: #8B5E3C;
+  --avail-green: #3D6B50;
+  --text: #1C1C1C;
+  --text-mid: #6B7570;
+  --text-light: #6B7570;
   --white: #FFFFFF;
-  --bg: #F7F7F7;
-  --bg2: #EFEFEF;
-  --border: #E2E2E2;
-  --border-light: #EFEFEF;
+  --bg: #ffffff;
+  --bg2: #F7EEF2;
+  --border: #E5E5E5;
+  --border-light: #F2EAF0;
 }
 
 body {
