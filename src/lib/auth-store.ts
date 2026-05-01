@@ -76,6 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     console.log('LOGIN ATTEMPT:', { email, pin, pinLength: pin.length })
     console.log('email:', email, 'password:', pin)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pin })
+    console.log('AUTH RESULT:', { userId: data.user?.id, error: error?.message })
     if (error || !data.user) {
       return { error: 'Неверный телефон или PIN' }
     }
@@ -85,6 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       .select('role, phone')
       .eq('id', data.user.id)
       .single()
+    console.log('PROFILE:', { profile, role: profile?.role })
 
     set({
       user: { id: data.user.id },
