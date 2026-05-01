@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import NewOrderModal from './NewOrderModal'
 
 type OrderItem = {
   id: number
@@ -30,6 +31,7 @@ type Order = {
 export default function OrdersPanel() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [showNewOrder, setShowNewOrder] = useState(false)
   const supabase = createClient()
 
   async function loadOrders() {
@@ -100,10 +102,24 @@ export default function OrdersPanel() {
   }
 
   if (loading) return <div className="text-sm text-gray-400 py-4">Загрузка...</div>
-  if (orders.length === 0) return <div className="text-sm text-gray-400 py-4">Заказов нет</div>
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-medium text-gray-600">Заказы</span>
+        <button
+          onClick={() => setShowNewOrder(true)}
+          className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">
+          + Новый заказ
+        </button>
+      </div>
+      {showNewOrder && (
+        <NewOrderModal
+          onClose={() => setShowNewOrder(false)}
+          onCreated={() => { setShowNewOrder(false); loadOrders() }}
+        />
+      )}
+      {orders.length === 0 && <div className="text-sm text-gray-400 py-4">Заказов нет</div>}
       {orders.map(order => {
         const expiresAt = (order.status === 'pending' || order.status === 'reserved') ? minExpiresAt(order.reservations ?? []) : null
 
