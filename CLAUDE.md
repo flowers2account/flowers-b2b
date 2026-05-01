@@ -10,7 +10,29 @@ B2B платформа для оптовой торговли цветами. С
 - **Backend**: Next.js API Routes (serverless functions на Vercel)
 - **База данных**: Supabase (PostgreSQL + RLS)
 - **Хостинг**: Vercel
-- **Аутентификация**: Supabase Auth
+- **Аутентификация**: Supabase Auth (телефон + PIN, через @supabase/supabase-js — @supabase/ssr убран)
+
+## Аутентификация
+
+- Вход по телефону + PIN через `supabase.auth.signInWithPassword()`
+- Email формируется как: `normalizePhone(phone).replace('+', '') + '@flowers.local'`
+  - Пример: телефон `+77476108458` → email `77476108458@flowers.local`
+- Состояние хранится в Zustand: `src/lib/auth-store.ts` (singleton, `_initialized` флаг)
+- Singleton Supabase client: `src/lib/supabase/client.ts`
+- Защита /admin и /cabinet — только на клиенте через `useAuthStore`
+- Серверные auth проверки убраны из API маршрутов; `userId` передаётся в теле запроса
+
+### Тестовые аккаунты
+| Роль | Телефон | PIN |
+|------|---------|-----|
+| admin | +77476108458 | 284700 |
+| client | +77001234567 | 123456 |
+
+## Стандарт формата телефона
+
+- Везде используется формат **+7XXXXXXXXXX** (11 цифр с +)
+- `normalizePhone()` из `src/lib/phone.ts` — единая точка нормализации
+- Email для Supabase Auth: `normalizePhone(phone).replace('+', '') + '@flowers.local'`
 
 ## Структура базы данных
 
@@ -73,7 +95,13 @@ B2B платформа для оптовой торговли цветами. С
 - **manager** — управление остатками, подтверждение заказов
 - **client** — просмотр каталога, создание и управление своими заказами
 
-Роли хранятся в таблице `profiles.role` и проверяются через RLS политики.
+Роли хранятся в `profiles.role`, проверяются на клиенте через `useAuthStore`.
+
+## RLS статус (актуально на 01.05.2026)
+
+RLS **отключён** на таблицах: `clients`, `orders`, `order_items`, `reservations`, `products`, `varieties`, `batches`, `stock`, `inventory_ledger`
+
+RLS **включён только** на: `profiles`
 
 ## Важные файлы и папки
 
@@ -81,14 +109,21 @@ B2B платформа для оптовой торговли цветами. С
 src/
 ├── app/
 │   ├── api/              # API маршруты
-│   └── (pages)/          # Страницы приложения
-├── components/           # React компоненты
+│   ├── admin/            # Страница администратора (защита через useAuthStore)
+│   └── cabinet/          # Личный кабинет клиента
+├── components/
+│   ├── admin/
+│   │   └── ImportXLS.tsx # Импорт XLS — userId передаётся из useAuthStore
+│   └── catalog/
+│       └── AuthModal.tsx # Модальное окно входа (телефон + PIN)
 ├── lib/
 │   ├── supabase/
-│   │   └── server.ts     # Инициализация клиента Supabase
-│   └── hooks/            # Custom React hooks
+│   │   ├── client.ts     # Singleton Supabase client (браузер)
+│   │   └── server.ts     # Supabase client (сервер/API)
+│   ├── auth-store.ts     # Zustand стор: user, role, phone, isAuthed
+│   └── phone.ts          # normalizePhone() — единая нормализация телефона
 ├── types/                # TypeScript типы
-└── store/                # Zustand стор для состояния
+└── store/                # Zustand сторы
 ```
 
 ## Environment Variables

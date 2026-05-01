@@ -1,61 +1,73 @@
 'use client'
-
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
 
 export default function ImportXLS({ onImported }: { onImported: () => void }) {
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ success: number; errors: number; errorLog: string[] } | null>(null)
-  const [fileName, setFileName] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [results, setResults] = useState<{ name: string; success: number; errors: number; zeroed?: number }[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
   const user = useAuthStore(s => s.user)
 
   async function handleUpload() {
-    const file = fileRef.current?.files?.[0]
-    if (!file) return
+    if (!files.length) return
     setLoading(true)
-    setResult(null)
-    const formData = new FormData()
-    formData.append('file', file)
-    if (user?.id) formData.append('userId', user.id)
-    try {
-      const res = await fetch('/api/import-xls', { method: 'POST', body: formData })
-      const data = await res.json()
-      setResult(data)
-      if (data.success > 0) onImported()
-    } catch (e) {
-      setResult({ success: 0, errors: 1, errorLog: [String(e)] })
+    setResults([])
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const isLast = i === files.length - 1
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('isLast', String(isLast))
+      if (user?.id) formData.append('userId', user.id)
+
+      try {
+        const res = await fetch('/api/import-xls', { method: 'POST', body: formData })
+        const data = await res.json()
+        setResults(prev => [...prev, { name: file.name, success: data.success ?? 0, errors: data.errors ?? 0, zeroed: data.zeroed ?? 0 }])
+      } catch (e) {
+        setResults(prev => [...prev, { name: file.name, success: 0, errors: 1 }])
+      }
     }
+
     setLoading(false)
+    onImported()
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <label className="cursor-pointer px-4 py-2 border rounded-md text-sm hover:bg-gray-50">
-          Выбрать файл
-          <input ref={fileRef} type="file" accept=".xls,.xlsx" className="hidden"
-            onChange={e => setFileName(e.target.files?.[0]?.name ?? '')} />
+          Выбрать файлы
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xls,.xlsx"
+            multiple
+            className="hidden"
+            onChange={e => setFiles(Array.from(e.target.files ?? []))}
+          />
         </label>
-        {fileName && <span className="text-sm text-gray-500">{fileName}</span>}
-        <Button onClick={handleUpload} disabled={!fileName || loading} size="sm">
+        {files.length > 0 && (
+          <span className="text-sm text-gray-500">{files.map(f => f.name).join(', ')}</span>
+        )}
+        <Button onClick={handleUpload} disabled={!files.length || loading} size="sm">
           {loading ? 'Загружаю...' : 'Загрузить'}
         </Button>
       </div>
-      <p className="text-xs text-gray-400">Формат: A — Наименование, B — Количество, C — Цена</p>
-      {result && (
+      <p className="text-xs text-gray-400">Можно выбрать несколько файлов сразу. Zeroed применяется после последнего файла категории.</p>
+      {results.length > 0 && (
         <div className="text-sm space-y-1">
-          <p className="text-green-700">Импортировано: {result.success}</p>
-          {result.errors > 0 && <p className="text-red-600">Ошибок: {result.errors}</p>}
-          {result.errorLog?.length > 0 && (
-            <details>
-              <summary className="cursor-pointer text-xs text-gray-500">Показать ошибки</summary>
-              <ul className="mt-1 text-xs text-red-500 pl-3 list-disc">
-                {result.errorLog.map((e, i) => <li key={i}>{e}</li>)}
-              </ul>
-            </details>
-          )}
+          {results.map((r, i) => (
+            <div key={i} className="flex gap-3 text-xs">
+              <span className="text-gray-500 truncate max-w-[200px]">{r.name}</span>
+              <span className="text-green-700">+{r.success}</span>
+              {r.errors > 0 && <span className="text-red-600">err:{r.errors}</span>}
+              {r.zeroed ? <span className="text-orange-500">обнулено:{r.zeroed}</span> : null}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData()
   const file = formData.get('file') as File
   const userId = formData.get('userId') as string
+  const isLast = formData.get('isLast') === 'true'
   if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
   const buffer = await file.arrayBuffer()
@@ -163,7 +164,7 @@ export async function POST(req: NextRequest) {
 
   // Zero out products of the same category that were absent from the file
   let zeroed = 0
-  if (categoryOverride && importedProductIds.size > 0) {
+  if (isLast && categoryOverride && importedProductIds.size > 0) {
     const { data: allCategoryProducts } = await supabase
       .from('products')
       .select('id')
