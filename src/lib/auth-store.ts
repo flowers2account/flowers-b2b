@@ -44,8 +44,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (phone: string, pin: string) => {
     const supabase = createClient()
-    const digits = normalizePhone(phone)
-    const email = `${digits}@flowers.local`
+    const normalized = normalizePhone(phone)
+    const email = `${normalized.replace('+', '')}@flowers.local`
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pin })
     console.log('AUTH RESULT:', { userId: data?.user?.id, error: error?.message })
@@ -66,7 +66,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       user: { id: userId },
       role: (profile?.role ?? null) as Role,
-      phone: normalizePhone(profile?.phone ?? digits),
+      phone: normalizePhone(profile?.phone ?? normalized),
       isAuthed: true,
     })
 
