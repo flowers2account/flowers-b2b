@@ -32,6 +32,13 @@ export default function OrdersPanel() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewOrder, setShowNewOrder] = useState(false)
+  const [exportFrom, setExportFrom] = useState('')
+  const [exportTo, setExportTo] = useState('')
+
+  function handleExport() {
+    if (!exportFrom || !exportTo) return
+    window.open(`/api/export-orders?from=${exportFrom}&to=${exportTo}`, '_blank')
+  }
   const supabase = createClient()
 
   async function loadOrders() {
@@ -111,6 +118,17 @@ export default function OrdersPanel() {
           onClick={() => setShowNewOrder(true)}
           className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">
           + Новый заказ
+        </button>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <input type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)}
+          className="border rounded px-2 py-1 text-sm" />
+        <span className="text-sm text-gray-400">—</span>
+        <input type="date" value={exportTo} onChange={e => setExportTo(e.target.value)}
+          className="border rounded px-2 py-1 text-sm" />
+        <button onClick={handleExport} disabled={!exportFrom || !exportTo}
+          className="px-3 py-1.5 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50">
+          📥 Выгрузить Excel
         </button>
       </div>
       {showNewOrder && (
