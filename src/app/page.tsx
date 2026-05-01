@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import PriceTable from '@/components/catalog/PriceTable'
 import CartSidebar from '@/components/catalog/CartSidebar'
+import FilterSidebar from '@/components/catalog/FilterSidebar'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -10,12 +11,22 @@ export default async function HomePage() {
     .eq('is_active', true)
     .order('variety_name')
     .order('length_cm')
+
   return (
-    <main className="max-w-6xl mx-auto px-4 py-6">
+    <main className="max-w-7xl mx-auto px-4 py-4">
       <div className="flex gap-6 items-start">
+
+        {/* Левый сайдбар — фильтры */}
+        <aside className="w-52 flex-shrink-0">
+          <FilterSidebar products={products ?? []} />
+        </aside>
+
+        {/* Каталог */}
         <div className="flex-1 min-w-0">
           <PriceTable products={products ?? []} />
         </div>
+
+        {/* Правый сайдбар — корзина */}
         <CartSidebar />
       </div>
     </main>
