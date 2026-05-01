@@ -4,9 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  const { client_id, items } = await req.json()
+  const { client_id, guest_name, guest_phone, items, confirmed } = await req.json()
 
-  if (!client_id) return NextResponse.json({ error: 'client_id required' }, { status: 400 })
+  if (!client_id && !guest_name && !guest_phone) {
+    return NextResponse.json({ error: 'client_id or guest info required' }, { status: 400 })
+  }
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
 
   // Проверяем остатки
@@ -30,7 +32,13 @@ export async function POST(req: NextRequest) {
 
   const { data: order, error: oErr } = await supabase
     .from('orders')
-    .insert({ client_id, status: 'pending', total })
+    .insert({
+      client_id: client_id ?? null,
+      guest_name: guest_name ?? null,
+      guest_phone: guest_phone ?? null,
+      status: 'pending',
+      total,
+    })
     .select().single()
   if (!order) return NextResponse.json({ error: oErr?.message }, { status: 500 })
 
@@ -44,7 +52,7 @@ export async function POST(req: NextRequest) {
     await supabase.from('reservations').insert({
       product_id: item.id,
       qty: item.qty,
-      user_id: client_id,
+      user_id: client_id ?? null,
       expires_at,
       order_id: order.id,
     })
@@ -55,8 +63,13 @@ export async function POST(req: NextRequest) {
     }).eq('product_id', item.id)
   }
 
-  // Сразу берём в работу
-  await supabase.from('orders').update({ status: 'reserved' }).eq('id', order.id)
+  if (confirmed) {
+    await supabase.from('orders').update({ status: 'confirmed' }).eq('id', order.id)
+    const { error: rpcErr } = await supabase.rpc('confirm_order_fifo', { p_order_id: order.id })
+    if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 })
+  } else {
+    await supabase.from('orders').update({ status: 'reserved' }).eq('id', order.id)
+  }
 
   return NextResponse.json({ success: true, order_id: order.id })
 }
