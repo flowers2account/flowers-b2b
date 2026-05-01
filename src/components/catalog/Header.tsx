@@ -25,7 +25,7 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-2xl">🌸</span>
             <div className="leading-tight">
-              <div className="font-bold text-[#8B1A1A] text-base leading-none" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+              <div className="font-bold text-base leading-none" style={{ color: 'var(--accent)', fontFamily: 'var(--font-golos)' }}>
                 Цветы Уральска
               </div>
               <div className="text-[10px] text-gray-400 leading-none mt-0.5">оптовая база</div>
@@ -63,7 +63,8 @@ export default function Header() {
             ) : (
               <button
                 onClick={() => setShowAuth(true)}
-                className="text-sm bg-[#8B1A1A] text-white px-4 py-1.5 rounded-lg hover:bg-[#A52020] transition-colors"
+                className="text-sm text-white px-4 py-1.5 rounded-lg hover:bg-[#A52020] transition-colors"
+                style={{ backgroundColor: 'var(--accent)' }}
               >
                 Войти
               </button>
@@ -73,7 +74,7 @@ export default function Header() {
       </div>
 
       {/* L2 — бордовая полоса */}
-      <div className="bg-[#8B1A1A] h-11">
+      <div className="h-11" style={{ backgroundColor: 'var(--accent)' }}>
         <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between">
 
           {/* Категории */}
@@ -97,7 +98,7 @@ export default function Header() {
             <div className="relative">
               <span className="text-xl">🛒</span>
               {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-white text-[#8B1A1A] text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                <span className="absolute -top-1.5 -right-1.5 bg-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none" style={{ color: 'var(--accent)' }}>
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
