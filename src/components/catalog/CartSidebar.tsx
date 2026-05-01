@@ -5,6 +5,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import AuthModal from './AuthModal'
 
 function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
@@ -12,16 +13,20 @@ function formatPrice(p: number) {
 
 export default function CartSidebar() {
   const { items, remove, update, clear, total } = useCart()
-  const { clientPhone, clientName } = useAuthStore()
+  const { phone } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState('')
   const [whatsappUrl, setWhatsappUrl] = useState('')
+  const [showAuth, setShowAuth] = useState(false)
 
   const count = items.reduce((s, i) => s + i.qty, 0)
 
   async function submitOrder() {
-    if (!clientPhone) return
+    if (!phone) {
+      setShowAuth(true)
+      return
+    }
     setLoading(true)
     setStockError('')
 
@@ -30,8 +35,7 @@ export default function CartSidebar() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
-        phone: clientPhone,
-        name: clientName ?? '',
+        phone,
       }),
     })
 
@@ -49,7 +53,7 @@ export default function CartSidebar() {
       : `🌸 Обновление заказа #${order_id}`
     const msg = msgHeader + '\n\n' +
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
-      `\n\nИтого: ${formatPrice(total())}\n\nКлиент: ${clientPhone}`
+      `\n\nИтого: ${formatPrice(total())}\n\nКлиент: ${phone}`
 
     setWhatsappUrl(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`)
     clear()
@@ -109,7 +113,7 @@ export default function CartSidebar() {
                 <Button
                   className="w-full bg-green-700 hover:bg-green-800"
                   onClick={submitOrder}
-                  disabled={loading || !clientPhone}
+                  disabled={loading}
                 >
                   {loading ? 'Оформляем...' : '✅ Создать заказ'}
                 </Button>
@@ -121,6 +125,13 @@ export default function CartSidebar() {
           )}
         </div>
       </div>
+
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          onSuccess={() => setShowAuth(false)}
+        />
+      )}
 
       <Dialog open={done} onOpenChange={setDone}>
         <DialogContent className="max-w-sm">

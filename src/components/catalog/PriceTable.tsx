@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCart } from '@/lib/cart-store'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/auth-store'
-import PhoneAuthModal from './PhoneAuthModal'
+import AuthModal from './AuthModal'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; available_qty?: number; reserved_qty?: number } | null
 type Product = {
@@ -215,7 +215,7 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
       )}
 
       {showAuth && (
-        <PhoneAuthModal
+        <AuthModal
           onClose={() => { setShowAuth(false); setPendingAction(null) }}
           onSuccess={() => { pendingAction?.() }}
         />

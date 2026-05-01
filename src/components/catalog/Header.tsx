@@ -1,12 +1,16 @@
 'use client'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
-import { useState } from 'react'
-import PhoneAuthModal from './PhoneAuthModal'
+import { useState, useEffect } from 'react'
+import AuthModal from './AuthModal'
 
 export default function Header() {
-  const { isAuthed, clientName, logout } = useAuthStore()
+  const { isAuthed, phone, role, init, logout } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
+
+  useEffect(() => {
+    init()
+  }, [])
 
   return (
     <header className="border-b bg-white sticky top-0 z-50 shadow-sm">
@@ -18,12 +22,17 @@ export default function Header() {
         <div className="flex items-center gap-3">
           {isAuthed ? (
             <>
+              {(role === 'admin' || role === 'manager') && (
+                <Link href="/admin" className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700">
+                  ⚙️ Админка
+                </Link>
+              )}
               <Link href="/cabinet" className="text-sm text-gray-600 hover:text-gray-800">
                 📋 Мои заказы
               </Link>
-              <span className="text-sm text-gray-600">👤 {clientName}</span>
+              <span className="text-sm text-gray-600">👤 {phone}</span>
               <button
-                onClick={logout}
+                onClick={() => logout()}
                 className="text-sm text-gray-400 hover:text-gray-600"
               >
                 Выйти
@@ -40,7 +49,7 @@ export default function Header() {
         </div>
       </div>
       {showAuth && (
-        <PhoneAuthModal onClose={() => setShowAuth(false)} />
+        <AuthModal onClose={() => setShowAuth(false)} />
       )}
     </header>
   )

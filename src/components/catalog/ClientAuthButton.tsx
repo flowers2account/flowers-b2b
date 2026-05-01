@@ -1,18 +1,18 @@
 'use client'
 import { useState } from 'react'
 import { useAuthStore } from '@/lib/auth-store'
-import PhoneAuthModal from './PhoneAuthModal'
+import AuthModal from './AuthModal'
 
 export default function ClientAuthButton() {
-  const { isAuthed, clientName, logout } = useAuthStore()
+  const { isAuthed, phone, logout } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
 
   return (
     <div className="flex items-center gap-3">
       {isAuthed ? (
         <>
-          <span className="text-sm text-gray-600 hidden sm:block">👤 {clientName}</span>
-          <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">
+          <span className="text-sm text-gray-600 hidden sm:block">👤 {phone}</span>
+          <button onClick={() => logout()} className="text-sm text-gray-400 hover:text-gray-600">
             Выйти
           </button>
         </>
@@ -24,7 +24,7 @@ export default function ClientAuthButton() {
           Войти
         </button>
       )}
-      {showAuth && <PhoneAuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </div>
   )
 }

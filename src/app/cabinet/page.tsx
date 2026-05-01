@@ -35,23 +35,27 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function CabinetPage() {
-  const { isAuthed, clientPhone, clientName } = useAuthStore()
+  const { isAuthed, phone, init } = useAuthStore()
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!isAuthed || !clientPhone) {
+    init()
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthed || !phone) {
       router.push('/')
       return
     }
-    fetch(`/api/cabinet?phone=${encodeURIComponent(clientPhone)}`)
+    fetch(`/api/cabinet?phone=${encodeURIComponent(phone)}`)
       .then(r => r.json())
       .then(data => {
         setOrders(data.orders ?? [])
         setLoading(false)
       })
-  }, [isAuthed, clientPhone, router])
+  }, [isAuthed, phone, router])
 
   if (!isAuthed) return null
 
@@ -60,7 +64,7 @@ export default function CabinetPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Мои заказы</h1>
-          <p className="text-sm text-gray-500 mt-1">👤 {clientName} · {clientPhone}</p>
+          <p className="text-sm text-gray-500 mt-1">📞 {phone}</p>
         </div>
         <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Каталог</Link>
       </div>

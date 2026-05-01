@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import AuthModal from './AuthModal'
 
 function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
@@ -14,17 +15,21 @@ function formatPrice(p: number) {
 
 export default function Cart() {
   const { items, remove, update, clear, total } = useCart()
-  const { clientPhone, clientName } = useAuthStore()
+  const { phone } = useAuthStore()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState('')
   const [whatsappUrl, setWhatsappUrl] = useState('')
+  const [showAuth, setShowAuth] = useState(false)
 
   const count = items.reduce((s, i) => s + i.qty, 0)
 
   async function submitOrder() {
-    if (!clientPhone) return
+    if (!phone) {
+      setShowAuth(true)
+      return
+    }
     setLoading(true)
     setStockError('')
 
@@ -33,8 +38,7 @@ export default function Cart() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
-        phone: clientPhone,
-        name: clientName ?? '',
+        phone,
       }),
     })
 
@@ -52,7 +56,7 @@ export default function Cart() {
       : `🌸 Обновление заказа #${order_id}`
     const msg = msgHeader + '\n\n' +
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
-      `\n\nИтого: ${formatPrice(total())}\n\nКлиент: ${clientPhone}`
+      `\n\nИтого: ${formatPrice(total())}\n\nКлиент: ${phone}`
 
     setWhatsappUrl(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`)
     clear()
@@ -129,7 +133,13 @@ export default function Cart() {
         </SheetContent>
       </Sheet>
 
-      {/* Успешный заказ */}
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          onSuccess={() => setShowAuth(false)}
+        />
+      )}
+
       <Dialog open={done} onOpenChange={setDone}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

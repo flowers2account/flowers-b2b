@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = isAdminRoute || request.nextUrl.pathname.startsWith('/orders')
 
   if (!user && isProtectedRoute) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return supabaseResponse
