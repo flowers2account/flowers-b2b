@@ -24,22 +24,9 @@ export default function NewOrderModal({ onClose, onCreated }: { onClose: () => v
 
   useEffect(() => {
     if (productSearch.length < 2) { setProducts([]); return }
-    supabase.from('products')
-      .select('id, name, pack_size, stock_available!inner(price, available_qty)')
-      .ilike('name', `%${productSearch}%`)
-      .eq('is_active', true)
-      .gt('stock_available.available_qty', 0)
-      .limit(15)
-      .then(({ data }: { data: any[] | null }) => {
-        const mapped = (data ?? []).map(d => ({
-          id: d.id,
-          name: d.name,
-          price: d.stock_available?.[0]?.price ?? 0,
-          pack_size: d.pack_size ?? 1,
-          available_qty: d.stock_available?.[0]?.available_qty ?? 0,
-        }))
-        setProducts(mapped)
-      })
+    fetch(`/api/search-products?q=${encodeURIComponent(productSearch)}`)
+      .then(r => r.json())
+      .then(data => setProducts(data ?? []))
   }, [productSearch])
 
   function addToCart(product: Product) {
