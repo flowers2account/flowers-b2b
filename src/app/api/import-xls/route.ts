@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
   const file = formData.get('file') as File
   const userId = formData.get('userId') as string
   const isLast = formData.get('isLast') === 'true'
+  const isFirst = formData.get('isFirst') === 'true'
   if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
   const buffer = await file.arrayBuffer()
@@ -84,6 +85,17 @@ export async function POST(req: NextRequest) {
   const categoryOverride: 'cut' | 'pot' | null =
     fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
     fileNameLower.includes('срез') ? 'cut' : null
+
+  if (isFirst && categoryOverride) {
+    const { data: allProducts } = await supabase
+      .from('products').select('id')
+      .eq('category', categoryOverride).eq('is_active', true)
+    if (allProducts?.length) {
+      const ids = allProducts.map(p => p.id)
+      await supabase.from('batches').update({ is_active: false }).in('product_id', ids)
+      await supabase.from('stock').update({ qty: 0, is_available: false }).in('product_id', ids)
+    }
+  }
 
   for (const row of rows) {
     try {
@@ -187,30 +199,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Zero out products of the same category that were absent from the file
-  let zeroed = 0
-  if (isLast && categoryOverride && importedProductIds.size > 0) {
-    const { data: allCategoryProducts } = await supabase
-      .from('products')
-      .select('id')
-      .eq('category', categoryOverride)
-      .eq('is_active', true)
-
-    const toZero = (allCategoryProducts ?? []).filter(p => !importedProductIds.has(p.id))
-
-    for (const p of toZero) {
-      await supabase.from('batches').update({ is_active: false }).eq('product_id', p.id)
-      await supabase.from('stock').update({ qty: 0, is_available: false }).eq('product_id', p.id)
-      await supabase.from('inventory_ledger').insert({
-        product_id: p.id,
-        action: 'import',
-        quantity: 0,
-        reference_type: 'import',
-        created_by: userId,
-      })
-      zeroed++
-    }
-  }
+  const zeroed = 0
 
   return NextResponse.json({ success, errors, zeroed, errorLog })
 }

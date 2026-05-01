@@ -18,9 +18,11 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       const isLast = i === files.length - 1
+      const isFirst = i === 0
       const formData = new FormData()
       formData.append('file', file)
       formData.append('isLast', String(isLast))
+      formData.append('isFirst', String(isFirst))
       if (user?.id) formData.append('userId', user.id)
 
       try {
