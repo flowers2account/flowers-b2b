@@ -1,9 +1,19 @@
 import type { Metadata } from 'next'
-import { Geist } from 'next/font/google'
+import { Inter, Montserrat } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/catalog/Header'
 
-const geist = Geist({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['300', '400', '500'],
+  variable: '--font-inter'
+})
+
+const montserrat = Montserrat({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-montserrat'
+})
 
 export const metadata: Metadata = {
   title: 'Цветы Уральска — оптовый прайс',
@@ -12,8 +22,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru">
-      <body className={geist.className}>
+    <html lang="ru" className={`${inter.variable} ${montserrat.variable}`}>
+      <body className="font-[family-name:var(--font-inter)]">
         <Header />
         {children}
       </body>
