@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 type Client = { id: string; name: string | null; phone: string | null }
 type Product = { id: number; name: string; price: number; pack_size: number; available_qty: number }
 type CartItem = Product & { qty: number }
+type StockRow = { product_id: number; price: number; available_qty: number; products: { id: number; name: string; pack_size: number } | null }
 
 export default function NewOrderModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const supabase = createClient()
@@ -28,14 +29,14 @@ export default function NewOrderModal({ onClose, onCreated }: { onClose: () => v
       .ilike('products.name', `%${productSearch}%`)
       .gt('available_qty', 0)
       .limit(10)
-      .then(({ data }) => {
-        const mapped = (data ?? []).map((d: any) => ({
+      .then(({ data }: { data: StockRow[] | null }) => {
+        const mapped = (data ?? []).map(d => ({
           id: d.product_id,
           name: d.products?.name ?? '',
           price: d.price,
           pack_size: d.products?.pack_size ?? 1,
           available_qty: d.available_qty,
-        })).filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+        })).filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
         setProducts(mapped)
       })
   }, [productSearch])
