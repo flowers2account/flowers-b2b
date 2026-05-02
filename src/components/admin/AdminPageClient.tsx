@@ -3,6 +3,7 @@ import { useState } from 'react'
 import AdminTable from './AdminTable'
 import ImportXLS from './ImportXLS'
 import OrdersPanel from './OrdersPanel'
+import ClientsPanel from './ClientsPanel'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
 type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; stock: Stock[] | Stock }
@@ -32,6 +33,12 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
         >
           🛒 Заказы
         </button>
+        <button
+          onClick={() => setTab('clients')}
+          className={`px-4 py-2 text-sm rounded-t font-medium ${tab === 'clients' ? 'bg-white border border-b-white -mb-px text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          👥 Клиенты
+        </button>
       </div>
 
       {tab === 'stock' && (
@@ -42,6 +49,8 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
       )}
 
       {tab === 'orders' && <OrdersPanel />}
+
+      {tab === 'clients' && <ClientsPanel />}
     </div>
   )
 }
