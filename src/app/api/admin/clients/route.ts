@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Неверный формат телефона' }, { status: 400 })
   }
 
-  if (!/^\d{4}$/.test(String(pin))) {
-    return NextResponse.json({ error: 'PIN должен быть 4 цифры' }, { status: 400 })
+  if (!/^\d{6}$/.test(String(pin))) {
+    return NextResponse.json({ error: 'PIN должен быть 6 цифр' }, { status: 400 })
   }
 
   const email = `${phoneDigits}@flowers.local`
@@ -80,8 +80,8 @@ export async function PATCH(req: NextRequest) {
 
   if (!id) return NextResponse.json({ error: 'ID обязателен' }, { status: 400 })
 
-  if (pin && !/^\d{4}$/.test(String(pin))) {
-    return NextResponse.json({ error: 'PIN должен быть 4 цифры' }, { status: 400 })
+  if (pin && !/^\d{6}$/.test(String(pin))) {
+    return NextResponse.json({ error: 'PIN должен быть 6 цифр' }, { status: 400 })
   }
 
   const adminClient = createAdminClient()
