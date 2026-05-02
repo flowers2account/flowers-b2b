@@ -26,7 +26,7 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [error, setError] = useState('')
 
   function genPin() {
-    setPin(Math.floor(1000 + Math.random() * 9000).toString())
+    setPin(Math.floor(100000 + Math.random() * 900000).toString())
     setShowPin(true)
   }
 
@@ -86,8 +86,8 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
                   value={pin}
                   onChange={e => setPin(e.target.value)}
                   type={showPin ? 'text' : 'password'}
-                  placeholder="4 цифры"
-                  maxLength={4}
+                  placeholder="6 цифр"
+                  maxLength={6}
                   className="w-full border rounded px-3 py-2 text-sm font-mono pr-8"
                   required
                 />
@@ -142,13 +142,13 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientRecord; o
   const [error, setError] = useState('')
 
   function genPin() {
-    setPin(Math.floor(1000 + Math.random() * 9000).toString())
+    setPin(Math.floor(100000 + Math.random() * 900000).toString())
     setShowPin(true)
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (pin && !/^\d{4}$/.test(pin)) { setError('PIN должен быть 4 цифры'); return }
+    if (pin && !/^\d{4,6}$/.test(pin)) { setError('PIN должен быть от 4 до 6 цифр'); return }
     setLoading(true)
     setError('')
     const res = await fetch('/api/admin/clients', {
@@ -193,8 +193,8 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientRecord; o
                   value={pin}
                   onChange={e => setPin(e.target.value)}
                   type={showPin ? 'text' : 'password'}
-                  placeholder="••••"
-                  maxLength={4}
+                  placeholder="••••••"
+                  maxLength={6}
                   className="w-full border rounded px-3 py-2 text-sm font-mono pr-8"
                 />
                 {pin && (
@@ -312,7 +312,7 @@ export default function ClientsPanel() {
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.aoa_to_sheet([
       ['Телефон', 'Имя', 'Компания', 'PIN'],
-      ['+77001234567', 'Иван Иванов', 'ООО Ромашка', '1234'],
+      ['+77001234567', 'Иван Иванов', 'ООО Ромашка', '123456'],
     ])
     ws['!cols'] = [{ wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 8 }]
     XLSX.utils.book_append_sheet(wb, ws, 'Клиенты')
