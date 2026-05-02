@@ -51,7 +51,7 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
       <div className="grid grid-cols-2 gap-6 mb-6 text-sm border-t border-b border-gray-200 py-4">
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Продавец</p>
-          <p className="font-medium">ИП Цветы Уральска</p>
+          <p className="font-medium">ТОО Цветы Уральска</p>
         </div>
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Покупатель</p>
