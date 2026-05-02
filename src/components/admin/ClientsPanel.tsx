@@ -148,7 +148,7 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientRecord; o
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (pin && !/^\d{4,6}$/.test(pin)) { setError('PIN должен быть от 4 до 6 цифр'); return }
+    if (pin && !/^\d{6}$/.test(pin)) { setError('PIN должен быть 6 цифр'); return }
     setLoading(true)
     setError('')
     const res = await fetch('/api/admin/clients', {
