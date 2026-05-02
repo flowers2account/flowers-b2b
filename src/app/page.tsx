@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import PriceTable from '@/components/catalog/PriceTable'
 import CartSidebar from '@/components/catalog/CartSidebar'
 import FilterSidebar from '@/components/catalog/FilterSidebar'
-
+export const revalidate = 0
 export default async function HomePage() {
   const supabase = await createClient()
   const { data: products } = await supabase
