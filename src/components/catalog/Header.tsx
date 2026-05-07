@@ -24,9 +24,10 @@ function CategoryPills() {
         <button
           key={cat.id}
           onClick={() => router.push(`/?cat=${cat.id}`)}
-          className="flex items-center gap-[7px] rounded-[5px] px-[13px] text-[12px] font-semibold border-none cursor-pointer transition-all"
+          className="flex items-center gap-[7px] px-[13px] text-[12px] font-semibold border-none cursor-pointer transition-all"
           style={{
             height: 30,
+            borderRadius: 'var(--radius-btn)',
             background: activeCat === cat.id ? '#fff' : 'rgba(255,255,255,0.92)',
             color: activeCat === cat.id ? 'var(--accent)' : '#1a1a1a',
             boxShadow: activeCat === cat.id ? '0 0 0 2px rgba(255,255,255,0.4)' : 'none',
@@ -112,13 +113,13 @@ export default function Header() {
               {(role === 'admin' || role === 'manager') && (
                 <Link
                   href="/admin"
-                  className="hidden sm:inline-flex items-center gap-1 text-[12px] bg-[#f5f0f3] hover:bg-[#ede5ea] px-3 py-1.5 rounded-lg no-underline transition-colors"
-                  style={{ color: 'var(--text-mid)' }}
+                  className="hidden sm:inline-flex items-center gap-1 text-[12px] bg-[#f5f0f3] hover:bg-[#ede5ea] px-3 py-1.5 no-underline transition-colors"
+                  style={{ color: 'var(--text-mid)', borderRadius: 'var(--radius-btn)' }}
                 >
                   ⚙️ Админка
                 </Link>
               )}
-              <div className="flex items-center gap-2 px-[10px] py-[5px] rounded-[20px] bg-[#f5f0f3] text-[12px] font-medium">
+              <div className="flex items-center gap-2 px-[10px] py-[5px] bg-[#f5f0f3] text-[12px] font-medium" style={{ borderRadius: 'var(--radius-btn)' }}>
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                   style={{ background: 'var(--accent)' }}
@@ -140,8 +141,8 @@ export default function Header() {
           ) : (
             <button
               onClick={() => setShowAuth(true)}
-              className="text-[13px] text-white px-4 py-1.5 rounded-lg border-none cursor-pointer transition-colors shrink-0"
-              style={{ backgroundColor: 'var(--accent)' }}
+              className="text-[13px] text-white px-4 py-1.5 border-none cursor-pointer transition-colors shrink-0"
+              style={{ backgroundColor: 'var(--accent)', borderRadius: 'var(--radius-btn)' }}
             >
               Войти
             </button>
@@ -158,8 +159,8 @@ export default function Header() {
             fallback={CATS.map(cat => (
               <div
                 key={cat.id}
-                className="flex items-center rounded-[5px] px-[13px] text-[12px] font-semibold"
-                style={{ height: 30, background: 'rgba(255,255,255,0.92)', color: '#1a1a1a' }}
+                className="flex items-center px-[13px] text-[12px] font-semibold"
+                style={{ height: 30, borderRadius: 'var(--radius-btn)', background: 'rgba(255,255,255,0.92)', color: '#1a1a1a' }}
               >
                 {cat.label}
               </div>
@@ -187,7 +188,7 @@ export default function Header() {
                 style={{
                   top: -3, right: -8,
                   minWidth: 17, height: 17,
-                  borderRadius: 9, padding: '0 4px',
+                  borderRadius: 'var(--radius-btn)', padding: '0 4px',
                   background: '#E8B4C0',
                   color: '#1a1a1a',
                   fontSize: 9,

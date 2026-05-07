@@ -68,6 +68,9 @@
   --bg2: #F7EEF2;
   --border: #E8DDE5;
   --border-light: #F2EAF0;
+  --radius-card: 4px;
+  --radius-btn: 4px;
+  --radius-input: 4px;
 }
 
 body {
