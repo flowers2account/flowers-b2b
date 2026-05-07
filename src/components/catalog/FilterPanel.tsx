@@ -460,22 +460,15 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </div>
         </div>
 
-        {/* 1. НАЛИЧИЕ */}
-        <CollapsibleGroup
-          label="Наличие"
-          open={openGroups.available}
-          onToggle={() => tog('available')}
-          activeCount={onlyAvailable ? 1 : 0}
-        >
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '7px 8px', fontSize: 12,
-            background: 'var(--bg2)', borderRadius: 'var(--radius-btn)',
-          }}>
-            <span>Только в наличии</span>
-            <Toggle checked={onlyAvailable} onChange={setOnlyAvailable} />
-          </div>
-        </CollapsibleGroup>
+        {/* 1. НАЛИЧИЕ — toggle без заголовка */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '7px 8px', fontSize: 12, marginBottom: 10,
+          background: 'var(--bg2)', borderRadius: 'var(--radius-btn)',
+        }}>
+          <span>Только в наличии</span>
+          <Toggle checked={onlyAvailable} onChange={setOnlyAvailable} />
+        </div>
 
         {/* 2. ЦВЕТ — cut only, always open */}
         {category === 'cut' && (

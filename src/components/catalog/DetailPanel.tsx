@@ -154,7 +154,6 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
   const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
   const availColor = available > 30 ? '#388E3C' : available >= 10 ? '#F9A825' : '#E53935'
   const floralRole = product.floral_role ? FLORAL_ROLE_MAP[product.floral_role] : null
-  const durabilityLabel = product.stem_durability ? DURATION_MAP[product.stem_durability] : null
 
   const seasons = Array.isArray(product.season)
     ? product.season as string[]
@@ -289,9 +288,6 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
             <Row label="Роль">{floralRole.icon} {floralRole.label}</Row>
           )}
 
-          {durabilityLabel && (
-            <Row label="Стойкость">⏱ {durabilityLabel}</Row>
-          )}
 
           {seasonLabel && (
             <Row label="Сезон">{seasonLabel}</Row>
