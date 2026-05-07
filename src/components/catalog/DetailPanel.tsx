@@ -149,7 +149,8 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
     originLabel,
   ].filter(Boolean)
 
-  const colorDef = COLORS.find(c => c.key === product.color)
+  const colorKeys = product.colors?.length ? product.colors : product.color ? [product.color] : []
+  const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
   const availColor = available > 30 ? '#388E3C' : available >= 10 ? '#F9A825' : '#E53935'
   const floralRole = product.floral_role ? FLORAL_ROLE_MAP[product.floral_role] : null
   const durabilityLabel = product.stem_durability ? DURATION_MAP[product.stem_durability] : null
@@ -250,15 +251,19 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
         {/* Characteristics */}
         <div style={{ marginBottom: 12 }}>
 
-          {colorDef && (
+          {colorDefs.length > 0 && (
             <Row label="Цвет">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{
-                  width: 16, height: 16, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
-                  background: ('gradient' in colorDef ? colorDef.gradient : colorDef.bg) as string,
-                  border: `1px solid ${'border' in colorDef ? (colorDef as { border: string }).border : '#E0E0E0'}`,
-                }} />
-                {colorDef.label}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                {colorDefs.map(col => (
+                  <span key={col.key} title={col.label} style={{
+                    width: 14, height: 14, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
+                    background: ('gradient' in col ? col.gradient : col.bg) as string,
+                    border: '1px solid rgba(0,0,0,0.15)',
+                  }} />
+                ))}
+                {colorDefs.length === 1 && (
+                  <span>{colorDefs[0].label}</span>
+                )}
               </span>
             </Row>
           )}

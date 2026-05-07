@@ -14,7 +14,7 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
-  const { category, onlyAvailable, onlyDiscount, search } = useFilters()
+  const { category, onlyDiscount, search } = useFilters()
 
   function requireAuth(action: () => void) {
     if (isAuthed) { action() }
@@ -43,16 +43,14 @@ export default function PriceTable({ products: initialProducts }: { products: Pr
       const hasDiscount = !!(p.previous_price && p.previous_price > price)
 
       if (category !== 'all' && p.category !== category) return false
-      if (onlyAvailable && available <= 0) return false
       if (onlyDiscount && !hasDiscount) return false
-      if (!onlyDiscount && !onlyAvailable && available <= 0) return false
       if (search) {
         const name = (p.variety_name || p.name).toLowerCase()
         if (!name.includes(search.toLowerCase())) return false
       }
       return true
     })
-  }, [products, category, onlyAvailable, onlyDiscount, search])
+  }, [products, category, onlyDiscount, search])
 
   return (
     <div>

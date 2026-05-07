@@ -105,35 +105,13 @@ const SEASONS = [
 // ── default group open state ──────────────────────────────────────────────────
 
 const DEFAULT_OPEN = {
-  subcat: true, available: true, color: true,
-  length: false, origin: false, floral: false,
-  duration: false, season: false, tags: false, potSize: false,
+  subcat: true,
+  length: false, origin: false,
+  season: false, tags: false, potSize: false,
 }
 
 // ── primitives ────────────────────────────────────────────────────────────────
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div
-      role="switch" aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      style={{
-        width: 30, height: 17, borderRadius: 9,
-        background: checked ? 'var(--fern)' : '#ccc',
-        position: 'relative', cursor: 'pointer', flexShrink: 0,
-        transition: 'background 0.18s',
-      }}
-    >
-      <div style={{
-        position: 'absolute', top: 2,
-        left: checked ? 15 : 2,
-        width: 13, height: 13,
-        borderRadius: '50%', background: '#fff',
-        transition: 'left 0.18s',
-      }} />
-    </div>
-  )
-}
 
 function CheckRow({ checked, label, onChange }: { checked: boolean; label: string; onChange: () => void }) {
   return (
@@ -228,6 +206,22 @@ function CollapsibleGroup({
         )}
       </button>
       {open && <div style={{ marginTop: 2 }}>{children}</div>}
+    </div>
+  )
+}
+
+// ── StaticGroup — always open, no chevron ────────────────────────────────────
+
+function StaticGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+        textTransform: 'uppercase', color: '#b9aab1', padding: '5px 4px',
+      }}>
+        {label}
+      </div>
+      <div style={{ marginTop: 2 }}>{children}</div>
     </div>
   )
 }
@@ -373,12 +367,12 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, onlyAvailable, search, subcat, varietyType,
+    category, search, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
-    floralRoles, durations, seasons,
-    setOnlyAvailable, setSearch,
+    floralRoles, seasons,
+    setSearch,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
-    toggleFloralRole, toggleDuration, toggleSeason, reset,
+    toggleFloralRole, toggleSeason, reset,
   } = useFilters()
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
@@ -390,19 +384,15 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   useEffect(() => {
     setOpenGroups(prev => {
       const next = { ...prev }
-      if (colors.length > 0)      next.color    = true
-      if (lengths.length > 0)     next.length   = true
-      if (origins.length > 0)     next.origin   = true
-      if (floralRoles.length > 0) next.floral   = true
-      if (durations.length > 0)   next.duration = true
-      if (seasons.length > 0)     next.season   = true
-      if (tags.length > 0)        next.tags     = true
-      if (potSizes.length > 0)    next.potSize  = true
-      if (onlyAvailable)          next.available = true
-      if (subcat)                 next.subcat   = true
+      if (lengths.length > 0)     next.length  = true
+      if (origins.length > 0)     next.origin  = true
+      if (seasons.length > 0)     next.season  = true
+      if (tags.length > 0)        next.tags    = true
+      if (potSizes.length > 0)    next.potSize = true
+      if (subcat)                 next.subcat  = true
       return next
     })
-  }, [colors, lengths, origins, floralRoles, durations, seasons, tags, potSizes, onlyAvailable, subcat])
+  }, [lengths, origins, seasons, tags, potSizes, subcat])
 
   const tog = (key: keyof typeof DEFAULT_OPEN) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -455,32 +445,10 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           <AccordionSubcats products={products} />
         </CollapsibleGroup>
 
-        {/* НАЛИЧИЕ */}
-        <CollapsibleGroup
-          label="Наличие"
-          open={openGroups.available}
-          onToggle={() => tog('available')}
-          activeCount={onlyAvailable ? 1 : 0}
-        >
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '7px 8px', fontSize: 12,
-            background: 'var(--bg2)', borderRadius: 'var(--radius-btn)',
-          }}>
-            <span>Только в наличии</span>
-            <Toggle checked={onlyAvailable} onChange={setOnlyAvailable} />
-          </div>
-        </CollapsibleGroup>
-
         {/* ── CUT ── */}
         {category === 'cut' && (
           <>
-            <CollapsibleGroup
-              label="Цвет"
-              open={openGroups.color}
-              onToggle={() => tog('color')}
-              activeCount={colors.length}
-            >
+            <StaticGroup label="Цвет">
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
                 {COLORS.map(c => (
                   <div
@@ -497,7 +465,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
                   />
                 ))}
               </div>
-            </CollapsibleGroup>
+            </StaticGroup>
 
             <CollapsibleGroup
               label="Длина стебля"
@@ -523,12 +491,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               ))}
             </CollapsibleGroup>
 
-            <CollapsibleGroup
-              label="Флористическая роль"
-              open={openGroups.floral}
-              onToggle={() => tog('floral')}
-              activeCount={floralRoles.length}
-            >
+            <StaticGroup label="Флористическая роль">
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '2px 4px 0' }}>
                 {FLORAL_ROLES.map(r => {
                   const on = floralRoles.includes(r.id)
@@ -547,18 +510,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
                   )
                 })}
               </div>
-            </CollapsibleGroup>
-
-            <CollapsibleGroup
-              label="Стойкость"
-              open={openGroups.duration}
-              onToggle={() => tog('duration')}
-              activeCount={durations.length}
-            >
-              {DURATIONS.map(d => (
-                <CheckRow key={d.id} checked={durations.includes(d.id)} label={d.label} onChange={() => toggleDuration(d.id)} />
-              ))}
-            </CollapsibleGroup>
+            </StaticGroup>
 
             <CollapsibleGroup
               label="Сезон"

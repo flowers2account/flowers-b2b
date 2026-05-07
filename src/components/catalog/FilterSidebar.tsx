@@ -16,17 +16,16 @@ const AVAILABILITY = [
 ]
 
 export default function FilterSidebar({ products }: { products: Product[] }) {
-  const { category, onlyAvailable, onlyDiscount, search, setCategory, setOnlyAvailable, setOnlyDiscount, setSearch } = useFilters()
+  const { category, onlyDiscount, search, setCategory, setOnlyDiscount, setSearch } = useFilters()
 
   const hasPot = products.some(p => p.category === 'pot')
 
   function setAvailability(label: string) {
-    if (label === 'Есть в наличии') { setOnlyAvailable(true); setOnlyDiscount(false) }
-    else if (label === 'Уценка') { setOnlyDiscount(true); setOnlyAvailable(false) }
-    else { setOnlyAvailable(false); setOnlyDiscount(false) }
+    if (label === 'Уценка') { setOnlyDiscount(true) }
+    else { setOnlyDiscount(false) }
   }
 
-  const activeAvailability = onlyAvailable ? 'Есть в наличии' : onlyDiscount ? 'Уценка' : 'Все'
+  const activeAvailability = onlyDiscount ? 'Уценка' : 'Все'
 
   return (
     <div className="space-y-6 sticky top-[100px]">
