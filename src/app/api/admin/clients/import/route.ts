@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@supabase/supabase-js'
 import { normalizePhone } from '@/lib/phone'
 import * as XLSX from 'xlsx'
 
@@ -25,7 +25,11 @@ export async function POST(req: NextRequest) {
   let skipped = 0
   const errors: string[] = []
 
-  const adminClient = createAdminClient()
+  const anonClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-client-user`
 
   for (const row of dataRows) {
     if (!Array.isArray(row)) continue
@@ -37,8 +41,8 @@ export async function POST(req: NextRequest) {
 
     if (!phoneRaw || phoneRaw.length < 7) continue
 
-    if (!pinRaw || !/^\d{4}$/.test(pinRaw)) {
-      pinRaw = Math.floor(1000 + Math.random() * 9000).toString()
+    if (!pinRaw || !/^\d{6}$/.test(pinRaw)) {
+      pinRaw = Math.floor(100000 + Math.random() * 900000).toString()
     }
 
     let normalizedPhone: string
@@ -56,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Skip if already in clients table
-    const { data: existing } = await adminClient
+    const { data: existing } = await anonClient
       .from('clients')
       .select('id')
       .eq('phone', normalizedPhone)
@@ -65,40 +69,32 @@ export async function POST(req: NextRequest) {
 
     const email = `${phoneDigits}@flowers.local`
 
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password: pinRaw,
-      email_confirm: true,
+    const efRes = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ email, password: pinRaw, phone: normalizedPhone, name: nameRaw, company_name: companyRaw }),
     })
+    const efData = await efRes.json() as { userId?: string; error?: string; code?: string }
 
-    if (authError) {
-      const isDuplicate = authError.message.includes('already registered') || authError.code === 'email_exists'
+    if (!efRes.ok || !efData.userId) {
+      const isDuplicate = efData.error?.includes('already registered') || efData.code === 'email_exists'
       if (isDuplicate) { skipped++; continue }
-      errors.push(`${phoneRaw}: ${authError.message}`)
+      errors.push(`${phoneRaw}: ${efData.error ?? 'ошибка создания пользователя'}`)
       continue
     }
 
-    const userId = authData.user.id
-
-    await adminClient.from('profiles').upsert({
-      id: userId,
-      email,
-      role: 'client',
-      phone: normalizedPhone,
-      company_name: companyRaw || null,
-      full_name: nameRaw || null,
-    }, { onConflict: 'id' })
-
-    const { error: clientError } = await adminClient.from('clients').insert({
+    const { error: clientError } = await anonClient.from('clients').insert({
       phone: normalizedPhone,
       name: nameRaw || null,
       company_name: companyRaw || null,
       pin: pinRaw,
-      auth_user_id: userId,
+      auth_user_id: efData.userId,
     })
 
     if (clientError) {
-      await adminClient.auth.admin.deleteUser(userId)
       errors.push(`${phoneRaw}: ${clientError.message}`)
       continue
     }
