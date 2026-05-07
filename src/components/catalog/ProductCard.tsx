@@ -111,7 +111,14 @@ export default function ProductCard({ product, qty, isAuthed, onDecrement, onInc
             </div>
           )}
           {product.length_str && (
-            <div className="text-xs text-gray-400 mt-0.5">{product.length_str} см</div>
+            <span style={{ fontSize: 11, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="2" x2="12" y2="22"/>
+                <line x1="8" y1="6" x2="16" y2="6"/>
+                <line x1="8" y1="18" x2="16" y2="18"/>
+              </svg>
+              {product.length_str}
+            </span>
           )}
         </div>
 
