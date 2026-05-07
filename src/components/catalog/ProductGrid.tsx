@@ -5,6 +5,7 @@ import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
+import { useProductsStore } from '@/lib/products-store'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
@@ -329,6 +330,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
   const { setProduct, flashCart } = useDetailStore()
+  const { setProducts: syncProducts } = useProductsStore()
   const {
     category, subcat, varietyType, colors, onlyDiscount, search,
     lengths, origins, potSizes, tags, floralRoles, seasons,
@@ -337,6 +339,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     toggleTag, toggleFloralRole, toggleSeason,
     reset,
   } = useFilters()
+
+  // Sync products to global store so DetailPanel can look up by id
+  useEffect(() => { syncProducts(products) }, [products])
 
   // Persist view mode
   useEffect(() => {

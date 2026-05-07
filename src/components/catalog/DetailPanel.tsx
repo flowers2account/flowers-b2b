@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useDetailStore } from '@/lib/detail-store'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
+import { useProductsStore } from '@/lib/products-store'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
 import { COLORS } from '@/lib/colors'
@@ -384,14 +385,21 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
 // ── State C: cart ────────────────────────────────────────────────────────────
 
 function StateCart({ onBack }: { onBack: () => void }) {
-  const { product } = useDetailStore()
+  const { product, setProduct } = useDetailStore()
   const { items, remove, update, clear, total } = useCart()
   const { phone } = useAuthStore()
+  const { products } = useProductsStore()
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState('')
   const [whatsappUrl, setWhatsappUrl] = useState('')
   const [showAuth, setShowAuth] = useState(false)
+  const [hoveredId, setHoveredId] = useState<number | null>(null)
+
+  function openProduct(id: number) {
+    const p = products.find(x => x.id === id)
+    if (p) setProduct(p) // setProduct already switches panel to 'detail'
+  }
 
   const count = items.reduce((s, i) => s + i.qty, 0)
 
@@ -512,7 +520,17 @@ function StateCart({ onBack }: { onBack: () => void }) {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: 'var(--text)', marginBottom: 2 }}>
+                    <div
+                      onClick={() => openProduct(item.id)}
+                      onMouseEnter={() => setHoveredId(item.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      style={{
+                        fontSize: 12, fontWeight: 600, lineHeight: 1.3, marginBottom: 2,
+                        cursor: 'pointer',
+                        color: hoveredId === item.id ? 'var(--accent)' : 'var(--text)',
+                        transition: 'color 0.15s',
+                      }}
+                    >
                       {item.name}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-mid)' }}>
