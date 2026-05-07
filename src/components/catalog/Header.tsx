@@ -1,36 +1,34 @@
 'use client'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
-import { useState, useEffect, Suspense } from 'react'
+import { useFilters, type FilterCategory } from '@/lib/filter-store'
+import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
 
-const CATS = [
+const CATS: { id: FilterCategory; label: string }[] = [
   { id: 'cut', label: '🌸 Срезанные' },
   { id: 'pot', label: '🪴 Горшечные' },
   { id: 'supply', label: '📦 Расходники' },
 ]
 
 function CategoryPills() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const activeCat = searchParams.get('cat') || 'cut'
+  const { category, setCategory } = useFilters()
 
   return (
     <>
       {CATS.map(cat => (
         <button
           key={cat.id}
-          onClick={() => router.push(`/?cat=${cat.id}`)}
+          onClick={() => setCategory(cat.id)}
           className="flex items-center gap-[7px] px-[13px] text-[12px] font-semibold border-none cursor-pointer transition-all"
           style={{
             height: 30,
             borderRadius: 'var(--radius-btn)',
-            background: activeCat === cat.id ? '#fff' : 'rgba(255,255,255,0.92)',
-            color: activeCat === cat.id ? 'var(--accent)' : '#1a1a1a',
-            boxShadow: activeCat === cat.id ? '0 0 0 2px rgba(255,255,255,0.4)' : 'none',
+            background: category === cat.id ? '#fff' : 'rgba(255,255,255,0.92)',
+            color: category === cat.id ? 'var(--accent)' : '#1a1a1a',
+            boxShadow: category === cat.id ? '0 0 0 2px rgba(255,255,255,0.4)' : 'none',
           }}
         >
           {cat.label}
@@ -155,19 +153,7 @@ export default function Header() {
         <div className="max-w-[1480px] w-full mx-auto px-5 flex items-center gap-2">
 
           {/* Категории */}
-          <Suspense
-            fallback={CATS.map(cat => (
-              <div
-                key={cat.id}
-                className="flex items-center px-[13px] text-[12px] font-semibold"
-                style={{ height: 30, borderRadius: 'var(--radius-btn)', background: 'rgba(255,255,255,0.92)', color: '#1a1a1a' }}
-              >
-                {cat.label}
-              </div>
-            ))}
-          >
-            <CategoryPills />
-          </Suspense>
+          <CategoryPills />
 
           {/* Корзина */}
           <button

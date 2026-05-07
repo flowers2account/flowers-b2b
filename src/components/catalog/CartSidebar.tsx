@@ -63,7 +63,7 @@ export default function CartSidebar() {
 
   return (
     <>
-      <div className="w-80 shrink-0 sticky top-24">
+      <div className="p-4 h-full overflow-y-auto">
         <div className="border rounded-xl bg-white shadow-sm p-4">
           <h2 className="font-semibold text-lg mb-3 flex items-center gap-2">
             🛒 Корзина
@@ -78,7 +78,7 @@ export default function CartSidebar() {
             <p className="text-muted-foreground text-sm text-center py-6">Корзина пуста</p>
           ) : (
             <>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-3">
                 {items.map(item => (
                   <div key={item.id}>
                     <div className="flex justify-between items-start gap-2">
