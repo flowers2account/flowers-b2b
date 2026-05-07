@@ -121,10 +121,19 @@ src/
 │   │   ├── client.ts     # Singleton Supabase client (браузер)
 │   │   └── server.ts     # Supabase client (сервер/API)
 │   ├── auth-store.ts     # Zustand стор: user, role, phone, isAuthed
+│   ├── detail-store.ts   # Zustand стор: panel ('empty'|'detail'|'cart'), product, flashCart
+│   ├── cart-store.ts     # Zustand стор: CartItem (id, name, price, qty, available, category, image_url)
+│   ├── products-store.ts # Zustand стор: products[], filteredCount
+│   ├── filter-store.ts   # Zustand стор: все фильтры каталога
+│   ├── filter-chips.ts   # Хук useFilterChips() — чипы активных фильтров
+│   ├── colors.ts         # Палитра COLORS — единая точка, импортировать отсюда
+│   ├── use-mobile.ts     # Хук useIsMobile() — < 768px
 │   └── phone.ts          # normalizePhone() — единая нормализация телефона
 ├── types/                # TypeScript типы
 └── store/                # Zustand сторы
 ```
+
+> ⚠️ `ProductCard.tsx` используется только в `PriceTable.tsx`. Основной каталог использует `GridCard` внутри `ProductGrid.tsx` — правки карточек делать там.
 
 ## Environment Variables
 
@@ -154,6 +163,11 @@ CRON_SECRET=your-secret-key-here      # для тестирования cron end
 
 ## Known Issues
 
+### 🔴 Критические (до предзаказов)
+- **checkout не работает в DetailPanel** — корзина в правой панели не отправляет заказ
+- **PIN не синхронизируется** — изменение PIN в AdminTable не обновляет Supabase Auth
+- **Иконка корзины в хедере** — не открывает правую панель на десктопе
+
 ### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
 - **Проблема**: Service role key не доступен в функциях на Vercel
 - **Решение**: Используется `createClient()` (client role) + RLS политики
@@ -161,15 +175,22 @@ CRON_SECRET=your-secret-key-here      # для тестирования cron end
 
 ### 🟡 Realtime обновления каталога не работают (PriceTable)
 - **Проблема**: Изменения цен в реальном времени не отражаются на фронтенде
-- **Причина**: Supabase Realtime требует explicit подписки на события
 - **Временное решение**: Пользователь должен перезагрузить страницу для обновления цен
-- **TODO**: Добавить WebSocket слушатель на изменения products и stock
 
 ### 🟡 WhatsApp уведомление открывается только с разрешением всплывающих окон
-- **Проблема**: При отправке WhatsApp уведомления ссылка не открывается, если отключены popup'ы
-- **Причина**: Используется `window.open()` для перенаправления на WhatsApp Web
 - **Решение для пользователя**: Разрешить всплывающие окна для сайта в настройках браузера
-- **TODO**: Рассмотреть альтернативный способ (redirect вместо popup, или QR код)
+
+## Roadmap
+
+### Нормализация каталога (минимальная версия)
+- **`name_display TEXT`** — добавить в products; чистое название для клиента ("Altai Yellow" вместо "хризантема ветковая алтай LINFLOWERS"); в каталоге показывать если заполнено, иначе name
+- **Stop words в импорте XLS** — убирать LINFLOWERS/zento/2кор/оф/bunch/box из названий при парсинге
+- **Импорт ОЗ Голландия (.xlsx)** — автозаполнение color/origin/farm/image_url/name_display из инвойса
+
+### Отложено до масштабирования
+- Таблица aliases (словарь raw_name → product_id)
+- Полный dictionary pipeline
+- AI matching названий
 
 ## Локальная разработка
 
