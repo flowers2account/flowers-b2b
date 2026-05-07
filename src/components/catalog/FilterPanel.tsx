@@ -105,6 +105,7 @@ const SEASONS = [
 // ── default group open state ──────────────────────────────────────────────────
 
 const DEFAULT_OPEN = {
+  available: true,
   subcat: true,
   length: false, origin: false,
   season: false, tags: false, potSize: false,
@@ -112,6 +113,29 @@ const DEFAULT_OPEN = {
 
 // ── primitives ────────────────────────────────────────────────────────────────
 
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div
+      role="switch" aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 30, height: 17, borderRadius: 9,
+        background: checked ? 'var(--fern)' : '#ccc',
+        position: 'relative', cursor: 'pointer', flexShrink: 0,
+        transition: 'background 0.18s',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 2,
+        left: checked ? 15 : 2,
+        width: 13, height: 13,
+        borderRadius: '50%', background: '#fff',
+        transition: 'left 0.18s',
+      }} />
+    </div>
+  )
+}
 
 function CheckRow({ checked, label, onChange }: { checked: boolean; label: string; onChange: () => void }) {
   return (
@@ -367,10 +391,10 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, search, subcat, varietyType,
+    category, onlyAvailable, search, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
     floralRoles, seasons,
-    setSearch,
+    setOnlyAvailable, setSearch,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
     toggleFloralRole, toggleSeason, reset,
   } = useFilters()
@@ -384,15 +408,16 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   useEffect(() => {
     setOpenGroups(prev => {
       const next = { ...prev }
-      if (lengths.length > 0)     next.length  = true
-      if (origins.length > 0)     next.origin  = true
-      if (seasons.length > 0)     next.season  = true
-      if (tags.length > 0)        next.tags    = true
-      if (potSizes.length > 0)    next.potSize = true
-      if (subcat)                 next.subcat  = true
+      if (onlyAvailable)          next.available = true
+      if (lengths.length > 0)     next.length    = true
+      if (origins.length > 0)     next.origin    = true
+      if (seasons.length > 0)     next.season    = true
+      if (tags.length > 0)        next.tags      = true
+      if (potSizes.length > 0)    next.potSize   = true
+      if (subcat)                 next.subcat    = true
       return next
     })
-  }, [lengths, origins, seasons, tags, potSizes, subcat])
+  }, [onlyAvailable, lengths, origins, seasons, tags, potSizes, subcat])
 
   const tog = (key: keyof typeof DEFAULT_OPEN) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -435,7 +460,46 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </div>
         </div>
 
-        {/* ПОДКАТЕГОРИЯ */}
+        {/* 1. НАЛИЧИЕ */}
+        <CollapsibleGroup
+          label="Наличие"
+          open={openGroups.available}
+          onToggle={() => tog('available')}
+          activeCount={onlyAvailable ? 1 : 0}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '7px 8px', fontSize: 12,
+            background: 'var(--bg2)', borderRadius: 'var(--radius-btn)',
+          }}>
+            <span>Только в наличии</span>
+            <Toggle checked={onlyAvailable} onChange={setOnlyAvailable} />
+          </div>
+        </CollapsibleGroup>
+
+        {/* 2. ЦВЕТ — cut only, always open */}
+        {category === 'cut' && (
+          <StaticGroup label="Цвет">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
+              {COLORS.map(c => (
+                <div
+                  key={c.key}
+                  onClick={() => toggleColor(c.key)}
+                  title={c.label}
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+                    background: ('gradient' in c ? c.gradient : c.bg) as string,
+                    border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
+                    outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
+                    outlineOffset: 2,
+                  }}
+                />
+              ))}
+            </div>
+          </StaticGroup>
+        )}
+
+        {/* 3. ПОДКАТЕГОРИЯ */}
         <CollapsibleGroup
           label="Подкатегория"
           open={openGroups.subcat}
@@ -445,28 +509,9 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           <AccordionSubcats products={products} />
         </CollapsibleGroup>
 
-        {/* ── CUT ── */}
+        {/* 4–8. CUT-only filters */}
         {category === 'cut' && (
           <>
-            <StaticGroup label="Цвет">
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
-                {COLORS.map(c => (
-                  <div
-                    key={c.key}
-                    onClick={() => toggleColor(c.key)}
-                    title={c.label}
-                    style={{
-                      width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
-                      background: ('gradient' in c ? c.gradient : c.bg) as string,
-                      border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
-                      outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
-                      outlineOffset: 2,
-                    }}
-                  />
-                ))}
-              </div>
-            </StaticGroup>
-
             <CollapsibleGroup
               label="Длина стебля"
               open={openGroups.length}
@@ -534,7 +579,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </>
         )}
 
-        {/* ── POT ── */}
+        {/* POT-specific filters */}
         {category === 'pot' && (
           <>
             <CollapsibleGroup

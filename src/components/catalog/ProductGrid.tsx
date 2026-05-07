@@ -332,9 +332,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { setProduct, flashCart } = useDetailStore()
   const { setProducts: syncProducts } = useProductsStore()
   const {
-    category, subcat, varietyType, colors, onlyDiscount, search,
+    category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search,
     lengths, origins, potSizes, tags, floralRoles, seasons,
-    setSubcat, setVarietyType,
+    setSubcat, setVarietyType, setOnlyAvailable,
     toggleColor, toggleLength, toggleOrigin, togglePotSize,
     toggleTag, toggleFloralRole, toggleSeason,
     reset,
@@ -382,6 +382,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (varietyType) parts.push(VARIETY_TYPE_LABELS[varietyType] ?? varietyType)
       result.push({ label: parts.join(' · '), onRemove: () => { setSubcat(''); setVarietyType('') } })
     }
+    if (onlyAvailable) result.push({ label: 'В наличии', onRemove: () => setOnlyAvailable(false) })
     colors.forEach(c => result.push({ label: COLOR_CHIP_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
     lengths.forEach(l => result.push({ label: l >= 80 ? '80+ см' : `${l} см`, onRemove: () => toggleLength(l) }))
     origins.forEach(o => result.push({ label: o, onRemove: () => toggleOrigin(o) }))
@@ -390,7 +391,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     floralRoles.forEach(r => result.push({ label: FLORAL_CHIP_LABELS[r] ?? r, onRemove: () => toggleFloralRole(r) }))
     seasons.forEach(s => result.push({ label: SEASON_CHIP_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
     return result
-  }, [subcat, varietyType, colors, lengths, origins, potSizes, tags, floralRoles, seasons])
+  }, [subcat, varietyType, onlyAvailable, colors, lengths, origins, potSizes, tags, floralRoles, seasons])
 
   // Filter
   const filtered = useMemo(() => {
@@ -403,6 +404,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (subcat && (p.subcategory || '') !== subcat) return false
       if (varietyType && (p.variety_type || '') !== varietyType) return false
       if (colors.length > 0 && !colors.some(c => p.colors?.includes(c) || p.color === c)) return false
+      if (onlyAvailable && available <= 0) return false
       if (onlyDiscount && !hasDiscount) return false
       if (search) {
         const name = (p.variety_name || p.name).toLowerCase()
@@ -458,7 +460,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
 
     return list
-  }, [products, category, subcat, varietyType, colors, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, seasons, sort])
+  }, [products, category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, seasons, sort])
 
   const handleDec = (product: Product, qty: number) => requireAuth(() =>
     update(product.id, Math.max(0, qty - (product.pack_size || 5)))

@@ -6,6 +6,7 @@ type FilterStore = {
   category: FilterCategory
   subcat: string
   varietyType: string
+  onlyAvailable: boolean
   onlyDiscount: boolean
   search: string
   colors: string[]
@@ -19,6 +20,7 @@ type FilterStore = {
   setCategory: (v: FilterCategory) => void
   setSubcat: (v: string) => void
   setVarietyType: (v: string) => void
+  setOnlyAvailable: (v: boolean) => void
   setOnlyDiscount: (v: boolean) => void
   setSearch: (v: string) => void
   toggleColor: (v: string) => void
@@ -38,6 +40,7 @@ export const useFilters = create<FilterStore>((set) => ({
   category: 'cut',
   subcat: '',
   varietyType: '',
+  onlyAvailable: true,
   onlyDiscount: false,
   search: '',
   colors: [],
@@ -53,10 +56,11 @@ export const useFilters = create<FilterStore>((set) => ({
     colors: [], lengths: [], origins: [], potSizes: [], tags: [],
     floralRoles: [], seasons: [],
   }),
-  setSubcat:      (subcat) => set({ subcat, varietyType: '' }),
-  setVarietyType: (varietyType) => set({ varietyType }),
-  setOnlyDiscount: (onlyDiscount) => set({ onlyDiscount }),
-  setSearch:      (search) => set({ search }),
+  setSubcat:        (subcat) => set({ subcat, varietyType: '' }),
+  setVarietyType:   (varietyType) => set({ varietyType }),
+  setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
+  setOnlyDiscount:  (onlyDiscount) => set({ onlyDiscount }),
+  setSearch:        (search) => set({ search }),
   toggleColor:      (v) => set(s => ({ colors:      tog(s.colors,      v) })),
   toggleLength:     (v) => set(s => ({ lengths:     s.lengths.includes(v) ? s.lengths.filter(l => l !== v) : [...s.lengths, v] })),
   toggleOrigin:     (v) => set(s => ({ origins:     tog(s.origins,     v) })),
@@ -65,7 +69,8 @@ export const useFilters = create<FilterStore>((set) => ({
   toggleFloralRole: (v) => set(s => ({ floralRoles: tog(s.floralRoles, v) })),
   toggleSeason:     (v) => set(s => ({ seasons:     tog(s.seasons,     v) })),
   reset: () => set({
-    category: 'cut', subcat: '', varietyType: '', onlyDiscount: false,
+    category: 'cut', subcat: '', varietyType: '',
+    onlyAvailable: true, onlyDiscount: false,
     search: '', colors: [], lengths: [], origins: [], potSizes: [], tags: [],
     floralRoles: [], seasons: [],
   }),
