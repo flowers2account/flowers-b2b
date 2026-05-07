@@ -16,9 +16,10 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
       { label: 'Кустовые / Спрей', varietyType: 'spray'  },
     ]},
     { label: 'Хризантемы', key: 'chrysanthemums', children: [
-      { label: 'Ветковые',    varietyType: 'branch' },
-      { label: 'Одноголовые', varietyType: 'single' },
-      { label: 'Помпонные',   varietyType: 'pompom' },
+      { label: 'Одноголовые (Disbud)', varietyType: 'single'     },
+      { label: 'Кустовые / Spray',     varietyType: 'spray'      },
+      { label: 'Помпонные',            varietyType: 'pompom'     },
+      { label: 'Пионовидные',          varietyType: 'decorative' },
     ]},
     { label: 'Гвоздики', key: 'carnations', children: [
       { label: 'Одноголовые',      varietyType: 'single' },
