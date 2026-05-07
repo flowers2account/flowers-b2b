@@ -158,13 +158,15 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     return (
       <div
         onClick={() => setSubcat(row.key)}
+        className={active ? '' : 'hover:bg-[var(--bg2)]'}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '5px 8px', fontSize: 12, borderRadius: 'var(--radius-btn)',
           marginBottom: 1, cursor: 'pointer',
-          background: active ? 'var(--accent)' : 'transparent',
+          background: active ? 'var(--accent)' : undefined,
           color: active ? '#fff' : 'var(--text)',
           fontWeight: active ? 600 : 400,
+          transition: 'background 0.12s',
         }}
       >
         <span>{row.label}</span>
@@ -172,6 +174,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           fontSize: 10, padding: '2px 7px', borderRadius: 10, fontWeight: 500,
           background: active ? 'rgba(255,255,255,0.22)' : 'var(--bg2)',
           color: active ? '#fff' : 'var(--text-mid)',
+          flexShrink: 0,
         }}>
           {row.count}
         </span>

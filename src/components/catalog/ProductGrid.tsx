@@ -238,10 +238,20 @@ function ListRow({
 
 // ── View toggle icons ────────────────────────────────────────────────────────
 
+// 3-col grid
 const GridIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+    <rect x="2" y="2" width="6" height="6"/><rect x="9" y="2" width="6" height="6"/><rect x="16" y="2" width="6" height="6"/>
+    <rect x="2" y="10" width="6" height="6"/><rect x="9" y="10" width="6" height="6"/><rect x="16" y="10" width="6" height="6"/>
+    <rect x="2" y="18" width="6" height="6"/><rect x="9" y="18" width="6" height="6"/><rect x="16" y="18" width="6" height="6"/>
+  </svg>
+)
+// 4-col compact
+const CompactIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="2" y="2" width="4" height="4"/><rect x="8" y="2" width="4" height="4"/><rect x="14" y="2" width="4" height="4"/><rect x="20" y="2" width="4" height="4"/>
+    <rect x="2" y="9" width="4" height="4"/><rect x="8" y="9" width="4" height="4"/><rect x="14" y="9" width="4" height="4"/><rect x="20" y="9" width="4" height="4"/>
+    <rect x="2" y="16" width="4" height="4"/><rect x="8" y="16" width="4" height="4"/><rect x="14" y="16" width="4" height="4"/><rect x="20" y="16" width="4" height="4"/>
   </svg>
 )
 const ListIcon = () => (
@@ -257,7 +267,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const [showAuth, setShowAuth] = useState(false)
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
   const [sort, setSort] = useState<SortKey>('popular')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'compact' | 'list'>('grid')
 
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
@@ -266,9 +276,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   // Persist view mode
   useEffect(() => {
     const saved = localStorage.getItem('catalog-view')
-    if (saved === 'list' || saved === 'grid') setViewMode(saved)
+    if (saved === 'list' || saved === 'grid' || saved === 'compact') setViewMode(saved)
   }, [])
-  const setView = (v: 'grid' | 'list') => {
+  const setView = (v: 'grid' | 'compact' | 'list') => {
     setViewMode(v)
     localStorage.setItem('catalog-view', v)
   }
@@ -391,10 +401,11 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           display: 'flex', border: '1px solid var(--border)',
           borderRadius: 'var(--radius-btn)', overflow: 'hidden', marginLeft: 'auto',
         }}>
-          {(['grid', 'list'] as const).map(v => (
+          {(['grid', 'compact', 'list'] as const).map(v => (
             <button
               key={v}
               onClick={() => setView(v)}
+              title={v === 'grid' ? '3 колонки' : v === 'compact' ? '4 колонки' : 'Список'}
               style={{
                 width: 30, height: 30, border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -402,7 +413,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                 color: viewMode === v ? '#fff' : '#b8b0b4',
               }}
             >
-              {v === 'grid' ? <GridIcon /> : <ListIcon />}
+              {v === 'grid' ? <GridIcon /> : v === 'compact' ? <CompactIcon /> : <ListIcon />}
             </button>
           ))}
         </div>
@@ -418,8 +429,12 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           <div style={{ textAlign: 'center', color: 'var(--text-mid)', paddingTop: 64, fontSize: 13 }}>
             Ничего не найдено
           </div>
-        ) : viewMode === 'grid' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        ) : viewMode !== 'list' ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: viewMode === 'compact' ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
+            gap: viewMode === 'compact' ? 8 : 12,
+          }}>
             {filtered.map(p => {
               const qty = getQty(p.id)
               const available = getAvailable(p.stock)
