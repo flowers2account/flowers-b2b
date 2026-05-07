@@ -199,7 +199,7 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
       <div style={{ flexShrink: 0 }}>
         <div style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative' }}>
           {mainPhoto ? (
-            <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center' }} />
+            <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'var(--bg2)' }} />
           ) : (
             <div style={{
               width: '100%', height: '100%',
