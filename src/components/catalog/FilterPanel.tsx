@@ -164,10 +164,10 @@ function Chevron({ open }: { open: boolean }) {
 
 function AccordionSubcats({ products }: { products: Product[] }) {
   const { category, subcat, varietyType, setSubcat, setVarietyType } = useFilters()
-  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set())
+  const [openItem, setOpenItem] = useState('')
 
   // Reset accordion when category changes
-  useEffect(() => { setOpenKeys(new Set()) }, [category])
+  useEffect(() => { setOpenItem('') }, [category])
 
   // Counts
   const { total, bySC, byVT } = useMemo(() => {
@@ -187,21 +187,17 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
   const nodes = CATEGORY_TREE[category] ?? []
 
-  const toggleOpen = (key: string) =>
-    setOpenKeys(prev => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      return next
-    })
-
   const handleAll = () => {
     setSubcat('')
     setVarietyType('')
-    setOpenKeys(new Set())
+    setOpenItem('')
   }
 
   const handleParent = (node: SubcatNode) => {
-    if (node.children?.length) toggleOpen(node.key)
+    if (node.children?.length) {
+      // toggle: open this one, close if already open
+      setOpenItem(prev => prev === node.key ? '' : node.key)
+    }
     setSubcat(node.key)
     setVarietyType('')
   }
@@ -209,7 +205,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
   const handleChild = (parentKey: string, child: VarietyChild) => {
     setSubcat(parentKey)
     setVarietyType(child.varietyType)
-    setOpenKeys(prev => new Set([...prev, parentKey]))
+    setOpenItem(parentKey) // keep parent open
   }
 
   const countBadge = (count: number, active: boolean) => (
@@ -252,7 +248,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
       {/* Tree nodes */}
       {nodes.map(node => {
         const hasChildren = !!(node.children?.length)
-        const isOpen      = openKeys.has(node.key)
+        const isOpen      = openItem === node.key
         const parentSel   = subcat === node.key && varietyType === ''
         const hasActiveCh = subcat === node.key && varietyType !== ''
 
