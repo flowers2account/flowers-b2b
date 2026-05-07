@@ -275,12 +275,6 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
   const nodes = CATEGORY_TREE[category] ?? []
 
-  const handleAll = () => {
-    setSubcat('')
-    setVarietyType('')
-    setOpenItem('')
-  }
-
   const handleParent = (node: SubcatNode) => {
     if (node.children?.length) {
       setOpenItem(prev => prev === node.key ? '' : node.key)
@@ -313,24 +307,8 @@ function AccordionSubcats({ products }: { products: Product[] }) {
     cursor: 'pointer', transition: 'background 0.12s',
   }
 
-  const allActive = subcat === ''
-
   return (
     <div>
-      <div
-        onClick={handleAll}
-        className={allActive ? '' : 'hover:bg-[var(--bg2)]'}
-        style={{
-          ...rowBase,
-          background: allActive ? 'var(--accent)' : undefined,
-          color: allActive ? '#fff' : 'var(--text)',
-          fontWeight: allActive ? 600 : 400,
-        }}
-      >
-        <span style={{ flex: 1 }}>Все</span>
-        {countBadge(total, allActive)}
-      </div>
-
       {nodes.map(node => {
         const hasChildren = !!(node.children?.length)
         const isOpen      = openItem === node.key
@@ -394,7 +372,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     category, onlyAvailable, search, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
     floralRoles, seasons,
-    setOnlyAvailable, setSearch,
+    setOnlyAvailable, setSearch, setSubcat, setVarietyType,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
     toggleFloralRole, toggleSeason, reset,
   } = useFilters()
@@ -496,7 +474,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         <CollapsibleGroup
           label="Подкатегория"
           open={openGroups.subcat}
-          onToggle={() => tog('subcat')}
+          onToggle={() => { tog('subcat'); setSubcat(''); setVarietyType('') }}
           activeCount={subcatActiveCount}
         >
           <AccordionSubcats products={products} />
