@@ -67,6 +67,7 @@ type Props = {
 }
 
 export default function ProductCard({ product, qty, isAuthed, onDecrement, onIncrement }: Props) {
+  if (process.env.NODE_ENV === 'development') console.log('[ProductCard]', product.id, { floral_role: product.floral_role, origin: product.origin, stem_durability: product.stem_durability })
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)

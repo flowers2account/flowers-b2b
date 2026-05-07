@@ -280,9 +280,11 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
 
           <Row label="Кратность">{packSize} шт</Row>
 
-          <Row label="Остаток">
-            <span style={{ color: availColor, fontWeight: 700 }}>{available} шт</span>
-          </Row>
+          {isAuthed && (
+            <Row label="Остаток">
+              <span style={{ color: availColor, fontWeight: 700 }}>{available} шт</span>
+            </Row>
+          )}
 
           {floralRole && (
             <Row label="Роль">{floralRole.icon} {floralRole.label}</Row>
