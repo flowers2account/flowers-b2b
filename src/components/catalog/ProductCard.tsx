@@ -140,11 +140,17 @@ export default function ProductCard({ product, qty, isAuthed, onDecrement, onInc
               {product.length_str}
             </span>
           )}
-          {product.floral_role && (
-            <div style={{ fontSize: 10, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
-              <span>{ROLE_ICONS[product.floral_role]}</span>
-              <span>{ROLE_LABELS[product.floral_role]}</span>
-              {product.origin && <span>· {ORIGIN_LABELS[product.origin] ?? product.origin}</span>}
+          {(product.floral_role || product.origin) && (
+            <div style={{ fontSize: 10, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4, flexWrap: 'wrap' }}>
+              {product.floral_role && (
+                <span>{ROLE_ICONS[product.floral_role]} {ROLE_LABELS[product.floral_role]}</span>
+              )}
+              {product.floral_role && product.origin && (
+                <span style={{ color: 'var(--border)' }}>·</span>
+              )}
+              {product.origin && (
+                <span>{ORIGIN_LABELS[product.origin] ?? product.origin}</span>
+              )}
             </div>
           )}
         </div>
