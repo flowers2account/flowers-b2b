@@ -261,7 +261,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
-  const { category, subcat, onlyAvailable, onlyDiscount, search, lengths, tags } = useFilters()
+  const { category, subcat, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags } = useFilters()
 
   // Persist view mode
   useEffect(() => {
@@ -301,7 +301,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       const hasDiscount = !!(p.previous_price && p.previous_price > price)
 
       if (category !== 'all' && p.category !== category) return false
-      if (subcat && p.name !== subcat) return false
+      if (subcat && (p.subcategory || '') !== subcat) return false
       if (onlyAvailable && available <= 0) return false
       if (onlyDiscount && !hasDiscount) return false
       if (!onlyDiscount && !onlyAvailable && available <= 0) return false
@@ -309,21 +309,35 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         const name = (p.variety_name || p.name).toLowerCase()
         if (!name.includes(search.toLowerCase())) return false
       }
-      if (lengths.length > 0 && p.length_cm !== null) {
+      // Длина стебля (cut)
+      if (lengths.length > 0) {
         const cm = p.length_cm ?? 0
-        const matches = lengths.some(l => l >= 80 ? cm >= 80 : cm === l)
-        if (!matches) return false
+        if (!lengths.some(l => l >= 80 ? cm >= 80 : cm === l)) return false
       }
+      // Источник (cut) — фильтрует по p.name пока нет отдельного поля origin
+      if (origins.length > 0) {
+        const src = ((p as any).origin as string | undefined) ?? ''
+        if (src && !origins.includes(src)) return false
+      }
+      // Размер горшка (pot)
+      if (potSizes.length > 0 && p.pot_size != null) {
+        const ps = p.pot_size
+        const ok = potSizes.some(id => {
+          if (id === 'до12')  return ps <= 12
+          if (id === '14-17') return ps >= 14 && ps <= 17
+          if (id === '19-23') return ps >= 19 && ps <= 23
+          if (id === '25+')   return ps >= 25
+          return false
+        })
+        if (!ok) return false
+      }
+      // Теги
       if (tags.length > 0) {
-        const hasHit = (p as any).is_hit === true
+        const hasHit  = (p as any).is_hit === true
         const hasSale = hasDiscount
-        const hasNew = (p as any).is_new === true
-        const productTags = [
-          ...(hasHit ? ['hit'] : []),
-          ...(hasSale ? ['sale'] : []),
-          ...(hasNew ? ['new'] : []),
-        ]
-        if (!tags.some(t => productTags.includes(t))) return false
+        const hasNew  = (p as any).is_new === true
+        const ptags = [...(hasHit ? ['hit'] : []), ...(hasSale ? ['sale'] : []), ...(hasNew ? ['new'] : [])]
+        if (!tags.some(t => ptags.includes(t))) return false
       }
       return true
     })
@@ -334,7 +348,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
 
     return list
-  }, [products, category, subcat, onlyAvailable, onlyDiscount, search, lengths, tags, sort])
+  }, [products, category, subcat, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, sort])
 
   const handleDec = (product: Product, qty: number) => requireAuth(() =>
     update(product.id, Math.max(0, qty - (product.pack_size || 5)))

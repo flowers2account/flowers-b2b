@@ -11,6 +11,7 @@ type FilterStore = {
   colors: string[]
   lengths: number[]
   origins: string[]
+  potSizes: string[]
   tags: string[]
 
   setCategory: (v: FilterCategory) => void
@@ -21,6 +22,7 @@ type FilterStore = {
   toggleColor: (v: string) => void
   toggleLength: (v: number) => void
   toggleOrigin: (v: string) => void
+  togglePotSize: (v: string) => void
   toggleTag: (v: string) => void
   reset: () => void
 }
@@ -34,9 +36,13 @@ export const useFilters = create<FilterStore>((set) => ({
   colors: [],
   lengths: [],
   origins: [],
+  potSizes: [],
   tags: [],
 
-  setCategory: (category) => set({ category, subcat: '' }),
+  setCategory: (category) => set({
+    category, subcat: '',
+    colors: [], lengths: [], origins: [], potSizes: [], tags: [],
+  }),
   setSubcat: (subcat) => set({ subcat }),
   setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
   setOnlyDiscount: (onlyDiscount) => set({ onlyDiscount }),
@@ -44,9 +50,10 @@ export const useFilters = create<FilterStore>((set) => ({
   toggleColor: (v) => set(s => ({ colors: s.colors.includes(v) ? s.colors.filter(c => c !== v) : [...s.colors, v] })),
   toggleLength: (v) => set(s => ({ lengths: s.lengths.includes(v) ? s.lengths.filter(l => l !== v) : [...s.lengths, v] })),
   toggleOrigin: (v) => set(s => ({ origins: s.origins.includes(v) ? s.origins.filter(o => o !== v) : [...s.origins, v] })),
+  togglePotSize: (v) => set(s => ({ potSizes: s.potSizes.includes(v) ? s.potSizes.filter(p => p !== v) : [...s.potSizes, v] })),
   toggleTag: (v) => set(s => ({ tags: s.tags.includes(v) ? s.tags.filter(t => t !== v) : [...s.tags, v] })),
   reset: () => set({
     category: 'cut', subcat: '', onlyAvailable: false, onlyDiscount: false,
-    search: '', colors: [], lengths: [], origins: [], tags: [],
+    search: '', colors: [], lengths: [], origins: [], potSizes: [], tags: [],
   }),
 }))
