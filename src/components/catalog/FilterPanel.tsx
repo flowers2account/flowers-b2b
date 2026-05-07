@@ -369,10 +369,10 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, onlyAvailable, search, subcat, varietyType,
+    category, onlyAvailable, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
     floralRoles, seasons,
-    setOnlyAvailable, setSearch, setSubcat, setVarietyType,
+    setOnlyAvailable, setSubcat, setVarietyType,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
     toggleFloralRole, toggleSeason, reset,
   } = useFilters()
@@ -407,36 +407,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '14px 14px 0' }}>
-
-        {/* ПОИСК — always visible, no chevron */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
-            textTransform: 'uppercase', color: '#b9aab1',
-            marginBottom: 6, padding: '0 4px',
-          }}>
-            Поиск
-          </div>
-          <div style={{ position: 'relative' }}>
-            <svg
-              style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
-              width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA39E" strokeWidth="2" strokeLinecap="round"
-            >
-              <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
-            </svg>
-            <input
-              type="text" placeholder="Сорт, ферма…" value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-input)',
-                padding: '6px 8px 6px 26px',
-                fontSize: 12, fontFamily: 'inherit',
-                color: 'var(--text)', background: '#fff', outline: 'none',
-              }}
-            />
-          </div>
-        </div>
 
         {/* 1. НАЛИЧИЕ — toggle без заголовка */}
         <div style={{

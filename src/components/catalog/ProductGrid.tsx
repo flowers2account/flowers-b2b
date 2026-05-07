@@ -334,7 +334,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const {
     category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search,
     lengths, origins, potSizes, tags, floralRoles, seasons,
-    setSubcat, setVarietyType, setOnlyAvailable,
+    setSubcat, setVarietyType, setOnlyAvailable, setSearch,
     toggleColor, toggleLength, toggleOrigin, togglePotSize,
     toggleTag, toggleFloralRole, toggleSeason,
     reset,
@@ -500,9 +500,23 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
 
+        <input
+          type="text"
+          placeholder="Поиск по сорту, ферме..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            flex: 1, padding: '6px 12px',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-input)', fontSize: 13,
+            fontFamily: 'inherit', outline: 'none', minWidth: 0,
+            color: 'var(--text)', background: '#fff',
+          }}
+        />
+
         <div style={{
           display: 'flex', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-btn)', overflow: 'hidden', marginLeft: 'auto',
+          borderRadius: 'var(--radius-btn)', overflow: 'hidden',
         }}>
           {(['grid', 'compact', 'list'] as const).map(v => (
             <button
