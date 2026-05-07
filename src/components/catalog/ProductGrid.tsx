@@ -9,6 +9,20 @@ import { useProductsStore } from '@/lib/products-store'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
+import { COLORS } from '@/lib/colors'
+
+const ROLE_ICONS: Record<string, string> = {
+  focal: '🌹', mass: '🌸', line: '🌿',
+  filler: '🍃', texture: '✨', foliage: '🌱',
+}
+const ROLE_LABELS: Record<string, string> = {
+  focal: 'Фокусный', mass: 'Массовый', line: 'Линейный',
+  filler: 'Наполнитель', texture: 'Текстура', foliage: 'Зелень',
+}
+const ORIGIN_LABELS: Record<string, string> = {
+  ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
+  china: 'Китай', colombia: 'Колумбия', local: 'Местный',
+}
 
 type SortKey = 'popular' | 'price_asc' | 'price_desc' | 'stock'
 
@@ -197,6 +211,38 @@ function GridCard({
         }}>
           {displayName}
         </div>
+
+        {/* Кружки цветов */}
+        {product.colors && product.colors.length > 0 && (
+          <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
+            {product.colors.map(c => {
+              const col = COLORS.find(x => x.key === c)
+              return col ? (
+                <div key={c} title={col.label} style={{
+                  width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                  background: ('gradient' in col ? col.gradient : col.bg) as string,
+                  border: '1px solid rgba(0,0,0,0.1)',
+                }} />
+              ) : null
+            })}
+          </div>
+        )}
+
+        {/* Роль + происхождение */}
+        {(product.floral_role || product.origin) && (
+          <div style={{ fontSize: 10, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
+            {product.floral_role && (
+              <span>{ROLE_ICONS[product.floral_role]} {ROLE_LABELS[product.floral_role]}</span>
+            )}
+            {product.floral_role && product.origin && (
+              <span style={{ color: 'var(--border)' }}>·</span>
+            )}
+            {product.origin && (
+              <span>{ORIGIN_LABELS[product.origin] ?? product.origin}</span>
+            )}
+          </div>
+        )}
+
         {meta && (
           <div style={{ fontSize: 11, color: 'var(--text-mid)', marginTop: 2 }}>{meta}</div>
         )}
