@@ -192,7 +192,7 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', overflowY: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', overflowY: 'auto', padding: '12px 12px 0' }}>
 
       {/* Gallery */}
       <div style={{ flexShrink: 0 }}>
