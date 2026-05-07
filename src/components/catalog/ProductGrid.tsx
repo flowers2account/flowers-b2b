@@ -7,6 +7,7 @@ import { useFilters } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
 import { useProductsStore } from '@/lib/products-store'
 import { useIsMobile } from '@/lib/use-mobile'
+import { useFilterChips } from '@/lib/filter-chips'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
@@ -26,48 +27,6 @@ const ORIGIN_LABELS: Record<string, string> = {
 }
 
 type SortKey = 'popular' | 'price_asc' | 'price_desc' | 'stock'
-
-// ── label maps for active filter chips ──────────────────────────────────────
-
-const SUBCAT_LABELS: Record<string, string> = {
-  roses: 'Розы', chrysanthemums: 'Хризантемы', carnations: 'Гвоздики',
-  lilies: 'Лилии', hydrangeas: 'Гортензии', lisianthus: 'Лизиантус',
-  tulips: 'Тюльпаны', gerberas: 'Герберы', callas: 'Каллы',
-  irises: 'Ирисы', alstroemeria: 'Альстромерия', accents: 'Акцентные',
-  fillers: 'Наполнители', greens: 'Зелень', seasonal: 'Сезонные',
-  spring: 'Весенние', exotic: 'Экзотика',
-  green: 'Зелёные', flowering: 'Цветущие', succulents: 'Суккуленты',
-  outdoor: 'Уличные', large: 'Крупномеры',
-  packaging: 'Упаковка', pots: 'Горшки', soil: 'Грунты',
-  fertilizers: 'Удобрения', tools: 'Инструмент',
-}
-const VARIETY_TYPE_LABELS: Record<string, string> = {
-  single: 'Одноголовые', spray: 'Кустовые', pompom: 'Помпонные',
-  decorative: 'Пионовидные', ot: 'ОТ-гибриды', oriental: 'Восточные', asian: 'Азиатские',
-}
-const COLOR_CHIP_LABELS: Record<string, string> = {
-  white: 'Белый', cream: 'Кремовый', pink: 'Розовый', peach: 'Персиковый',
-  red: 'Красный', bordeaux: 'Бордовый', orange: 'Оранжевый', yellow: 'Жёлтый',
-  lavender: 'Лавандовый', purple: 'Фиолетовый', green: 'Зелёный',
-  mix: 'Микс', mix_pink: 'Пинк микс', mix_red_white: 'Красно-белый',
-}
-const FLORAL_CHIP_LABELS: Record<string, string> = {
-  focal: '🌹 Фокусный', mass: '🌸 Массовый', line: '🌿 Линейный',
-  filler: '🍃 Наполнитель', texture: '✨ Текстура', foliage: '🌱 Зелень',
-}
-const DURATION_CHIP_LABELS: Record<string, string> = {
-  '3-5': '3–5 дней', '5-7': '5–7 дней', '7+': '7+ дней',
-}
-const SEASON_CHIP_LABELS: Record<string, string> = {
-  spring: 'Весна', summer: 'Лето', autumn: 'Осень',
-  winter: 'Зима', year: 'Круглый год', year_round: 'Круглый год',
-}
-const TAG_CHIP_LABELS: Record<string, string> = {
-  hit: '🔥 Хит', sale: '🏷 Акция', new: '🆕 Новинка',
-}
-const POT_SIZE_CHIP_LABELS: Record<string, string> = {
-  'до12': 'до 12 см', '14-17': '14–17 см', '19-23': '19–23 см', '25+': '25+ см',
-}
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'popular', label: 'По популярности' },
@@ -370,7 +329,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const [showAuth, setShowAuth] = useState(false)
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
   const [sort, setSort] = useState<SortKey>('popular')
-  const [viewMode, setViewMode] = useState<'grid' | 'compact' | 'list'>('grid')
+  const [viewMode, setViewMode] = useState<'compact' | 'list'>('compact')
 
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
@@ -380,10 +339,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const {
     category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search,
     lengths, origins, potSizes, tags, floralRoles, seasons,
-    setSubcat, setVarietyType, setOnlyAvailable, setSearch,
-    toggleColor, toggleLength, toggleOrigin, togglePotSize,
-    toggleTag, toggleFloralRole, toggleSeason,
-    reset,
+    setSearch, reset,
   } = useFilters()
 
   // Sync products to global store so DetailPanel can look up by id
@@ -392,9 +348,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   // Persist view mode
   useEffect(() => {
     const saved = localStorage.getItem('catalog-view')
-    if (saved === 'list' || saved === 'grid' || saved === 'compact') setViewMode(saved)
+    if (saved === 'list' || saved === 'compact') setViewMode(saved)
   }, [])
-  const setView = (v: 'grid' | 'compact' | 'list') => {
+  const setView = (v: 'compact' | 'list') => {
     setViewMode(v)
     localStorage.setItem('catalog-view', v)
   }
@@ -419,25 +375,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   const getQty = (id: number) => items.find(i => i.id === id)?.qty ?? 0
 
-  // Active filter chips
-  type Chip = { label: string; onRemove: () => void }
-  const chips = useMemo<Chip[]>(() => {
-    const result: Chip[] = []
-    if (subcat) {
-      const parts = [SUBCAT_LABELS[subcat] ?? subcat]
-      if (varietyType) parts.push(VARIETY_TYPE_LABELS[varietyType] ?? varietyType)
-      result.push({ label: parts.join(' · '), onRemove: () => { setSubcat(''); setVarietyType('') } })
-    }
-    if (onlyAvailable) result.push({ label: 'В наличии', onRemove: () => setOnlyAvailable(false) })
-    colors.forEach(c => result.push({ label: COLOR_CHIP_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
-    lengths.forEach(l => result.push({ label: l >= 80 ? '80+ см' : `${l} см`, onRemove: () => toggleLength(l) }))
-    origins.forEach(o => result.push({ label: o, onRemove: () => toggleOrigin(o) }))
-    potSizes.forEach(ps => result.push({ label: POT_SIZE_CHIP_LABELS[ps] ?? ps, onRemove: () => togglePotSize(ps) }))
-    tags.forEach(t => result.push({ label: TAG_CHIP_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
-    floralRoles.forEach(r => result.push({ label: FLORAL_CHIP_LABELS[r] ?? r, onRemove: () => toggleFloralRole(r) }))
-    seasons.forEach(s => result.push({ label: SEASON_CHIP_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
-    return result
-  }, [subcat, varietyType, onlyAvailable, colors, lengths, origins, potSizes, tags, floralRoles, seasons])
+  const chips = useFilterChips()
 
   // Filter
   const filtered = useMemo(() => {
@@ -529,64 +467,85 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Toolbar */}
-      <div style={{
-        background: '#fff', borderBottom: '1px solid var(--border)',
-        padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10,
-        flexShrink: 0,
-      }}>
-        <select
-          value={sort}
-          onChange={e => setSort(e.target.value as SortKey)}
-          style={{
-            padding: '6px 28px 6px 10px', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-input)', fontSize: 12,
-            background: '#fff', fontFamily: 'inherit', color: 'var(--text)',
-            backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B7570' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>\")",
-            backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', appearance: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+      <div style={{ background: '#fff', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        {/* Row 1: sort + view toggle + count */}
+        <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value as SortKey)}
+            style={{
+              padding: '6px 28px 6px 10px', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-input)', fontSize: 12,
+              background: '#fff', fontFamily: 'inherit', color: 'var(--text)',
+              backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B7570' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>\")",
+              backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', appearance: 'none',
+              cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
 
-        <input
-          type="text"
-          placeholder="Поиск по сорту, ферме..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{
-            flex: 1, padding: '6px 12px',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-input)', fontSize: 13,
-            fontFamily: 'inherit', outline: 'none', minWidth: 0,
-            color: 'var(--text)', background: '#fff',
-          }}
-        />
-
-        <div style={{
-          display: 'flex', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-btn)', overflow: 'hidden',
-        }}>
-          {(['grid', 'compact', 'list'] as const).map(v => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              title={v === 'grid' ? '3 колонки' : v === 'compact' ? '4 колонки' : 'Список'}
+          {/* Search: only on desktop in row 1 */}
+          {!isMobile && (
+            <input
+              type="text"
+              placeholder="Поиск по сорту, ферме..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
               style={{
-                width: 30, height: 30, border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: viewMode === v ? 'var(--accent)' : '#fff',
-                color: viewMode === v ? '#fff' : '#b8b0b4',
+                flex: 1, padding: '6px 12px',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-input)', fontSize: 13,
+                fontFamily: 'inherit', outline: 'none', minWidth: 0,
+                color: 'var(--text)', background: '#fff',
               }}
-            >
-              {v === 'grid' ? <GridIcon /> : v === 'compact' ? <CompactIcon /> : <ListIcon />}
-            </button>
-          ))}
+            />
+          )}
+
+          <div style={{
+            display: 'flex', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-btn)', overflow: 'hidden',
+          }}>
+            {(['compact', 'list'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                title={v === 'compact' ? 'Сетка' : 'Список'}
+                style={{
+                  width: 30, height: 30, border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: viewMode === v ? 'var(--accent)' : '#fff',
+                  color: viewMode === v ? '#fff' : '#b8b0b4',
+                }}
+              >
+                {v === 'compact' ? <CompactIcon /> : <ListIcon />}
+              </button>
+            ))}
+          </div>
+
+          <span style={{ fontSize: 11, color: 'var(--text-mid)', whiteSpace: 'nowrap' }}>
+            {filtered.length} позиций
+          </span>
         </div>
 
-        <span style={{ fontSize: 11, color: 'var(--text-mid)', whiteSpace: 'nowrap' }}>
-          {filtered.length} позиций
-        </span>
+        {/* Row 2: search on mobile only */}
+        {isMobile && (
+          <div style={{ padding: '0 16px 10px' }}>
+            <input
+              type="text"
+              placeholder="Поиск по сорту, ферме..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%', padding: '7px 12px',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-input)', fontSize: 13,
+                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                color: 'var(--text)', background: '#fff',
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Active filter chips */}
@@ -634,8 +593,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         ) : viewMode !== 'list' ? (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : viewMode === 'compact' ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
-            gap: viewMode === 'compact' && !isMobile ? 8 : 12,
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+            gap: 12,
           }}>
             {filtered.map(p => {
               const qty = getQty(p.id)

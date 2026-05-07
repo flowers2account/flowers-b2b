@@ -6,14 +6,73 @@ import { useDetailStore } from '@/lib/detail-store'
 import { useFilters } from '@/lib/filter-store'
 import { useCart } from '@/lib/cart-store'
 import { useProductsStore } from '@/lib/products-store'
+import { useFilterChips } from '@/lib/filter-chips'
 
 // header L1(58px) + L2(46px) = 104px
 const HEADER_H = 104
 
 function DragHandle() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px', flexShrink: 0 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px', flexShrink: 0 }}>
       <div style={{ width: 40, height: 4, borderRadius: 2, background: '#ddd' }} />
+    </div>
+  )
+}
+
+function BackBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        background: 'none', border: 'none',
+        color: 'var(--accent)', fontSize: 13,
+        padding: '8px 12px', cursor: 'pointer',
+        fontFamily: 'inherit', fontWeight: 500,
+        flexShrink: 0,
+      }}
+    >
+      ← Каталог
+    </button>
+  )
+}
+
+function ChipBar() {
+  const chips = useFilterChips()
+  const { reset } = useFilters()
+  if (!chips.length) return null
+  return (
+    <div style={{
+      display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
+      padding: '6px 14px 10px', borderBottom: '1px solid var(--border)',
+      flexShrink: 0,
+    }}>
+      {chips.map((chip, i) => (
+        <button
+          key={i}
+          onClick={chip.onRemove}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '3px 10px', borderRadius: 14, fontSize: 11,
+            fontWeight: 500, fontFamily: 'inherit',
+            background: 'var(--accent-light)', color: 'var(--accent)',
+            border: '1px solid var(--accent)', cursor: 'pointer',
+          }}
+        >
+          {chip.label} ×
+        </button>
+      ))}
+      <button
+        onClick={reset}
+        style={{
+          marginLeft: 'auto', padding: '3px 10px', fontSize: 11,
+          fontWeight: 500, fontFamily: 'inherit',
+          background: 'none', border: '1px dashed var(--border)',
+          borderRadius: 14, color: 'var(--text-mid)', cursor: 'pointer',
+        }}
+      >
+        Сбросить
+      </button>
     </div>
   )
 }
@@ -29,6 +88,7 @@ export default function CatalogLayout({
   const { panel, setPanel } = useDetailStore()
   const { items, total } = useCart()
   const { filteredCount } = useProductsStore()
+  const chips = useFilterChips()
   const {
     onlyAvailable, colors, lengths, origins, potSizes,
     tags, floralRoles, seasons, subcat,
@@ -51,7 +111,6 @@ export default function CatalogLayout({
 
   const isDetailOpen = isMobile && panel !== 'empty'
 
-  // close filter sheet when detail opens
   useEffect(() => {
     if (panel !== 'empty') setIsFilterOpen(false)
   }, [panel])
@@ -81,7 +140,7 @@ export default function CatalogLayout({
   return (
     <div style={{ height: `calc(100vh - ${HEADER_H}px)`, position: 'relative', overflow: 'hidden' }}>
 
-      {/* Main content — full width */}
+      {/* Main content */}
       <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 72, background: '#fafafa' }}>
         {center}
       </div>
@@ -102,6 +161,11 @@ export default function CatalogLayout({
         zIndex: 50, display: 'flex', flexDirection: 'column',
       }}>
         <DragHandle />
+        <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <BackBtn onClick={() => setIsFilterOpen(false)} />
+          <span style={{ fontFamily: 'var(--font-playfair)', fontSize: 15, marginLeft: 4 }}>Фильтры</span>
+        </div>
+        <ChipBar />
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {left}
         </div>
@@ -137,6 +201,9 @@ export default function CatalogLayout({
         overflow: 'hidden',
       }}>
         <DragHandle />
+        <div style={{ borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <BackBtn onClick={() => setPanel('empty')} />
+        </div>
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {right}
         </div>
