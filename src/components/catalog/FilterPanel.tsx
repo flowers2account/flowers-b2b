@@ -306,6 +306,12 @@ function AccordionSubcats({ products }: { products: Product[] }) {
   )
 }
 
+// ── Group helper — defined OUTSIDE FilterPanel so its reference stays stable ──
+
+function Group({ children, mb = 18 }: { children: React.ReactNode; mb?: number }) {
+  return <div style={{ marginBottom: mb }}>{children}</div>
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FilterPanel({ products }: { products: Product[] }) {
@@ -315,10 +321,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     setOnlyAvailable, setSearch,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag, reset,
   } = useFilters()
-
-  const Group = ({ children, mb = 18 }: { children: React.ReactNode; mb?: number }) => (
-    <div style={{ marginBottom: mb }}>{children}</div>
-  )
 
   return (
     <div style={{ padding: '14px 14px 24px', height: '100%' }}>
