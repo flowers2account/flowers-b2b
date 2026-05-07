@@ -220,13 +220,15 @@ function GridCard({
             <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
               {keys.map(c => {
                 const col = COLORS.find(x => x.key === c)
-                return col ? (
-                  <div key={c} title={col.label} style={{
+                return (
+                  <div key={c} title={col?.label ?? c} style={{
                     width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                    background: ('gradient' in col ? col.gradient : col.bg) as string,
+                    background: col
+                      ? (('gradient' in col ? col.gradient : col.bg) as string)
+                      : '#ccc',
                     border: '1px solid rgba(0,0,0,0.1)',
                   }} />
-                ) : null
+                )
               })}
             </div>
           )
