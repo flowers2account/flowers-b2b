@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
+import { useDetailStore } from '@/lib/detail-store'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
@@ -103,10 +104,10 @@ function Stepper({
 
 function GridCard({
   product, qty, isAuthed,
-  onDec, onInc,
+  onDec, onInc, onCardClick,
 }: {
   product: Product; qty: number; isAuthed: boolean
-  onDec: () => void; onInc: () => void
+  onDec: () => void; onInc: () => void; onCardClick: () => void
 }) {
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
@@ -115,12 +116,16 @@ function GridCard({
   const meta = [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
 
   return (
-    <div style={{
-      background: '#fff', border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
-      borderRadius: 'var(--radius-card)',
-      boxShadow: qty > 0 ? '0 0 0 2px var(--accent-light)' : 'none',
-      overflow: 'hidden', display: 'flex', flexDirection: 'column',
-    }}>
+    <div
+      onClick={onCardClick}
+      style={{
+        background: '#fff', border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius-card)',
+        boxShadow: qty > 0 ? '0 0 0 2px var(--accent-light)' : 'none',
+        overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        cursor: 'pointer',
+      }}
+    >
       {/* Фото */}
       <div style={{ aspectRatio: '1/1', position: 'relative', background: 'var(--accent-light)', overflow: 'hidden' }}>
         {product.image_url ? (
@@ -171,7 +176,10 @@ function GridCard({
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size} шт</span>
         </div>
 
-        <Stepper qty={qty} available={available} packSize={product.pack_size || 5} onDec={onDec} onInc={onInc} />
+        {/* stop propagation so stepper click doesn't open detail */}
+        <div onClick={e => e.stopPropagation()}>
+          <Stepper qty={qty} available={available} packSize={product.pack_size || 5} onDec={onDec} onInc={onInc} />
+        </div>
       </div>
     </div>
   )
@@ -180,10 +188,10 @@ function GridCard({
 // ── list row ─────────────────────────────────────────────────────────────────
 
 function ListRow({
-  product, qty, isAuthed, onDec, onInc,
+  product, qty, isAuthed, onDec, onInc, onCardClick,
 }: {
   product: Product; qty: number; isAuthed: boolean
-  onDec: () => void; onInc: () => void
+  onDec: () => void; onInc: () => void; onCardClick: () => void
 }) {
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
@@ -192,13 +200,17 @@ function ListRow({
   const meta = [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
 
   return (
-    <div style={{
-      background: '#fff', border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
-      borderRadius: 'var(--radius-card)',
-      display: 'grid', gridTemplateColumns: '56px 1fr auto',
-      alignItems: 'center', gap: 12, padding: '8px 14px 8px 8px',
-      boxShadow: qty > 0 ? '0 0 0 2px var(--accent-light)' : 'none',
-    }}>
+    <div
+      onClick={onCardClick}
+      style={{
+        background: '#fff', border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius-card)',
+        display: 'grid', gridTemplateColumns: '56px 1fr auto',
+        alignItems: 'center', gap: 12, padding: '8px 14px 8px 8px',
+        boxShadow: qty > 0 ? '0 0 0 2px var(--accent-light)' : 'none',
+        cursor: 'pointer',
+      }}
+    >
       {/* Миниатюра */}
       <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-card)', background: 'var(--accent-light)', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
         {product.image_url
@@ -222,7 +234,10 @@ function ListRow({
       </div>
 
       {/* Цена + степпер */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}
+      >
         {isAuthed ? (
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
             {price.toLocaleString('ru-RU')} ₸
@@ -271,6 +286,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
+  const { setProduct, flashCart } = useDetailStore()
   const { category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons } = useFilters()
 
   // Persist view mode
@@ -389,6 +405,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       } else {
         update(product.id, Math.min(qty + packSize, available))
       }
+      flashCart(product)
     })
 
   return (
@@ -464,6 +481,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   isAuthed={isAuthed}
                   onDec={() => handleDec(p, qty)}
                   onInc={() => handleInc(p, qty, available, price)}
+                  onCardClick={() => setProduct(p)}
                 />
               )
             })}
@@ -482,6 +500,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   isAuthed={isAuthed}
                   onDec={() => handleDec(p, qty)}
                   onInc={() => handleInc(p, qty, available, price)}
+                  onCardClick={() => setProduct(p)}
                 />
               )
             })}

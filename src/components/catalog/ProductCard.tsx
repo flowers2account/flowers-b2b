@@ -24,6 +24,9 @@ export type Product = {
   floral_role?: string | null
   stem_durability?: string | null
   season?: string | null
+  origin?: string | null
+  description?: string | null
+  images?: string[] | null
   pack_size: number
   image_url?: string | null
   previous_price?: number | null
