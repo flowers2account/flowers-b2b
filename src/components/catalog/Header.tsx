@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useFilters, type FilterCategory } from '@/lib/filter-store'
+import { useDetailStore } from '@/lib/detail-store'
 import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
 
@@ -157,7 +158,7 @@ export default function Header() {
 
           {/* Корзина */}
           <button
-            onClick={() => {}}
+            onClick={() => useDetailStore.getState().setPanel('cart')}
             className="ml-auto flex items-center gap-2 bg-transparent border-none text-white relative cursor-pointer"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

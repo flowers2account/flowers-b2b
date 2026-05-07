@@ -6,25 +6,8 @@ import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
+import { COLORS } from '@/lib/colors'
 
-// ── colour palette (same as FilterPanel) ────────────────────────────────────
-
-const COLORS = [
-  { key: 'white',         label: 'Белый',         bg: '#FFFFFF', border: '#E0E0E0' },
-  { key: 'cream',         label: 'Кремовый',       bg: '#FFF8E7', border: '#E8D8A0' },
-  { key: 'pink',          label: 'Розовый',        bg: '#FFB6C1', border: '#E991A0' },
-  { key: 'peach',         label: 'Персиковый',     bg: '#FFCBA4', border: '#E8A87C' },
-  { key: 'red',           label: 'Красный',        bg: '#E53935', border: '#C62828' },
-  { key: 'bordeaux',      label: 'Бордовый',       bg: '#7B1A2E', border: '#5C1220' },
-  { key: 'orange',        label: 'Оранжевый',      bg: '#FF7043', border: '#E64A19' },
-  { key: 'yellow',        label: 'Жёлтый',         bg: '#FDD835', border: '#F9A825' },
-  { key: 'lavender',      label: 'Лавандовый',     bg: '#CE93D8', border: '#AB47BC' },
-  { key: 'purple',        label: 'Фиолетовый',     bg: '#7B1FA2', border: '#6A1B9A' },
-  { key: 'green',         label: 'Зелёный',        bg: '#66BB6A', border: '#388E3C' },
-  { key: 'mix',           label: 'Микс',           gradient: 'conic-gradient(#E53935 0deg,#FDD835 90deg,#66BB6A 180deg,#7B1FA2 270deg,#E53935 360deg)' },
-  { key: 'mix_pink',      label: 'Пинк микс',      gradient: 'linear-gradient(135deg,#FFB6C1 50%,#FFFFFF 50%)' },
-  { key: 'mix_red_white', label: 'Красно-белый',   gradient: 'linear-gradient(135deg,#E53935 50%,#FFFFFF 50%)' },
-] as const
 
 const FLORAL_ROLE_MAP: Record<string, { label: string; icon: string }> = {
   focal:   { label: 'Фокусный',    icon: '🌹' },
@@ -139,7 +122,7 @@ function StateEmpty() {
 // ── State B: product detail ──────────────────────────────────────────────────
 
 function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: () => void }) {
-  const { items, add, update } = useCart()
+  const { items, add, update, total } = useCart()
   const { isAuthed } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
@@ -151,6 +134,8 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
   const qty = cartItem?.qty ?? 0
   const inCart = qty > 0
   const cartTotal = qty * price
+  const cartCount = items.reduce((s, i) => s + i.qty, 0)
+  const cartSum = total()
 
   const images: string[] = product.images?.length
     ? product.images
@@ -212,7 +197,7 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
       <div style={{ flexShrink: 0 }}>
         <div style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative' }}>
           {mainPhoto ? (
-            <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center' }} />
           ) : (
             <div style={{
               width: '100%', height: '100%',
@@ -350,21 +335,36 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
               </button>
             </>
           ) : (
-            <button
-              onClick={handleAddToCart}
-              disabled={available === 0}
-              style={{
-                width: '100%', height: 36,
-                background: available === 0 ? 'var(--bg2)' : 'var(--accent)',
-                color: available === 0 ? 'var(--text-mid)' : '#fff',
-                border: 'none', borderRadius: 'var(--radius-btn)',
-                fontSize: 13, fontWeight: 600,
-                cursor: available === 0 ? 'default' : 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              {available === 0 ? 'Нет в наличии' : 'Добавить в корзину'}
-            </button>
+            <>
+              <button
+                onClick={handleAddToCart}
+                disabled={available === 0}
+                style={{
+                  width: '100%', height: 36,
+                  background: available === 0 ? 'var(--bg2)' : 'var(--accent)',
+                  color: available === 0 ? 'var(--text-mid)' : '#fff',
+                  border: 'none', borderRadius: 'var(--radius-btn)',
+                  fontSize: 13, fontWeight: 600,
+                  cursor: available === 0 ? 'default' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {available === 0 ? 'Нет в наличии' : 'Добавить в корзину'}
+              </button>
+              {cartCount > 0 && (
+                <button
+                  onClick={onGoToCart}
+                  style={{
+                    width: '100%', padding: '7px 0',
+                    background: 'none', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-btn)', fontSize: 12,
+                    cursor: 'pointer', color: 'var(--text-mid)', fontFamily: 'inherit',
+                  }}
+                >
+                  🛒 Корзина ({cartCount}) · {cartSum.toLocaleString('ru-RU')} ₸ →
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -469,10 +469,11 @@ function StateCart({ onBack }: { onBack: () => void }) {
           <button
             onClick={onBack}
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-mid)', fontSize: 12, fontWeight: 500,
-              fontFamily: 'inherit', padding: 0,
-              display: 'flex', alignItems: 'center', gap: 3,
+              background: '#F7EEF2', border: '1px solid var(--accent-mid)',
+              cursor: 'pointer', color: 'var(--accent)', fontSize: 11, fontWeight: 500,
+              fontFamily: 'inherit', padding: '3px 10px',
+              borderRadius: 'var(--radius-btn)',
+              display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0,
             }}
           >
             ← К товару

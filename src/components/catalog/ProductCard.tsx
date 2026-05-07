@@ -1,5 +1,6 @@
 'use client'
 import { Badge } from '@/components/ui/badge'
+import { COLORS } from '@/lib/colors'
 
 type Stock = {
   price: number
@@ -27,6 +28,7 @@ export type Product = {
   origin?: string | null
   description?: string | null
   images?: string[] | null
+  colors?: string[] | null
   pack_size: number
   image_url?: string | null
   previous_price?: number | null
@@ -94,6 +96,20 @@ export default function ProductCard({ product, qty, isAuthed, onDecrement, onInc
       <div className="p-3 flex flex-col gap-1.5 flex-1">
         <div>
           <div className="font-semibold text-sm leading-tight text-gray-800 line-clamp-2">{displayName}</div>
+          {product.colors && product.colors.length > 0 && (
+            <div style={{ display: 'flex', gap: 3, marginTop: 4, marginBottom: 2, flexWrap: 'wrap' }}>
+              {product.colors.map(c => {
+                const col = COLORS.find(x => x.key === c)
+                return col ? (
+                  <div key={c} title={col.label} style={{
+                    width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                    background: ('gradient' in col ? col.gradient : col.bg) as string,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                  }} />
+                ) : null
+              })}
+            </div>
+          )}
           {product.length_str && (
             <div className="text-xs text-gray-400 mt-0.5">{product.length_str} см</div>
           )}
