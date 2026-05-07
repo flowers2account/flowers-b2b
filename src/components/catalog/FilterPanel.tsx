@@ -152,11 +152,12 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     ]
   }, [products, category])
 
-  const SubcatRow = ({ key: _k, ...s }: typeof subcatRows[0]) => {
-    const active = subcat === s.key
+  type SubcatRowData = { key: string; label: string; count: number }
+  const SubcatRow = ({ row }: { row: SubcatRowData }) => {
+    const active = subcat === row.key
     return (
       <div
-        onClick={() => setSubcat(s.key)}
+        onClick={() => setSubcat(row.key)}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '5px 8px', fontSize: 12, borderRadius: 'var(--radius-btn)',
@@ -166,13 +167,13 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           fontWeight: active ? 600 : 400,
         }}
       >
-        <span>{s.label}</span>
+        <span>{row.label}</span>
         <span style={{
           fontSize: 10, padding: '2px 7px', borderRadius: 10, fontWeight: 500,
           background: active ? 'rgba(255,255,255,0.22)' : 'var(--bg2)',
           color: active ? '#fff' : 'var(--text-mid)',
         }}>
-          {s.count}
+          {row.count}
         </span>
       </div>
     )
@@ -214,7 +215,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
       {/* ПОДКАТЕГОРИЯ — всегда */}
       <Group>
         <GroupLabel text="Подкатегория" />
-        {subcatRows.map(s => <SubcatRow key={s.key} {...s} />)}
+        {subcatRows.map(s => <SubcatRow key={s.key} row={s} />)}
       </Group>
 
       {/* НАЛИЧИЕ — всегда */}
