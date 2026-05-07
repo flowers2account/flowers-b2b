@@ -1,109 +1,202 @@
 'use client'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import AuthModal from './AuthModal'
+
+const CATS = [
+  { id: 'cut', label: '🌸 Срезанные' },
+  { id: 'pot', label: '🪴 Горшечные' },
+  { id: 'supply', label: '📦 Расходники' },
+]
+
+function CategoryPills() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeCat = searchParams.get('cat') || 'cut'
+
+  return (
+    <>
+      {CATS.map(cat => (
+        <button
+          key={cat.id}
+          onClick={() => router.push(`/?cat=${cat.id}`)}
+          className="flex items-center gap-[7px] rounded-[5px] px-[13px] text-[12px] font-semibold border-none cursor-pointer transition-all"
+          style={{
+            height: 30,
+            background: activeCat === cat.id ? '#fff' : 'rgba(255,255,255,0.92)',
+            color: activeCat === cat.id ? 'var(--accent)' : '#1a1a1a',
+            boxShadow: activeCat === cat.id ? '0 0 0 2px rgba(255,255,255,0.4)' : 'none',
+          }}
+        >
+          {cat.label}
+        </button>
+      ))}
+    </>
+  )
+}
 
 export default function Header() {
   const { isAuthed, phone, role, init, logout } = useAuthStore()
   const { items, total } = useCart()
   const [showAuth, setShowAuth] = useState(false)
+  const pathname = usePathname()
 
   useEffect(() => { init() }, [])
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
   const cartTotal = total()
 
+  const NAV = [
+    { href: '/', label: 'Каталог' },
+    ...(isAuthed ? [{ href: '/cabinet', label: 'Мои заказы' }] : []),
+    { href: '#', label: 'История' },
+    { href: '#', label: 'О поставках' },
+  ]
+
   return (
     <header className="sticky top-0 z-[100]">
-      {/* L1 — белая полоса */}
-      <div className="bg-white h-14 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-4">
+      {/* L1 — белая 58px */}
+      <div className="bg-white border-b border-[#e8e8e8] flex items-center" style={{ height: 58 }}>
+        <div className="max-w-[1480px] w-full mx-auto px-[22px] flex items-center" style={{ height: 58 }}>
 
           {/* Логотип */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="text-2xl">🌸</span>
-            <div className="leading-tight">
-              <div className="font-bold text-base leading-none" style={{ color: 'var(--accent)', fontFamily: 'var(--font-golos)' }}>
+          <Link href="/" className="flex items-center gap-[10px] mr-9 shrink-0 no-underline">
+            <svg width="36" height="36" viewBox="0 0 44 44" fill="none">
+              <path d="M12 22C16 18 21 14 28 12" stroke="#E8B4C0" strokeWidth="1.1"/>
+              <path d="M14 18C13 14 12 11 11 8" stroke="#E8B4C0" strokeWidth="0.9"/>
+              <circle cx="11" cy="7" r="2.5" fill="#E8B4C0"/>
+              <path d="M20 15C20 11 21 9 23 7" stroke="#C97A92" strokeWidth="0.9"/>
+              <circle cx="23" cy="6" r="2" fill="#C97A92"/>
+              <path d="M26 14C27 11 29 9 31 7" stroke="#E8B4C0" strokeWidth="0.7"/>
+              <circle cx="31" cy="6" r="1.5" fill="#E8B4C0"/>
+            </svg>
+            <div>
+              <div style={{ fontFamily: 'var(--font-cormorant)', fontStyle: 'italic', fontWeight: 500, fontSize: 15, color: 'var(--accent)', lineHeight: 1.1 }}>
                 Цветы Уральска
               </div>
-              <div className="text-[10px] text-gray-400 leading-none mt-0.5">оптовая база</div>
+              <span style={{ display: 'block', fontSize: 8, fontWeight: 400, color: 'var(--accent-mid)', letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: 'var(--font-golos)', lineHeight: 1.6 }}>
+                оптовая база
+              </span>
             </div>
           </Link>
 
-          {/* Навигация по центру */}
-          <nav className="hidden sm:flex items-center gap-6 text-sm font-medium text-gray-600">
-            <Link href="/" className="hover:text-[#8B1A1A] transition-colors">Каталог</Link>
-            {isAuthed && (
-              <Link href="/cabinet" className="hover:text-[#8B1A1A] transition-colors">Мои заказы</Link>
-            )}
+          {/* Навигация */}
+          <nav className="flex items-center flex-1" style={{ height: 58 }}>
+            {NAV.map(({ href, label }) => {
+              const isActive = href !== '#' && (href === '/' ? pathname === '/' : pathname.startsWith(href))
+              return (
+                <Link
+                  key={label}
+                  href={href}
+                  className="flex items-center px-4 text-[13px] no-underline transition-colors"
+                  style={{
+                    height: 58,
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'var(--accent)' : '#444',
+                    borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                  }}
+                >
+                  {label}
+                </Link>
+              )
+            })}
           </nav>
 
-          {/* Правый блок */}
-          <div className="flex items-center gap-2 shrink-0">
-            {isAuthed ? (
-              <>
-                {(role === 'admin' || role === 'manager') && (
-                  <Link
-                    href="/admin"
-                    className="hidden sm:inline-flex items-center gap-1 text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-gray-700 transition-colors"
-                  >
-                    ⚙️ Админка
-                  </Link>
-                )}
-                <span className="text-sm text-gray-500 hidden sm:inline">👤 {phone}</span>
+          {/* User / Auth */}
+          {isAuthed ? (
+            <div className="flex items-center gap-2 shrink-0">
+              {(role === 'admin' || role === 'manager') && (
+                <Link
+                  href="/admin"
+                  className="hidden sm:inline-flex items-center gap-1 text-[12px] bg-[#f5f0f3] hover:bg-[#ede5ea] px-3 py-1.5 rounded-lg no-underline transition-colors"
+                  style={{ color: 'var(--text-mid)' }}
+                >
+                  ⚙️ Админка
+                </Link>
+              )}
+              <div className="flex items-center gap-2 px-[10px] py-[5px] rounded-[20px] bg-[#f5f0f3] text-[12px] font-medium">
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  👤
+                </div>
+                <span className="hidden sm:inline text-[12px]" style={{ color: 'var(--text)' }}>
+                  {phone}
+                </span>
                 <button
                   onClick={() => logout()}
-                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-[11px] ml-1 bg-none border-none cursor-pointer transition-colors"
+                  style={{ color: 'var(--text-mid)' }}
                 >
                   Выйти
                 </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setShowAuth(true)}
-                className="text-sm text-white px-4 py-1.5 rounded-lg hover:bg-[#A52020] transition-colors"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                Войти
-              </button>
-            )}
-          </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="text-[13px] text-white px-4 py-1.5 rounded-lg border-none cursor-pointer transition-colors shrink-0"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              Войти
+            </button>
+          )}
         </div>
       </div>
 
-      {/* L2 — бордовая полоса */}
-      <div className="h-11" style={{ backgroundColor: 'var(--accent)' }}>
-        <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between">
+      {/* L2 — бордовая 46px */}
+      <div className="flex items-center" style={{ backgroundColor: 'var(--accent)', height: 46 }}>
+        <div className="max-w-[1480px] w-full mx-auto px-5 flex items-center gap-2">
 
           {/* Категории */}
-          <div className="flex items-center gap-1 text-sm text-white/90">
-            <Link href="/?cat=cut" className="hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/10">
-              Срезанные цветы
-            </Link>
-            <span className="text-white/40">|</span>
-            <Link href="/?cat=pot" className="hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/10">
-              Горшечные растения
-            </Link>
-          </div>
+          <Suspense
+            fallback={CATS.map(cat => (
+              <div
+                key={cat.id}
+                className="flex items-center rounded-[5px] px-[13px] text-[12px] font-semibold"
+                style={{ height: 30, background: 'rgba(255,255,255,0.92)', color: '#1a1a1a' }}
+              >
+                {cat.label}
+              </div>
+            ))}
+          >
+            <CategoryPills />
+          </Suspense>
 
           {/* Корзина */}
-          <Link href="/" className="flex items-center gap-2 text-white hover:text-white/80 transition-colors">
+          <button
+            onClick={() => {}}
+            className="ml-auto flex items-center gap-2 bg-transparent border-none text-white relative cursor-pointer"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <path d="M16 10a4 4 0 0 1-8 0"/>
+            </svg>
+            <span className="text-[14px] font-bold">
+              {cartCount > 0 ? `${cartTotal.toLocaleString('ru-RU')} ₸` : '0 ₸'}
+            </span>
             {cartCount > 0 && (
-              <span className="text-sm font-medium">
-                {cartTotal.toLocaleString('ru-RU')} ₸
+              <span
+                className="absolute flex items-center justify-center font-extrabold"
+                style={{
+                  top: -3, right: -8,
+                  minWidth: 17, height: 17,
+                  borderRadius: 9, padding: '0 4px',
+                  background: '#E8B4C0',
+                  color: '#1a1a1a',
+                  fontSize: 9,
+                }}
+              >
+                {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}
-            <div className="relative">
-              <span className="text-xl">🛒</span>
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none" style={{ color: 'var(--accent)' }}>
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
-            </div>
-          </Link>
+          </button>
         </div>
       </div>
 
