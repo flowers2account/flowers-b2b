@@ -232,18 +232,10 @@ function GridCard({
           )
         })()}
 
-        {/* Роль + происхождение */}
-        {(product.floral_role || product.origin) && (
-          <div style={{ fontSize: 10, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
-            {product.floral_role && (
-              <span>{ROLE_ICONS[product.floral_role]} {ROLE_LABELS[product.floral_role]}</span>
-            )}
-            {product.floral_role && product.origin && (
-              <span style={{ color: 'var(--border)' }}>·</span>
-            )}
-            {product.origin && (
-              <span>{ORIGIN_LABELS[product.origin] ?? product.origin}</span>
-            )}
+        {/* Происхождение */}
+        {product.origin && (
+          <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 2 }}>
+            {ORIGIN_LABELS[product.origin] ?? product.origin}
           </div>
         )}
 
