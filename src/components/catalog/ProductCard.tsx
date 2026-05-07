@@ -18,6 +18,7 @@ export type Product = {
   length_cm: number | null
   category: string
   subcategory?: string | null
+  variety_type?: string | null
   pot_size?: number | null
   pack_size: number
   image_url?: string | null

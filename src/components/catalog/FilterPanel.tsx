@@ -1,39 +1,70 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useFilters } from '@/lib/filter-store'
 import { type Product } from './ProductCard'
 
-// ── static configs ────────────────────────────────────────────────────────────
+// ── category tree ─────────────────────────────────────────────────────────────
 
-const SUBCATS: Record<string, string[]> = {
-  cut:    ['Розы', 'Хризантемы', 'Акцентные', 'Наполнители', 'Зелень', 'Сезонные', 'Экзотика'],
-  pot:    ['Зелёные', 'Цветущие', 'Суккуленты', 'Уличные', 'Крупномеры'],
-  supply: ['Упаковка', 'Горшки', 'Грунты', 'Удобрения', 'Инструмент'],
+type VarietyChild = { label: string; varietyType: string }
+type SubcatNode   = { label: string; key: string; children?: VarietyChild[] }
+
+const CATEGORY_TREE: Record<string, SubcatNode[]> = {
+  cut: [
+    { label: 'Розы', key: 'roses', children: [
+      { label: 'Одноголовые',      varietyType: 'single' },
+      { label: 'Кустовые / Спрей', varietyType: 'spray'  },
+    ]},
+    { label: 'Хризантемы', key: 'chrysanthemums', children: [
+      { label: 'Ветковые',    varietyType: 'branch' },
+      { label: 'Одноголовые', varietyType: 'single' },
+    ]},
+    { label: 'Акцентные цветы', key: 'accents'  },
+    { label: 'Наполнители',     key: 'fillers'  },
+    { label: 'Зелень',          key: 'greens'   },
+    { label: 'Сезонные',        key: 'seasonal' },
+    { label: 'Экзотика',        key: 'exotic'   },
+  ],
+  pot: [
+    { label: 'Зелёные растения',     key: 'green'       },
+    { label: 'Цветущие',             key: 'flowering'   },
+    { label: 'Суккуленты и кактусы', key: 'succulents'  },
+    { label: 'Уличные и сезонные',   key: 'outdoor'     },
+    { label: 'Крупномеры',           key: 'large'       },
+  ],
+  supply: [
+    { label: 'Упаковка',               key: 'packaging'   },
+    { label: 'Горшки и кашпо',         key: 'pots'        },
+    { label: 'Грунты и субстраты',     key: 'soil'        },
+    { label: 'Удобрения и уход',       key: 'fertilizers' },
+    { label: 'Инструмент и материалы', key: 'tools'       },
+  ],
 }
 
+// ── static filter options ─────────────────────────────────────────────────────
+
 const COLORS = [
-  { hex: '#E53935', label: 'Красный' },
-  { hex: '#F5F5F5', label: 'Белый' },
-  { hex: '#E91E8C', label: 'Розовый' },
-  { hex: '#FDD835', label: 'Жёлтый' },
+  { hex: '#E53935', label: 'Красный'   },
+  { hex: '#F5F5F5', label: 'Белый'     },
+  { hex: '#E91E8C', label: 'Розовый'   },
+  { hex: '#FDD835', label: 'Жёлтый'   },
   { hex: '#7B1FA2', label: 'Сиреневый' },
 ]
-const LENGTHS = [40, 50, 60, 70, 80]
-const ORIGINS = ['Эквадор', 'Кения', 'Голландия', 'Китай']
+const LENGTHS   = [40, 50, 60, 70, 80]
+const ORIGINS   = ['Эквадор', 'Кения', 'Голландия', 'Китай']
 const POT_SIZES = [
   { id: 'до12',  label: 'до 12 см' },
   { id: '14-17', label: '14–17 см' },
   { id: '19-23', label: '19–23 см' },
-  { id: '25+',   label: '25+ см' },
+  { id: '25+',   label: '25+ см'   },
 ]
 const TAGS_CUT = [
-  { id: 'hit',  label: '🔥 Хит' },
-  { id: 'sale', label: '🏷 Акция' },
+  { id: 'hit',  label: '🔥 Хит'     },
+  { id: 'sale', label: '🏷 Акция'   },
   { id: 'new',  label: '🆕 Новинка' },
 ]
 const TAGS_POT = [
-  { id: 'hit', label: '🔥 Хит' },
+  { id: 'hit', label: '🔥 Хит'     },
   { id: 'new', label: '🆕 Новинка' },
 ]
 
@@ -54,8 +85,7 @@ function GroupLabel({ text }: { text: string }) {
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div
-      role="switch"
-      aria-checked={checked}
+      role="switch" aria-checked={checked}
       onClick={() => onChange(!checked)}
       style={{
         width: 30, height: 17, borderRadius: 9,
@@ -75,9 +105,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   )
 }
 
-function CheckRow({
-  checked, label, onChange,
-}: { checked: boolean; label: string; onChange: () => void }) {
+function CheckRow({ checked, label, onChange }: { checked: boolean; label: string; onChange: () => void }) {
   return (
     <label style={{
       display: 'flex', alignItems: 'center', gap: 8,
@@ -85,9 +113,7 @@ function CheckRow({
       borderRadius: 'var(--radius-btn)', cursor: 'pointer',
     }}>
       <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
+        type="checkbox" checked={checked} onChange={onChange}
         style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
       />
       <span style={{ flex: 1 }}>{label}</span>
@@ -95,11 +121,7 @@ function CheckRow({
   )
 }
 
-function TagChips({
-  tagDefs,
-  active,
-  onToggle,
-}: {
+function TagChips({ tagDefs, active, onToggle }: {
   tagDefs: { id: string; label: string }[]
   active: string[]
   onToggle: (id: string) => void
@@ -109,21 +131,179 @@ function TagChips({
       {tagDefs.map(t => {
         const on = active.includes(t.id)
         return (
-          <button
-            key={t.id}
-            onClick={() => onToggle(t.id)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              padding: '4px 10px', borderRadius: 14,
-              fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
-              background: on ? 'var(--accent)' : '#fff',
-              border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-              color: on ? '#fff' : 'var(--text-mid)',
-              cursor: 'pointer',
-            }}
-          >
+          <button key={t.id} onClick={() => onToggle(t.id)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '4px 10px', borderRadius: 14,
+            fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
+            background: on ? 'var(--accent)' : '#fff',
+            border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+            color: on ? '#fff' : 'var(--text-mid)',
+            cursor: 'pointer',
+          }}>
             {t.label}
           </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="10" height="10" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+      style={{ flexShrink: 0, transition: 'transform 0.18s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+    >
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+  )
+}
+
+// ── accordion subcategory section ─────────────────────────────────────────────
+
+function AccordionSubcats({ products }: { products: Product[] }) {
+  const { category, subcat, varietyType, setSubcat, setVarietyType } = useFilters()
+  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set())
+
+  // Reset accordion when category changes
+  useEffect(() => { setOpenKeys(new Set()) }, [category])
+
+  // Counts
+  const { total, bySC, byVT } = useMemo(() => {
+    const base = products.filter(p => category === 'all' || p.category === category)
+    const bySC: Record<string, number> = {}
+    const byVT: Record<string, Record<string, number>> = {}
+    base.forEach(p => {
+      if (!p.subcategory) return
+      bySC[p.subcategory] = (bySC[p.subcategory] || 0) + 1
+      if (p.variety_type) {
+        if (!byVT[p.subcategory]) byVT[p.subcategory] = {}
+        byVT[p.subcategory][p.variety_type] = (byVT[p.subcategory][p.variety_type] || 0) + 1
+      }
+    })
+    return { total: base.length, bySC, byVT }
+  }, [products, category])
+
+  const nodes = CATEGORY_TREE[category] ?? []
+
+  const toggleOpen = (key: string) =>
+    setOpenKeys(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+
+  const handleAll = () => {
+    setSubcat('')
+    setVarietyType('')
+    setOpenKeys(new Set())
+  }
+
+  const handleParent = (node: SubcatNode) => {
+    if (node.children?.length) toggleOpen(node.key)
+    setSubcat(node.key)
+    setVarietyType('')
+  }
+
+  const handleChild = (parentKey: string, child: VarietyChild) => {
+    setSubcat(parentKey)
+    setVarietyType(child.varietyType)
+    setOpenKeys(prev => new Set([...prev, parentKey]))
+  }
+
+  const countBadge = (count: number, active: boolean) => (
+    <span style={{
+      fontSize: 10, padding: '2px 7px', borderRadius: 10, fontWeight: 500,
+      flexShrink: 0, marginLeft: 'auto',
+      background: active ? 'rgba(255,255,255,0.22)' : 'var(--bg2)',
+      color: active ? '#fff' : 'var(--text-mid)',
+    }}>
+      {count}
+    </span>
+  )
+
+  const rowBase: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '5px 8px', fontSize: 12,
+    borderRadius: 'var(--radius-btn)', marginBottom: 1,
+    cursor: 'pointer', transition: 'background 0.12s',
+  }
+
+  const allActive = subcat === ''
+
+  return (
+    <div>
+      {/* Все */}
+      <div
+        onClick={handleAll}
+        className={allActive ? '' : 'hover:bg-[var(--bg2)]'}
+        style={{
+          ...rowBase,
+          background: allActive ? 'var(--accent)' : undefined,
+          color: allActive ? '#fff' : 'var(--text)',
+          fontWeight: allActive ? 600 : 400,
+        }}
+      >
+        <span style={{ flex: 1 }}>Все</span>
+        {countBadge(total, allActive)}
+      </div>
+
+      {/* Tree nodes */}
+      {nodes.map(node => {
+        const hasChildren = !!(node.children?.length)
+        const isOpen      = openKeys.has(node.key)
+        const parentSel   = subcat === node.key && varietyType === ''
+        const hasActiveCh = subcat === node.key && varietyType !== ''
+
+        return (
+          <div key={node.key}>
+            {/* Parent row */}
+            <div
+              onClick={() => handleParent(node)}
+              className={parentSel || hasActiveCh ? '' : 'hover:bg-[var(--bg2)]'}
+              style={{
+                ...rowBase,
+                background: parentSel
+                  ? 'var(--accent)'
+                  : hasActiveCh
+                    ? 'var(--bg2)'
+                    : undefined,
+                color: parentSel ? '#fff' : 'var(--text)',
+                fontWeight: parentSel ? 600 : 400,
+              }}
+            >
+              {hasChildren && (
+                <Chevron open={isOpen} />
+              )}
+              <span style={{ flex: 1 }}>{node.label}</span>
+              {countBadge(bySC[node.key] ?? 0, parentSel)}
+            </div>
+
+            {/* Children */}
+            {hasChildren && isOpen && node.children!.map(child => {
+              const childActive = subcat === node.key && varietyType === child.varietyType
+              const childCount  = byVT[node.key]?.[child.varietyType] ?? 0
+              return (
+                <div
+                  key={child.varietyType}
+                  onClick={() => handleChild(node.key, child)}
+                  className={childActive ? '' : 'hover:bg-[var(--bg2)]'}
+                  style={{
+                    ...rowBase,
+                    paddingLeft: 22,
+                    background: childActive ? 'var(--accent)' : undefined,
+                    color: childActive ? '#fff' : 'var(--text-mid)',
+                    fontWeight: childActive ? 600 : 400,
+                  }}
+                >
+                  <span style={{ fontSize: 10, opacity: 0.5, marginRight: 2 }}>•</span>
+                  <span style={{ flex: 1, fontSize: 11 }}>{child.label}</span>
+                  {countBadge(childCount, childActive)}
+                </div>
+              )
+            })}
+          </div>
         )
       })}
     </div>
@@ -134,53 +314,11 @@ function TagChips({
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, subcat, onlyAvailable, search,
+    category, onlyAvailable, search,
     colors, lengths, origins, potSizes, tags,
-    setSubcat, setOnlyAvailable, setSearch,
+    setOnlyAvailable, setSearch,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag, reset,
   } = useFilters()
-
-  // Subcategory counts from DB field
-  const subcatRows = useMemo(() => {
-    const base = products.filter(p => category === 'all' || p.category === category)
-    const counts: Record<string, number> = {}
-    base.forEach(p => { if (p.subcategory) counts[p.subcategory] = (counts[p.subcategory] || 0) + 1 })
-    const list = SUBCATS[category] ?? []
-    return [
-      { key: '', label: 'Все', count: base.length },
-      ...list.map(sc => ({ key: sc, label: sc, count: counts[sc] ?? 0 })),
-    ]
-  }, [products, category])
-
-  type SubcatRowData = { key: string; label: string; count: number }
-  const SubcatRow = ({ row }: { row: SubcatRowData }) => {
-    const active = subcat === row.key
-    return (
-      <div
-        onClick={() => setSubcat(row.key)}
-        className={active ? '' : 'hover:bg-[var(--bg2)]'}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '5px 8px', fontSize: 12, borderRadius: 'var(--radius-btn)',
-          marginBottom: 1, cursor: 'pointer',
-          background: active ? 'var(--accent)' : undefined,
-          color: active ? '#fff' : 'var(--text)',
-          fontWeight: active ? 600 : 400,
-          transition: 'background 0.12s',
-        }}
-      >
-        <span>{row.label}</span>
-        <span style={{
-          fontSize: 10, padding: '2px 7px', borderRadius: 10, fontWeight: 500,
-          background: active ? 'rgba(255,255,255,0.22)' : 'var(--bg2)',
-          color: active ? '#fff' : 'var(--text-mid)',
-          flexShrink: 0,
-        }}>
-          {row.count}
-        </span>
-      </div>
-    )
-  }
 
   const Group = ({ children, mb = 18 }: { children: React.ReactNode; mb?: number }) => (
     <div style={{ marginBottom: mb }}>{children}</div>
@@ -189,7 +327,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   return (
     <div style={{ padding: '14px 14px 24px', height: '100%' }}>
 
-      {/* ПОИСК — всегда */}
+      {/* ПОИСК */}
       <Group>
         <GroupLabel text="Поиск" />
         <div style={{ position: 'relative' }}>
@@ -200,9 +338,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
             <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
           </svg>
           <input
-            type="text"
-            placeholder="Сорт, ферма…"
-            value={search}
+            type="text" placeholder="Сорт, ферма…" value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
               width: '100%', border: '1px solid var(--border)',
@@ -215,13 +351,13 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         </div>
       </Group>
 
-      {/* ПОДКАТЕГОРИЯ — всегда */}
+      {/* ПОДКАТЕГОРИЯ — аккордеон */}
       <Group>
         <GroupLabel text="Подкатегория" />
-        {subcatRows.map(s => <SubcatRow key={s.key} row={s} />)}
+        <AccordionSubcats products={products} />
       </Group>
 
-      {/* НАЛИЧИЕ — всегда */}
+      {/* НАЛИЧИЕ */}
       <Group>
         <GroupLabel text="Наличие" />
         <div style={{
@@ -234,26 +370,19 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         </div>
       </Group>
 
-      {/* ── CUT: Цвет, Длина, Источник, Теги ── */}
+      {/* ── CUT ── */}
       {category === 'cut' && (
         <>
           <Group>
             <GroupLabel text="Цвет" />
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', padding: '4px 4px 0' }}>
               {COLORS.map(c => (
-                <div
-                  key={c.hex}
-                  onClick={() => toggleColor(c.hex)}
-                  title={c.label}
-                  style={{
-                    width: 22, height: 22, borderRadius: '50%',
-                    background: c.hex,
-                    border: '1.5px solid rgba(0,0,0,0.06)',
-                    cursor: 'pointer',
-                    outline: colors.includes(c.hex) ? '2px solid var(--accent)' : 'none',
-                    outlineOffset: 2,
-                  }}
-                />
+                <div key={c.hex} onClick={() => toggleColor(c.hex)} title={c.label} style={{
+                  width: 22, height: 22, borderRadius: '50%', background: c.hex,
+                  border: '1.5px solid rgba(0,0,0,0.06)', cursor: 'pointer',
+                  outline: colors.includes(c.hex) ? '2px solid var(--accent)' : 'none',
+                  outlineOffset: 2,
+                }} />
               ))}
             </div>
           </Group>
@@ -261,24 +390,16 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           <Group>
             <GroupLabel text="Длина стебля" />
             {LENGTHS.map(l => (
-              <CheckRow
-                key={l}
-                checked={lengths.includes(l)}
+              <CheckRow key={l} checked={lengths.includes(l)}
                 label={l >= 80 ? '80+ см' : `${l} см`}
-                onChange={() => toggleLength(l)}
-              />
+                onChange={() => toggleLength(l)} />
             ))}
           </Group>
 
           <Group>
             <GroupLabel text="Источник" />
             {ORIGINS.map(o => (
-              <CheckRow
-                key={o}
-                checked={origins.includes(o)}
-                label={o}
-                onChange={() => toggleOrigin(o)}
-              />
+              <CheckRow key={o} checked={origins.includes(o)} label={o} onChange={() => toggleOrigin(o)} />
             ))}
           </Group>
 
@@ -289,18 +410,14 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         </>
       )}
 
-      {/* ── POT: Размер горшка, Теги ── */}
+      {/* ── POT ── */}
       {category === 'pot' && (
         <>
           <Group>
             <GroupLabel text="Размер горшка" />
             {POT_SIZES.map(ps => (
-              <CheckRow
-                key={ps.id}
-                checked={potSizes.includes(ps.id)}
-                label={ps.label}
-                onChange={() => togglePotSize(ps.id)}
-              />
+              <CheckRow key={ps.id} checked={potSizes.includes(ps.id)}
+                label={ps.label} onChange={() => togglePotSize(ps.id)} />
             ))}
           </Group>
 
@@ -310,8 +427,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </Group>
         </>
       )}
-
-      {/* SUPPLY: только Поиск + Подкатегория + Наличие (уже выше) */}
 
       {/* Сбросить */}
       <button

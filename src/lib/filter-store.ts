@@ -5,6 +5,7 @@ export type FilterCategory = 'all' | 'cut' | 'pot' | 'supply'
 type FilterStore = {
   category: FilterCategory
   subcat: string
+  varietyType: string
   onlyAvailable: boolean
   onlyDiscount: boolean
   search: string
@@ -16,6 +17,7 @@ type FilterStore = {
 
   setCategory: (v: FilterCategory) => void
   setSubcat: (v: string) => void
+  setVarietyType: (v: string) => void
   setOnlyAvailable: (v: boolean) => void
   setOnlyDiscount: (v: boolean) => void
   setSearch: (v: string) => void
@@ -30,6 +32,7 @@ type FilterStore = {
 export const useFilters = create<FilterStore>((set) => ({
   category: 'cut',
   subcat: '',
+  varietyType: '',
   onlyAvailable: false,
   onlyDiscount: false,
   search: '',
@@ -40,10 +43,11 @@ export const useFilters = create<FilterStore>((set) => ({
   tags: [],
 
   setCategory: (category) => set({
-    category, subcat: '',
+    category, subcat: '', varietyType: '',
     colors: [], lengths: [], origins: [], potSizes: [], tags: [],
   }),
-  setSubcat: (subcat) => set({ subcat }),
+  setSubcat: (subcat) => set({ subcat, varietyType: '' }),
+  setVarietyType: (varietyType) => set({ varietyType }),
   setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
   setOnlyDiscount: (onlyDiscount) => set({ onlyDiscount }),
   setSearch: (search) => set({ search }),
@@ -53,7 +57,7 @@ export const useFilters = create<FilterStore>((set) => ({
   togglePotSize: (v) => set(s => ({ potSizes: s.potSizes.includes(v) ? s.potSizes.filter(p => p !== v) : [...s.potSizes, v] })),
   toggleTag: (v) => set(s => ({ tags: s.tags.includes(v) ? s.tags.filter(t => t !== v) : [...s.tags, v] })),
   reset: () => set({
-    category: 'cut', subcat: '', onlyAvailable: false, onlyDiscount: false,
+    category: 'cut', subcat: '', varietyType: '', onlyAvailable: false, onlyDiscount: false,
     search: '', colors: [], lengths: [], origins: [], potSizes: [], tags: [],
   }),
 }))
