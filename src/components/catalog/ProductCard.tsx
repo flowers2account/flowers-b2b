@@ -2,6 +2,19 @@
 import { Badge } from '@/components/ui/badge'
 import { COLORS } from '@/lib/colors'
 
+const ROLE_ICONS: Record<string, string> = {
+  focal: '🌹', mass: '🌸', line: '🌿',
+  filler: '🍃', texture: '✨', foliage: '🌱',
+}
+const ROLE_LABELS: Record<string, string> = {
+  focal: 'Фокусный', mass: 'Массовый', line: 'Линейный',
+  filler: 'Наполнитель', texture: 'Текстура', foliage: 'Зелень',
+}
+const ORIGIN_LABELS: Record<string, string> = {
+  ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
+  china: 'Китай', colombia: 'Колумбия', local: 'Местный',
+}
+
 type Stock = {
   price: number
   qty: number
@@ -126,6 +139,13 @@ export default function ProductCard({ product, qty, isAuthed, onDecrement, onInc
               </svg>
               {product.length_str}
             </span>
+          )}
+          {product.floral_role && (
+            <div style={{ fontSize: 10, color: 'var(--text-mid)', display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+              <span>{ROLE_ICONS[product.floral_role]}</span>
+              <span>{ROLE_LABELS[product.floral_role]}</span>
+              {product.origin && <span>· {ORIGIN_LABELS[product.origin] ?? product.origin}</span>}
+            </div>
           )}
         </div>
 
