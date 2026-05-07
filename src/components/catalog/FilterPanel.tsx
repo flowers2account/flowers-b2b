@@ -116,19 +116,15 @@ const SEASONS = [
   { id: 'year',   label: 'Круглый год'},
 ]
 
-// ── primitives ────────────────────────────────────────────────────────────────
+// ── default group open state ──────────────────────────────────────────────────
 
-function GroupLabel({ text }: { text: string }) {
-  return (
-    <div style={{
-      fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
-      textTransform: 'uppercase', color: '#b9aab1',
-      marginBottom: 6, padding: '0 4px',
-    }}>
-      {text}
-    </div>
-  )
+const DEFAULT_OPEN = {
+  subcat: true, available: true, color: true,
+  length: false, origin: false, floral: false,
+  duration: false, season: false, tags: false, potSize: false,
 }
+
+// ── primitives ────────────────────────────────────────────────────────────────
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -208,16 +204,56 @@ function Chevron({ open }: { open: boolean }) {
   )
 }
 
+// ── CollapsibleGroup ──────────────────────────────────────────────────────────
+
+function CollapsibleGroup({
+  label, children, activeCount = 0, open, onToggle,
+}: {
+  label: string; children: React.ReactNode
+  activeCount?: number; open: boolean; onToggle: () => void
+}) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <button
+        onClick={onToggle}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+          padding: '5px 4px', background: 'none', border: 'none',
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        <Chevron open={open} />
+        <span style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: '#b9aab1',
+          flex: 1, textAlign: 'left',
+        }}>
+          {label}
+        </span>
+        {activeCount > 0 && (
+          <span style={{
+            background: 'var(--accent)', color: '#fff',
+            borderRadius: '50%', width: 16, height: 16, flexShrink: 0,
+            fontSize: 9, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {activeCount}
+          </span>
+        )}
+      </button>
+      {open && <div style={{ marginTop: 2 }}>{children}</div>}
+    </div>
+  )
+}
+
 // ── accordion subcategory section ─────────────────────────────────────────────
 
 function AccordionSubcats({ products }: { products: Product[] }) {
   const { category, subcat, varietyType, setSubcat, setVarietyType } = useFilters()
   const [openItem, setOpenItem] = useState('')
 
-  // Reset accordion when category changes
   useEffect(() => { setOpenItem('') }, [category])
 
-  // Counts
   const { total, bySC, byVT } = useMemo(() => {
     const base = products.filter(p => category === 'all' || p.category === category)
     const bySC: Record<string, number> = {}
@@ -243,7 +279,6 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
   const handleParent = (node: SubcatNode) => {
     if (node.children?.length) {
-      // toggle: open this one, close if already open
       setOpenItem(prev => prev === node.key ? '' : node.key)
     }
     setSubcat(node.key)
@@ -253,7 +288,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
   const handleChild = (parentKey: string, child: VarietyChild) => {
     setSubcat(parentKey)
     setVarietyType(child.varietyType)
-    setOpenItem(parentKey) // keep parent open
+    setOpenItem(parentKey)
   }
 
   const countBadge = (count: number, active: boolean) => (
@@ -278,7 +313,6 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
   return (
     <div>
-      {/* Все */}
       <div
         onClick={handleAll}
         className={allActive ? '' : 'hover:bg-[var(--bg2)]'}
@@ -293,7 +327,6 @@ function AccordionSubcats({ products }: { products: Product[] }) {
         {countBadge(total, allActive)}
       </div>
 
-      {/* Tree nodes */}
       {nodes.map(node => {
         const hasChildren = !!(node.children?.length)
         const isOpen      = openItem === node.key
@@ -302,7 +335,6 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
         return (
           <div key={node.key}>
-            {/* Parent row */}
             <div
               onClick={() => handleParent(node)}
               className={parentSel || hasActiveCh ? '' : 'hover:bg-[var(--bg2)]'}
@@ -317,14 +349,11 @@ function AccordionSubcats({ products }: { products: Product[] }) {
                 fontWeight: parentSel ? 600 : 400,
               }}
             >
-              {hasChildren && (
-                <Chevron open={isOpen} />
-              )}
+              {hasChildren && <Chevron open={isOpen} />}
               <span style={{ flex: 1 }}>{node.label}</span>
               {countBadge(bySC[node.key] ?? 0, parentSel)}
             </div>
 
-            {/* Children */}
             {hasChildren && isOpen && node.children!.map(child => {
               const childActive = subcat === node.key && varietyType === child.varietyType
               const childCount  = byVT[node.key]?.[child.varietyType] ?? 0
@@ -354,17 +383,11 @@ function AccordionSubcats({ products }: { products: Product[] }) {
   )
 }
 
-// ── Group helper — defined OUTSIDE FilterPanel so its reference stays stable ──
-
-function Group({ children, mb = 18 }: { children: React.ReactNode; mb?: number }) {
-  return <div style={{ marginBottom: mb }}>{children}</div>
-}
-
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, onlyAvailable, search,
+    category, onlyAvailable, search, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
     floralRoles, durations, seasons,
     setOnlyAvailable, setSearch,
@@ -372,165 +395,255 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     toggleFloralRole, toggleDuration, toggleSeason, reset,
   } = useFilters()
 
+  const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
+
+  // Reset group open states when category changes
+  useEffect(() => { setOpenGroups({ ...DEFAULT_OPEN }) }, [category])
+
+  // Auto-open groups that have active filters
+  useEffect(() => {
+    setOpenGroups(prev => {
+      const next = { ...prev }
+      if (colors.length > 0)      next.color    = true
+      if (lengths.length > 0)     next.length   = true
+      if (origins.length > 0)     next.origin   = true
+      if (floralRoles.length > 0) next.floral   = true
+      if (durations.length > 0)   next.duration = true
+      if (seasons.length > 0)     next.season   = true
+      if (tags.length > 0)        next.tags     = true
+      if (potSizes.length > 0)    next.potSize  = true
+      if (onlyAvailable)          next.available = true
+      if (subcat)                 next.subcat   = true
+      return next
+    })
+  }, [colors, lengths, origins, floralRoles, durations, seasons, tags, potSizes, onlyAvailable, subcat])
+
+  const tog = (key: keyof typeof DEFAULT_OPEN) =>
+    setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
+
+  const subcatActiveCount = subcat ? (varietyType ? 2 : 1) : 0
+
   return (
-    <div style={{ padding: '14px 14px 24px', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* ПОИСК */}
-      <Group>
-        <GroupLabel text="Поиск" />
-        <div style={{ position: 'relative' }}>
-          <svg
-            style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
-            width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA39E" strokeWidth="2" strokeLinecap="round"
-          >
-            <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
-          </svg>
-          <input
-            type="text" placeholder="Сорт, ферма…" value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-input)',
-              padding: '6px 8px 6px 26px',
-              fontSize: 12, fontFamily: 'inherit',
-              color: 'var(--text)', background: '#fff', outline: 'none',
-            }}
-          />
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '14px 14px 0' }}>
+
+        {/* ПОИСК — always visible, no chevron */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+            textTransform: 'uppercase', color: '#b9aab1',
+            marginBottom: 6, padding: '0 4px',
+          }}>
+            Поиск
+          </div>
+          <div style={{ position: 'relative' }}>
+            <svg
+              style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA39E" strokeWidth="2" strokeLinecap="round"
+            >
+              <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <input
+              type="text" placeholder="Сорт, ферма…" value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-input)',
+                padding: '6px 8px 6px 26px',
+                fontSize: 12, fontFamily: 'inherit',
+                color: 'var(--text)', background: '#fff', outline: 'none',
+              }}
+            />
+          </div>
         </div>
-      </Group>
 
-      {/* ПОДКАТЕГОРИЯ — аккордеон */}
-      <Group>
-        <GroupLabel text="Подкатегория" />
-        <AccordionSubcats products={products} />
-      </Group>
+        {/* ПОДКАТЕГОРИЯ */}
+        <CollapsibleGroup
+          label="Подкатегория"
+          open={openGroups.subcat}
+          onToggle={() => tog('subcat')}
+          activeCount={subcatActiveCount}
+        >
+          <AccordionSubcats products={products} />
+        </CollapsibleGroup>
 
-      {/* НАЛИЧИЕ */}
-      <Group>
-        <GroupLabel text="Наличие" />
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '7px 8px', fontSize: 12,
-          background: 'var(--bg2)', borderRadius: 'var(--radius-btn)',
-        }}>
-          <span>Только в наличии</span>
-          <Toggle checked={onlyAvailable} onChange={setOnlyAvailable} />
-        </div>
-      </Group>
+        {/* НАЛИЧИЕ */}
+        <CollapsibleGroup
+          label="Наличие"
+          open={openGroups.available}
+          onToggle={() => tog('available')}
+          activeCount={onlyAvailable ? 1 : 0}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '7px 8px', fontSize: 12,
+            background: 'var(--bg2)', borderRadius: 'var(--radius-btn)',
+          }}>
+            <span>Только в наличии</span>
+            <Toggle checked={onlyAvailable} onChange={setOnlyAvailable} />
+          </div>
+        </CollapsibleGroup>
 
-      {/* ── CUT ── */}
-      {category === 'cut' && (
-        <>
-          <Group>
-            <GroupLabel text="Цвет" />
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
-              {COLORS.map(c => (
-                <div
-                  key={c.key}
-                  onClick={() => toggleColor(c.key)}
-                  title={c.label}
-                  style={{
-                    width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
-                    background: ('gradient' in c ? c.gradient : c.bg) as string,
-                    border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
-                    outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
-                    outlineOffset: 2,
-                  }}
-                />
+        {/* ── CUT ── */}
+        {category === 'cut' && (
+          <>
+            <CollapsibleGroup
+              label="Цвет"
+              open={openGroups.color}
+              onToggle={() => tog('color')}
+              activeCount={colors.length}
+            >
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
+                {COLORS.map(c => (
+                  <div
+                    key={c.key}
+                    onClick={() => toggleColor(c.key)}
+                    title={c.label}
+                    style={{
+                      width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+                      background: ('gradient' in c ? c.gradient : c.bg) as string,
+                      border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
+                      outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
+                      outlineOffset: 2,
+                    }}
+                  />
+                ))}
+              </div>
+            </CollapsibleGroup>
+
+            <CollapsibleGroup
+              label="Длина стебля"
+              open={openGroups.length}
+              onToggle={() => tog('length')}
+              activeCount={lengths.length}
+            >
+              {LENGTHS.map(l => (
+                <CheckRow key={l} checked={lengths.includes(l)}
+                  label={l >= 80 ? '80+ см' : `${l} см`}
+                  onChange={() => toggleLength(l)} />
               ))}
-            </div>
-          </Group>
+            </CollapsibleGroup>
 
-          <Group>
-            <GroupLabel text="Длина стебля" />
-            {LENGTHS.map(l => (
-              <CheckRow key={l} checked={lengths.includes(l)}
-                label={l >= 80 ? '80+ см' : `${l} см`}
-                onChange={() => toggleLength(l)} />
-            ))}
-          </Group>
+            <CollapsibleGroup
+              label="Источник"
+              open={openGroups.origin}
+              onToggle={() => tog('origin')}
+              activeCount={origins.length}
+            >
+              {ORIGINS.map(o => (
+                <CheckRow key={o} checked={origins.includes(o)} label={o} onChange={() => toggleOrigin(o)} />
+              ))}
+            </CollapsibleGroup>
 
-          <Group>
-            <GroupLabel text="Источник" />
-            {ORIGINS.map(o => (
-              <CheckRow key={o} checked={origins.includes(o)} label={o} onChange={() => toggleOrigin(o)} />
-            ))}
-          </Group>
+            <CollapsibleGroup
+              label="Флористическая роль"
+              open={openGroups.floral}
+              onToggle={() => tog('floral')}
+              activeCount={floralRoles.length}
+            >
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '2px 4px 0' }}>
+                {FLORAL_ROLES.map(r => {
+                  const on = floralRoles.includes(r.id)
+                  return (
+                    <button key={r.id} onClick={() => toggleFloralRole(r.id)} title={r.label} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 3,
+                      padding: '3px 8px', borderRadius: 12,
+                      fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
+                      background: on ? 'var(--accent)' : '#fff',
+                      border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                      color: on ? '#fff' : 'var(--text-mid)',
+                      cursor: 'pointer',
+                    }}>
+                      <span>{r.icon}</span>{r.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </CollapsibleGroup>
 
-          <Group>
-            <GroupLabel text="Флористическая роль" />
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '2px 4px 0' }}>
-              {FLORAL_ROLES.map(r => {
-                const on = floralRoles.includes(r.id)
-                return (
-                  <button key={r.id} onClick={() => toggleFloralRole(r.id)} title={r.label} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 3,
-                    padding: '3px 8px', borderRadius: 12,
-                    fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
-                    background: on ? 'var(--accent)' : '#fff',
-                    border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                    color: on ? '#fff' : 'var(--text-mid)',
-                    cursor: 'pointer',
-                  }}>
-                    <span>{r.icon}</span>{r.label}
-                  </button>
-                )
-              })}
-            </div>
-          </Group>
+            <CollapsibleGroup
+              label="Стойкость"
+              open={openGroups.duration}
+              onToggle={() => tog('duration')}
+              activeCount={durations.length}
+            >
+              {DURATIONS.map(d => (
+                <CheckRow key={d.id} checked={durations.includes(d.id)} label={d.label} onChange={() => toggleDuration(d.id)} />
+              ))}
+            </CollapsibleGroup>
 
-          <Group>
-            <GroupLabel text="Стойкость" />
-            {DURATIONS.map(d => (
-              <CheckRow key={d.id} checked={durations.includes(d.id)} label={d.label} onChange={() => toggleDuration(d.id)} />
-            ))}
-          </Group>
+            <CollapsibleGroup
+              label="Сезон"
+              open={openGroups.season}
+              onToggle={() => tog('season')}
+              activeCount={seasons.length}
+            >
+              {SEASONS.map(s => (
+                <CheckRow key={s.id} checked={seasons.includes(s.id)} label={s.label} onChange={() => toggleSeason(s.id)} />
+              ))}
+            </CollapsibleGroup>
 
-          <Group>
-            <GroupLabel text="Сезон" />
-            {SEASONS.map(s => (
-              <CheckRow key={s.id} checked={seasons.includes(s.id)} label={s.label} onChange={() => toggleSeason(s.id)} />
-            ))}
-          </Group>
+            <CollapsibleGroup
+              label="Теги"
+              open={openGroups.tags}
+              onToggle={() => tog('tags')}
+              activeCount={tags.length}
+            >
+              <TagChips tagDefs={TAGS_CUT} active={tags} onToggle={toggleTag} />
+            </CollapsibleGroup>
+          </>
+        )}
 
-          <Group>
-            <GroupLabel text="Теги" />
-            <TagChips tagDefs={TAGS_CUT} active={tags} onToggle={toggleTag} />
-          </Group>
-        </>
-      )}
+        {/* ── POT ── */}
+        {category === 'pot' && (
+          <>
+            <CollapsibleGroup
+              label="Размер горшка"
+              open={openGroups.potSize}
+              onToggle={() => tog('potSize')}
+              activeCount={potSizes.length}
+            >
+              {POT_SIZES.map(ps => (
+                <CheckRow key={ps.id} checked={potSizes.includes(ps.id)}
+                  label={ps.label} onChange={() => togglePotSize(ps.id)} />
+              ))}
+            </CollapsibleGroup>
 
-      {/* ── POT ── */}
-      {category === 'pot' && (
-        <>
-          <Group>
-            <GroupLabel text="Размер горшка" />
-            {POT_SIZES.map(ps => (
-              <CheckRow key={ps.id} checked={potSizes.includes(ps.id)}
-                label={ps.label} onChange={() => togglePotSize(ps.id)} />
-            ))}
-          </Group>
+            <CollapsibleGroup
+              label="Теги"
+              open={openGroups.tags}
+              onToggle={() => tog('tags')}
+              activeCount={tags.length}
+            >
+              <TagChips tagDefs={TAGS_POT} active={tags} onToggle={toggleTag} />
+            </CollapsibleGroup>
+          </>
+        )}
 
-          <Group>
-            <GroupLabel text="Теги" />
-            <TagChips tagDefs={TAGS_POT} active={tags} onToggle={toggleTag} />
-          </Group>
-        </>
-      )}
+        {/* bottom padding so last item isn't behind sticky button */}
+        <div style={{ height: 8 }} />
+      </div>
 
-      {/* Сбросить */}
-      <button
-        onClick={reset}
-        style={{
-          width: '100%', padding: 8, marginTop: 6,
-          background: '#fff', border: '1px dashed var(--border)',
-          borderRadius: 'var(--radius-btn)',
-          fontSize: 11, color: 'var(--text-mid)', fontWeight: 500,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}
-      >
-        Сбросить фильтры
-      </button>
+      {/* Sticky reset button */}
+      <div style={{
+        flexShrink: 0, padding: '10px 14px',
+        borderTop: '1px solid var(--border)', background: '#fff',
+      }}>
+        <button
+          onClick={reset}
+          style={{
+            width: '100%', padding: 8,
+            background: '#fff', border: '1px dashed var(--border)',
+            borderRadius: 'var(--radius-btn)',
+            fontSize: 11, color: 'var(--text-mid)', fontWeight: 500,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Сбросить фильтры
+        </button>
+      </div>
     </div>
   )
 }

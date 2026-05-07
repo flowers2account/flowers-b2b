@@ -11,6 +11,48 @@ import { type Product, getAvailable, getPrice } from './ProductCard'
 
 type SortKey = 'popular' | 'price_asc' | 'price_desc' | 'stock'
 
+// ── label maps for active filter chips ──────────────────────────────────────
+
+const SUBCAT_LABELS: Record<string, string> = {
+  roses: 'Розы', chrysanthemums: 'Хризантемы', carnations: 'Гвоздики',
+  lilies: 'Лилии', hydrangeas: 'Гортензии', lisianthus: 'Лизиантус',
+  tulips: 'Тюльпаны', gerberas: 'Герберы', callas: 'Каллы',
+  irises: 'Ирисы', alstroemeria: 'Альстромерия', accents: 'Акцентные',
+  fillers: 'Наполнители', greens: 'Зелень', seasonal: 'Сезонные',
+  spring: 'Весенние', exotic: 'Экзотика',
+  green: 'Зелёные', flowering: 'Цветущие', succulents: 'Суккуленты',
+  outdoor: 'Уличные', large: 'Крупномеры',
+  packaging: 'Упаковка', pots: 'Горшки', soil: 'Грунты',
+  fertilizers: 'Удобрения', tools: 'Инструмент',
+}
+const VARIETY_TYPE_LABELS: Record<string, string> = {
+  single: 'Одноголовые', spray: 'Кустовые', pompom: 'Помпонные',
+  decorative: 'Пионовидные', ot: 'ОТ-гибриды', oriental: 'Восточные', asian: 'Азиатские',
+}
+const COLOR_CHIP_LABELS: Record<string, string> = {
+  white: 'Белый', cream: 'Кремовый', pink: 'Розовый', peach: 'Персиковый',
+  red: 'Красный', bordeaux: 'Бордовый', orange: 'Оранжевый', yellow: 'Жёлтый',
+  lavender: 'Лавандовый', purple: 'Фиолетовый', green: 'Зелёный',
+  mix: 'Микс', mix_pink: 'Пинк микс', mix_red_white: 'Красно-белый',
+}
+const FLORAL_CHIP_LABELS: Record<string, string> = {
+  focal: '🌹 Фокусный', mass: '🌸 Массовый', line: '🌿 Линейный',
+  filler: '🍃 Наполнитель', texture: '✨ Текстура', foliage: '🌱 Зелень',
+}
+const DURATION_CHIP_LABELS: Record<string, string> = {
+  '3-5': '3–5 дней', '5-7': '5–7 дней', '7+': '7+ дней',
+}
+const SEASON_CHIP_LABELS: Record<string, string> = {
+  spring: 'Весна', summer: 'Лето', autumn: 'Осень',
+  winter: 'Зима', year: 'Круглый год', year_round: 'Круглый год',
+}
+const TAG_CHIP_LABELS: Record<string, string> = {
+  hit: '🔥 Хит', sale: '🏷 Акция', new: '🆕 Новинка',
+}
+const POT_SIZE_CHIP_LABELS: Record<string, string> = {
+  'до12': 'до 12 см', '14-17': '14–17 см', '19-23': '19–23 см', '25+': '25+ см',
+}
+
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'popular', label: 'По популярности' },
   { value: 'price_asc', label: 'Цена ↑' },
@@ -287,7 +329,14 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
   const { setProduct, flashCart } = useDetailStore()
-  const { category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons } = useFilters()
+  const {
+    category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search,
+    lengths, origins, potSizes, tags, floralRoles, durations, seasons,
+    setSubcat, setVarietyType, setOnlyAvailable,
+    toggleColor, toggleLength, toggleOrigin, togglePotSize,
+    toggleTag, toggleFloralRole, toggleDuration, toggleSeason,
+    reset,
+  } = useFilters()
 
   // Persist view mode
   useEffect(() => {
@@ -318,6 +367,27 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   }, [isAuthed])
 
   const getQty = (id: number) => items.find(i => i.id === id)?.qty ?? 0
+
+  // Active filter chips
+  type Chip = { label: string; onRemove: () => void }
+  const chips = useMemo<Chip[]>(() => {
+    const result: Chip[] = []
+    if (subcat) {
+      const parts = [SUBCAT_LABELS[subcat] ?? subcat]
+      if (varietyType) parts.push(VARIETY_TYPE_LABELS[varietyType] ?? varietyType)
+      result.push({ label: parts.join(' · '), onRemove: () => { setSubcat(''); setVarietyType('') } })
+    }
+    if (onlyAvailable) result.push({ label: 'В наличии', onRemove: () => setOnlyAvailable(false) })
+    colors.forEach(c => result.push({ label: COLOR_CHIP_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
+    lengths.forEach(l => result.push({ label: l >= 80 ? '80+ см' : `${l} см`, onRemove: () => toggleLength(l) }))
+    origins.forEach(o => result.push({ label: o, onRemove: () => toggleOrigin(o) }))
+    potSizes.forEach(ps => result.push({ label: POT_SIZE_CHIP_LABELS[ps] ?? ps, onRemove: () => togglePotSize(ps) }))
+    tags.forEach(t => result.push({ label: TAG_CHIP_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
+    floralRoles.forEach(r => result.push({ label: FLORAL_CHIP_LABELS[r] ?? r, onRemove: () => toggleFloralRole(r) }))
+    durations.forEach(d => result.push({ label: DURATION_CHIP_LABELS[d] ?? d, onRemove: () => toggleDuration(d) }))
+    seasons.forEach(s => result.push({ label: SEASON_CHIP_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
+    return result
+  }, [subcat, varietyType, onlyAvailable, colors, lengths, origins, potSizes, tags, floralRoles, durations, seasons])
 
   // Filter
   const filtered = useMemo(() => {
@@ -456,6 +526,42 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           {filtered.length} позиций
         </span>
       </div>
+
+      {/* Active filter chips */}
+      {chips.length > 0 && (
+        <div style={{
+          background: '#fff', borderBottom: '1px solid var(--border)',
+          padding: '8px 16px', display: 'flex', gap: 6, flexWrap: 'wrap',
+          alignItems: 'center', flexShrink: 0,
+        }}>
+          {chips.map((chip, i) => (
+            <button
+              key={i}
+              onClick={chip.onRemove}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '3px 10px', borderRadius: 14,
+                fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
+                background: 'var(--accent-light)', color: 'var(--accent)',
+                border: '1px solid var(--accent)', cursor: 'pointer',
+              }}
+            >
+              {chip.label} ×
+            </button>
+          ))}
+          <button
+            onClick={reset}
+            style={{
+              marginLeft: 'auto', padding: '3px 10px',
+              fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
+              background: 'none', border: '1px dashed var(--border)',
+              borderRadius: 14, color: 'var(--text-mid)', cursor: 'pointer',
+            }}
+          >
+            Сбросить всё
+          </button>
+        </div>
+      )}
 
       {/* Products */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
