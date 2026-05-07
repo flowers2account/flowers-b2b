@@ -84,8 +84,8 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Навигация */}
-          <nav className="flex items-center flex-1" style={{ height: 58 }}>
+          {/* Навигация — скрыта на мобильном */}
+          <nav className="hidden md:flex items-center flex-1" style={{ height: 58 }}>
             {NAV.map(({ href, label }) => {
               const isActive = href !== '#' && (href === '/' ? pathname === '/' : pathname.startsWith(href))
               return (
@@ -150,16 +150,20 @@ export default function Header() {
       </div>
 
       {/* L2 — бордовая 46px */}
-      <div className="flex items-center" style={{ backgroundColor: 'var(--accent)', height: 46 }}>
-        <div className="max-w-[1480px] w-full mx-auto px-5 flex items-center gap-2">
+      <div className="flex items-center" style={{ backgroundColor: 'var(--accent)', height: 46, overflow: 'hidden' }}>
+        <div
+          className="flex items-center gap-2 px-5 w-full"
+          style={{ overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
+        >
 
           {/* Категории */}
           <CategoryPills />
 
-          {/* Корзина */}
+          {/* Корзина — только десктоп */}
           <button
             onClick={() => useDetailStore.getState().setPanel('cart')}
-            className="ml-auto flex items-center gap-2 bg-transparent border-none text-white relative cursor-pointer"
+            className="ml-auto md:flex hidden items-center gap-2 bg-transparent border-none text-white relative cursor-pointer"
+            style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>

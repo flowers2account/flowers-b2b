@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "mcp__claude_ai_Supabase__list_tables",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit -m 'fix: accordion single-open behavior *)",
+      "Bash(npm run *)",
+      "Bash(git commit -m ')"
     ]
   }
 }

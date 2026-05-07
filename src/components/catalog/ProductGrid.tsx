@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
 import { useProductsStore } from '@/lib/products-store'
+import { useIsMobile } from '@/lib/use-mobile'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
@@ -374,7 +375,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
   const { setProduct, flashCart } = useDetailStore()
-  const { setProducts: syncProducts } = useProductsStore()
+  const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
+  const isMobile = useIsMobile()
   const {
     category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search,
     lengths, origins, potSizes, tags, floralRoles, seasons,
@@ -506,6 +508,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     return list
   }, [products, category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, seasons, sort])
 
+  // Sync filtered count for mobile "Show N results" button
+  useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])
+
   const handleDec = (product: Product, qty: number) => requireAuth(() =>
     update(product.id, Math.max(0, qty - (product.pack_size || 5)))
   )
@@ -621,7 +626,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       )}
 
       {/* Products */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', paddingBottom: isMobile ? 80 : 14 }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-mid)', paddingTop: 64, fontSize: 13 }}>
             Ничего не найдено
@@ -629,8 +634,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         ) : viewMode !== 'list' ? (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: viewMode === 'compact' ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
-            gap: viewMode === 'compact' ? 8 : 12,
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : viewMode === 'compact' ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
+            gap: viewMode === 'compact' && !isMobile ? 8 : 12,
           }}>
             {filtered.map(p => {
               const qty = getQty(p.id)

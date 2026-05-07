@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{var j=["https://claude.ai","https://preview.claude.ai"];var x=true;var S=30000;var f=3000;document.addEventListener("DOMContentLoaded",()=>{const H=window.Babel;const G="om-src-id";if(H&&H.registerPlugin&&!(H.availablePlugins&&H.availablePlugins[G])){H.registerPlugin(G,({types:Y})=>({visitor:{JSXOpeningElement(U,Q){const J=U.node;if(J.name&&J.name.type==="JSXMemberExpression")return;for(let V=0;V<J.attributes.length;V++){const L=J.attributes[V];if(L.type==="JSXAttribute"&&L.name&&L.name.name==="data-om-id")return}const W=Q.file&&Q.file.opts&&Q.file.opts.filename||"?";const Z=J.loc&&J.loc.start;const z=`jsx:${W}:${J.start??0}:${Z?Z.line:0}:${Z?Z.column+1:0}`;J.attributes.push(Y.jsxAttribute(Y.jsxIdentifier("data-om-id"),Y.stringLiteral(z)))}}}))}const k="om-text-extract";let A=false;if(x&&H&&H.registerPlugin&&!(H.availablePlugins&&H.availablePlugins[k])){const Y=window.React;if(Y&&Y.useSyncExternalStore&&Y.createElement){A=true;const U={};const Q=new Set;let J=0;window.__omTextO=U;window.__omTextSet=(z)=>{for(const V in z){const L=z[V];if(L==null)delete U[V];else U[V]=L}J++;Q.forEach((V)=>V())};const W=(z)=>{Q.add(z);return()=>Q.delete(z)};const Z=()=>J;window.__OmT=function z(V){Y.useSyncExternalStore(W,Z,Z);return Y.createElement("span",{"data-om-text":V.i,className:"__om-t"},V.i in U?U[V.i]:V.children)};H.registerPlugin(k,({types:z})=>{const V={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const L={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const _=($,C)=>z.logicalExpression("??",z.memberExpression(z.logicalExpression("||",z.memberExpression(z.identifier("window"),z.identifier("__omTextO")),z.objectExpression([])),z.stringLiteral($),true),C);const E=($)=>$.file&&$.file.opts&&$.file.opts.filename||"?";const B=($)=>$.file&&$.file.code||"";const b=($,C)=>{const X=(F)=>F&&F.start!=null&&F.end!=null&&(F.type==="StringLiteral"||F.type==="TemplateLiteral"&&F.expressions.length===0)?[F.start,F.end]:null;const N=X(C);if(N)return N;if(C&&C.type==="Identifier"){const F=$.scope.getBinding(C.name);if(F&&F.constant&&F.path.node.type==="VariableDeclarator"){return X(F.path.node.init)}}return null};const m=($,C,X)=>{const N=$.node;let F=false;const w=(K,q)=>{F=true;return z.jsxElement(z.jsxOpeningElement(z.jsxIdentifier("__OmT"),[z.jsxAttribute(z.jsxIdentifier("i"),z.stringLiteral(K))],false),z.jsxClosingElement(z.jsxIdentifier("__OmT")),[q],false)};const D=N.children.map((K)=>{if(K.type==="JSXText"){if(K.start==null||K.end==null)return K;const q=X.slice(K.start,K.end);const M=q.length-q.trimStart().length;const R=q.length-q.trimEnd().length;if(M+R>=q.length)return K;return w(`txt:${C}:${K.start+M}:${K.end-R}`,K)}if(K.type==="JSXExpressionContainer"){const q=b($,K.expression);if(q)return w(`str:${C}:${q[0]}:${q[1]}`,K)}return K});if(F)N.children=D};return{visitor:{JSXOpeningElement($,C){const X=$.node;const N=E(C);const F={};for(let w=0;w<X.attributes.length;w++){const D=X.attributes[w];if(D.type!=="JSXAttribute"||!D.name)continue;const K=D.name.name;if(!L[K])continue;if(!D.value||D.value.type!=="StringLiteral")continue;if(D.value.start==null||D.value.end==null)continue;const q=`txt:${N}:${D.value.start}:${D.value.end}`;F[K]=q;D.value=z.jsxExpressionContainer(_(q,z.stringLiteral(D.value.value)))}if(Object.keys(F).length){X.attributes.push(z.jsxAttribute(z.jsxIdentifier("data-om-text-attrs"),z.stringLiteral(JSON.stringify(F))))}},JSXElement($,C){const X=$.node.openingElement;const N=X&&X.name&&X.name.name;if(N==="__OmT")return;if(typeof N==="string"&&V[N])return;m($,E(C),B(C))},JSXFragment($,C){m($,E(C),B(C))}}}})}}const u=A?["transform-react-jsx-source",G,k]:["transform-react-jsx-source",G];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((Y,U)=>{const Q=Y.getAttribute("data-plugins")||"";const J=u.filter((W)=>Q.indexOf(W)<0);if(J.length){Y.setAttribute("data-plugins",Q?`${Q},${J.join(",")}`:J.join(","))}if(!Y.hasAttribute("data-filename")){Y.setAttribute("data-filename",Y.getAttribute("src")||`inline-${U}`)}})});var y=window.parent;if(y&&y!==window){const H=(Q,J)=>{try{y.postMessage({__omelette_log:true,type:Q,data:J},"*")}catch{}};["log","warn","error"].forEach((Q)=>{const J=console[Q];console[Q]=(...W)=>{const Z=W.map((z)=>{try{return typeof z==="object"?JSON.stringify(z):String(z)}catch{try{return String(z)}catch{return"[unstringifiable]"}}}).join(" ");H(Q,Z);J.apply(console,W)}});window.addEventListener("error",(Q)=>{const J=Q.target;if(J&&J!==window&&J.tagName){const W=J.src||J.href||"";H("resource_error",`${J.tagName} failed to load: ${W}`)}else{H("error",`${Q.message||"Unknown error"} at ${Q.filename||"?"}:${Q.lineno||0}:${Q.colno||0}`)}},true);window.addEventListener("unhandledrejection",(Q)=>{const J=Q.reason;const W=J instanceof Error?`${J.message} ${J.stack}`:String(J);H("error",`Unhandled rejection: ${W}`)});const G=()=>{try{y.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(document.readyState==="complete")G();else window.addEventListener("load",G);if(window.ResizeObserver)new ResizeObserver(G).observe(document.documentElement);const k={};let A=0;window.claude={complete(Q){return new Promise((J,W)=>{if(!j.length){W(new Error("claude.complete: no parent origin"));return}const Z=`c${++A}`;const z=()=>setTimeout(()=>{delete k[Z];W(new Error(`claude.complete: no data for ${S/1000}s`))},S);const V=z();k[Z]={resolve:J,reject:W,text:"",t:V,arm:z};try{for(const L of j){y.postMessage({__om_api:true,id:Z,body:Q},L)}}catch(L){clearTimeout(V);delete k[Z];W(L)}})}};const u={};let Y=0;window.omelette={writeFile:(Q,J)=>new Promise((W,Z)=>{if(!j.length){W();return}const z=`f${++Y}`;const V=setTimeout(()=>{delete u[z];W()},f);u[z]={resolve:W,reject:Z,t:V};try{for(const L of j){y.postMessage({__om_file:true,id:z,op:"write",path:Q,content:J},L)}}catch{clearTimeout(V);delete u[z];W()}})};const U=(Q)=>{try{return JSON.stringify(Q)}catch{return JSON.stringify(String(Q))}};window.addEventListener("message",(Q)=>{if(j.indexOf(Q.origin)<0)return;if(Q.source!==y)return;const J=Q.data;if(!J)return;if(J.__om_file_r){const z=u[J.id];if(!z)return;clearTimeout(z.t);delete u[J.id];if(J.ok)z.resolve();else z.reject(new Error(J.error||"write failed"));return}if(J.__om_api_r){const z=k[J.id];if(!z)return;if(J.error!=null){clearTimeout(z.t);delete k[J.id];z.reject(new Error(J.error));return}if(J.chunk!=null){clearTimeout(z.t);z.t=z.arm();z.text+=J.chunk;return}if(J.done){clearTimeout(z.t);delete k[J.id];z.resolve(J.text!=null?J.text:z.text);return}return}if(!J.__om_eval)return;const W=J;const Z=(z)=>{Q.source.postMessage({...z,__om_eval_r:1,id:W.id},Q.origin)};try{const z=(0,eval)(W.code);if(z&&typeof z.then==="function"){z.then((V)=>Z({ok:1,v:U(V)}),(V)=>Z({ok:0,e:String(V)}))}else{Z({ok:1,v:U(z)})}}catch(z){Z({ok:0,e:String(z)})}})}})();
+</script>
+
+<meta charset="UTF-8">
+<title>Каталог — статичный макет</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Cormorant+Garamond:ital,wght@0,400;1,400;1,500&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --accent:#8B3A5A;--accent-mid:#C97A92;--accent-light:#F7EEF2;
+  --pink:#E8B4C0;--petal-bg:#F7EEF2;--fern:#3D6B50;
+  --text:#1C1C1C;--text-mid:#6B7570;--text-light:#9CA39E;
+  --bg:#fff;--bg2:#F7EEF2;--border:#E8DDE5;--border-light:#F2EAF0;
+}
+body{font-family:'Golos Text',sans-serif;background:#ECECF0;color:var(--text);font-size:13px;padding:36px 24px;}
+.page{max-width:1480px;margin:0 auto;display:flex;flex-direction:column;gap:42px;}
+.title{font-family:'Playfair Display',serif;font-size:26px;color:var(--accent);font-weight:400;}
+.subtitle{font-size:13px;color:var(--text-mid);margin-top:-30px;margin-bottom:8px;}
+
+/* artboard frame */
+.frame{
+  background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(60,30,50,0.10);
+  overflow:hidden;border:1px solid #E8E1E5;
+}
+.frame-label{
+  display:flex;align-items:center;gap:10px;
+  padding:0 4px 12px;
+  font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-mid);
+}
+.frame-label .num{
+  width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+}
+
+/* ─────────── HEADER ─────────── */
+.header{display:flex;flex-direction:column;}
+.h1{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 22px;display:flex;align-items:center;height:58px;}
+.logo{display:flex;align-items:center;gap:10px;margin-right:36px;}
+.logo svg{width:36px;height:36px;}
+.logo .text{
+  font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:500;font-size:15px;
+  color:var(--accent);line-height:1.1;
+}
+.logo .text span{
+  display:block;font-size:8px;font-weight:400;font-style:normal;color:var(--accent-mid);
+  letter-spacing:0.18em;text-transform:uppercase;font-family:'Golos Text',sans-serif;
+}
+.h1 nav{display:flex;align-items:center;flex:1;}
+.h1 nav a{
+  font-size:13px;font-weight:500;color:#444;text-decoration:none;padding:0 16px;height:58px;
+  display:flex;align-items:center;border-bottom:2px solid transparent;
+}
+.h1 nav a.active{color:var(--accent);font-weight:700;border-bottom-color:var(--accent);}
+.user-pill{display:flex;align-items:center;gap:8px;padding:5px 10px 5px 5px;border-radius:20px;background:#f5f0f3;font-size:12px;font-weight:500;}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+
+.h2{background:var(--accent);padding:0 20px;display:flex;align-items:center;gap:8px;height:46px;}
+.cat-pill{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.92);border-radius:5px;padding:0 13px;height:30px;font-size:12px;font-weight:600;color:#1a1a1a;border:none;}
+.cat-pill.active{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,0.4);color:var(--accent);}
+.cart-btn{margin-left:auto;background:none;border:none;display:flex;align-items:center;gap:8px;color:#fff;position:relative;}
+.cart-btn .total{font-size:14px;font-weight:700;}
+.cart-badge{position:absolute;top:-3px;right:-8px;min-width:17px;height:17px;border-radius:9px;padding:0 4px;background:var(--pink);color:#1a1a1a;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+
+/* ─────────── BODY 3-COL ─────────── */
+.body{display:grid;grid-template-columns:220px 1fr 360px;height:760px;}
+
+/* LEFT — filters */
+.fp{background:#fff;border-right:1px solid var(--border);padding:14px 14px 20px;overflow:hidden;}
+.fp-group{margin-bottom:18px;}
+.fp-label{font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#b9aab1;margin-bottom:6px;padding:0 4px;}
+.filter-item{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;font-size:12px;color:var(--text);border-radius:4px;margin-bottom:1px;}
+.filter-item.active{background:var(--accent);color:#fff;font-weight:600;}
+.filter-count{font-size:10px;background:var(--bg2);color:var(--text-mid);padding:2px 7px;border-radius:10px;font-weight:500;}
+.filter-item.active .filter-count{background:rgba(255,255,255,0.22);color:#fff;}
+.fp-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;font-size:12px;background:var(--bg2);border-radius:5px;}
+.fp-toggle .switch{width:30px;height:17px;border-radius:9px;background:var(--fern);position:relative;}
+.fp-toggle .switch::after{content:'';position:absolute;top:2px;left:15px;width:13px;height:13px;border-radius:50%;background:#fff;}
+.color-row{display:flex;gap:7px;flex-wrap:wrap;padding:4px 4px 0;}
+.color-chip{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(0,0,0,0.06);position:relative;}
+.color-chip.active::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:1.5px solid var(--accent);}
+.fp-check{display:flex;align-items:center;gap:8px;padding:5px 8px;font-size:12px;border-radius:4px;}
+.fp-check input{width:14px;height:14px;accent-color:var(--accent);}
+.fp-check .lbl{flex:1;}
+.fp-check .ct{font-size:10px;color:var(--text-light);}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;padding:2px 4px 0;}
+.tag-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:14px;font-size:11px;font-weight:500;background:#fff;border:1px solid var(--border);color:var(--text-mid);}
+.tag-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.fp-reset{width:100%;padding:8px;margin-top:6px;background:#fff;border:1px dashed var(--border);border-radius:6px;font-size:11px;color:var(--text-mid);font-weight:500;}
+
+/* CENTER */
+.center{overflow:hidden;background:#fafafa;display:flex;flex-direction:column;}
+.delivery{background:linear-gradient(95deg,#2a3d2f,#3D6B50);color:#fff;padding:9px 18px;display:flex;align-items:center;gap:12px;font-size:12px;}
+.delivery .icon{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-size:14px;}
+.delivery .cd{margin-left:auto;font-weight:700;font-size:12px;padding:4px 10px;background:rgba(255,255,255,0.15);border-radius:5px;letter-spacing:0.04em;}
+.toolbar{background:#fff;border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:10px;}
+.search-input{flex:1;display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;}
+.search-input input{border:none;background:none;outline:none;flex:1;font-size:13px;font-family:inherit;color:var(--text-light);}
+.tb-select{padding:6px 28px 6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:#fff;font-family:inherit;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B7570' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 8px center;appearance:none;}
+.view-toggles{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.vt{width:30px;height:30px;border:none;background:#fff;display:flex;align-items:center;justify-content:center;color:#b8b0b4;}
+.vt.active{background:var(--accent);color:#fff;}
+.tb-counter{font-size:11px;color:var(--text-mid);}
+.quick-tags{background:#fff;padding:8px 18px 10px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border-light);}
+
+.products{padding:14px 16px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;overflow:hidden;flex:1;}
+
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
+.card.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-light);}
+.card-img{aspect-ratio:1/1;position:relative;background:var(--petal-bg);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.card-img::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 8px,rgba(139,58,90,0.04) 8px 16px);}
+.card-img .ph{font-size:38px;opacity:0.4;position:relative;}
+.qty-badge{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:4px;backdrop-filter:blur(4px);}
+.qty-badge.low{background:rgba(217,83,79,0.85);}
+.card-tags{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+.tag-badge{font-size:9px;font-weight:700;letter-spacing:0.04em;padding:3px 7px;border-radius:4px;text-transform:uppercase;}
+.tag-badge.hit{background:#FFB300;color:#1a1a1a;}
+.tag-badge.sale{background:#E53935;color:#fff;}
+.tag-badge.new{background:var(--fern);color:#fff;}
+.card-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:4px;flex:1;}
+.card-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:400;line-height:1.25;}
+.card-meta{font-size:11px;color:var(--text-mid);}
+.card-price-row{display:flex;align-items:baseline;justify-content:space-between;margin-top:auto;padding-top:6px;}
+.card-price{font-size:15px;font-weight:700;color:var(--accent);}
+.card-pack{font-size:10px;color:var(--text-light);}
+.card-stepper{display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:8px;}
+.card-stepper button{width:28px;height:28px;border:none;background:var(--bg2);color:var(--accent);font-size:14px;font-weight:700;}
+.card-stepper .val{flex:1;text-align:center;font-size:12px;font-weight:700;padding:6px 0;border-left:1px solid var(--border);border-right:1px solid var(--border);}
+
+/* RIGHT */
+.rp{background:#fff;border-left:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
+.rp-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;gap:14px;color:var(--text-light);}
+.em-icon{width:80px;height:80px;border-radius:50%;background:var(--petal-bg);display:flex;align-items:center;justify-content:center;font-size:36px;opacity:0.7;}
+.em-title{font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:var(--accent);font-weight:400;}
+.em-sub{font-size:12px;line-height:1.5;max-width:240px;}
+
+.rp-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.rp-head-title{font-family:'Playfair Display',serif;font-style:italic;font-size:14px;color:var(--accent);}
+.rp-close{width:28px;height:28px;border-radius:6px;border:none;background:none;color:var(--text-mid);display:flex;align-items:center;justify-content:center;}
+.rp-gallery{padding:14px 18px;}
+.rp-main-img{width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:var(--petal-bg);position:relative;display:flex;align-items:center;justify-content:center;}
+.rp-main-img::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 10px,rgba(139,58,90,0.05) 10px 20px);}
+.rp-main-img .ph{font-size:56px;opacity:0.45;position:relative;}
+.rp-thumbs{display:flex;gap:6px;margin-top:8px;}
+.rp-thumb{width:52px;height:52px;border-radius:6px;background:var(--petal-bg);border:2px solid transparent;display:flex;align-items:center;justify-content:center;font-size:18px;opacity:0.5;}
+.rp-thumb.active{border-color:var(--accent);opacity:1;}
+.rp-product-name{font-family:'Playfair Display',serif;font-size:22px;line-height:1.15;font-weight:400;padding:4px 18px;}
+.rp-product-sub{padding:0 18px 14px;font-size:12px;color:var(--text-mid);display:flex;gap:6px;align-items:center;}
+.rp-info{padding:4px 18px 14px;border-top:1px solid var(--border-light);}
+.rp-info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border-light);font-size:12px;}
+.rp-info-row:last-child{border-bottom:none;}
+.rp-info-label{color:var(--text-mid);}
+.rp-info-val{font-weight:600;text-align:right;}
+.rp-info-val.price{color:var(--accent);font-size:14px;font-weight:700;}
+.rp-add{margin-top:auto;padding:14px 18px 18px;border-top:1px solid var(--border);}
+.rp-add-row{display:flex;gap:8px;align-items:center;}
+.rp-stepper{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;}
+.rp-stepper button{width:34px;height:38px;border:none;background:var(--bg2);color:var(--accent);font-size:16px;font-weight:700;}
+.rp-stepper .val{width:50px;text-align:center;font-size:13px;font-weight:700;padding:6px 0;}
+.rp-add-btn{flex:1;padding:10px 14px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;letter-spacing:0.03em;}
+.rp-cart-link{display:block;width:100%;text-align:center;margin-top:10px;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-mid);font-family:inherit;}
+
+/* CART STATE */
+.rp-cart-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.rp-back{width:28px;height:28px;border-radius:6px;border:none;background:var(--bg2);color:var(--accent);display:flex;align-items:center;justify-content:center;}
+.rp-cart-title{font-family:'Playfair Display',serif;font-style:italic;font-size:16px;color:var(--accent);flex:1;}
+.rp-cart-pill{font-size:10px;font-weight:600;padding:2px 8px;background:var(--bg2);color:var(--text-mid);border-radius:10px;}
+.rp-cart-items{flex:1;padding:8px 18px;overflow:hidden;}
+.cart-item{display:grid;grid-template-columns:48px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light);align-items:start;}
+.ci-img{width:48px;height:48px;border-radius:6px;background:var(--petal-bg);display:flex;align-items:center;justify-content:center;font-size:18px;opacity:0.85;}
+.ci-name{font-size:12px;font-weight:600;line-height:1.3;margin-bottom:2px;}
+.ci-meta{font-size:10px;color:var(--text-light);}
+.ci-stepper{display:inline-flex;align-items:center;margin-top:6px;border:1px solid var(--border);border-radius:5px;overflow:hidden;}
+.ci-stepper button{width:22px;height:22px;border:none;background:#fff;font-size:11px;}
+.ci-stepper .val{font-size:11px;font-weight:700;padding:0 8px;}
+.ci-right{text-align:right;}
+.ci-price{font-size:13px;font-weight:700;color:var(--accent);}
+.ci-remove{margin-top:4px;background:none;border:none;color:var(--text-light);font-size:11px;}
+.rp-cart-foot{padding:14px 18px 18px;border-top:1px solid var(--border);}
+.rp-summary{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.rp-summary-row{display:flex;justify-content:space-between;font-size:12px;color:var(--text-mid);}
+.rp-summary-total{display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);margin-top:4px;align-items:baseline;}
+.rp-summary-total .lbl{font-size:13px;font-weight:700;color:var(--text);}
+.rp-summary-total .v{font-size:18px;font-weight:700;color:var(--accent);}
+.rp-checkout{width:100%;padding:12px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:700;letter-spacing:0.03em;}
+
+/* subcat title */
+.subcat-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--accent);font-weight:400;padding:4px 4px 8px;}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div>
+    <div class="title">Каталог — три состояния правой панели</div>
+    <div class="subtitle" style="margin-top:6px;margin-bottom:0;">Десктоп 1480px · Срезанные цветы / Розы. Один и тот же макет, меняется только правая колонка.</div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- ARTBOARD 1: SELECTED PRODUCT                                  -->
+  <!-- ============================================================== -->
+  <div>
+    <div class="frame-label"><span class="num">1</span> Выбран товар — карточка в правой панели</div>
+    <div class="frame">
+      <div class="header">
+        <div class="h1">
+          <div class="logo">
+            <svg viewBox="0 0 44 44" fill="none">
+              <path d="M12 22C16 18 21 14 28 12" stroke="#E8B4C0" stroke-width="1.1"/>
+              <path d="M14 18C13 14 12 11 11 8" stroke="#E8B4C0" stroke-width="0.9"/>
+              <circle cx="11" cy="7" r="2.5" fill="#E8B4C0"/>
+              <path d="M20 15C20 11 21 9 23 7" stroke="#C97A92" stroke-width="0.9"/>
+              <circle cx="23" cy="6" r="2" fill="#C97A92"/>
+              <path d="M26 14C27 11 29 9 31 7" stroke="#E8B4C0" stroke-width="0.7"/>
+              <circle cx="31" cy="6" r="1.5" fill="#E8B4C0"/>
+            </svg>
+            <div class="text">Цветы Уральска<span>оптовая база</span></div>
+          </div>
+          <nav>
+            <a href="#" class="active">Каталог</a>
+            <a href="#">Мои заказы</a>
+            <a href="#">История</a>
+            <a href="#">О поставках</a>
+          </nav>
+          <div class="user-pill">
+            <div class="user-avatar">АС</div>
+            <span>ИП Садовская А.</span>
+          </div>
+        </div>
+        <div class="h2">
+          <button class="cat-pill active">🌸 Срезанные цветы</button>
+          <button class="cat-pill">🪴 Горшечные</button>
+          <button class="cat-pill">📦 Расходники</button>
+          <button class="cart-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            <span class="total">11 250 ₸</span>
+            <span class="cart-badge">25</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="body">
+        <!-- LEFT FILTERS -->
+        <aside class="fp">
+          <div class="fp-group">
+            <div class="fp-label">Подкатегория</div>
+            <div class="filter-item"><span>Все</span><span class="filter-count">22</span></div>
+            <div class="filter-item active"><span>Розы</span><span class="filter-count">6</span></div>
+            <div class="filter-item"><span>Хризантемы</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Акцентные</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Наполнители</span><span class="filter-count">2</span></div>
+            <div class="filter-item"><span>Зелень</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Сезонные</span><span class="filter-count">2</span></div>
+            <div class="filter-item"><span>Экзотика</span><span class="filter-count">2</span></div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Наличие</div>
+            <div class="fp-toggle"><span>Только в наличии</span><span class="switch"></span></div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Цвет</div>
+            <div class="color-row">
+              <div class="color-chip active" style="background:#E53935;"></div>
+              <div class="color-chip" style="background:#F5F5F5;"></div>
+              <div class="color-chip" style="background:#E91E8C;"></div>
+              <div class="color-chip" style="background:#FDD835;"></div>
+              <div class="color-chip" style="background:#7B1FA2;"></div>
+              <div class="color-chip" style="background:linear-gradient(135deg,#E53935,#FDD835,#7B1FA2);"></div>
+            </div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Длина, см</div>
+            <label class="fp-check"><input type="checkbox"><span class="lbl">40 см</span><span class="ct">1</span></label>
+            <label class="fp-check"><input type="checkbox"><span class="lbl">50 см</span><span class="ct">3</span></label>
+            <label class="fp-check"><input type="checkbox" checked><span class="lbl">60 см</span><span class="ct">8</span></label>
+            <label class="fp-check"><input type="checkbox"><span class="lbl">70 см</span><span class="ct">5</span></label>
+            <label class="fp-check"><input type="checkbox"><span class="lbl">80+ см</span><span class="ct">1</span></label>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Источник</div>
+            <label class="fp-check"><input type="checkbox" checked><span class="lbl">Эквадор</span><span class="ct">5</span></label>
+            <label class="fp-check"><input type="checkbox"><span class="lbl">Кения</span><span class="ct">7</span></label>
+            <label class="fp-check"><input type="checkbox"><span class="lbl">Голландия</span><span class="ct">8</span></label>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Теги</div>
+            <div class="tag-row">
+              <span class="tag-chip active">🔥 Хит</span>
+              <span class="tag-chip">🏷 Акция</span>
+              <span class="tag-chip">🆕 Новинка</span>
+            </div>
+          </div>
+          <button class="fp-reset">Сбросить фильтры</button>
+        </aside>
+
+        <!-- CENTER PRODUCTS -->
+        <main class="center">
+          <div class="delivery">
+            <div class="icon">✈</div>
+            <div><strong>Следующая поставка</strong> — Эквадор / Кения, <strong>Пт 8 мая</strong></div>
+            <div class="cd">осталось 18ч 42м</div>
+          </div>
+          <div class="toolbar">
+            <div class="search-input">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA39E" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" placeholder="Поиск по сорту, ферме…">
+            </div>
+            <select class="tb-select"><option>По популярности</option></select>
+            <div class="view-toggles">
+              <div class="vt active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+              <div class="vt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+            </div>
+            <div class="tb-counter">6 позиций</div>
+          </div>
+          <div class="quick-tags">
+            <span class="tag-chip active">🔥 Хит</span>
+            <span class="tag-chip">🏷 Акция</span>
+            <span class="tag-chip">🆕 Новинка</span>
+          </div>
+          <div class="subcat-title" style="padding-left:16px;">Розы</div>
+          <div class="products">
+            <!-- card 1 selected -->
+            <div class="card selected">
+              <div class="card-img">
+                <span class="ph">🌹</span>
+                <span class="qty-badge">480 шт</span>
+                <div class="card-tags"><span class="tag-badge hit">Хит</span></div>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Эксплорер</div>
+                <div class="card-meta">60 см · Эквадор</div>
+                <div class="card-price-row"><span class="card-price">450 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">50</span><button>+</button></div>
+              </div>
+            </div>
+            <!-- card 2 -->
+            <div class="card">
+              <div class="card-img">
+                <span class="ph">🌹</span>
+                <span class="qty-badge">200 шт</span>
+                <div class="card-tags"><span class="tag-badge hit">Хит</span></div>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Мондиаль</div>
+                <div class="card-meta">70 см · Эквадор</div>
+                <div class="card-price-row"><span class="card-price">520 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">0</span><button>+</button></div>
+              </div>
+            </div>
+            <!-- card 3 sale -->
+            <div class="card">
+              <div class="card-img">
+                <span class="ph">🌹</span>
+                <span class="qty-badge">325 шт</span>
+                <div class="card-tags"><span class="tag-badge sale">Акция</span></div>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Пинк Флойд</div>
+                <div class="card-meta">60 см · Кения</div>
+                <div class="card-price-row"><span class="card-price">380 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">25</span><button>+</button></div>
+              </div>
+            </div>
+            <!-- card 4 -->
+            <div class="card">
+              <div class="card-img">
+                <span class="ph">🌹</span>
+                <span class="qty-badge">140 шт</span>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Дип Перпл</div>
+                <div class="card-meta">60 см · Кения</div>
+                <div class="card-price-row"><span class="card-price">430 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">0</span><button>+</button></div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- RIGHT — PRODUCT DETAIL -->
+        <aside class="rp">
+          <div class="rp-head">
+            <div class="rp-head-title">Товар</div>
+            <button class="rp-close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="rp-gallery">
+            <div class="rp-main-img"><span class="ph">🌹</span></div>
+            <div class="rp-thumbs">
+              <div class="rp-thumb active">🌹</div>
+              <div class="rp-thumb">🌸</div>
+              <div class="rp-thumb">🌺</div>
+            </div>
+          </div>
+          <div class="rp-product-name">Эксплорер</div>
+          <div class="rp-product-sub">Rosa Explorer · <span class="tag-badge hit" style="font-size:10px;">Хит</span></div>
+          <div class="rp-info">
+            <div class="rp-info-row"><span class="rp-info-label">Цена</span><span class="rp-info-val price">450 ₸</span></div>
+            <div class="rp-info-row"><span class="rp-info-label">Упаковка</span><span class="rp-info-val">25 шт</span></div>
+            <div class="rp-info-row"><span class="rp-info-label">Остаток</span><span class="rp-info-val" style="color:var(--fern);">480 шт в наличии</span></div>
+            <div class="rp-info-row"><span class="rp-info-label">Длина</span><span class="rp-info-val">60 см</span></div>
+            <div class="rp-info-row"><span class="rp-info-label">Источник</span><span class="rp-info-val">Эквадор</span></div>
+            <div class="rp-info-row"><span class="rp-info-label">Ферма</span><span class="rp-info-val">Naranjo</span></div>
+            <div class="rp-info-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+              <span class="rp-info-label">Описание</span>
+              <span style="font-size:12px;color:var(--text);line-height:1.5;">Классическая красная роза, плотный бутон 5,5 см.</span>
+            </div>
+          </div>
+          <div class="rp-add">
+            <div class="rp-add-row">
+              <div class="rp-stepper"><button>−</button><span class="val">50</span><button>+</button></div>
+              <button class="rp-add-btn">В корзине · 22 500 ₸</button>
+            </div>
+            <button class="rp-cart-link">Перейти в корзину →</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- ARTBOARD 2: CART STATE                                         -->
+  <!-- ============================================================== -->
+  <div>
+    <div class="frame-label"><span class="num">2</span> Корзина в правой панели</div>
+    <div class="frame">
+      <div class="header">
+        <div class="h1">
+          <div class="logo">
+            <svg viewBox="0 0 44 44" fill="none">
+              <path d="M12 22C16 18 21 14 28 12" stroke="#E8B4C0" stroke-width="1.1"/>
+              <path d="M14 18C13 14 12 11 11 8" stroke="#E8B4C0" stroke-width="0.9"/>
+              <circle cx="11" cy="7" r="2.5" fill="#E8B4C0"/>
+              <path d="M20 15C20 11 21 9 23 7" stroke="#C97A92" stroke-width="0.9"/>
+              <circle cx="23" cy="6" r="2" fill="#C97A92"/>
+            </svg>
+            <div class="text">Цветы Уральска<span>оптовая база</span></div>
+          </div>
+          <nav>
+            <a href="#" class="active">Каталог</a>
+            <a href="#">Мои заказы</a>
+            <a href="#">История</a>
+            <a href="#">О поставках</a>
+          </nav>
+          <div class="user-pill">
+            <div class="user-avatar">АС</div>
+            <span>ИП Садовская А.</span>
+          </div>
+        </div>
+        <div class="h2">
+          <button class="cat-pill active">🌸 Срезанные цветы</button>
+          <button class="cat-pill">🪴 Горшечные</button>
+          <button class="cat-pill">📦 Расходники</button>
+          <button class="cart-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            <span class="total">53 700 ₸</span>
+            <span class="cart-badge">120</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="body">
+        <!-- same left -->
+        <aside class="fp">
+          <div class="fp-group">
+            <div class="fp-label">Подкатегория</div>
+            <div class="filter-item active"><span>Все</span><span class="filter-count">22</span></div>
+            <div class="filter-item"><span>Розы</span><span class="filter-count">6</span></div>
+            <div class="filter-item"><span>Хризантемы</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Акцентные</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Наполнители</span><span class="filter-count">2</span></div>
+            <div class="filter-item"><span>Зелень</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Сезонные</span><span class="filter-count">2</span></div>
+            <div class="filter-item"><span>Экзотика</span><span class="filter-count">2</span></div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Наличие</div>
+            <div class="fp-toggle"><span>Только в наличии</span><span class="switch"></span></div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Цвет</div>
+            <div class="color-row">
+              <div class="color-chip" style="background:#E53935;"></div>
+              <div class="color-chip" style="background:#F5F5F5;"></div>
+              <div class="color-chip" style="background:#E91E8C;"></div>
+              <div class="color-chip" style="background:#FDD835;"></div>
+              <div class="color-chip" style="background:#7B1FA2;"></div>
+              <div class="color-chip" style="background:linear-gradient(135deg,#E53935,#FDD835,#7B1FA2);"></div>
+            </div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Теги</div>
+            <div class="tag-row">
+              <span class="tag-chip">🔥 Хит</span>
+              <span class="tag-chip">🏷 Акция</span>
+              <span class="tag-chip">🆕 Новинка</span>
+            </div>
+          </div>
+          <button class="fp-reset">Сбросить фильтры</button>
+        </aside>
+
+        <!-- center -->
+        <main class="center">
+          <div class="delivery">
+            <div class="icon">✈</div>
+            <div><strong>Следующая поставка</strong> — Эквадор / Кения, <strong>Пт 8 мая</strong></div>
+            <div class="cd">осталось 18ч 42м</div>
+          </div>
+          <div class="toolbar">
+            <div class="search-input">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA39E" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" placeholder="Поиск по сорту, ферме…">
+            </div>
+            <select class="tb-select"><option>По популярности</option></select>
+            <div class="view-toggles">
+              <div class="vt active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+              <div class="vt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+            </div>
+            <div class="tb-counter">22 позиции</div>
+          </div>
+          <div class="quick-tags">
+            <span class="tag-chip">🔥 Хит</span>
+            <span class="tag-chip">🏷 Акция</span>
+            <span class="tag-chip">🆕 Новинка</span>
+          </div>
+          <div class="subcat-title" style="padding-left:16px;">Розы</div>
+          <div class="products">
+            <div class="card">
+              <div class="card-img">
+                <span class="ph">🌹</span>
+                <span class="qty-badge">480 шт</span>
+                <div class="card-tags"><span class="tag-badge hit">Хит</span></div>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Эксплорер</div>
+                <div class="card-meta">60 см · Эквадор</div>
+                <div class="card-price-row"><span class="card-price">450 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">50</span><button>+</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-img">
+                <span class="ph">🌹</span>
+                <span class="qty-badge">325 шт</span>
+                <div class="card-tags"><span class="tag-badge sale">Акция</span></div>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Пинк Флойд</div>
+                <div class="card-meta">60 см · Кения</div>
+                <div class="card-price-row"><span class="card-price">380 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">25</span><button>+</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-img">
+                <span class="ph">🌹</span>
+                <span class="qty-badge low">60 шт</span>
+                <div class="card-tags"><span class="tag-badge new">Нов.</span></div>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Хай Меджик</div>
+                <div class="card-meta">80 см · Эквадор</div>
+                <div class="card-price-row"><span class="card-price">610 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">0</span><button>+</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-img">
+                <span class="ph">🌸</span>
+                <span class="qty-badge">180 шт</span>
+              </div>
+              <div class="card-body">
+                <div class="card-name">Балтика</div>
+                <div class="card-meta">70 см · Голландия</div>
+                <div class="card-price-row"><span class="card-price">340 ₸</span><span class="card-pack">уп. 10 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">30</span><button>+</button></div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- RIGHT — CART -->
+        <aside class="rp">
+          <div class="rp-cart-head">
+            <button class="rp-back"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+            <div class="rp-cart-title">Корзина</div>
+            <span class="rp-cart-pill">4 позиции</span>
+          </div>
+          <div class="rp-cart-items">
+            <div class="cart-item">
+              <div class="ci-img">🌹</div>
+              <div>
+                <div class="ci-name">Эксплорер</div>
+                <div class="ci-meta">450 ₸ · уп. 25</div>
+                <div class="ci-stepper"><button>−</button><span class="val">50</span><button>+</button></div>
+              </div>
+              <div class="ci-right">
+                <div class="ci-price">22 500 ₸</div>
+                <button class="ci-remove">удалить</button>
+              </div>
+            </div>
+            <div class="cart-item">
+              <div class="ci-img">🌹</div>
+              <div>
+                <div class="ci-name">Пинк Флойд</div>
+                <div class="ci-meta">380 ₸ · уп. 25</div>
+                <div class="ci-stepper"><button>−</button><span class="val">25</span><button>+</button></div>
+              </div>
+              <div class="ci-right">
+                <div class="ci-price">9 500 ₸</div>
+                <button class="ci-remove">удалить</button>
+              </div>
+            </div>
+            <div class="cart-item">
+              <div class="ci-img">🌸</div>
+              <div>
+                <div class="ci-name">Зембла Лайм</div>
+                <div class="ci-meta">340 ₸ · уп. 10</div>
+                <div class="ci-stepper"><button>−</button><span class="val">30</span><button>+</button></div>
+              </div>
+              <div class="ci-right">
+                <div class="ci-price">10 200 ₸</div>
+                <button class="ci-remove">удалить</button>
+              </div>
+            </div>
+            <div class="cart-item">
+              <div class="ci-img">🌿</div>
+              <div>
+                <div class="ci-name">Эвкалипт Цинерея</div>
+                <div class="ci-meta">480 ₸ · уп. 5</div>
+                <div class="ci-stepper"><button>−</button><span class="val">15</span><button>+</button></div>
+              </div>
+              <div class="ci-right">
+                <div class="ci-price">7 200 ₸</div>
+                <button class="ci-remove">удалить</button>
+              </div>
+            </div>
+          </div>
+          <div class="rp-cart-foot">
+            <div class="rp-summary">
+              <div class="rp-summary-row"><span>Позиций</span><span>4</span></div>
+              <div class="rp-summary-row"><span>Штук</span><span>120</span></div>
+              <div class="rp-summary-row"><span>Доставка</span><span>при подтверждении</span></div>
+              <div class="rp-summary-total"><span class="lbl">Итого</span><span class="v">49 400 ₸</span></div>
+            </div>
+            <button class="rp-checkout">Оформить заказ</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- ARTBOARD 3: EMPTY RIGHT PANEL                                  -->
+  <!-- ============================================================== -->
+  <div>
+    <div class="frame-label"><span class="num">3</span> Состояние «ничего не выбрано»</div>
+    <div class="frame">
+      <div class="header">
+        <div class="h1">
+          <div class="logo">
+            <svg viewBox="0 0 44 44" fill="none">
+              <path d="M12 22C16 18 21 14 28 12" stroke="#E8B4C0" stroke-width="1.1"/>
+              <circle cx="11" cy="7" r="2.5" fill="#E8B4C0"/>
+              <circle cx="23" cy="6" r="2" fill="#C97A92"/>
+            </svg>
+            <div class="text">Цветы Уральска<span>оптовая база</span></div>
+          </div>
+          <nav>
+            <a href="#" class="active">Каталог</a>
+            <a href="#">Мои заказы</a>
+            <a href="#">История</a>
+            <a href="#">О поставках</a>
+          </nav>
+          <div class="user-pill">
+            <div class="user-avatar">АС</div>
+            <span>ИП Садовская А.</span>
+          </div>
+        </div>
+        <div class="h2">
+          <button class="cat-pill active">🌸 Срезанные цветы</button>
+          <button class="cat-pill">🪴 Горшечные</button>
+          <button class="cat-pill">📦 Расходники</button>
+          <button class="cart-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            <span class="total">0 ₸</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="body">
+        <aside class="fp">
+          <div class="fp-group">
+            <div class="fp-label">Подкатегория</div>
+            <div class="filter-item active"><span>Все</span><span class="filter-count">22</span></div>
+            <div class="filter-item"><span>Розы</span><span class="filter-count">6</span></div>
+            <div class="filter-item"><span>Хризантемы</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Акцентные</span><span class="filter-count">3</span></div>
+            <div class="filter-item"><span>Зелень</span><span class="filter-count">3</span></div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Наличие</div>
+            <div class="fp-toggle"><span>Только в наличии</span><span class="switch"></span></div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Цвет</div>
+            <div class="color-row">
+              <div class="color-chip" style="background:#E53935;"></div>
+              <div class="color-chip" style="background:#F5F5F5;"></div>
+              <div class="color-chip" style="background:#E91E8C;"></div>
+              <div class="color-chip" style="background:#FDD835;"></div>
+              <div class="color-chip" style="background:#7B1FA2;"></div>
+              <div class="color-chip" style="background:linear-gradient(135deg,#E53935,#FDD835,#7B1FA2);"></div>
+            </div>
+          </div>
+          <div class="fp-group">
+            <div class="fp-label">Теги</div>
+            <div class="tag-row">
+              <span class="tag-chip">🔥 Хит</span>
+              <span class="tag-chip">🏷 Акция</span>
+              <span class="tag-chip">🆕 Новинка</span>
+            </div>
+          </div>
+          <button class="fp-reset">Сбросить фильтры</button>
+        </aside>
+
+        <main class="center">
+          <div class="delivery">
+            <div class="icon">✈</div>
+            <div><strong>Следующая поставка</strong> — Эквадор / Кения, <strong>Пт 8 мая</strong></div>
+            <div class="cd">осталось 18ч 42м</div>
+          </div>
+          <div class="toolbar">
+            <div class="search-input">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA39E" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" placeholder="Поиск по сорту, ферме…">
+            </div>
+            <select class="tb-select"><option>По популярности</option></select>
+            <div class="view-toggles">
+              <div class="vt active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+              <div class="vt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+            </div>
+            <div class="tb-counter">22 позиции</div>
+          </div>
+          <div class="quick-tags">
+            <span class="tag-chip">🔥 Хит</span>
+            <span class="tag-chip">🏷 Акция</span>
+            <span class="tag-chip">🆕 Новинка</span>
+          </div>
+          <div class="subcat-title" style="padding-left:16px;">Розы</div>
+          <div class="products">
+            <div class="card">
+              <div class="card-img"><span class="ph">🌹</span><span class="qty-badge">480 шт</span><div class="card-tags"><span class="tag-badge hit">Хит</span></div></div>
+              <div class="card-body">
+                <div class="card-name">Эксплорер</div>
+                <div class="card-meta">60 см · Эквадор</div>
+                <div class="card-price-row"><span class="card-price">450 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">0</span><button>+</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-img"><span class="ph">🌹</span><span class="qty-badge">200 шт</span><div class="card-tags"><span class="tag-badge hit">Хит</span></div></div>
+              <div class="card-body">
+                <div class="card-name">Мондиаль</div>
+                <div class="card-meta">70 см · Эквадор</div>
+                <div class="card-price-row"><span class="card-price">520 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">0</span><button>+</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-img"><span class="ph">🌹</span><span class="qty-badge">325 шт</span><div class="card-tags"><span class="tag-badge sale">Акция</span></div></div>
+              <div class="card-body">
+                <div class="card-name">Пинк Флойд</div>
+                <div class="card-meta">60 см · Кения</div>
+                <div class="card-price-row"><span class="card-price">380 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">0</span><button>+</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-img"><span class="ph">🌹</span><span class="qty-badge">140 шт</span></div>
+              <div class="card-body">
+                <div class="card-name">Дип Перпл</div>
+                <div class="card-meta">60 см · Кения</div>
+                <div class="card-price-row"><span class="card-price">430 ₸</span><span class="card-pack">уп. 25 шт</span></div>
+                <div class="card-stepper"><button>−</button><span class="val">0</span><button>+</button></div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <aside class="rp">
+          <div class="rp-empty">
+            <div class="em-icon">🌸</div>
+            <div class="em-title">Выберите товар</div>
+            <div class="em-sub">Кликните на любую карточку слева, чтобы увидеть подробности, фото и характеристики</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
