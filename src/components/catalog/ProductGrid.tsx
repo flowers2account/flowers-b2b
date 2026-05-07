@@ -271,7 +271,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
-  const { category, subcat, varietyType, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags } = useFilters()
+  const { category, subcat, varietyType, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons } = useFilters()
 
   // Persist view mode
   useEffect(() => {
@@ -350,6 +350,21 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         const ptags = [...(hasHit ? ['hit'] : []), ...(hasSale ? ['sale'] : []), ...(hasNew ? ['new'] : [])]
         if (!tags.some(t => ptags.includes(t))) return false
       }
+      // Флористическая роль
+      if (floralRoles.length > 0) {
+        if (!floralRoles.includes(p.floral_role || '')) return false
+      }
+      // Стойкость
+      if (durations.length > 0) {
+        if (!durations.includes(p.stem_durability || '')) return false
+      }
+      // Сезон (поле может содержать несколько значений через запятую)
+      if (seasons.length > 0) {
+        const pSeasons = Array.isArray(p.season)
+          ? p.season as string[]
+          : (p.season || '').split(',').map((s: string) => s.trim()).filter(Boolean)
+        if (!seasons.some(s => pSeasons.includes(s))) return false
+      }
       return true
     })
 
@@ -359,7 +374,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
 
     return list
-  }, [products, category, subcat, varietyType, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, sort])
+  }, [products, category, subcat, varietyType, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons, sort])
 
   const handleDec = (product: Product, qty: number) => requireAuth(() =>
     update(product.id, Math.max(0, qty - (product.pack_size || 5)))

@@ -21,16 +21,27 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
       { label: 'Помпонные',   varietyType: 'pompom' },
     ]},
     { label: 'Гвоздики', key: 'carnations', children: [
-      { label: 'Одноголовые',        varietyType: 'single' },
-      { label: 'Ветковые / Спрей',   varietyType: 'spray'  },
+      { label: 'Одноголовые',      varietyType: 'single' },
+      { label: 'Ветковые / Спрей', varietyType: 'spray'  },
     ]},
-    { label: 'Гортензии',          key: 'hydrangeas'  },
-    { label: 'Лизиантус / Эустома', key: 'lisianthus' },
-    { label: 'Акцентные цветы',    key: 'accents'     },
-    { label: 'Наполнители',        key: 'fillers'     },
-    { label: 'Зелень',             key: 'greens'      },
-    { label: 'Сезонные',           key: 'seasonal'    },
-    { label: 'Экзотика',           key: 'exotic'      },
+    { label: 'Лилии', key: 'lilies', children: [
+      { label: 'ОТ-гибриды',  varietyType: 'ot'       },
+      { label: 'Восточные',   varietyType: 'oriental' },
+      { label: 'Азиатские',   varietyType: 'asian'    },
+    ]},
+    { label: 'Гортензии',           key: 'hydrangeas'   },
+    { label: 'Лизиантус / Эустома', key: 'lisianthus'   },
+    { label: 'Тюльпаны',            key: 'tulips'       },
+    { label: 'Герберы',             key: 'gerberas'     },
+    { label: 'Каллы',               key: 'callas'       },
+    { label: 'Ирисы',               key: 'irises'       },
+    { label: 'Альстромерия',        key: 'alstroemeria' },
+    { label: 'Акцентные цветы',     key: 'accents'      },
+    { label: 'Наполнители',         key: 'fillers'      },
+    { label: 'Зелень',              key: 'greens'       },
+    { label: 'Сезонные',            key: 'seasonal'     },
+    { label: 'Весенние',            key: 'spring'       },
+    { label: 'Экзотика',            key: 'exotic'       },
   ],
   pot: [
     { label: 'Зелёные растения',     key: 'green'       },
@@ -73,6 +84,26 @@ const TAGS_CUT = [
 const TAGS_POT = [
   { id: 'hit', label: '🔥 Хит'     },
   { id: 'new', label: '🆕 Новинка' },
+]
+const FLORAL_ROLES = [
+  { id: 'focal',   label: 'Фокусный',    icon: '🌹' },
+  { id: 'mass',    label: 'Массовый',    icon: '🌸' },
+  { id: 'line',    label: 'Линейный',    icon: '🌿' },
+  { id: 'filler',  label: 'Наполнитель', icon: '🍃' },
+  { id: 'texture', label: 'Текстура',    icon: '✨' },
+  { id: 'foliage', label: 'Зелень',      icon: '🌱' },
+]
+const DURATIONS = [
+  { id: '3-5', label: '3–5 дней' },
+  { id: '5-7', label: '5–7 дней' },
+  { id: '7+',  label: '7+ дней'  },
+]
+const SEASONS = [
+  { id: 'spring', label: 'Весна'      },
+  { id: 'summer', label: 'Лето'       },
+  { id: 'autumn', label: 'Осень'      },
+  { id: 'winter', label: 'Зима'       },
+  { id: 'year',   label: 'Круглый год'},
 ]
 
 // ── primitives ────────────────────────────────────────────────────────────────
@@ -325,8 +356,10 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   const {
     category, onlyAvailable, search,
     colors, lengths, origins, potSizes, tags,
+    floralRoles, durations, seasons,
     setOnlyAvailable, setSearch,
-    toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag, reset,
+    toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
+    toggleFloralRole, toggleDuration, toggleSeason, reset,
   } = useFilters()
 
   return (
@@ -405,6 +438,42 @@ export default function FilterPanel({ products }: { products: Product[] }) {
             <GroupLabel text="Источник" />
             {ORIGINS.map(o => (
               <CheckRow key={o} checked={origins.includes(o)} label={o} onChange={() => toggleOrigin(o)} />
+            ))}
+          </Group>
+
+          <Group>
+            <GroupLabel text="Флористическая роль" />
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '2px 4px 0' }}>
+              {FLORAL_ROLES.map(r => {
+                const on = floralRoles.includes(r.id)
+                return (
+                  <button key={r.id} onClick={() => toggleFloralRole(r.id)} title={r.label} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 3,
+                    padding: '3px 8px', borderRadius: 12,
+                    fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
+                    background: on ? 'var(--accent)' : '#fff',
+                    border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                    color: on ? '#fff' : 'var(--text-mid)',
+                    cursor: 'pointer',
+                  }}>
+                    <span>{r.icon}</span>{r.label}
+                  </button>
+                )
+              })}
+            </div>
+          </Group>
+
+          <Group>
+            <GroupLabel text="Стойкость" />
+            {DURATIONS.map(d => (
+              <CheckRow key={d.id} checked={durations.includes(d.id)} label={d.label} onChange={() => toggleDuration(d.id)} />
+            ))}
+          </Group>
+
+          <Group>
+            <GroupLabel text="Сезон" />
+            {SEASONS.map(s => (
+              <CheckRow key={s.id} checked={seasons.includes(s.id)} label={s.label} onChange={() => toggleSeason(s.id)} />
             ))}
           </Group>
 
