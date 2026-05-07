@@ -101,7 +101,14 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (pin && client.auth_user_id) {
-    await adminClient.auth.admin.updateUserById(client.auth_user_id, { password: String(pin) })
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/sync-pin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ auth_user_id: client.auth_user_id, new_pin: String(pin) }),
+    })
   }
 
   return NextResponse.json(client)
