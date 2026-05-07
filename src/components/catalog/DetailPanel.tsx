@@ -64,16 +64,16 @@ const DURATION_MAP: Record<string, string> = {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: 8,
-      padding: '6px 0', borderBottom: '1px solid var(--border)',
+      display: 'flex', alignItems: 'flex-start', gap: 6,
+      padding: '4px 0', borderBottom: '1px solid var(--border)',
     }}>
       <span style={{
         fontSize: 11, color: 'var(--text-mid)',
-        minWidth: 96, flexShrink: 0, paddingTop: 1,
+        minWidth: 80, flexShrink: 0, paddingTop: 1,
       }}>
         {label}
       </span>
-      <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>{children}</span>
+      <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 500 }}>{children}</span>
     </div>
   )
 }
@@ -86,31 +86,31 @@ function Stepper({ qty, available, packSize, onDec, onInc }: {
     <div style={{
       display: 'flex', alignItems: 'center',
       border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)',
-      overflow: 'hidden', width: 120,
+      overflow: 'hidden', width: 108,
     }}>
       <button
         onClick={onDec} disabled={qty === 0}
         style={{
-          width: 36, height: 36, border: 'none',
+          width: 32, height: 32, border: 'none',
           background: 'var(--bg2)', color: 'var(--accent)',
-          fontSize: 16, fontWeight: 700,
+          fontSize: 15, fontWeight: 700,
           cursor: qty === 0 ? 'default' : 'pointer',
           opacity: qty === 0 ? 0.35 : 1,
         }}
       >−</button>
       <span style={{
-        flex: 1, textAlign: 'center', fontSize: 13, fontWeight: 700,
+        flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 700,
         borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
-        lineHeight: '36px',
+        lineHeight: '32px',
       }}>
         {qty}
       </span>
       <button
         onClick={onInc} disabled={qty >= available}
         style={{
-          width: 36, height: 36, border: 'none',
+          width: 32, height: 32, border: 'none',
           background: 'var(--bg2)', color: 'var(--accent)',
-          fontSize: 16, fontWeight: 700,
+          fontSize: 15, fontWeight: 700,
           cursor: qty >= available ? 'default' : 'pointer',
           opacity: qty >= available ? 0.35 : 1,
         }}
@@ -206,11 +206,11 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', overflowY: 'auto' }}>
 
       {/* Gallery */}
       <div style={{ flexShrink: 0 }}>
-        <div style={{ aspectRatio: '4/3', background: 'var(--bg2)', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative' }}>
           {mainPhoto ? (
             <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
@@ -243,25 +243,27 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
       </div>
 
       {/* Body */}
-      <div style={{ padding: '14px 16px 24px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '10px 12px 16px', display: 'flex', flexDirection: 'column' }}>
 
         {/* Name */}
         <div style={{
-          fontFamily: 'var(--font-playfair)', fontSize: 16, fontWeight: 400,
-          lineHeight: 1.4, color: 'var(--text)', marginBottom: 4,
+          fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400,
+          lineHeight: 1.35, color: 'var(--text)', marginBottom: 3,
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
         }}>
           {displayName}
         </div>
 
         {/* Meta */}
         {metaParts.length > 0 && (
-          <div style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 8 }}>
             {metaParts.join(' · ')}
           </div>
         )}
 
         {/* Characteristics */}
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: 12 }}>
 
           {colorDef && (
             <Row label="Цвет">
@@ -316,11 +318,11 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
         </div>
 
         {/* Stepper + Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Stepper qty={qty} available={available} packSize={packSize} onDec={handleDec} onInc={handleInc} />
             {inCart && isAuthed && (
-              <span style={{ fontSize: 12, color: 'var(--text-mid)' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-mid)' }}>
                 = {cartTotal.toLocaleString('ru-RU')} ₸
               </span>
             )}
@@ -329,16 +331,16 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
           {inCart && isAuthed ? (
             <>
               <div style={{
-                padding: '9px 14px',
+                padding: '6px 10px',
                 background: 'var(--accent-light)', borderRadius: 'var(--radius-btn)',
-                fontSize: 12, color: 'var(--accent)', fontWeight: 600, textAlign: 'center',
+                fontSize: 11, color: 'var(--accent)', fontWeight: 600, textAlign: 'center',
               }}>
                 В корзине · {cartTotal.toLocaleString('ru-RU')} ₸
               </div>
               <button
                 onClick={onGoToCart}
                 style={{
-                  width: '100%', padding: '10px 14px',
+                  width: '100%', height: 36,
                   background: 'var(--accent)', color: '#fff', border: 'none',
                   borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', fontFamily: 'inherit',
@@ -352,7 +354,7 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
               onClick={handleAddToCart}
               disabled={available === 0}
               style={{
-                width: '100%', padding: '10px 14px',
+                width: '100%', height: 36,
                 background: available === 0 ? 'var(--bg2)' : 'var(--accent)',
                 color: available === 0 ? 'var(--text-mid)' : '#fff',
                 border: 'none', borderRadius: 'var(--radius-btn)',

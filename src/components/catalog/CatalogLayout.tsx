@@ -16,7 +16,7 @@ export default function CatalogLayout({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '220px 1fr 340px',
+        gridTemplateColumns: '200px 1fr 280px',
         height: `calc(100vh - ${HEADER_H}px)`,
       }}
     >
