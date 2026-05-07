@@ -271,7 +271,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
-  const { category, subcat, varietyType, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons } = useFilters()
+  const { category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons } = useFilters()
 
   // Persist view mode
   useEffect(() => {
@@ -313,6 +313,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (category !== 'all' && p.category !== category) return false
       if (subcat && (p.subcategory || '') !== subcat) return false
       if (varietyType && (p.variety_type || '') !== varietyType) return false
+      if (colors.length > 0 && !colors.includes(p.color || '')) return false
       if (onlyAvailable && available <= 0) return false
       if (onlyDiscount && !hasDiscount) return false
       if (!onlyDiscount && !onlyAvailable && available <= 0) return false
@@ -374,7 +375,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
 
     return list
-  }, [products, category, subcat, varietyType, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons, sort])
+  }, [products, category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, durations, seasons, sort])
 
   const handleDec = (product: Product, qty: number) => requireAuth(() =>
     update(product.id, Math.max(0, qty - (product.pack_size || 5)))

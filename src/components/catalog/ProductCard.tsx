@@ -19,6 +19,7 @@ export type Product = {
   category: string
   subcategory?: string | null
   variety_type?: string | null
+  color?: string | null
   pot_size?: number | null
   floral_role?: string | null
   stem_durability?: string | null
