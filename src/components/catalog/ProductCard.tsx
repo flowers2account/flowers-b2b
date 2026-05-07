@@ -88,7 +88,13 @@ export default function ProductCard({ product, qty, isAuthed, onDecrement, onInc
           </span>
         )}
         <div className="absolute top-2 right-2">
-          <StockBadge qty={available} />
+          {isAuthed ? (
+            <StockBadge qty={available} />
+          ) : available > 0 ? (
+            <Badge className="text-[10px] px-1.5 py-0 bg-gray-600 hover:bg-gray-600">В наличии</Badge>
+          ) : (
+            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Нет</Badge>
+          )}
         </div>
       </div>
 
