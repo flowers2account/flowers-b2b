@@ -171,7 +171,7 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
       add({
         id: product.id,
         name: displayName + (product.length_str ? ' ' + product.length_str : ''),
-        price, available, category: product.category,
+        price, available, category: product.category, image_url: product.image_url,
       })
       update(product.id, packSize)
     } else {
@@ -185,7 +185,7 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
       add({
         id: product.id,
         name: displayName + (product.length_str ? ' ' + product.length_str : ''),
-        price, available, category: product.category,
+        price, available, category: product.category, image_url: product.image_url,
       })
       update(product.id, packSize)
     }
@@ -229,7 +229,7 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
       </div>
 
       {/* Body */}
-      <div style={{ padding: '10px 12px 16px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '12px 12px 16px 12px', display: 'flex', flexDirection: 'column' }}>
 
         {/* Name */}
         <div style={{
@@ -514,16 +514,25 @@ function StateCart({ onBack }: { onBack: () => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {items.map(item => (
               <div key={item.id} style={{
-                background: 'var(--bg2)', borderRadius: 'var(--radius-card)', padding: '10px 12px',
+                background: 'var(--bg2)', borderRadius: 'var(--radius-card)', padding: '8px 10px',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+                {/* Row: thumbnail + name/price + total */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  {item.image_url ? (
+                    <img src={item.image_url} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 36, height: 36, borderRadius: 4, background: 'var(--accent-light)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                      🌸
+                    </div>
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       onClick={() => openProduct(item.id)}
                       onMouseEnter={() => setHoveredId(item.id)}
                       onMouseLeave={() => setHoveredId(null)}
                       style={{
-                        fontSize: 12, fontWeight: 600, lineHeight: 1.3, marginBottom: 2,
+                        fontSize: 12, fontWeight: 500, lineHeight: 1.3,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         cursor: 'pointer',
                         color: hoveredId === item.id ? 'var(--accent)' : 'var(--text)',
                         transition: 'color 0.15s',
@@ -535,36 +544,21 @@ function StateCart({ onBack }: { onBack: () => void }) {
                       {item.price.toLocaleString('ru-RU')} ₸/шт
                     </div>
                   </div>
+                  <div style={{ fontSize: 12, fontWeight: 500, flexShrink: 0 }}>
+                    {(item.price * item.qty).toLocaleString('ru-RU')} ₸
+                  </div>
                   <button
                     onClick={() => remove(item.id)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: '#E53935', fontSize: 18, lineHeight: 1, padding: '0 2px', flexShrink: 0,
-                    }}
-                  >
-                    ×
-                  </button>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E53935', fontSize: 16, lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                  >×</button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center',
-                    border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden',
-                  }}>
-                    <button
-                      onClick={() => update(item.id, item.qty - 1)}
-                      style={{ width: 26, height: 26, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}
-                    >−</button>
-                    <span style={{ padding: '0 8px', fontSize: 12, fontWeight: 700, borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
-                      {item.qty}
-                    </span>
-                    <button
-                      onClick={() => update(item.id, Math.min(item.qty + 1, item.available))}
-                      style={{ width: 26, height: 26, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}
-                    >+</button>
+                {/* Stepper */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden' }}>
+                    <button onClick={() => update(item.id, item.qty - 1)} style={{ width: 24, height: 24, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>−</button>
+                    <span style={{ padding: '0 8px', fontSize: 11, fontWeight: 700, borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>{item.qty}</span>
+                    <button onClick={() => update(item.id, Math.min(item.qty + 1, item.available))} style={{ width: 24, height: 24, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>+</button>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
-                    {(item.price * item.qty).toLocaleString('ru-RU')} ₸
-                  </span>
                 </div>
               </div>
             ))}

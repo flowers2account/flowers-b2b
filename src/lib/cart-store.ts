@@ -8,6 +8,7 @@ export type CartItem = {
   qty: number
   available: number
   category: string
+  image_url?: string | null
 }
 
 type CartStore = {
