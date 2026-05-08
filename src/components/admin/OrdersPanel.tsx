@@ -43,7 +43,7 @@ type Order = {
   reservations: { expires_at: string }[]
 }
 
-const HISTORY_STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<string, string> = {
   pending: 'Новый',
   reserved: 'В работе',
   confirmed: 'Подтверждён',
@@ -60,8 +60,8 @@ export default function OrdersPanel() {
   const [showNewOrder, setShowNewOrder] = useState(false)
   const [exportFrom, setExportFrom] = useState('')
   const [exportTo, setExportTo] = useState('')
-  const [histories, setHistories] = useState<Record<number, HistoryEntry[]>>({})
-  const [expandedHistory, setExpandedHistory] = useState<Set<number>>(new Set())
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [history, setHistory] = useState<HistoryEntry[]>([])
   const [assemblyOrder, setAssemblyOrder] = useState<Order | null>(null)
 
   function handleExport() {
@@ -101,26 +101,24 @@ export default function OrdersPanel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, changed_by: user?.id ?? null }),
     })
-    // Refresh history if expanded
-    if (expandedHistory.has(orderId)) {
-      await fetchHistory(orderId)
-    }
+    if (expandedId === orderId) await loadHistory(orderId)
     loadOrders()
   }
 
-  async function fetchHistory(orderId: number) {
+  async function loadHistory(orderId: number) {
     const res = await fetch(`/api/orders/${orderId}/history`)
     const data = await res.json()
-    setHistories(prev => ({ ...prev, [orderId]: Array.isArray(data) ? data : [] }))
+    setHistory(Array.isArray(data) ? data : [])
   }
 
-  async function toggleHistory(orderId: number) {
-    if (expandedHistory.has(orderId)) {
-      setExpandedHistory(prev => { const s = new Set(prev); s.delete(orderId); return s })
+  async function toggleExpanded(orderId: number) {
+    if (expandedId === orderId) {
+      setExpandedId(null)
+      setHistory([])
       return
     }
-    await fetchHistory(orderId)
-    setExpandedHistory(prev => new Set(prev).add(orderId))
+    setExpandedId(orderId)
+    await loadHistory(orderId)
   }
 
   async function updateQty(itemId: number, qty: number) {
@@ -340,9 +338,9 @@ export default function OrdersPanel() {
               </button>
             )}
             <button
-              onClick={() => toggleHistory(order.id)}
+              onClick={() => toggleExpanded(order.id)}
               className="px-3 py-1.5 bg-gray-50 text-gray-500 text-sm rounded hover:bg-gray-100 border">
-              {expandedHistory.has(order.id) ? '▲ История' : '▼ История'}
+              {expandedId === order.id ? '▲ История' : '▼ История'}
             </button>
             <button
               onClick={() => window.open(`/print/order/${order.id}`, '_blank', 'width=800,height=700')}
@@ -351,23 +349,27 @@ export default function OrdersPanel() {
             </button>
           </div>
 
-          {expandedHistory.has(order.id) && (
-            <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 4 }}>
+          {expandedId === order.id && (
+            <div style={{ borderTop: '0.5px solid var(--border)', marginTop: 8, paddingTop: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 4, fontWeight: 500 }}>
                 История
               </div>
-              {!histories[order.id]?.length ? (
+              {!history.length ? (
                 <div style={{ fontSize: 11, color: 'var(--text-mid)' }}>Нет записей</div>
               ) : (
-                histories[order.id].map(entry => (
-                  <div key={entry.id} style={{ fontSize: 11, color: '#6B7570', display: 'flex', gap: 8, padding: '2px 0' }}>
-                    <span style={{ color: '#9CA3AF' }}>
-                      {new Date(entry.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Oral' })}
+                history.map(h => (
+                  <div key={h.id} style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 8, padding: '2px 0' }}>
+                    <span style={{ color: 'var(--text-tertiary)', flexShrink: 0 }}>
+                      {new Date(h.created_at).toLocaleString('ru-RU', {
+                        day: '2-digit', month: '2-digit',
+                        hour: '2-digit', minute: '2-digit',
+                        timeZone: 'Asia/Oral',
+                      })}
                     </span>
                     <span>
-                      {HISTORY_STATUS_LABELS[entry.status_from ?? ''] ?? entry.status_from ?? '—'}
+                      {STATUS_LABELS[h.status_from ?? ''] ?? h.status_from ?? '—'}
                       {' → '}
-                      {HISTORY_STATUS_LABELS[entry.status_to] ?? entry.status_to}
+                      {STATUS_LABELS[h.status_to] ?? h.status_to}
                     </span>
                   </div>
                 ))
