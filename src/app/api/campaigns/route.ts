@@ -99,15 +99,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
-    // Проверяем авторизацию
-    const { data: { user } } = await supabase.auth.getUser();
-    
+
+    // Читаем токен из Authorization header
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    let user = null;
+    if (token) {
+      const { data: { user: tokenUser } } = await supabase.auth.getUser(token);
+      user = tokenUser;
+    } else {
+      const { data: { user: sessionUser } } = await supabase.auth.getUser();
+      user = sessionUser;
+    }
+
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
     // Проверяем роль
