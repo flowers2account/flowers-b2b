@@ -119,6 +119,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
 
       const res = await fetch('/api/campaigns', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
@@ -297,7 +298,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
         {/* ── Шаг 2: товары ── */}
         {step === 2 && (
           <div className="px-6 py-5 flex flex-col gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <input
                 type="text"
                 value={search}
