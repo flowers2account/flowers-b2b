@@ -26,6 +26,9 @@ export async function GET(req: NextRequest) {
       order_items (
         id,
         qty,
+        qty_ordered,
+        qty_actual,
+        is_removed,
         price,
         product:products ( name )
       )

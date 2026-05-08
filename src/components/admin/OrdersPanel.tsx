@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/auth-store'
 import NewOrderModal from './NewOrderModal'
+import AssemblyModal from './AssemblyModal'
 
 type HistoryEntry = {
   id: number
@@ -18,6 +19,9 @@ type OrderItem = {
   id: number
   product_id: number
   qty: number
+  qty_ordered: number
+  qty_actual: number | null
+  is_removed: boolean
   price: number
   product: { name: string; pack_size: number } | null
 }
@@ -47,6 +51,7 @@ export default function OrdersPanel() {
   const [exportTo, setExportTo] = useState('')
   const [histories, setHistories] = useState<Record<number, HistoryEntry[]>>({})
   const [expandedHistory, setExpandedHistory] = useState<Set<number>>(new Set())
+  const [assemblyOrder, setAssemblyOrder] = useState<Order | null>(null)
 
   function handleExport() {
     if (!exportFrom || !exportTo) return
@@ -58,7 +63,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, client:client_id(name, phone), order_items(id, product_id, qty, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, client:client_id(name, phone), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) console.error('Orders error:', error)
@@ -116,14 +121,18 @@ export default function OrdersPanel() {
     pending: '⏳ Новый',
     reserved: '🔒 В брони',
     confirmed: '✅ Подтверждён',
+    assembling: '🔧 В сборке',
+    assembled: '📦 Готово к выдаче',
     cancelled: '❌ Отменён',
-    delivered: '📦 Выдан',
+    delivered: '🚚 Выдан',
   }
 
   const statusColor: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
     reserved: 'bg-purple-100 text-purple-800',
     confirmed: 'bg-green-100 text-green-800',
+    assembling: 'bg-orange-100 text-orange-800',
+    assembled: 'bg-teal-100 text-teal-800',
     cancelled: 'bg-red-100 text-red-800',
     delivered: 'bg-blue-100 text-blue-800',
   }
@@ -162,6 +171,22 @@ export default function OrdersPanel() {
         <NewOrderModal
           onClose={() => setShowNewOrder(false)}
           onCreated={() => { setShowNewOrder(false); loadOrders() }}
+        />
+      )}
+      {assemblyOrder && (
+        <AssemblyModal
+          orderId={assemblyOrder.id}
+          items={assemblyOrder.order_items.map(i => ({
+            id: i.id,
+            product_id: i.product_id,
+            qty_ordered: i.qty_ordered ?? i.qty,
+            qty_actual: i.qty_actual,
+            is_removed: i.is_removed ?? false,
+            price: i.price,
+            product: i.product,
+          }))}
+          onClose={() => setAssemblyOrder(null)}
+          onSaved={() => { setAssemblyOrder(null); loadOrders() }}
         />
       )}
       {orders.length === 0 && <div className="text-sm text-gray-400 py-4">Заказов нет</div>}
@@ -266,9 +291,27 @@ export default function OrdersPanel() {
               </>
             )}
             {order.status === 'confirmed' && (
-              <button onClick={() => updateStatus(order.id, 'delivered')}
+              <button
+                onClick={async () => {
+                  await updateStatus(order.id, 'assembling')
+                  setAssemblyOrder(order)
+                }}
+                className="px-3 py-1.5 bg-orange-500 text-white text-sm rounded hover:bg-orange-600">
+                🔧 Начать сборку
+              </button>
+            )}
+            {order.status === 'assembling' && (
+              <button
+                onClick={() => setAssemblyOrder(order)}
+                className="px-3 py-1.5 bg-orange-500 text-white text-sm rounded hover:bg-orange-600">
+                🔧 Продолжить сборку
+              </button>
+            )}
+            {order.status === 'assembled' && (
+              <button
+                onClick={() => updateStatus(order.id, 'delivered')}
                 className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                📦 Передать клиенту
+                ✅ Выдать
               </button>
             )}
             <button
