@@ -11,6 +11,7 @@ type HistoryEntry = {
   status_from: string | null
   status_to: string
   changed_by: string | null
+  manager_name: string | null
   note: string | null
   created_at: string
 }
@@ -370,6 +371,9 @@ export default function OrdersPanel() {
                       {STATUS_LABELS[h.status_from ?? ''] ?? h.status_from ?? '—'}
                       {' → '}
                       {STATUS_LABELS[h.status_to] ?? h.status_to}
+                      {h.manager_name && (
+                        <span style={{ color: 'var(--text-tertiary)' }}> · {h.manager_name}</span>
+                      )}
                     </span>
                   </div>
                 ))
