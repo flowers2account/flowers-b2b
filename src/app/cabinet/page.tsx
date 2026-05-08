@@ -34,6 +34,43 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-800',
 }
 
+const TIMELINE_STEPS = [
+  { key: 'pending', label: 'Создан' },
+  { key: 'reserved', label: 'В работе' },
+  { key: 'confirmed', label: 'Подтверждён' },
+  { key: 'delivered', label: 'Выдан' },
+]
+
+const STEP_ORDER = ['pending', 'reserved', 'confirmed', 'delivered']
+
+function StatusTimeline({ status }: { status: string }) {
+  if (status === 'cancelled') return null
+  const currentIdx = STEP_ORDER.indexOf(status)
+  return (
+    <div className="flex items-center gap-1 mt-3 mb-1">
+      {TIMELINE_STEPS.map((step, idx) => {
+        const done = idx < currentIdx
+        const active = idx === currentIdx
+        return (
+          <div key={step.key} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center">
+              <span className={`text-base leading-none ${done ? 'opacity-100' : active ? 'opacity-100' : 'opacity-25'}`}>
+                {done ? '✅' : active ? '🔵' : '⬜'}
+              </span>
+              <span className={`text-[10px] mt-0.5 whitespace-nowrap ${active ? 'text-gray-800 font-medium' : done ? 'text-gray-500' : 'text-gray-300'}`}>
+                {step.label}
+              </span>
+            </div>
+            {idx < TIMELINE_STEPS.length - 1 && (
+              <div className={`h-px flex-1 mx-1 mb-3 ${idx < currentIdx ? 'bg-green-400' : 'bg-gray-200'}`} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function CabinetPage() {
   const { isAuthed, phone, init } = useAuthStore()
   const router = useRouter()
@@ -84,12 +121,13 @@ export default function CabinetPage() {
             const date = new Date(order.created_at).toLocaleString('ru-RU', { timeZone: 'Asia/Oral', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
             return (
               <div key={order.id} className="border rounded-xl p-4 bg-white shadow-sm">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-400">{date}</span>
                   <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLORS[order.status] ?? 'bg-gray-100'}`}>
                     {STATUS_LABELS[order.status] ?? order.status}
                   </span>
                 </div>
+                <StatusTimeline status={order.status} />
                 <div className="space-y-1">
                   {order.order_items.map(item => (
                     <div key={item.id} className="flex justify-between text-sm">

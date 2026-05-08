@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/lib/auth-store'
 import NewOrderModal from './NewOrderModal'
+
+type HistoryEntry = {
+  id: number
+  status_from: string | null
+  status_to: string
+  changed_by: string | null
+  note: string | null
+  created_at: string
+}
 
 type OrderItem = {
   id: number
@@ -29,11 +39,14 @@ type Order = {
 }
 
 export default function OrdersPanel() {
+  const { user } = useAuthStore()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewOrder, setShowNewOrder] = useState(false)
   const [exportFrom, setExportFrom] = useState('')
   const [exportTo, setExportTo] = useState('')
+  const [histories, setHistories] = useState<Record<number, HistoryEntry[]>>({})
+  const [expandedHistory, setExpandedHistory] = useState<Set<number>>(new Set())
 
   function handleExport() {
     if (!exportFrom || !exportTo) return
@@ -67,17 +80,31 @@ export default function OrdersPanel() {
   }, [])
 
   async function updateStatus(orderId: number, status: string) {
-    if (status === 'confirmed') {
-      await fetch('/api/confirm-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId })
-      })
-    } else {
-      await supabase.from('orders').update({ status }).eq('id', orderId)
+    await fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, changed_by: user?.id ?? null }),
+    })
+    // Refresh history if expanded
+    if (expandedHistory.has(orderId)) {
+      await fetchHistory(orderId)
     }
-    
     loadOrders()
+  }
+
+  async function fetchHistory(orderId: number) {
+    const res = await fetch(`/api/orders/${orderId}/history`)
+    const { history } = await res.json()
+    setHistories(prev => ({ ...prev, [orderId]: history ?? [] }))
+  }
+
+  async function toggleHistory(orderId: number) {
+    if (expandedHistory.has(orderId)) {
+      setExpandedHistory(prev => { const s = new Set(prev); s.delete(orderId); return s })
+      return
+    }
+    await fetchHistory(orderId)
+    setExpandedHistory(prev => new Set(prev).add(orderId))
   }
 
   async function updateQty(itemId: number, qty: number) {
@@ -245,11 +272,48 @@ export default function OrdersPanel() {
               </button>
             )}
             <button
+              onClick={() => toggleHistory(order.id)}
+              className="px-3 py-1.5 bg-gray-50 text-gray-500 text-sm rounded hover:bg-gray-100 border">
+              {expandedHistory.has(order.id) ? '▲ История' : '▼ История'}
+            </button>
+            <button
               onClick={() => window.open(`/print/order/${order.id}`, '_blank', 'width=800,height=700')}
               className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 ml-auto">
               🖨 Печать
             </button>
           </div>
+
+          {expandedHistory.has(order.id) && (
+            <div className="mt-2 pt-2 border-t">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-gray-400 font-medium">История</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+              {!histories[order.id]?.length ? (
+                <p className="text-xs text-gray-400 text-center py-1">Нет записей</p>
+              ) : (
+                <div className="space-y-1">
+                  {histories[order.id].map(entry => (
+                    <div key={entry.id} className="flex items-center gap-3 text-xs text-gray-600">
+                      <span className="text-gray-400 font-mono w-11 shrink-0">
+                        {new Date(entry.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Oral' })}
+                      </span>
+                      <span className="flex-1">
+                        <span className="text-gray-500">{entry.status_from ? (statusLabel[entry.status_from] ?? entry.status_from) : '—'}</span>
+                        <span className="mx-1 text-gray-300">→</span>
+                        <span className="font-medium">{statusLabel[entry.status_to] ?? entry.status_to}</span>
+                      </span>
+                      <span className="text-gray-400 shrink-0">
+                        {entry.changed_by ? 'Менеджер' : 'Система'}
+                      </span>
+                      {entry.note && <span className="text-gray-400 italic">{entry.note}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         )
       })}
