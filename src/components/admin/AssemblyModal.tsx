@@ -102,15 +102,28 @@ export default function AssemblyModal({ orderId, items, onClose, onSaved }: Prop
       return
     }
 
-    await fetch(`/api/orders/${orderId}/assemble`, {
+    const payload = {
+      changed_by: user?.id ?? null,
+      assembly_photo_url: assemblyPhotoUrl,
+      items: rows.map(r => ({ id: r.id, qty_actual: r.qty_actual, is_removed: r.is_removed })),
+    }
+    console.log('ASSEMBLE REQUEST:', { items: payload.items, photoUrl: assemblyPhotoUrl })
+
+    const res = await fetch(`/api/orders/${orderId}/assemble`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        changed_by: user?.id ?? null,
-        assembly_photo_url: assemblyPhotoUrl,
-        items: rows.map(r => ({ id: r.id, qty_actual: r.qty_actual, is_removed: r.is_removed })),
-      }),
+      body: JSON.stringify(payload),
     })
+
+    console.log('ASSEMBLE RESPONSE:', res.status, await res.clone().json())
+
+    if (!res.ok) {
+      const { error } = await res.json()
+      setUploadError(`Ошибка сохранения: ${error ?? res.status}`)
+      setSaving(false)
+      return
+    }
+
     setSaving(false)
     onSaved()
   }
