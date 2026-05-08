@@ -37,6 +37,7 @@ type Order = {
   client_id: string | null
   guest_phone: string | null
   guest_name: string | null
+  assembly_photo_url: string | null
   client: Client
   order_items: OrderItem[]
   reservations: { expires_at: string }[]
@@ -73,7 +74,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, client:client_id(name, phone), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) console.error('Orders error:', error)
@@ -270,6 +271,20 @@ export default function OrdersPanel() {
               ))}
             </tbody>
           </table>
+
+          {order.assembly_photo_url && (order.status === 'assembled' || order.status === 'delivered') && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">📷 Фото сборки:</span>
+              <a href={order.assembly_photo_url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={order.assembly_photo_url}
+                  alt="Фото сборки"
+                  style={{ width: 120, height: 90, objectFit: 'cover' }}
+                  className="rounded border hover:opacity-90 transition-opacity cursor-pointer"
+                />
+              </a>
+            </div>
+          )}
 
           {order.notes && (
             <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">{order.notes}</div>

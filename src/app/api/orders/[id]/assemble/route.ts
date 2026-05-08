@@ -11,7 +11,7 @@ export async function PATCH(
   const { id } = await params
   const orderId = parseInt(id)
 
-  const { changed_by, items } = await req.json()
+  const { changed_by, assembly_photo_url, items } = await req.json()
   if (!items?.length) return NextResponse.json({ error: 'Missing items' }, { status: 400 })
 
   const { data: order } = await supabase
@@ -41,7 +41,13 @@ export async function PATCH(
 
   await supabase
     .from('orders')
-    .update({ status: 'assembled', total: newTotal })
+    .update({
+      status: 'assembled',
+      total: newTotal,
+      assembly_photo_url: assembly_photo_url ?? null,
+      assembled_at: new Date().toISOString(),
+      assembled_by: changed_by ?? null,
+    })
     .eq('id', orderId)
 
   await supabase.from('order_history').insert({

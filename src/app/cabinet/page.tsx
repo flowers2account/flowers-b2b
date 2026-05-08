@@ -18,6 +18,7 @@ type Order = {
   id: string
   status: string
   created_at: string
+  assembly_photo_url: string | null
   order_items: OrderItem[]
 }
 
@@ -180,8 +181,18 @@ export default function CabinetPage() {
                 </div>
 
                 {isAssembled && (
-                  <div className="mt-2 mb-1 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 text-sm text-teal-800 font-medium">
-                    Ваш заказ готов! Можете забрать.
+                  <div className="mt-2 mb-1 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+                    <p className="text-sm text-teal-800 font-medium">Ваш заказ собран и готов к выдаче</p>
+                    {order.assembly_photo_url && (
+                      <a href={order.assembly_photo_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-2">
+                        <img
+                          src={order.assembly_photo_url}
+                          alt="Фото заказа"
+                          style={{ width: 200, height: 150, objectFit: 'cover' }}
+                          className="rounded border border-teal-300 hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    )}
                   </div>
                 )}
 
