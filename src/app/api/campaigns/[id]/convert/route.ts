@@ -4,11 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 // POST /api/campaigns/[id]/convert - конвертировать все предзаказы в обычные заказы
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
+    const campaignId = parseInt(id);
     
     if (isNaN(campaignId)) {
       return NextResponse.json(
@@ -98,12 +99,13 @@ export async function POST(
 // POST /api/campaigns/[id]/convert/[orderId] - конвертировать один предзаказ
 export async function POST_SINGLE(
   request: NextRequest,
-  { params }: { params: { id: string; orderId: string } }
+  { params }: { params: Promise<{ id: string; orderId: string }> }
 ) {
   try {
+    const { id, orderId: orderIdStr } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
-    const orderId = parseInt(params.orderId);
+    const campaignId = parseInt(id);
+    const orderId = parseInt(orderIdStr);
     
     if (isNaN(campaignId) || isNaN(orderId)) {
       return NextResponse.json(

@@ -3,11 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
+    const campaignId = parseInt(id);
     
     if (isNaN(campaignId)) {
       return NextResponse.json(
@@ -161,11 +162,12 @@ export async function GET(
 // PATCH /api/campaigns/[id] - обновить кампанию (только admin/manager)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
+    const campaignId = parseInt(id);
     
     if (isNaN(campaignId)) {
       return NextResponse.json(
@@ -236,11 +238,12 @@ export async function PATCH(
 // DELETE /api/campaigns/[id] - удалить кампанию (только admin)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
+    const campaignId = parseInt(id);
     
     if (isNaN(campaignId)) {
       return NextResponse.json(

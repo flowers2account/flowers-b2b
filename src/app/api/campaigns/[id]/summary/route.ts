@@ -5,11 +5,12 @@ import * as XLSX from 'xlsx';
 // GET /api/campaigns/[id]/summary - получить сводный заказ поставщику
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
+    const campaignId = parseInt(id);
     
     if (isNaN(campaignId)) {
       return NextResponse.json(

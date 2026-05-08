@@ -4,11 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 // POST /api/campaigns/[id]/order - создать или обновить предзаказ
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
+    const campaignId = parseInt(id);
     
     if (isNaN(campaignId)) {
       return NextResponse.json(
@@ -254,11 +255,12 @@ export async function POST(
 // DELETE /api/campaigns/[id]/order - отменить предзаказ
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
-    const campaignId = parseInt(params.id);
+    const campaignId = parseInt(id);
     
     if (isNaN(campaignId)) {
       return NextResponse.json(
