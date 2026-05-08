@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from 'next'
 import { Golos_Text, Playfair_Display, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
