@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import type { CampaignType } from '@/types/campaigns'
-import { createClient } from '@/lib/supabase/client'
 
 interface Product {
   id: string
@@ -66,13 +65,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
     if (products.length === 0) {
       setLoadingProducts(true)
       try {
-        const supabase = createClient()
-        const { data: session } = await supabase.auth.getSession()
-        const res = await fetch('/api/products', {
-          headers: session.session
-            ? { 'Authorization': `Bearer ${session.session.access_token}` }
-            : {},
-        })
+        const res = await fetch('/api/products', { credentials: 'include' })
         const data = await res.json()
         setProducts(Array.isArray(data) ? data : [])
       } catch {
@@ -117,13 +110,6 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
     setLoading(true)
     setError('')
     try {
-      const supabase = createClient()
-      const { data: session } = await supabase.auth.getSession()
-      if (!session.session) {
-        setError('Требуется авторизация')
-        return
-      }
-
       const items = Object.entries(selected).map(([product_id, s]) => ({
         product_id,
         price: parseFloat(s.price) || 0,
@@ -133,10 +119,8 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
 
       const res = await fetch('/api/campaigns', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.session.access_token}`,
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
           type,
