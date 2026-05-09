@@ -7,8 +7,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('[ORDER] Starting order creation for campaign:', params)
     const { id } = await params;
+    console.log('[ORDER] Starting order creation for campaign:', id)
     const supabase = createAdminClient();
     const campaignId = parseInt(id);
 
