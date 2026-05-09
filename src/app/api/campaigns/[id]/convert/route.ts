@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // POST /api/campaigns/[id]/convert - конвертировать все предзаказы в обычные заказы
 export async function POST(
@@ -8,32 +8,32 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const campaignId = parseInt(id);
-    
+
     if (isNaN(campaignId)) {
       return NextResponse.json(
         { error: 'Invalid campaign ID' },
         { status: 400 }
       );
     }
-    
+
     // Проверяем авторизацию (только admin/manager)
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
-    
+
     if (!profile || !['admin', 'manager'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Forbidden: Only admin/manager can convert campaigns' },
@@ -103,7 +103,7 @@ export async function POST_SINGLE(
 ) {
   try {
     const { id, orderId: orderIdStr } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const campaignId = parseInt(id);
     const orderId = parseInt(orderIdStr);
     
