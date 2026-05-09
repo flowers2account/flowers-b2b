@@ -1,15 +1,15 @@
-п»ї'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import type { CampaignWithStats, CampaignStatus } from '@/types/campaigns'
 import CreateCampaignModal from './CreateCampaignModal'
 
 const STATUS_LABELS: Record<CampaignStatus, string> = {
-  draft: 'Р§РµСЂРЅРѕРІРёРє',
-  published: 'РћРїСѓР±Р»РёРєРѕРІР°РЅР°',
-  closed: 'Р—Р°РєСЂС‹С‚Р°',
-  delivered: 'Р”РѕСЃС‚Р°РІР»РµРЅР°',
-  cancelled: 'РћС‚РјРµРЅРµРЅР°'
+  draft: 'Черновик',
+  published: 'Опубликована',
+  closed: 'Закрыта',
+  delivered: 'Доставлена',
+  cancelled: 'Отменена'
 }
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
@@ -78,10 +78,10 @@ export default function CampaignsPanel() {
   }
 
   function getClosingTimer(closesInHours: number) {
-    if (closesInHours <= 0) return 'Р—Р°РєСЂС‹С‚Р°'
-    if (closesInHours < 24) return `${Math.floor(closesInHours)} С‡`
+    if (closesInHours <= 0) return 'Закрыта'
+    if (closesInHours < 24) return `${Math.floor(closesInHours)} ч`
     const days = Math.floor(closesInHours / 24)
-    return `${days} РґРЅ`
+    return `${days} дн`
   }
 
   const filtered = campaigns
@@ -101,7 +101,7 @@ export default function CampaignsPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {s === 'all' ? 'Р’СЃРµ' : STATUS_LABELS[s]}
+              {s === 'all' ? 'Все' : STATUS_LABELS[s]}
             </button>
           ))}
         </div>
@@ -110,28 +110,28 @@ export default function CampaignsPanel() {
           onClick={handleCreate}
           className="px-3 py-1.5 bg-[#7a1c2e] text-white text-sm rounded hover:bg-[#621624] transition-colors"
         >
-          + РЎРѕР·РґР°С‚СЊ РєР°РјРїР°РЅРёСЋ
+          + Создать кампанию
         </button>
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Р—Р°РіСЂСѓР·РєР°...</div>
+        <div className="text-center py-12 text-gray-400">Загрузка...</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">РќРµС‚ РєР°РјРїР°РЅРёР№</div>
+        <div className="text-center py-12 text-gray-400">Нет кампаний</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[#7a1c2e] text-white sticky top-0">
               <tr>
                 <th className="px-4 py-2 text-left text-xs font-medium">ID</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">РќР°Р·РІР°РЅРёРµ</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">РўРёРї</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Р—Р°РєСЂС‹С‚РёРµ</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">РџРѕСЃС‚Р°РІРєР°</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">РЎС‚Р°С‚СѓСЃ</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">РЎС‚Р°С‚РёСЃС‚РёРєР°</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Р”РµР№СЃС‚РІРёСЏ</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Название</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Тип</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Закрытие</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Поставка</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Статус</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Статистика</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Действия</th>
               </tr>
             </thead>
             <tbody>
@@ -145,13 +145,13 @@ export default function CampaignsPanel() {
                     <div className="text-sm font-medium text-gray-900">{c.title}</div>
                     {c.status === 'published' && c.stats && (
                       <div className="text-xs text-gray-500 mt-0.5">
-                        Р—Р°РєСЂС‹РІР°РµС‚СЃСЏ С‡РµСЂРµР· {getClosingTimer(c.stats.closes_in_hours)}
+                        Закрывается через {getClosingTimer(c.stats.closes_in_hours)}
                       </div>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
-                      {c.type === 'europe' ? 'Р•РІСЂРѕРїР°' : 'РљРёС‚Р°Р№'}
+                      {c.type === 'europe' ? 'Европа' : 'Китай'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
@@ -168,10 +168,10 @@ export default function CampaignsPanel() {
                   <td className="px-4 py-3">
                     {c.stats && (
                       <div className="text-xs text-gray-600">
-                        <div>{c.stats.total_orders} Р·Р°РєР°Р·РѕРІ</div>
-                        <div>{c.stats.total_clients} РєР»РёРµРЅС‚РѕРІ</div>
+                        <div>{c.stats.total_orders} заказов</div>
+                        <div>{c.stats.total_clients} клиентов</div>
                         <div className="font-medium">
-                          {c.stats.total_amount.toLocaleString('ru-RU')} в‚ё
+                          {c.stats.total_amount.toLocaleString('ru-RU')} ?
                         </div>
                       </div>
                     )}
@@ -182,20 +182,20 @@ export default function CampaignsPanel() {
                         onClick={() => handleEdit(c.id)}
                         className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
                       >
-                        Р РµРґ.
+                        Ред.
                       </button>
                       <button
                         onClick={() => handleSummary(c.id)}
                         className="px-2 py-1 text-xs text-[#7a1c2e] hover:bg-red-50 rounded"
                       >
-                        РЎРІРѕРґРєР°
+                        Сводка
                       </button>
                       {c.status === 'closed' && (
                         <button
                           onClick={() => handleConvert(c.id)}
                           className="px-2 py-1 text-xs text-green-600 hover:bg-green-50 rounded"
                         >
-                          РљРѕРЅРІРµСЂС‚.
+                          Конверт.
                         </button>
                       )}
                     </div>
