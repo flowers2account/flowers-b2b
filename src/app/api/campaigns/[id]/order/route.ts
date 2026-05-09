@@ -7,18 +7,20 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('[ORDER] Starting order creation for campaign:', params)
     const { id } = await params;
     const supabase = createAdminClient();
     const campaignId = parseInt(id);
-    
+
     if (isNaN(campaignId)) {
       return NextResponse.json(
         { error: 'Invalid campaign ID' },
         { status: 400 }
       );
     }
-    
+
     const body = await request.json();
+    console.log('[ORDER] Received body:', JSON.stringify(body))
     const { items, guest_phone, guest_name, client_id } = body;
 
     // Для гостей требуем телефон и имя
@@ -28,7 +30,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Валидация items
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -36,8 +38,9 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // 1. Проверяем что кампания существует и открыта
+    console.log('[ORDER] Fetching campaign...')
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('id, status, closes_at, allowed_price_groups')
@@ -165,6 +168,7 @@ export async function POST(
       
     } else {
       // Создаём новый предзаказ
+      console.log('[ORDER] Creating campaign order...')
       const { data: newOrder, error: createError } = await supabase
         .from('campaign_orders')
         .insert({
@@ -200,6 +204,7 @@ export async function POST(
       };
     });
     
+    console.log('[ORDER] Inserting order items:', orderItems)
     const { error: itemsInsertError } = await supabase
       .from('campaign_order_items')
       .insert(orderItems);
@@ -225,7 +230,7 @@ export async function POST(
     }, { status: 201 });
     
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('[ORDER] Error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
