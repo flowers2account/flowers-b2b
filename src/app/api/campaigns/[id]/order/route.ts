@@ -19,13 +19,10 @@ export async function POST(
     }
     
     const body = await request.json();
-    const { items, guest_phone, guest_name } = body;
-    
-    // Получаем пользователя
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const { items, guest_phone, guest_name, client_id } = body;
+
     // Для гостей требуем телефон и имя
-    if (!user && (!guest_phone || !guest_name)) {
+    if (!client_id && (!guest_phone || !guest_name)) {
       return NextResponse.json(
         { error: 'Guest orders require phone and name' },
         { status: 400 }
@@ -68,23 +65,7 @@ export async function POST(
       );
     }
     
-    // 2. Для авторизованных проверяем что клиент имеет право на предзаказы
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('price_group')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile && !campaign.allowed_price_groups.includes(profile.price_group)) {
-        return NextResponse.json(
-          { error: 'Your account type does not have access to pre-orders' },
-          { status: 403 }
-        );
-      }
-    }
-    
-    // 3. Проверяем существование всех campaign_items
+    // 2. Проверяем существование всех campaign_items
     const campaignItemIds = items.map((item: any) => item.campaign_item_id);
     
     const { data: campaignItems, error: itemsError } = await supabase
@@ -135,8 +116,8 @@ export async function POST(
       .select('id, status')
       .eq('campaign_id', campaignId);
     
-    if (user) {
-      existingOrderQuery.eq('client_id', user.id);
+    if (client_id) {
+      existingOrderQuery.eq('client_id', client_id);
     } else {
       existingOrderQuery.eq('guest_phone', guest_phone);
     }
@@ -188,7 +169,7 @@ export async function POST(
         .from('campaign_orders')
         .insert({
           campaign_id: campaignId,
-          client_id: user?.id || null,
+          client_id: client_id || null,
           guest_phone: guest_phone || null,
           guest_name: guest_name || null,
           status: 'pending',
@@ -269,23 +250,19 @@ export async function DELETE(
       );
     }
     
-    // Проверяем авторизацию
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
+    const client_id = request.nextUrl.searchParams.get('client_id');
+
     // Находим предзаказ
-    const { data: order } = await supabase
+    const orderQuery = supabase
       .from('campaign_orders')
       .select('id, status, campaign_id')
-      .eq('campaign_id', campaignId)
-      .eq('client_id', user.id)
-      .single();
+      .eq('campaign_id', campaignId);
+
+    if (client_id) {
+      orderQuery.eq('client_id', client_id);
+    }
+
+    const { data: order } = await orderQuery.single();
     
     if (!order) {
       return NextResponse.json(

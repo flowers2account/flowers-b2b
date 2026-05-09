@@ -17,9 +17,6 @@ export async function GET(
       );
     }
     
-    // Получаем пользователя (может быть null для неавторизованных)
-    const { data: { user } } = await supabase.auth.getUser();
-    
     // 1. Получаем кампанию
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
@@ -76,65 +73,8 @@ export async function GET(
       .rpc('get_campaign_stats', { p_campaign_id: campaignId })
       .single();
     
-    // 4. Если пользователь авторизован - получаем его предзаказ
-    let myOrder = null;
-    
-    if (user) {
-      const { data: existingOrder } = await supabase
-        .from('campaign_orders')
-        .select(`
-          id,
-          campaign_id,
-          client_id,
-          guest_phone,
-          guest_name,
-          status,
-          total,
-          notes,
-          created_at,
-          updated_at,
-          converted_to_order_id
-        `)
-        .eq('campaign_id', campaignId)
-        .eq('client_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (existingOrder) {
-        // Получаем позиции предзаказа
-        const { data: orderItems } = await supabase
-          .from('campaign_order_items')
-          .select(`
-            id,
-            campaign_order_id,
-            campaign_item_id,
-            qty,
-            price,
-            created_at,
-            campaign_item:campaign_items (
-              id,
-              product_id,
-              price,
-              pack_size,
-              product:products (
-                id,
-                name,
-                variety_name,
-                length_str,
-                image_url
-              )
-            )
-          `)
-          .eq('campaign_order_id', existingOrder.id);
-        
-        myOrder = {
-          ...existingOrder,
-          items: orderItems || []
-        };
-      }
-    }
-    
+    const myOrder = null;
+
     return NextResponse.json({
       campaign,
       items: items || [],
@@ -147,7 +87,6 @@ export async function GET(
         closes_in_hours: 0
       },
       my_order: myOrder,
-      user_id: user?.id || null
     });
     
   } catch (error) {
@@ -173,30 +112,6 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'Invalid campaign ID' },
         { status: 400 }
-      );
-    }
-    
-    // Проверяем авторизацию
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    // Проверяем роль
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    
-    if (!profile || !['admin', 'manager'].includes(profile.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden: Only admin/manager can update campaigns' },
-        { status: 403 }
       );
     }
     
@@ -249,30 +164,6 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Invalid campaign ID' },
         { status: 400 }
-      );
-    }
-    
-    // Проверяем авторизацию
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    // Проверяем роль (только admin)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden: Only admin can delete campaigns' },
-        { status: 403 }
       );
     }
     

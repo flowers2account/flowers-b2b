@@ -5,11 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export async function GET(request: NextRequest) {
   try {
     const supabase = createAdminClient();
-    
-    // Проверяем авторизацию
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('AUTH CHECK:', { user: user?.id, error: authError });
-    
+
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status'); // 'published' | 'draft' | 'closed' | etc
     const type = searchParams.get('type'); // 'europe' | 'china'
@@ -83,8 +79,7 @@ export async function GET(request: NextRequest) {
     );
     
     return NextResponse.json({
-      campaigns: campaignsWithStats,
-      user_id: user?.id || null
+      campaigns: campaignsWithStats
     });
     
   } catch (error) {

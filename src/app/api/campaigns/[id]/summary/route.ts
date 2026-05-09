@@ -19,29 +19,6 @@ export async function GET(
       );
     }
     
-    // Проверяем авторизацию (только admin/manager)
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    
-    if (!profile || !['admin', 'manager'].includes(profile.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden: Only admin/manager can view summary' },
-        { status: 403 }
-      );
-    }
-    
     // Получаем информацию о кампании
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
