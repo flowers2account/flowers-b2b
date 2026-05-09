@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // GET /api/campaigns - получить список кампаний
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     
     // Проверяем авторизацию
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 // POST /api/campaigns - создать новую кампанию (только admin/manager)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const body = await request.json();
     
