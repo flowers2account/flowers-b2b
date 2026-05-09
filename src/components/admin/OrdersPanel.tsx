@@ -71,8 +71,6 @@ export default function OrdersPanel() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewOrder, setShowNewOrder] = useState(false)
-  const [exportFrom, setExportFrom] = useState('')
-  const [exportTo, setExportTo] = useState('')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [assemblyOrder, setAssemblyOrder] = useState<Order | null>(null)
@@ -126,8 +124,22 @@ export default function OrdersPanel() {
   }, [orders, datePreset, customFrom, customTo, selectedStatuses])
 
   function handleExport() {
-    if (!exportFrom || !exportTo) return
-    window.open(`/api/export-orders?from=${exportFrom}&to=${exportTo}`, '_blank')
+    const params = new URLSearchParams()
+    const now = new Date()
+    const todayStr = now.toISOString().split('T')[0]
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const d = (ms: number) => new Date(todayStart.getTime() - ms).toISOString().split('T')[0]
+
+    if (datePreset === 'today')     { params.set('from', todayStr);              params.set('to', todayStr) }
+    else if (datePreset === 'yesterday') { const y = d(86_400_000); params.set('from', y); params.set('to', y) }
+    else if (datePreset === 'last7')  { params.set('from', d(6 * 86_400_000));   params.set('to', todayStr) }
+    else if (datePreset === 'last30') { params.set('from', d(29 * 86_400_000));  params.set('to', todayStr) }
+    else if (datePreset === 'custom') { if (customFrom) params.set('from', customFrom); if (customTo) params.set('to', customTo) }
+    // no preset → endpoint uses last-30-days default
+
+    if (selectedStatuses.length > 0) params.set('status', selectedStatuses.join(','))
+
+    window.open(`/api/export-orders?${params.toString()}`, '_blank')
   }
   const supabase = createClient()
 
@@ -286,31 +298,26 @@ export default function OrdersPanel() {
           })}
         </div>
 
-        {/* Counter + reset */}
-        <div className="flex items-center justify-between pt-0.5">
+        {/* Counter + reset + export */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
           <span className="text-xs text-gray-500">
             Показано <span className="font-semibold text-gray-700">{filteredOrders.length}</span> из{' '}
             <span className="font-semibold text-gray-700">{orders.length}</span> заказов
           </span>
-          {hasFilters && (
-            <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-              Сбросить фильтры
+          <div className="flex items-center gap-2 shrink-0">
+            {hasFilters && (
+              <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                Сбросить
+              </button>
+            )}
+            <button
+              onClick={handleExport}
+              className="px-3 py-1 text-xs font-medium bg-green-700 text-white rounded hover:bg-green-800 transition-colors"
+            >
+              📥 Excel
             </button>
-          )}
+          </div>
         </div>
-      </div>
-
-      {/* Export row */}
-      <div className="flex items-center gap-2">
-        <input type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)}
-          className="border rounded px-2 py-1 text-sm" />
-        <span className="text-sm text-gray-400">—</span>
-        <input type="date" value={exportTo} onChange={e => setExportTo(e.target.value)}
-          className="border rounded px-2 py-1 text-sm" />
-        <button onClick={handleExport} disabled={!exportFrom || !exportTo}
-          className="px-3 py-1.5 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50">
-          📥 Выгрузить Excel
-        </button>
       </div>
       {showNewOrder && (
         <NewOrderModal
