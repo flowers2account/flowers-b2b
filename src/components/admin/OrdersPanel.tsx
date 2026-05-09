@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/auth-store'
 import NewOrderModal from './NewOrderModal'
@@ -54,6 +54,18 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Отменён',
 }
 
+type DatePreset = '' | 'today' | 'yesterday' | 'last7' | 'last30' | 'custom'
+
+const DATE_PRESETS: { id: DatePreset; label: string }[] = [
+  { id: 'today',     label: 'Сегодня'  },
+  { id: 'yesterday', label: 'Вчера'    },
+  { id: 'last7',     label: '7 дней'   },
+  { id: 'last30',    label: '30 дней'  },
+  { id: 'custom',    label: 'Период'   },
+]
+
+const ALL_STATUSES = ['pending', 'reserved', 'confirmed', 'assembling', 'assembled', 'delivered', 'cancelled']
+
 export default function OrdersPanel() {
   const { user } = useAuthStore()
   const [orders, setOrders] = useState<Order[]>([])
@@ -64,6 +76,54 @@ export default function OrdersPanel() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [assemblyOrder, setAssemblyOrder] = useState<Order | null>(null)
+
+  // Filters
+  const [datePreset, setDatePreset] = useState<DatePreset>('')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+
+  const hasFilters = datePreset !== '' || selectedStatuses.length > 0
+
+  function toggleStatus(s: string) {
+    setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
+
+  function resetFilters() {
+    setDatePreset('')
+    setCustomFrom('')
+    setCustomTo('')
+    setSelectedStatuses([])
+  }
+
+  const filteredOrders = useMemo(() => {
+    let result = orders
+
+    if (datePreset) {
+      const now = new Date()
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      let fromDate: Date | null = null
+      let toDate: Date | null = null
+
+      if (datePreset === 'today')     { fromDate = todayStart }
+      if (datePreset === 'yesterday') { fromDate = new Date(todayStart.getTime() - 86_400_000); toDate = todayStart }
+      if (datePreset === 'last7')     { fromDate = new Date(todayStart.getTime() - 6 * 86_400_000) }
+      if (datePreset === 'last30')    { fromDate = new Date(todayStart.getTime() - 29 * 86_400_000) }
+      if (datePreset === 'custom') {
+        if (customFrom) fromDate = new Date(customFrom)
+        if (customTo)   toDate   = new Date(customTo + 'T23:59:59')
+      }
+
+      if (fromDate) result = result.filter(o => new Date(o.created_at) >= fromDate!)
+      if (toDate)   result = result.filter(o => new Date(o.created_at) <= toDate!)
+    }
+
+    if (selectedStatuses.length > 0) {
+      result = result.filter(o => selectedStatuses.includes(o.status))
+    }
+
+    return result
+  }, [orders, datePreset, customFrom, customTo, selectedStatuses])
 
   function handleExport() {
     if (!exportFrom || !exportTo) return
@@ -77,7 +137,7 @@ export default function OrdersPanel() {
       .from('orders')
       .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
-      .limit(50)
+      .limit(200)
     if (error) console.error('Orders error:', error)
     setOrders((data as any) ?? [])
     setLoading(false)
@@ -158,7 +218,8 @@ export default function OrdersPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-2">
+      {/* Header row */}
+      <div className="flex justify-between items-center">
         <span className="text-sm font-medium text-gray-600">Заказы</span>
         <button
           onClick={() => setShowNewOrder(true)}
@@ -166,7 +227,81 @@ export default function OrdersPanel() {
           + Новый заказ
         </button>
       </div>
-      <div className="flex items-center gap-2 mt-2">
+
+      {/* Filter bar */}
+      <div className="space-y-3 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+        {/* Date presets */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Период</span>
+          {DATE_PRESETS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setDatePreset(prev => prev === p.id ? '' : p.id)}
+              className="px-2.5 py-1 text-xs font-medium rounded-full border transition-all"
+              style={{
+                background:   datePreset === p.id ? '#7a1c2e' : '#fff',
+                color:        datePreset === p.id ? '#fff' : '#555',
+                borderColor:  datePreset === p.id ? '#7a1c2e' : '#e5e7eb',
+              }}
+            >{p.label}</button>
+          ))}
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-1.5 mt-1 w-full pl-[72px]">
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                className="border rounded px-2 py-1 text-xs" />
+              <span className="text-gray-400 text-xs">—</span>
+              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                className="border rounded px-2 py-1 text-xs" />
+            </div>
+          )}
+        </div>
+
+        {/* Status checkboxes */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Статус</span>
+          {ALL_STATUSES.map(s => {
+            const active = selectedStatuses.includes(s)
+            return (
+              <button
+                key={s}
+                onClick={() => toggleStatus(s)}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border transition-all"
+                style={{
+                  background:  active ? '#7a1c2e' : '#fff',
+                  color:       active ? '#fff' : '#555',
+                  borderColor: active ? '#7a1c2e' : '#e5e7eb',
+                }}
+              >
+                <span
+                  className="w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    borderColor: active ? 'rgba(255,255,255,0.6)' : '#ccc',
+                    background:  active ? 'rgba(255,255,255,0.15)' : '#fff',
+                    fontSize: 8, color: '#fff',
+                  }}
+                >{active ? '✓' : ''}</span>
+                {statusLabel[s] ?? s}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Counter + reset */}
+        <div className="flex items-center justify-between pt-0.5">
+          <span className="text-xs text-gray-500">
+            Показано <span className="font-semibold text-gray-700">{filteredOrders.length}</span> из{' '}
+            <span className="font-semibold text-gray-700">{orders.length}</span> заказов
+          </span>
+          {hasFilters && (
+            <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              Сбросить фильтры
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Export row */}
+      <div className="flex items-center gap-2">
         <input type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)}
           className="border rounded px-2 py-1 text-sm" />
         <span className="text-sm text-gray-400">—</span>
@@ -199,8 +334,12 @@ export default function OrdersPanel() {
           onSaved={() => { setAssemblyOrder(null); loadOrders() }}
         />
       )}
-      {orders.length === 0 && <div className="text-sm text-gray-400 py-4">Заказов нет</div>}
-      {orders.map(order => {
+      {filteredOrders.length === 0 && (
+        <div className="text-sm text-gray-400 py-4">
+          {orders.length === 0 ? 'Заказов нет' : 'Нет заказов, соответствующих фильтрам'}
+        </div>
+      )}
+      {filteredOrders.map(order => {
         const expiresAt = (order.status === 'pending' || order.status === 'reserved') ? minExpiresAt(order.reservations ?? []) : null
 
         return (
