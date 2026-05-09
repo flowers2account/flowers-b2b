@@ -15,7 +15,7 @@ export default function CampaignSummaryModal({ campaignId, onClose }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
   useEffect(() => {
-    fetch(`/api/campaigns/${campaignId}/summary`)
+    fetch(`/api/campaigns/${campaignId}/summary`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (data.error) {
