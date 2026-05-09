@@ -29,7 +29,7 @@ export default function AdminPage() {
       const [{ data: productRows }, { data: activeReservations }] = await Promise.all([
         supabase
           .from('products')
-          .select(`id, name, category, is_active, pack_size, image_url, stock (price, qty, qty_reserved, is_available)`)
+          .select(`id, name, category, is_active, pack_size, image_url, colors, stock (price, qty, qty_reserved, is_available)`)
           .order('category')
           .order('name'),
         supabase

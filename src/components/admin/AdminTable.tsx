@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table'
+import { COLORS } from '@/lib/colors'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; stock: Stock[] | Stock }
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; colors?: string[] | null; stock: Stock[] | Stock }
 
 const TRANSLIT: Record<string, string> = {
   а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
@@ -45,8 +46,26 @@ function StockRow({ product, onSaved }: {
   const [saved, setSaved] = useState(false)
   const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
   const [uploading, setUploading] = useState(false)
+  const [colors, setColors] = useState<string[]>(product.colors ?? [])
+  const [colorsOpen, setColorsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const colorPickerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    if (!colorsOpen) return
+    function onOutsideClick(e: MouseEvent) {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setColorsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onOutsideClick)
+    return () => document.removeEventListener('mousedown', onOutsideClick)
+  }, [colorsOpen])
+
+  function toggleColor(key: string) {
+    setColors(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key])
+  }
 
   async function save() {
     setSaving(true)
@@ -55,7 +74,7 @@ function StockRow({ product, onSaved }: {
       .update({ qty: parseInt(qty), price: parseFloat(price), updated_at: new Date().toISOString() })
       .eq('product_id', product.id)
     await supabase.from('products')
-      .update({ pack_size: parseInt(packSize) })
+      .update({ pack_size: parseInt(packSize), colors })
       .eq('id', product.id)
     setSaving(false)
     setSaved(true)
@@ -141,6 +160,81 @@ function StockRow({ product, onSaved }: {
           className="w-20 h-8 text-center"
         />
       </TableCell>
+      {/* Color picker cell */}
+      <TableCell>
+        <div ref={colorPickerRef} className="relative">
+          <button
+            onClick={() => setColorsOpen(prev => !prev)}
+            className="flex flex-wrap gap-0.5 items-center min-w-[56px] h-8 px-1.5 border border-dashed rounded hover:border-gray-400 transition-colors"
+            style={{ borderColor: colorsOpen ? '#7a1c2e' : undefined }}
+            title="Редактировать цвета"
+          >
+            {colors.length === 0 ? (
+              <span className="text-[11px] text-gray-300">+цвет</span>
+            ) : (
+              colors.slice(0, 5).map(c => {
+                const col = COLORS.find(x => x.key === c)
+                if (!col) return null
+                return (
+                  <span
+                    key={c}
+                    style={{
+                      width: 11, height: 11, borderRadius: '50%', flexShrink: 0,
+                      background: ('gradient' in col ? col.gradient : col.bg) as string,
+                      border: '1px solid rgba(0,0,0,0.18)',
+                      display: 'inline-block',
+                    }}
+                  />
+                )
+              })
+            )}
+            {colors.length > 5 && (
+              <span className="text-[10px] text-gray-400 ml-0.5">+{colors.length - 5}</span>
+            )}
+          </button>
+
+          {colorsOpen && (
+            <div
+              className="absolute z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3"
+              style={{ top: 'calc(100% + 4px)', left: 0, width: 220 }}
+            >
+              <div className="flex flex-wrap gap-2 mb-2">
+                {COLORS.map(col => {
+                  const active = colors.includes(col.key)
+                  return (
+                    <button
+                      key={col.key}
+                      title={col.label}
+                      onClick={() => toggleColor(col.key)}
+                      style={{
+                        width: 26, height: 26, borderRadius: '50%', cursor: 'pointer',
+                        background: ('gradient' in col ? col.gradient : col.bg) as string,
+                        border: active ? '2.5px solid #7a1c2e' : '1.5px solid rgba(0,0,0,0.15)',
+                        outline: active ? '2px solid rgba(122,28,46,0.25)' : 'none',
+                        outlineOffset: 1,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                <span className="text-[11px] text-gray-400">
+                  {colors.length > 0 ? colors.map(c => COLORS.find(x => x.key === c)?.label).join(', ') : 'Не выбрано'}
+                </span>
+                <button
+                  onClick={() => setColorsOpen(false)}
+                  className="text-xs font-medium px-2 py-0.5 rounded"
+                  style={{ color: '#7a1c2e' }}
+                >
+                  Готово
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </TableCell>
+
       <TableCell>
         <div className="flex items-center gap-1">
           <Button
@@ -215,6 +309,7 @@ export default function AdminTable({ products, onReload }: { products: Product[]
               <TableHead className="text-center">Резерв</TableHead>
               <TableHead className="text-center">Цена (₸)</TableHead>
               <TableHead className="text-center">Уп.</TableHead>
+              <TableHead className="text-center">Цвет</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
