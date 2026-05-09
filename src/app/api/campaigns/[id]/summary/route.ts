@@ -48,7 +48,7 @@ export async function GET(
       const workbook = XLSX.utils.book_new();
       
       // Лист 1: Сводный заказ поставщику
-      const summaryData = summary.map((row: any) => ({
+      const summaryData = (summary || []).map((row: any) => ({
         'Название': row.product_name,
         'Сорт': row.variety_name || '',
         'Длина': row.length_str || '',
@@ -64,7 +64,7 @@ export async function GET(
       // Лист 2: Разбивка по клиентам
       const breakdownData: any[] = [];
       
-      summary.forEach((row: any) => {
+      (summary || []).forEach((row: any) => {
         if (row.orders_breakdown && Array.isArray(row.orders_breakdown)) {
           row.orders_breakdown.forEach((order: any) => {
             breakdownData.push({
