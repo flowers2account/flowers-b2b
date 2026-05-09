@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
     query = query.in('status', statuses)
   }
 
+  const { data: orders } = await query
+
   const rows: any[] = []
   for (const order of orders ?? []) {
     const client = (order.client as any)
