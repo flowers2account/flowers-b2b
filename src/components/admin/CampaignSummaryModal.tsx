@@ -46,7 +46,7 @@ export default function CampaignSummaryModal({ campaignId, onClose }: Props) {
 
   const totalPositions = rows.length
   const totalClients = new Set(
-    rows.flatMap(r => r.orders_breakdown.map(o => o.client_id ?? o.client_name))
+    rows.flatMap(r => (r.orders_breakdown ?? []).map(o => o.client_id ?? o.client_name))
   ).size
   const totalAmount = rows.reduce((sum, r) => sum + r.price * r.total_qty_ordered, 0)
 
@@ -107,7 +107,7 @@ export default function CampaignSummaryModal({ campaignId, onClose }: Props) {
                           className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-[#7a1c2e]/[0.03] transition-colors`}
                         >
                           <td className="px-4 py-3">
-                            {row.orders_breakdown.length > 0 && (
+                            {(row.orders_breakdown?.length ?? 0) > 0 && (
                               <button
                                 onClick={() => toggleExpanded(row.campaign_item_id)}
                                 className="w-5 h-5 rounded flex items-center justify-center text-[#7a1c2e] hover:bg-[#7a1c2e]/10 transition-colors text-xs"
@@ -133,12 +133,12 @@ export default function CampaignSummaryModal({ campaignId, onClose }: Props) {
                             {row.total_qty_ordered}
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-600 tabular-nums">
-                            {row.orders_breakdown.length}
+                            {row.orders_breakdown?.length ?? 0}
                           </td>
                         </tr>
 
                         {/* Аккордеон: разбивка по клиентам */}
-                        {isOpen && row.orders_breakdown.length > 0 && (
+                        {isOpen && (row.orders_breakdown?.length ?? 0) > 0 && (
                           <tr key={`${row.campaign_item_id}-breakdown`} className="bg-[#7a1c2e]/[0.03]">
                             <td />
                             <td colSpan={5} className="px-4 py-2 pb-3">
@@ -146,7 +146,7 @@ export default function CampaignSummaryModal({ campaignId, onClose }: Props) {
                                 Разбивка по клиентам
                               </div>
                               <div className="grid gap-1">
-                                {row.orders_breakdown.map((o, i) => (
+                                {(row.orders_breakdown ?? []).map((o, i) => (
                                   <div
                                     key={i}
                                     className="flex items-center justify-between text-sm text-gray-700 bg-white rounded px-3 py-1.5 border border-gray-100"
