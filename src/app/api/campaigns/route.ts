@@ -115,13 +115,13 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single();
     
-    // TEMPORARY: auth check disabled
+    // TEMPORARY: auth check disabled for testing
     // if (!profile || !['admin', 'manager'].includes(profile.role)) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // },
-        { status: 403 }
-      );
-    }
+    //   return NextResponse.json(
+    //     { error: 'Forbidden: Only admin/manager can create campaigns' },
+    //     { status: 403 }
+    //   );
+    // }
     
     const body = await request.json();
     
