@@ -4,6 +4,31 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+type CampaignOrder = {
+  id: number
+  campaign_id: number
+  campaign_title: string | null
+  campaign_type: string | null
+  delivery_date: string | null
+  status: string
+  total: number
+  items_count: number
+}
+
+const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
+  pending:   'Ожидает поставки',
+  confirmed: 'Подтверждён',
+  delivered: 'Доставлен',
+  cancelled: 'Отменён',
+}
+
+const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
+  pending:   'bg-blue-100 text-blue-800',
+  confirmed: 'bg-green-100 text-green-800',
+  delivered: 'bg-gray-100 text-gray-700',
+  cancelled: 'bg-red-100 text-red-800',
+}
+
 type OrderItem = {
   id: string
   qty: number
@@ -116,9 +141,10 @@ function AssemblyChanges({ items }: { items: OrderItem[] }) {
 }
 
 export default function CabinetPage() {
-  const { isAuthed, phone, init } = useAuthStore()
+  const { isAuthed, phone, user, init } = useAuthStore()
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
+  const [campaignOrders, setCampaignOrders] = useState<CampaignOrder[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -130,13 +156,32 @@ export default function CabinetPage() {
       router.push('/')
       return
     }
-    fetch(`/api/cabinet?phone=${encodeURIComponent(phone)}`)
-      .then(r => r.json())
-      .then(data => {
-        setOrders(data.orders ?? [])
-        setLoading(false)
-      })
-  }, [isAuthed, phone, router])
+
+    const fetches: Promise<void>[] = [
+      fetch(`/api/cabinet?phone=${encodeURIComponent(phone)}`)
+        .then(r => r.json())
+        .then(data => setOrders(data.orders ?? [])),
+    ]
+
+    if (user?.id) {
+      fetches.push(
+        fetch(`/api/campaigns/orders?client_id=${user.id}`)
+          .then(r => r.json())
+          .then(data => {
+            const list: CampaignOrder[] = data.orders ?? []
+            list.sort((a, b) => {
+              if (a.status === 'pending' && b.status !== 'pending') return -1
+              if (b.status === 'pending' && a.status !== 'pending') return 1
+              return new Date(a.delivery_date ?? 0).getTime() - new Date(b.delivery_date ?? 0).getTime()
+            })
+            setCampaignOrders(list)
+          })
+          .catch(() => {})
+      )
+    }
+
+    Promise.all(fetches).finally(() => setLoading(false))
+  }, [isAuthed, phone, user?.id, router])
 
   if (!isAuthed) return null
 
@@ -152,7 +197,7 @@ export default function CabinetPage() {
 
       {loading ? (
         <div className="text-center py-12 text-gray-400">Загрузка...</div>
-      ) : orders.length === 0 ? (
+      ) : orders.length === 0 && campaignOrders.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <p className="text-4xl mb-3">🌸</p>
           <p>У вас пока нет заказов</p>
@@ -160,6 +205,59 @@ export default function CabinetPage() {
         </div>
       ) : (
         <div className="space-y-4">
+
+          {/* Предзаказы */}
+          {campaignOrders.length > 0 && (
+            <>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide pt-2">
+                📅 Мои предзаказы
+              </h2>
+              {campaignOrders.map(co => {
+                const delivery = co.delivery_date
+                  ? new Date(co.delivery_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : null
+                return (
+                  <div key={co.id} className="border rounded-xl p-4 bg-white shadow-sm">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-lg shrink-0">📅</span>
+                        <span className="font-medium text-gray-800 leading-tight">
+                          {co.campaign_title ?? `Предзаказ #${co.id}`}
+                        </span>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${CAMPAIGN_STATUS_COLORS[co.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {CAMPAIGN_STATUS_LABELS[co.status] ?? co.status}
+                      </span>
+                    </div>
+
+                    {delivery && (
+                      <p className="text-sm text-gray-500 mb-2">Поставка: {delivery}</p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="text-sm text-gray-500">{co.items_count} поз.</span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-sm">{co.total.toLocaleString()} ₸</span>
+                        <Link
+                          href={`/campaigns/${co.campaign_id}`}
+                          className="text-xs px-3 py-1 rounded-lg font-medium no-underline"
+                          style={{ backgroundColor: '#f5f0f3', color: '#7a1c2e' }}
+                        >
+                          Открыть
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              {orders.length > 0 && (
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide pt-2">
+                  Обычные заказы
+                </h2>
+              )}
+            </>
+          )}
+
           {orders.map(order => {
             const visibleItems = order.order_items.filter(i => !i.is_removed)
             const total = visibleItems.reduce((s, i) => s + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0)
