@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import type { CampaignWithStats, CampaignStatus } from '@/types/campaigns'
 import CreateCampaignModal from './CreateCampaignModal'
+import CampaignSummaryModal from './CampaignSummaryModal'
 
 const STATUS_LABELS: Record<CampaignStatus, string> = {
-  draft: 'Черновик',
-  published: 'Опубликована',
-  closed: 'Закрыта',
-  delivered: 'Доставлена',
-  cancelled: 'Отменена'
+  draft: 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ',
+  published: 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ',
+  closed: 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ',
+  delivered: 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ',
+  cancelled: 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ'
 }
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
@@ -25,6 +26,7 @@ export default function CampaignsPanel() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<CampaignStatus | 'all'>('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [summaryId, setSummaryId] = useState<number | null>(null)
 
   async function fetchCampaigns() {
     setLoading(true)
@@ -53,7 +55,7 @@ export default function CampaignsPanel() {
   }
 
   function handleSummary(id: number) {
-    console.log('TODO: show summary modal', id)
+    setSummaryId(id)
   }
 
   function handleConvert(id: number) {
@@ -78,10 +80,10 @@ export default function CampaignsPanel() {
   }
 
   function getClosingTimer(closesInHours: number) {
-    if (closesInHours <= 0) return 'Закрыта'
-    if (closesInHours < 24) return `${Math.floor(closesInHours)} ч`
+    if (closesInHours <= 0) return 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ'
+    if (closesInHours < 24) return `${Math.floor(closesInHours)} пїЅ`
     const days = Math.floor(closesInHours / 24)
-    return `${days} дн`
+    return `${days} пїЅпїЅ`
   }
 
   const filtered = campaigns
@@ -101,7 +103,7 @@ export default function CampaignsPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {s === 'all' ? 'Все' : STATUS_LABELS[s]}
+              {s === 'all' ? 'пїЅпїЅпїЅ' : STATUS_LABELS[s]}
             </button>
           ))}
         </div>
@@ -110,28 +112,28 @@ export default function CampaignsPanel() {
           onClick={handleCreate}
           className="px-3 py-1.5 bg-[#7a1c2e] text-white text-sm rounded hover:bg-[#621624] transition-colors"
         >
-          + Создать кампанию
+          + пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         </button>
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Загрузка...</div>
+        <div className="text-center py-12 text-gray-400">пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ...</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">Нет кампаний</div>
+        <div className="text-center py-12 text-gray-400">пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[#7a1c2e] text-white sticky top-0">
               <tr>
                 <th className="px-4 py-2 text-left text-xs font-medium">ID</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Название</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Тип</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Закрытие</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Поставка</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Статус</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Статистика</th>
-                <th className="px-4 py-2 text-left text-xs font-medium">Действия</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">пїЅпїЅпїЅ</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">пїЅпїЅпїЅпїЅпїЅпїЅ</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>
               </tr>
             </thead>
             <tbody>
@@ -145,13 +147,13 @@ export default function CampaignsPanel() {
                     <div className="text-sm font-medium text-gray-900">{c.title}</div>
                     {c.status === 'published' && c.stats && (
                       <div className="text-xs text-gray-500 mt-0.5">
-                        Закрывается через {getClosingTimer(c.stats.closes_in_hours)}
+                        пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ {getClosingTimer(c.stats.closes_in_hours)}
                       </div>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
-                      {c.type === 'europe' ? 'Европа' : 'Китай'}
+                      {c.type === 'europe' ? 'пїЅпїЅпїЅпїЅпїЅпїЅ' : 'пїЅпїЅпїЅпїЅпїЅ'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
@@ -168,8 +170,8 @@ export default function CampaignsPanel() {
                   <td className="px-4 py-3">
                     {c.stats && (
                       <div className="text-xs text-gray-600">
-                        <div>{c.stats.total_orders} заказов</div>
-                        <div>{c.stats.total_clients} клиентов</div>
+                        <div>{c.stats.total_orders} пїЅпїЅпїЅпїЅпїЅпїЅпїЅ</div>
+                        <div>{c.stats.total_clients} пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ</div>
                         <div className="font-medium">
                           {c.stats.total_amount.toLocaleString('ru-RU')} ?
                         </div>
@@ -182,20 +184,20 @@ export default function CampaignsPanel() {
                         onClick={() => handleEdit(c.id)}
                         className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
                       >
-                        Ред.
+                        пїЅпїЅпїЅ.
                       </button>
                       <button
                         onClick={() => handleSummary(c.id)}
                         className="px-2 py-1 text-xs text-[#7a1c2e] hover:bg-red-50 rounded"
                       >
-                        Сводка
+                        пїЅпїЅпїЅпїЅпїЅпїЅ
                       </button>
                       {c.status === 'closed' && (
                         <button
                           onClick={() => handleConvert(c.id)}
                           className="px-2 py-1 text-xs text-green-600 hover:bg-green-50 rounded"
                         >
-                          Конверт.
+                          пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
                         </button>
                       )}
                     </div>
@@ -208,6 +210,12 @@ export default function CampaignsPanel() {
       )}
 
       {/* Modals */}
+      {summaryId !== null && (
+        <CampaignSummaryModal
+          campaignId={summaryId}
+          onClose={() => setSummaryId(null)}
+        />
+      )}
       {showCreateModal && (
         <CreateCampaignModal
           onClose={() => setShowCreateModal(false)}
