@@ -21,7 +21,7 @@ export default function CampaignSummaryModal({ campaignId, onClose }: Props) {
         if (data.error) {
           setError(data.error)
         } else {
-          setRows(Array.isArray(data) ? data : data.rows ?? [])
+          setRows(data.summary ?? [])
         }
       })
       .catch(() => setError('Ошибка загрузки сводки'))
