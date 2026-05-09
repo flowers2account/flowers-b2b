@@ -1,6 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+// GET /api/campaigns/[id]/order?client_id=... - получить предзаказ клиента
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = createAdminClient();
+  const campaignId = parseInt(id);
+  const client_id = request.nextUrl.searchParams.get('client_id');
+
+  if (isNaN(campaignId) || !client_id) {
+    return NextResponse.json({ order: null });
+  }
+
+  const { data: order } = await supabase
+    .from('campaign_orders')
+    .select('id, status, total, campaign_order_items(id, campaign_item_id, qty, price)')
+    .eq('campaign_id', campaignId)
+    .eq('client_id', client_id)
+    .neq('status', 'cancelled')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!order) return NextResponse.json({ order: null });
+
+  return NextResponse.json({
+    order: {
+      id: order.id,
+      status: order.status,
+      total: order.total,
+      items_count: (order.campaign_order_items as any[]).length,
+      items: order.campaign_order_items,
+    }
+  });
+}
+
 // POST /api/campaigns/[id]/order - создать или обновить предзаказ
 export async function POST(
   request: NextRequest,

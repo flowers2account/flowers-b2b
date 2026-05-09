@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/lib/auth-store'
 import Link from 'next/link'
 
 type OrderItem = {
@@ -22,6 +23,34 @@ type Order = {
   order_items: OrderItem[]
   reservations: { expires_at: string }[]
 }
+
+type CampaignOrder = {
+  id: number
+  campaign_id: number
+  campaign_title: string | null
+  campaign_type: string | null
+  delivery_date: string | null
+  status: string
+  total: number
+  items_count: number
+  created_at: string
+}
+
+const campaignStatusLabel: Record<string, string> = {
+  pending: 'Ожидает поставки',
+  confirmed: 'Подтверждён',
+  delivered: 'Доставлен',
+  cancelled: 'Отменён',
+}
+
+const campaignStatusColor: Record<string, string> = {
+  pending: 'bg-blue-100 text-blue-800',
+  confirmed: 'bg-green-100 text-green-800',
+  delivered: 'bg-gray-100 text-gray-700',
+  cancelled: 'bg-red-100 text-red-800',
+}
+
+const TYPE_LABELS: Record<string, string> = { europe: 'Европа', china: 'Китай' }
 
 const statusLabel: Record<string, string> = {
   pending: '⏳ Новый',
@@ -50,16 +79,30 @@ function minExpiresAt(reservations: { expires_at: string }[]): string | null {
 
 export default function OrdersPageClient() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [campaignOrders, setCampaignOrders] = useState<CampaignOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [editingItem, setEditingItem] = useState<number | null>(null)
   const supabase = createClient()
+  const { user } = useAuthStore()
 
   async function loadOrders() {
     setLoading(true)
-    const res = await fetch('/api/my-orders')
-    if (res.ok) {
-      setOrders(await res.json())
+    const [ordersRes, campaignRes] = await Promise.all([
+      fetch('/api/my-orders'),
+      user ? fetch(`/api/campaigns/orders?client_id=${user.id}`) : Promise.resolve(null),
+    ])
+    if (ordersRes.ok) setOrders(await ordersRes.json())
+    if (campaignRes?.ok) {
+      const d = await campaignRes.json()
+      // сортируем: pending первыми, потом по дате поставки
+      const list: CampaignOrder[] = d.orders ?? []
+      list.sort((a, b) => {
+        if (a.status === 'pending' && b.status !== 'pending') return -1
+        if (b.status === 'pending' && a.status !== 'pending') return 1
+        return new Date(a.delivery_date ?? 0).getTime() - new Date(b.delivery_date ?? 0).getTime()
+      })
+      setCampaignOrders(list)
     }
     setLoading(false)
   }
@@ -71,7 +114,8 @@ export default function OrdersPageClient() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => loadOrders())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   function toggleExpand(orderId: number) {
     setExpanded(prev => {
@@ -107,7 +151,7 @@ export default function OrdersPageClient() {
 
   if (loading) return <div className="text-sm text-gray-400 py-8 text-center">Загрузка...</div>
 
-  if (orders.length === 0) return (
+  if (orders.length === 0 && campaignOrders.length === 0) return (
     <div className="text-center py-16">
       <p className="text-gray-400 mb-4">У вас пока нет заказов</p>
       <Link href="/" className="text-green-700 hover:underline text-sm">Перейти в каталог →</Link>
@@ -116,6 +160,54 @@ export default function OrdersPageClient() {
 
   return (
     <div className="space-y-3">
+      {/* Предзаказы */}
+      {campaignOrders.length > 0 && (
+        <>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide pt-2">📅 Предзаказы</h2>
+          {campaignOrders.map(co => {
+            const delivery = co.delivery_date
+              ? new Date(co.delivery_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+              : null
+            return (
+              <div key={co.id} className="border rounded-lg overflow-hidden bg-white">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3 flex-wrap min-w-0">
+                    <span className="font-medium text-sm truncate">
+                      📅 {co.campaign_title ?? `Предзаказ #${co.id}`}
+                    </span>
+                    {co.campaign_type && (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full shrink-0">
+                        {TYPE_LABELS[co.campaign_type] ?? co.campaign_type}
+                      </span>
+                    )}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${campaignStatusColor[co.status] ?? 'bg-gray-100'}`}>
+                      {campaignStatusLabel[co.status] ?? co.status}
+                    </span>
+                    {delivery && (
+                      <span className="text-xs text-gray-400 shrink-0">Поставка: {delivery}</span>
+                    )}
+                    <span className="text-xs text-gray-400 shrink-0">{co.items_count} поз.</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm font-semibold">{fmt(co.total)}</span>
+                    <Link
+                      href={`/campaigns/${co.campaign_id}`}
+                      className="text-xs px-2.5 py-1 rounded no-underline font-medium transition-colors"
+                      style={{ backgroundColor: '#f5f0f3', color: '#7a1c2e' }}
+                    >
+                      Открыть
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+          {orders.length > 0 && (
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide pt-2">Обычные заказы</h2>
+          )}
+        </>
+      )}
+
       {orders.map(order => {
         const isOpen = expanded.has(order.id)
         const canEdit = order.status === 'pending' || order.status === 'reserved'

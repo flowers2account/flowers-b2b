@@ -66,6 +66,14 @@ function useCountdown(target: string | undefined) {
 
 type CartState = Record<number, number>
 
+type ExistingOrder = {
+  id: number
+  status: string
+  total: number
+  items_count: number
+  items: { campaign_item_id: number; qty: number; price: number }[]
+} | null
+
 export default function CampaignDetailPage() {
   const { id } = useParams()
   const { user, isAuthed, init } = useAuthStore()
@@ -82,6 +90,9 @@ export default function CampaignDetailPage() {
   const [guestName, setGuestName] = useState('')
   const [guestPhone, setGuestPhone] = useState('')
 
+  const [existingOrder, setExistingOrder] = useState<ExistingOrder>(null)
+  const [cancellingOrder, setCancellingOrder] = useState(false)
+
   useEffect(() => {
     init()
     fetch(`/api/campaigns/${id}`)
@@ -93,6 +104,40 @@ export default function CampaignDetailPage() {
       .catch(() => setFetchError('Не удалось загрузить кампанию'))
       .finally(() => setLoading(false))
   }, [id, init])
+
+  // Проверяем существующий предзаказ после авторизации
+  useEffect(() => {
+    if (!user || !id) return
+    fetch(`/api/campaigns/${id}/order?client_id=${user.id}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.order) setExistingOrder(d.order)
+      })
+      .catch(() => {})
+  }, [user?.id, id])
+
+  const loadOrderIntoCart = () => {
+    if (!existingOrder) return
+    const newCart: CartState = {}
+    existingOrder.items.forEach(item => {
+      newCart[item.campaign_item_id] = item.qty
+    })
+    setCart(newCart)
+    setSubmitted(false)
+    setExistingOrder(null)
+    // Скроллим к каталогу
+    document.getElementById('campaign-catalog')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const cancelExistingOrder = async () => {
+    if (!existingOrder || !user || !confirm('Отменить предзаказ?')) return
+    setCancellingOrder(true)
+    try {
+      const res = await fetch(`/api/campaigns/${id}/order?client_id=${user.id}`, { method: 'DELETE' })
+      if (res.ok) setExistingOrder(null)
+    } catch {}
+    setCancellingOrder(false)
+  }
 
   const countdown = useCountdown(data?.campaign?.closes_at)
 
@@ -156,6 +201,13 @@ export default function CampaignDetailPage() {
       } else {
         setSubmitted(true)
         setCart({})
+        // Обновляем баннер существующего заказа
+        if (user) {
+          fetch(`/api/campaigns/${id}/order?client_id=${user.id}`)
+            .then(r => r.json())
+            .then(d2 => { if (d2.order) setExistingOrder(d2.order) })
+            .catch(() => {})
+        }
       }
     } catch {
       setOrderError('Сетевая ошибка, попробуйте ещё раз')
@@ -341,7 +393,36 @@ export default function CampaignDetailPage() {
       <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6 items-start">
         {/* Catalog */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-4">
+          {/* Баннер существующего предзаказа */}
+          {existingOrder && (
+            <div className="mb-4 border border-green-200 bg-green-50 rounded-xl px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <div className="font-semibold text-green-800 text-sm">✓ Ваш предзаказ оформлен</div>
+                <div className="text-green-700 text-xs mt-0.5">
+                  {existingOrder.items_count} {existingOrder.items_count === 1 ? 'позиция' : 'позиции'} на сумму{' '}
+                  {existingOrder.total.toLocaleString('ru-RU')} ₸
+                </div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={loadOrderIntoCart}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium border transition-colors"
+                  style={{ borderColor: '#7a1c2e', color: '#7a1c2e' }}
+                >
+                  Изменить
+                </button>
+                <button
+                  onClick={cancelExistingOrder}
+                  disabled={cancellingOrder}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors disabled:opacity-50"
+                >
+                  {cancellingOrder ? '...' : 'Отменить'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div id="campaign-catalog" className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-700">
               Товары <span className="text-gray-400 font-normal">({items.length})</span>
             </h2>
