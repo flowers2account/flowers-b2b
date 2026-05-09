@@ -33,18 +33,12 @@ export async function GET(
       );
     }
     
-    // Получаем сводный заказ
-    const { data: summary, error: summaryError } = await supabase
-      .rpc('get_campaign_summary', { p_campaign_id: campaignId });
-    
-    if (summaryError) {
-      console.error('Error fetching campaign summary:', summaryError);
-      return NextResponse.json(
-        { error: 'Failed to fetch summary' },
-        { status: 500 }
-      );
-    }
-    
+    // Получаем сводку из VIEW
+    const { data: summary } = await supabase
+      .from('campaign_summary')
+      .select('*')
+      .eq('campaign_id', campaignId)
+
     // Проверяем формат ответа
     const searchParams = request.nextUrl.searchParams;
     const format = searchParams.get('format'); // 'json' | 'excel'
@@ -99,23 +93,26 @@ export async function GET(
       });
     }
     
-    // Формат JSON (по умолчанию)
-    return NextResponse.json({
-      campaign,
-      summary,
-      totals: {
-        total_items: summary.length,
-        total_qty: summary.reduce((sum: number, row: any) => sum + row.total_qty_ordered, 0),
-        total_amount: summary.reduce((sum: number, row: any) => {
-          return sum + (row.total_qty_ordered * row.price);
-        }, 0),
-        total_clients: new Set(
-          summary.flatMap((row: any) => 
-            row.orders_breakdown?.map((o: any) => o.client_id) || []
-          )
-        ).size
-      }
-    });
+    // Считаем итоги
+    const totalQty = summary?.reduce((sum, r: any) => sum + (r.total_qty_ordered || 0), 0) || 0
+    const totalAmount = summary?.reduce((sum, r: any) => sum + (r.price * r.total_qty_ordered || 0), 0) || 0
+
+    const uniqueClients = new Set<string>()
+    summary?.forEach((row: any) => {
+      row.orders_breakdown?.forEach((o: any) => {
+        if (o.client_id) uniqueClients.add(o.client_id)
+        else if (o.client_name) uniqueClients.add(o.client_name)
+      })
+    })
+
+    const totals = {
+      total_items: summary?.length || 0,
+      total_qty: totalQty,
+      total_amount: totalAmount,
+      total_clients: uniqueClients.size
+    }
+
+    return NextResponse.json({ campaign, summary, totals });
     
   } catch (error) {
     console.error('Unexpected error:', error);
