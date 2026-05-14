@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/phone'
+import { umnicoClient } from '@/lib/umnico/client'
+import { umnicoTemplates } from '@/lib/umnico/templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -182,6 +184,33 @@ const itemsList = items
     })
   } catch (e) {
     console.error('Telegram notify failed:', e)
+  }
+
+  if (process.env.UMNICO_MANAGER_PHONE && process.env.UMNICO_API_TOKEN) {
+    try {
+      const hasWhatsApp = await umnicoClient.checkContact(process.env.UMNICO_MANAGER_PHONE)
+
+      if (hasWhatsApp) {
+        await umnicoClient.sendMessage(
+          process.env.UMNICO_MANAGER_PHONE,
+          umnicoTemplates.newOrderToManager({
+            orderId: String(orderId),
+            clientName: name || normalizedPhone,
+            clientPhone: normalizedPhone,
+            total: totalSum,
+            items: items.map((item: any) => ({
+              name: item.name || 'Товар',
+              qty: item.qty,
+              price: item.price
+            })),
+            adminUrl: 'https://flowers-b2b-phi.vercel.app/admin'
+          })
+        )
+        console.log(`✓ Umnico: уведомление менеджеру (заказ ${orderId})`)
+      }
+    } catch (error) {
+      console.error('Umnico notification failed:', error)
+    }
   }
 
   return NextResponse.json({ success: true, order_id: orderId, is_new_order: isNewOrder, expires_at })
