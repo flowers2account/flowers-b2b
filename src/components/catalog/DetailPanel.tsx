@@ -443,17 +443,21 @@ function StateCart({ onBack }: { onBack: () => void }) {
         <div style={{ fontSize: 12, color: 'var(--text-mid)', textAlign: 'center', lineHeight: 1.5 }}>
           Менеджер получит уведомление и свяжется с вами.
         </div>
-        <button
-          onClick={() => window.open(whatsappUrl, '_blank')}
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
             width: '100%', padding: '10px 14px', marginTop: 4,
             background: '#25D366', color: '#fff', border: 'none',
             borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
             cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            textDecoration: 'none', boxSizing: 'border-box',
           }}
         >
           📲 Открыть WhatsApp
-        </button>
+        </a>
         <button
           onClick={() => { setDone(false); onBack() }}
           style={{

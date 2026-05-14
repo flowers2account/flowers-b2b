@@ -146,12 +146,14 @@ export default function Cart() {
             <DialogTitle>🎉 Заказ оформлен!</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">Менеджер получил заказ и свяжется с вами.</p>
-          <Button
-            className="w-full bg-green-700 hover:bg-green-800 mt-2"
-            onClick={() => window.open(whatsappUrl, '_blank')}
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full inline-flex items-center justify-center bg-[#25D366] hover:bg-[#1ebe5d] text-white font-medium rounded-md h-10 px-4 mt-2 text-sm transition-colors"
           >
             📲 Открыть WhatsApp
-          </Button>
+          </a>
           <Button variant="outline" className="w-full mt-2" onClick={() => setDone(false)}>
             Отлично!
           </Button>
