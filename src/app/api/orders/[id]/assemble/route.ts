@@ -110,16 +110,9 @@ export async function PATCH(
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
         console.log('Client hasWhatsApp:', hasWhatsApp)
         if (hasWhatsApp) {
-          if (photoUrl) {
-            await umnicoClient.sendImage(
-              clientPhone,
-              photoUrl,
-              `📦 Заказ #${orderId} собран и готов к получению!`
-            )
-          }
           await umnicoClient.sendMessage(
             clientPhone,
-            umnicoTemplates.orderPackedToClient({ orderId: String(orderId), clientName, total })
+            umnicoTemplates.orderPackedToClient({ orderId: String(orderId), clientName, total, photoUrl })
           )
           console.log(`✓ Umnico: клиенту о сборке заказа ${orderId}`)
         }
