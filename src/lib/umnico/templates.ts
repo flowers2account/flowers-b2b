@@ -82,6 +82,12 @@ _Цветы Уральска_`
 💰 ${total.toLocaleString('ru-RU')} ₸`
   },
 
+  orderCancelledToClient: ({ orderId, clientName }: { orderId: string; clientName: string }): string =>
+    `❌ Заказ #${orderId} отменён
+${clientName}, ваш заказ был отменён.
+Если есть вопросы — свяжитесь с нами.
+_Цветы Уральска_`,
+
   orderCreatedToClient: (
     orderId: string,
     clientName: string,

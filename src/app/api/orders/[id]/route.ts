@@ -121,6 +121,8 @@ export async function PATCH(
               ? umnicoTemplates.orderPackedToClient({ orderId: orderIdStr, clientName, total })
               : status === 'delivered'
               ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr, clientName, total, items: deliveredItems })
+              : status === 'cancelled'
+              ? umnicoTemplates.orderCancelledToClient({ orderId: orderIdStr, clientName })
               : null
 
           if (clientMessage) {
