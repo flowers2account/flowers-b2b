@@ -7,9 +7,15 @@ interface OrderDetails {
   adminUrl: string
 }
 
-interface ConfirmationDetails {
+interface StatusDetails {
   orderId: string
   clientName: string
+  total: number
+}
+
+interface ManagerStatusDetails {
+  orderId: string
+  managerName: string
   total: number
 }
 
@@ -36,16 +42,61 @@ ${itemsList}
 _Flowers B2B • Уральск_`
   },
 
-  orderConfirmedToClient: (details: ConfirmationDetails): string => {
-    return `✅ *Ваш заказ #${details.orderId} подтверждён*
+  orderConfirmedToClient: ({ orderId, clientName, total }: StatusDetails): string =>
+    `✅ *Ваш заказ #${orderId} подтверждён*
 
-${details.clientName}, ваш заказ готов к выдаче!
+${clientName}, ваш заказ принят и будет собран в ближайшее время.
 
-💰 Сумма: *${details.total.toLocaleString('ru-RU')} ₸*
+💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
+
+Мы сообщим, когда заказ будет готов. 🌸
+
+_Flowers B2B • Уральск_`,
+
+  orderPackedToClient: ({ orderId, clientName, total }: StatusDetails): string =>
+    `📦 *Заказ #${orderId} собран и готов к получению*
+
+${clientName}, ваш заказ ждёт вас!
+
+💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
 
 📍 Адрес склада: ул. Промышленная, 15
 🕐 Режим работы: Пн-Пт 8:00-18:00, Сб 9:00-15:00
 
-Спасибо за заказ! 🌸`
-  }
+_Flowers B2B • Уральск_`,
+
+  orderDeliveredToClient: ({ orderId, clientName, total }: StatusDetails): string =>
+    `🎉 *Заказ #${orderId} выдан*
+
+${clientName}, спасибо за покупку!
+
+💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
+
+Ждём вас снова! 🌸
+
+_Flowers B2B • Уральск_`,
+
+  orderConfirmedToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
+    `✅ *Заказ #${orderId} подтверждён*
+
+👤 Менеджер: ${managerName}
+💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
+
+_Flowers B2B • Уральск_`,
+
+  orderPackedToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
+    `📦 *Заказ #${orderId} собран*
+
+👤 Менеджер: ${managerName}
+💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
+
+_Flowers B2B • Уральск_`,
+
+  orderDeliveredToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
+    `🎉 *Заказ #${orderId} выдан*
+
+👤 Менеджер: ${managerName}
+💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
+
+_Flowers B2B • Уральск_`,
 }

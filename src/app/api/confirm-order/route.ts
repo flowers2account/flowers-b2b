@@ -8,41 +8,78 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
-  const { order_id } = await req.json()
+  const { order_id, status = 'confirmed' } = await req.json()
 
-  await supabase.from('orders').update({ status: 'confirmed' }).eq('id', order_id)
-  const { error } = await supabase.rpc('confirm_order_fifo', { p_order_id: order_id })
+  await supabase.from('orders').update({ status }).eq('id', order_id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (status === 'confirmed') {
+    const { error } = await supabase.rpc('confirm_order_fifo', { p_order_id: order_id })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   if (process.env.UMNICO_API_TOKEN) {
     try {
-      const { data: order } = await supabase
-        .from('orders')
-        .select('id, total, clients(name, phone)')
-        .eq('id', order_id)
-        .single()
+      const [{ data: order }, { data: historyRecord }] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id, total, clients(name, phone)')
+          .eq('id', order_id)
+          .single(),
+        supabase
+          .from('order_history')
+          .select('manager_name')
+          .eq('order_id', order_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
       const clientPhone = (order?.clients as any)?.phone
       const clientName = (order?.clients as any)?.name || 'Уважаемый клиент'
+      const managerName = (historyRecord as any)?.manager_name || 'Менеджер'
+      const total = order?.total ?? 0
+      const orderId = String(order_id)
 
-      if (order && clientPhone) {
+      if (clientPhone) {
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
-
         if (hasWhatsApp) {
-          await umnicoClient.sendMessage(
-            clientPhone,
-            umnicoTemplates.orderConfirmedToClient({
-              orderId: String(order.id),
-              clientName,
-              total: order.total ?? 0
-            })
-          )
-          console.log(`✓ Umnico: подтверждение клиенту (заказ ${order.id})`)
+          const clientMessage =
+            status === 'confirmed'
+              ? umnicoTemplates.orderConfirmedToClient({ orderId, clientName, total })
+              : status === 'packed' || status === 'ready'
+              ? umnicoTemplates.orderPackedToClient({ orderId, clientName, total })
+              : status === 'delivered'
+              ? umnicoTemplates.orderDeliveredToClient({ orderId, clientName, total })
+              : null
+
+          if (clientMessage) {
+            await umnicoClient.sendMessage(clientPhone, clientMessage)
+            console.log(`✓ Umnico: клиенту (заказ ${order_id}, статус ${status})`)
+          }
         }
       }
-    } catch (error) {
-      console.error('Umnico client notification failed:', error)
+
+      const managerPhone = process.env.UMNICO_MANAGER_PHONE
+      if (managerPhone) {
+        const managerHasWhatsApp = await umnicoClient.checkContact(managerPhone)
+        if (managerHasWhatsApp) {
+          const managerMessage =
+            status === 'confirmed'
+              ? umnicoTemplates.orderConfirmedToManager({ orderId, managerName, total })
+              : status === 'packed' || status === 'ready'
+              ? umnicoTemplates.orderPackedToManager({ orderId, managerName, total })
+              : status === 'delivered'
+              ? umnicoTemplates.orderDeliveredToManager({ orderId, managerName, total })
+              : null
+
+          if (managerMessage) {
+            await umnicoClient.sendMessage(managerPhone, managerMessage)
+            console.log(`✓ Umnico: менеджеру (заказ ${order_id}, статус ${status})`)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Umnico notification failed:', err)
     }
   }
 
