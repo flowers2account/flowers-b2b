@@ -56,16 +56,11 @@ ${clientName}, ваш заказ принят и будет собран в бл
 _Flowers B2B • Уральск_`,
 
   orderPackedToClient: ({ orderId, clientName, total, photoUrl }: StatusDetails): string =>
-    `📦 *Заказ #${orderId} собран и готов к получению*
-
+    `📦 Заказ #${orderId} собран и готов к получению
 ${clientName}, ваш заказ ждёт вас!
-
-💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
-${photoUrl ? `\n📸 Фото вашего заказа: ${photoUrl}\n` : ''}
-📍 Адрес склада: ул. Промышленная, 15
-🕐 Режим работы: Пн-Пт 8:00-18:00, Сб 9:00-15:00
-
-_Flowers B2B • Уральск_`,
+💰 Сумма: ${total.toLocaleString('ru-RU')} ₸${photoUrl ? `\n📸 ${photoUrl}` : ''}
+📍 ул. Промышленная, 15 | Пн-Пт 8:00-18:00, Сб 9:00-15:00
+_Цветы Уральска_`,
 
   orderDeliveredToClient: ({ orderId, clientName, total }: StatusDetails): string =>
     `🎉 *Заказ #${orderId} выдан*
