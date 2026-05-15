@@ -46,12 +46,9 @@ export default function CartSidebar() {
       return
     }
 
-    const { order_id, is_new_order } = await res.json()
+    const { order_id } = await res.json()
 
-    const msgHeader = is_new_order
-      ? `🌸 Новый заказ #${order_id}`
-      : `🌸 Обновление заказа #${order_id}`
-    const msg = msgHeader + '\n\n' +
+    const msg = `🌸 Новый заказ #${order_id}\n\n` +
       items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
       `\n\nИтого: ${formatPrice(total())}\n\nКлиент: ${phone}`
 

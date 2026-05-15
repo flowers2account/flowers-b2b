@@ -100,10 +100,24 @@ _Flowers B2B • Уральск_`,
 
 _Flowers B2B • Уральск_`,
 
-  orderCreatedToClient: (orderId: string, clientName: string): string => {
+  orderCreatedToClient: (
+    orderId: string,
+    clientName: string,
+    items: Array<{ name: string; qty: number; price: number }>,
+    total: number
+  ): string => {
+    const itemsList = items
+      .map(i => `• ${i.name} — ${i.qty} шт × ${i.price.toLocaleString('ru-RU')} ₸`)
+      .join('\n')
+
     return `✅ Заказ #${orderId} принят!
 
 ${clientName}, ваш заказ принят в обработку.
+
+📦 Состав заказа:
+${itemsList}
+
+💰 Итого: ${total.toLocaleString('ru-RU')} ₸
 
 Мы свяжемся с вами для подтверждения в ближайшее время.
 

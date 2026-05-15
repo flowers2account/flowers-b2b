@@ -17,25 +17,29 @@ export async function POST(req: NextRequest) {
   // Find or create client by phone
   const { data: existingClient } = await supabase
     .from('clients')
-    .select('id')
+    .select('id, name')
     .eq('phone', normalizedPhone)
     .maybeSingle()
 
   let clientId: string
+  let clientName: string | null = null
 
   if (existingClient) {
     clientId = existingClient.id
+    clientName = existingClient.name
     if (name) {
       await supabase.from('clients').update({ name }).eq('id', clientId)
+      clientName = name
     }
   } else {
     const { data: newClient, error: clientError } = await supabase
-  .from('clients')
-  .insert({ phone: normalizedPhone, name: name ?? null })
-  .select('id')
-  .single()
-if (!newClient) return NextResponse.json({ error: 'Failed to create client', detail: clientError?.message }, { status: 500 })
+      .from('clients')
+      .insert({ phone: normalizedPhone, name: name ?? null })
+      .select('id')
+      .single()
+    if (!newClient) return NextResponse.json({ error: 'Failed to create client', detail: clientError?.message }, { status: 500 })
     clientId = newClient.id
+    clientName = name ?? null
   }
 
   const now = new Date().toISOString()
@@ -64,71 +68,27 @@ if (!newClient) return NextResponse.json({ error: 'Failed to create client', det
     return NextResponse.json({ error: reserveErrors.join(', ') }, { status: 409 })
   }
 
-  // Find or create active order
-  const { data: existingOrder } = await supabase
+  // Always create a new order
+  const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
+  const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('id')
-    .eq('client_id', clientId)
-    .in('status', ['pending', 'reserved'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .insert({ client_id: clientId, status: 'pending', total })
+    .select()
+    .single()
+  if (!order) return NextResponse.json({ error: 'Failed to create order', detail: orderError?.message }, { status: 500 })
+  const orderId = (order as any).id
 
-  let orderId: number
-  let isNewOrder = false
+  await supabase.from('order_items').insert(
+    items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
+  )
 
-  if (existingOrder) {
-    orderId = existingOrder.id
-
-    const { data: existingItems } = await supabase
-      .from('order_items')
-      .select('product_id')
-      .eq('order_id', orderId)
-
-    const existingProductIds = new Set((existingItems ?? []).map(i => i.product_id))
-
-    const itemsToUpdate = items.filter((i: any) => existingProductIds.has(i.id))
-    const itemsToInsert = items.filter((i: any) => !existingProductIds.has(i.id))
-
-    for (const item of itemsToUpdate) {
-      await supabase.from('order_items')
-        .update({ qty: item.qty, price: item.price })
-        .eq('order_id', orderId)
-        .eq('product_id', item.id)
-    }
-
-    if (itemsToInsert.length > 0) {
-      await supabase.from('order_items').insert(
-        itemsToInsert.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
-      )
-    }
-
-    const { data: allItems } = await supabase.from('order_items').select('qty, price').eq('order_id', orderId)
-    const newTotal = (allItems ?? []).reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
-    await supabase.from('orders').update({ total: newTotal }).eq('id', orderId)
-  } else {
-    isNewOrder = true
-    const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
-    const { data: order } = await supabase
-      .from('orders')
-      .insert({ client_id: clientId, status: 'pending', total })
-      .select()
-      .single()
-    if (!order) return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
-    orderId = (order as any).id
-    await supabase.from('order_items').insert(
-      items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
-    )
-  }
-
-  // Create/update reservations linked to the order
+  // Create reservations for each item (replace any existing client reservations for these products)
   for (const item of items) {
-    const { data: existingRes } = await supabase
-      .from('reservations')
+    const { data: existingRes } = await supabase.from('reservations')
       .select('qty')
       .eq('product_id', item.id)
       .eq('user_id', clientId)
-      .single()
+      .maybeSingle()
 
     const oldQty = existingRes?.qty ?? 0
     const qtyChange = item.qty - oldQty
@@ -151,36 +111,30 @@ if (!newClient) return NextResponse.json({ error: 'Failed to create client', det
         .select('qty_reserved')
         .eq('product_id', item.id)
         .single()
-
-      const newQtyReserved = (stock?.qty_reserved ?? 0) + qtyChange
       await supabase
         .from('stock')
-        .update({ qty_reserved: newQtyReserved })
+        .update({ qty_reserved: (stock?.qty_reserved ?? 0) + qtyChange })
         .eq('product_id', item.id)
     }
   }
 
-const itemsList = items
+  const itemsList = items
     .map((i: any) => `• ${i.name} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`)
     .join('\n')
-  const totalSum = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
   const tgMessage = [
-    isNewOrder ? `🌸 Новый заказ #${orderId}` : `🔄 Обновление заказа #${orderId}`,
+    `🌸 Новый заказ #${orderId}`,
     `👤 ${name || '—'} | 📞 ${phone}`,
     ``,
     itemsList,
     ``,
-    `💰 Итого: ${totalSum.toLocaleString('ru-RU')} ₸`,
+    `💰 Итого: ${total.toLocaleString('ru-RU')} ₸`,
   ].join('\n')
 
   try {
     await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: process.env.TELEGRAM_CHAT_ID,
-        text: tgMessage,
-      })
+      body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: tgMessage })
     })
   } catch (e) {
     console.error('Telegram notify failed:', e)
@@ -189,7 +143,6 @@ const itemsList = items
   if (process.env.UMNICO_MANAGER_PHONE && process.env.UMNICO_API_TOKEN) {
     try {
       const hasWhatsApp = await umnicoClient.checkContact(process.env.UMNICO_MANAGER_PHONE)
-
       if (hasWhatsApp) {
         await umnicoClient.sendMessage(
           process.env.UMNICO_MANAGER_PHONE,
@@ -197,12 +150,8 @@ const itemsList = items
             orderId: String(orderId),
             clientName: name || normalizedPhone,
             clientPhone: normalizedPhone,
-            total: totalSum,
-            items: items.map((item: any) => ({
-              name: item.name || 'Товар',
-              qty: item.qty,
-              price: item.price
-            })),
+            total,
+            items: items.map((i: any) => ({ name: i.name || 'Товар', qty: i.qty, price: i.price })),
             adminUrl: 'https://flowers-b2b-phi.vercel.app/admin'
           })
         )
@@ -217,10 +166,14 @@ const itemsList = items
     try {
       const hasWhatsApp = await umnicoClient.checkContact(normalizedPhone)
       if (hasWhatsApp) {
-        const { data: clientData } = await supabase.from('clients').select('name').eq('id', clientId).single()
         await umnicoClient.sendMessage(
           normalizedPhone,
-          umnicoTemplates.orderCreatedToClient(String(orderId), clientData?.name || 'Уважаемый клиент')
+          umnicoTemplates.orderCreatedToClient(
+            String(orderId),
+            clientName || 'Уважаемый клиент',
+            items.map((i: any) => ({ name: i.name || 'Товар', qty: i.qty, price: i.price })),
+            total
+          )
         )
         console.log(`✓ Umnico: клиенту о создании заказа ${orderId}`)
       }
@@ -229,5 +182,5 @@ const itemsList = items
     }
   }
 
-  return NextResponse.json({ success: true, order_id: orderId, is_new_order: isNewOrder, expires_at })
+  return NextResponse.json({ success: true, order_id: orderId, expires_at })
 }
