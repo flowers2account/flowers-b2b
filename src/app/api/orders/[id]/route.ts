@@ -34,7 +34,41 @@ export async function PATCH(
   // For confirmed status, also run FIFO stock deduction
   if (status === 'confirmed') {
     const { error: rpcError } = await supabase.rpc('confirm_order_fifo', { p_order_id: orderId })
-    if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 })
+    if (rpcError) {
+      // Rollback status
+      await supabase.from('orders').update({ status: order.status }).eq('id', orderId)
+
+      if (rpcError.message.includes('stock_reserved_lte_qty')) {
+        // Find which items have insufficient stock
+        const { data: orderItems } = await supabase
+          .from('order_items')
+          .select('qty, product_id, product:product_id(name)')
+          .eq('order_id', orderId)
+
+        const { data: stockRows } = await supabase
+          .from('stock')
+          .select('product_id, qty')
+          .in('product_id', (orderItems ?? []).map((i: any) => i.product_id))
+
+        const stockMap = Object.fromEntries((stockRows ?? []).map((s: any) => [s.product_id, s.qty]))
+
+        const shortages = (orderItems ?? [])
+          .filter((i: any) => i.qty > (stockMap[i.product_id] ?? 0))
+          .map((i: any) => {
+            const available = stockMap[i.product_id] ?? 0
+            const name = (i.product as any)?.name ?? `Товар #${i.product_id}`
+            return `${name} — в остатке только ${available} шт`
+          })
+
+        const message = shortages.length > 0
+          ? shortages.join('; ')
+          : 'Недостаточно товара на складе'
+
+        return NextResponse.json({ error: message }, { status: 409 })
+      }
+
+      return NextResponse.json({ error: rpcError.message }, { status: 500 })
+    }
   }
 
   await supabase.from('order_history').insert({

@@ -75,6 +75,7 @@ export default function OrdersPanel() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [assemblyOrder, setAssemblyOrder] = useState<Order | null>(null)
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+  const [statusError, setStatusError] = useState<{ orderId: number; message: string } | null>(null)
 
   // Filters
   const [datePreset, setDatePreset] = useState<DatePreset>('')
@@ -172,12 +173,18 @@ export default function OrdersPanel() {
   async function updateStatus(orderId: number, status: string) {
     if (updatingOrderId === orderId) return
     setUpdatingOrderId(orderId)
+    setStatusError(null)
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, changed_by: user?.id ?? null }),
       })
+      if (!res.ok) {
+        const data = await res.json()
+        setStatusError({ orderId, message: data.error ?? 'Ошибка при смене статуса' })
+        return
+      }
       if (expandedId === orderId) await loadHistory(orderId)
       await loadOrders()
     } finally {
@@ -508,6 +515,12 @@ export default function OrdersPanel() {
               🖨 Печать
             </button>
           </div>
+
+          {statusError?.orderId === order.id && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+              ⚠️ {statusError.message}
+            </div>
+          )}
 
           {expandedId === order.id && (
             <div style={{ borderTop: '0.5px solid var(--border)', marginTop: 8, paddingTop: 8 }}>
