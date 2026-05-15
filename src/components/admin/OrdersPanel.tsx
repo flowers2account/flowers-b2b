@@ -74,6 +74,7 @@ export default function OrdersPanel() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [assemblyOrder, setAssemblyOrder] = useState<Order | null>(null)
+  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
 
   // Filters
   const [datePreset, setDatePreset] = useState<DatePreset>('')
@@ -169,13 +170,19 @@ export default function OrdersPanel() {
   }, [])
 
   async function updateStatus(orderId: number, status: string) {
-    await fetch(`/api/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, changed_by: user?.id ?? null }),
-    })
-    if (expandedId === orderId) await loadHistory(orderId)
-    loadOrders()
+    if (updatingOrderId === orderId) return
+    setUpdatingOrderId(orderId)
+    try {
+      await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, changed_by: user?.id ?? null }),
+      })
+      if (expandedId === orderId) await loadHistory(orderId)
+      await loadOrders()
+    } finally {
+      setUpdatingOrderId(null)
+    }
   }
 
   async function loadHistory(orderId: number) {
@@ -439,11 +446,13 @@ export default function OrdersPanel() {
             {order.status === 'pending' && (
               <>
                 <button onClick={() => updateStatus(order.id, 'reserved')}
-                  className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700">
+                  disabled={updatingOrderId === order.id}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50">
                   🔒 Взять в работу
                 </button>
                 <button onClick={() => updateStatus(order.id, 'cancelled')}
-                  className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200">
+                  disabled={updatingOrderId === order.id}
+                  className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 disabled:opacity-50">
                   ❌ Отменить
                 </button>
               </>
@@ -451,11 +460,13 @@ export default function OrdersPanel() {
             {order.status === 'reserved' && (
               <>
                 <button onClick={() => updateStatus(order.id, 'confirmed')}
-                  className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">
-                  ✅ Подтвердить
+                  disabled={updatingOrderId === order.id}
+                  className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50">
+                  {updatingOrderId === order.id ? 'Обработка...' : '✅ Подтвердить'}
                 </button>
                 <button onClick={() => updateStatus(order.id, 'cancelled')}
-                  className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200">
+                  disabled={updatingOrderId === order.id}
+                  className="px-3 py-1.5 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 disabled:opacity-50">
                   ❌ Отменить
                 </button>
               </>
@@ -466,7 +477,8 @@ export default function OrdersPanel() {
                   await updateStatus(order.id, 'assembling')
                   setAssemblyOrder(order)
                 }}
-                className="px-3 py-1.5 bg-orange-500 text-white text-sm rounded hover:bg-orange-600">
+                disabled={updatingOrderId === order.id}
+                className="px-3 py-1.5 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 disabled:opacity-50">
                 🔧 Начать сборку
               </button>
             )}
@@ -480,7 +492,8 @@ export default function OrdersPanel() {
             {order.status === 'assembled' && (
               <button
                 onClick={() => updateStatus(order.id, 'delivered')}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                disabled={updatingOrderId === order.id}
+                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
                 ✅ Выдать
               </button>
             )}
