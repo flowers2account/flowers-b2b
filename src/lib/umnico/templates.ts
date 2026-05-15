@@ -99,4 +99,14 @@ _Flowers B2B • Уральск_`,
 💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
 
 _Flowers B2B • Уральск_`,
+
+  orderCreatedToClient: (orderId: string, clientName: string): string => {
+    return `✅ Заказ #${orderId} принят!
+
+${clientName}, ваш заказ принят в обработку.
+
+Мы свяжемся с вами для подтверждения в ближайшее время.
+
+_Цветы Уральска_`
+  },
 }

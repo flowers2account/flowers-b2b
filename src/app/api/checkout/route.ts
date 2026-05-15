@@ -213,5 +213,21 @@ const itemsList = items
     }
   }
 
+  if (process.env.UMNICO_API_TOKEN && phone) {
+    try {
+      const hasWhatsApp = await umnicoClient.checkContact(normalizedPhone)
+      if (hasWhatsApp) {
+        const { data: clientData } = await supabase.from('clients').select('name').eq('id', clientId).single()
+        await umnicoClient.sendMessage(
+          normalizedPhone,
+          umnicoTemplates.orderCreatedToClient(String(orderId), clientData?.name || 'Уважаемый клиент')
+        )
+        console.log(`✓ Umnico: клиенту о создании заказа ${orderId}`)
+      }
+    } catch (err) {
+      console.error('Umnico client notification failed:', err)
+    }
+  }
+
   return NextResponse.json({ success: true, order_id: orderId, is_new_order: isNewOrder, expires_at })
 }
