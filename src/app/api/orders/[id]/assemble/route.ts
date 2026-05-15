@@ -90,17 +90,36 @@ export async function PATCH(
       const photoUrl = assembly_photo_url ?? undefined
       const managerPhone = process.env.UMNICO_MANAGER_PHONE ?? null
 
+      const { data: historyRecord } = await supabase
+        .from('order_history')
+        .select('manager_name')
+        .eq('order_id', orderId)
+        .eq('status_to', 'assembled')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const managerName = historyRecord?.manager_name || 'Менеджер'
+
       console.log('Client phone:', clientPhone)
       console.log('Client name:', clientName)
       console.log('Manager phone:', managerPhone)
+      console.log('Manager name:', managerName)
 
       if (clientPhone) {
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
         console.log('Client hasWhatsApp:', hasWhatsApp)
         if (hasWhatsApp) {
+          if (photoUrl) {
+            await umnicoClient.sendImage(
+              clientPhone,
+              photoUrl,
+              `📦 Заказ #${orderId} собран и готов к получению!`
+            )
+          }
           await umnicoClient.sendMessage(
             clientPhone,
-            umnicoTemplates.orderPackedToClient({ orderId: String(orderId), clientName, total, photoUrl })
+            umnicoTemplates.orderPackedToClient({ orderId: String(orderId), clientName, total })
           )
           console.log(`✓ Umnico: клиенту о сборке заказа ${orderId}`)
         }
@@ -114,7 +133,7 @@ export async function PATCH(
         if (managerHasWhatsApp) {
           await umnicoClient.sendMessage(
             managerPhone,
-            umnicoTemplates.orderPackedToManager({ orderId: String(orderId), managerName: 'Менеджер', total })
+            umnicoTemplates.orderPackedToManager({ orderId: String(orderId), managerName, total })
           )
           console.log(`✓ Umnico: менеджеру о сборке заказа ${orderId}`)
         }

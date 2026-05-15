@@ -33,6 +33,40 @@ class UmnicoClient {
     }
   }
 
+  async sendImage(phone: string, imageUrl: string, caption?: string): Promise<boolean> {
+    try {
+      const cleanPhone = phone.replace(/[\s\+\-\(\)]/g, '')
+
+      const response = await fetch(`${this.baseUrl}/messaging/post`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `bearer ${this.apiToken}`
+        },
+        body: JSON.stringify({
+          message: {
+            type: 'image',
+            imageUrl,
+            text: caption || ''
+          },
+          destination: cleanPhone,
+          saId: this.whatsappSaId
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.text()
+        console.error('Umnico sendImage failed:', error)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('Umnico sendImage error:', error)
+      return false
+    }
+  }
+
   async sendMessage(phone: string, text: string): Promise<boolean> {
     try {
       const cleanPhone = phone.replace(/[\s\+\-\(\)]/g, '')
