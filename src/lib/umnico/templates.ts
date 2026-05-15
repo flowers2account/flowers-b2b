@@ -11,6 +11,7 @@ interface StatusDetails {
   orderId: string
   clientName: string
   total: number
+  photoUrl?: string
 }
 
 interface ManagerStatusDetails {
@@ -53,13 +54,13 @@ ${clientName}, ваш заказ принят и будет собран в бл
 
 _Flowers B2B • Уральск_`,
 
-  orderPackedToClient: ({ orderId, clientName, total }: StatusDetails): string =>
+  orderPackedToClient: ({ orderId, clientName, total, photoUrl }: StatusDetails): string =>
     `📦 *Заказ #${orderId} собран и готов к получению*
 
 ${clientName}, ваш заказ ждёт вас!
 
 💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
-
+${photoUrl ? `\n📸 Фото вашего заказа: ${photoUrl}\n` : ''}
 📍 Адрес склада: ул. Промышленная, 15
 🕐 Режим работы: Пн-Пт 8:00-18:00, Сб 9:00-15:00
 

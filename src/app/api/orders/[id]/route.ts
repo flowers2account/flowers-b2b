@@ -73,7 +73,7 @@ export async function PATCH(
           const clientMessage =
             status === 'confirmed'
               ? umnicoTemplates.orderConfirmedToClient({ orderId: orderIdStr, clientName, total })
-              : status === 'packed' || status === 'ready'
+              : status === 'assembled'
               ? umnicoTemplates.orderPackedToClient({ orderId: orderIdStr, clientName, total })
               : status === 'delivered'
               ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr, clientName, total })
@@ -93,7 +93,7 @@ export async function PATCH(
           const managerMessage =
             status === 'confirmed'
               ? umnicoTemplates.orderConfirmedToManager({ orderId: orderIdStr, managerName, total })
-              : status === 'packed' || status === 'ready'
+              : status === 'assembled'
               ? umnicoTemplates.orderPackedToManager({ orderId: orderIdStr, managerName, total })
               : status === 'delivered'
               ? umnicoTemplates.orderDeliveredToManager({ orderId: orderIdStr, managerName, total })

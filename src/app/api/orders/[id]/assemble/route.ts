@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { umnicoClient } from '@/lib/umnico/client'
+import { umnicoTemplates } from '@/lib/umnico/templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +67,46 @@ export async function PATCH(
     changed_by: changed_by ?? null,
   })
   if (historyError) console.log('HISTORY INSERT ERROR:', historyError)
+
+  if (process.env.UMNICO_API_TOKEN) {
+    try {
+      const { data: orderData } = await supabase
+        .from('orders')
+        .select('total, clients(name, phone)')
+        .eq('id', orderId)
+        .single()
+
+      const clientPhone = (orderData?.clients as any)?.phone
+      const clientName = (orderData?.clients as any)?.name || 'Уважаемый клиент'
+      const total = orderData?.total ?? newTotal
+      const photoUrl = assembly_photo_url ?? undefined
+
+      if (clientPhone) {
+        const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
+        if (hasWhatsApp) {
+          await umnicoClient.sendMessage(
+            clientPhone,
+            umnicoTemplates.orderPackedToClient({ orderId: String(orderId), clientName, total, photoUrl })
+          )
+          console.log(`✓ Umnico: клиенту о сборке заказа ${orderId}`)
+        }
+      }
+
+      const managerPhone = process.env.UMNICO_MANAGER_PHONE
+      if (managerPhone) {
+        const managerHasWhatsApp = await umnicoClient.checkContact(managerPhone)
+        if (managerHasWhatsApp) {
+          await umnicoClient.sendMessage(
+            managerPhone,
+            umnicoTemplates.orderPackedToManager({ orderId: String(orderId), managerName: 'Менеджер', total })
+          )
+          console.log(`✓ Umnico: менеджеру о сборке заказа ${orderId}`)
+        }
+      }
+    } catch (err) {
+      console.error('Umnico assembled notification failed:', err)
+    }
+  }
 
   return NextResponse.json({ success: true })
 }
