@@ -448,7 +448,7 @@ export default function OrdersPanel() {
                 <button onClick={() => updateStatus(order.id, 'reserved')}
                   disabled={updatingOrderId === order.id}
                   className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50">
-                  🔒 Взять в работу
+                  🔒 Поставить в бронь
                 </button>
                 <button onClick={() => updateStatus(order.id, 'cancelled')}
                   disabled={updatingOrderId === order.id}
