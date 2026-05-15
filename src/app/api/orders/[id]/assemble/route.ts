@@ -68,21 +68,35 @@ export async function PATCH(
   })
   if (historyError) console.log('HISTORY INSERT ERROR:', historyError)
 
+  console.log('=== ASSEMBLE: Starting notifications ===')
+  console.log('Order ID:', orderId)
+  console.log('UMNICO_API_TOKEN set:', !!process.env.UMNICO_API_TOKEN)
+  console.log('Photo URL:', assembly_photo_url ?? 'none')
+
   if (process.env.UMNICO_API_TOKEN) {
     try {
-      const { data: orderData } = await supabase
+      const { data: orderData, error: orderFetchError } = await supabase
         .from('orders')
-        .select('total, clients(name, phone)')
+        .select('total, guest_phone, guest_name, clients(name, phone)')
         .eq('id', orderId)
         .single()
 
-      const clientPhone = (orderData?.clients as any)?.phone
-      const clientName = (orderData?.clients as any)?.name || 'Уважаемый клиент'
+      console.log('Order fetch error:', orderFetchError?.message ?? 'none')
+      console.log('Order data:', JSON.stringify(orderData))
+
+      const clientPhone = (orderData?.clients as any)?.phone ?? orderData?.guest_phone ?? null
+      const clientName = (orderData?.clients as any)?.name ?? orderData?.guest_name ?? 'Уважаемый клиент'
       const total = orderData?.total ?? newTotal
       const photoUrl = assembly_photo_url ?? undefined
+      const managerPhone = process.env.UMNICO_MANAGER_PHONE ?? null
+
+      console.log('Client phone:', clientPhone)
+      console.log('Client name:', clientName)
+      console.log('Manager phone:', managerPhone)
 
       if (clientPhone) {
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
+        console.log('Client hasWhatsApp:', hasWhatsApp)
         if (hasWhatsApp) {
           await umnicoClient.sendMessage(
             clientPhone,
@@ -90,11 +104,13 @@ export async function PATCH(
           )
           console.log(`✓ Umnico: клиенту о сборке заказа ${orderId}`)
         }
+      } else {
+        console.log('⚠ Umnico: clientPhone not found, skipping client notification')
       }
 
-      const managerPhone = process.env.UMNICO_MANAGER_PHONE
       if (managerPhone) {
         const managerHasWhatsApp = await umnicoClient.checkContact(managerPhone)
+        console.log('Manager hasWhatsApp:', managerHasWhatsApp)
         if (managerHasWhatsApp) {
           await umnicoClient.sendMessage(
             managerPhone,
@@ -102,10 +118,14 @@ export async function PATCH(
           )
           console.log(`✓ Umnico: менеджеру о сборке заказа ${orderId}`)
         }
+      } else {
+        console.log('⚠ Umnico: UMNICO_MANAGER_PHONE not set, skipping manager notification')
       }
     } catch (err) {
       console.error('Umnico assembled notification failed:', err)
     }
+  } else {
+    console.log('⚠ UMNICO_API_TOKEN not set, skipping all notifications')
   }
 
   return NextResponse.json({ success: true })
