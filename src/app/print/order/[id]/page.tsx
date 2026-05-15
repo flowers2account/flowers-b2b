@@ -16,6 +16,38 @@ function fmt(n: number) {
   return n?.toLocaleString('ru-RU') + ' ₸'
 }
 
+const COL_HEADERS = (
+  <tr className="border-b-2 border-gray-800">
+    <th className="text-left py-2 pr-2 text-xs font-semibold text-gray-500 w-6">#</th>
+    <th className="text-left py-2 pr-3 text-xs font-semibold text-gray-500">Наименование</th>
+    <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 w-14">Длина</th>
+    <th className="text-center py-2 px-3 text-xs font-semibold text-gray-500 w-16">Кол-во</th>
+    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500 w-24">Цена</th>
+    <th className="text-right py-2 pl-3 text-xs font-semibold text-gray-500 w-24">Сумма</th>
+  </tr>
+)
+
+function ItemRows({ items, startIdx }: { items: any[]; startIdx: number }) {
+  return (
+    <>
+      {items.map((item: any, idx: number) => {
+        const qty = item.qty_actual ?? item.qty_ordered ?? item.qty
+        const stemLength = item.product?.stem_length ?? null
+        return (
+          <tr key={item.id} className="border-b border-gray-200">
+            <td className="py-2 pr-2 text-gray-400">{startIdx + idx + 1}</td>
+            <td className="py-2 pr-3">{item.product?.name ?? `Товар #${item.id}`}</td>
+            <td className="py-2 px-2 text-center text-gray-600">{stemLength ? `${stemLength} см` : '—'}</td>
+            <td className="py-2 px-3 text-center">{qty}</td>
+            <td className="py-2 px-3 text-right">{fmt(item.price)}</td>
+            <td className="py-2 pl-3 text-right font-medium">{fmt(qty * item.price)}</td>
+          </tr>
+        )
+      })}
+    </>
+  )
+}
+
 export default async function PrintOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const orderId = parseInt(id)
@@ -26,7 +58,7 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
     .from('orders')
     .select(`id, status, total, notes, created_at, guest_phone, guest_name,
              client:client_id(name, phone),
-             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name))`)
+             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, origin, stem_length))`)
     .eq('id', orderId)
     .single()
 
@@ -44,10 +76,18 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   const changedItems = activeItems.filter((i: any) => i.qty_actual !== null && i.qty_actual !== (i.qty_ordered ?? i.qty))
   const hasAssemblyChanges = removedItems.length > 0 || changedItems.length > 0
 
-  const printTotal = activeItems.reduce(
-    (sum: number, i: any) => sum + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price,
-    0
+  const regularItems = activeItems.filter((i: any) => i.product?.origin !== 'Китай')
+  const chinaItems = activeItems.filter((i: any) => i.product?.origin === 'Китай')
+
+  const subtotalRegular = regularItems.reduce(
+    (sum: number, i: any) => sum + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0
   )
+  const subtotalChina = chinaItems.reduce(
+    (sum: number, i: any) => sum + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0
+  )
+  const printTotal = subtotalRegular + subtotalChina
+
+  const showBoth = regularItems.length > 0 && chinaItems.length > 0
 
   return (
     <div className="max-w-2xl mx-auto px-8 py-6 text-gray-900">
@@ -72,46 +112,64 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      <table className="w-full text-sm border-collapse mb-4">
-        <thead>
-          <tr className="border-b-2 border-gray-800">
-            <th className="text-left py-2 pr-2 text-xs font-semibold text-gray-500 w-6">#</th>
-            <th className="text-left py-2 pr-3 text-xs font-semibold text-gray-500">Наименование</th>
-            <th className="text-center py-2 px-3 text-xs font-semibold text-gray-500 w-16">Кол-во</th>
-            <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500 w-24">Цена</th>
-            <th className="text-right py-2 pl-3 text-xs font-semibold text-gray-500 w-24">Сумма</th>
-          </tr>
-        </thead>
-        <tbody>
-          {activeItems.map((item: any, idx: number) => {
-            const qty = item.qty_actual ?? item.qty_ordered ?? item.qty
-            return (
-              <tr key={item.id} className="border-b border-gray-200">
-                <td className="py-2 pr-2 text-gray-400">{idx + 1}</td>
-                <td className="py-2 pr-3">{item.product?.name ?? `Товар #${item.id}`}</td>
-                <td className="py-2 px-3 text-center">{qty}</td>
-                <td className="py-2 px-3 text-right">{fmt(item.price)}</td>
-                <td className="py-2 pl-3 text-right font-medium">{fmt(qty * item.price)}</td>
+      {/* Секция 1: обычные товары */}
+      {regularItems.length > 0 && (
+        <table className="w-full text-sm border-collapse mb-1">
+          <thead>{COL_HEADERS}</thead>
+          <tbody>
+            <ItemRows items={regularItems} startIdx={0} />
+          </tbody>
+          {showBoth && (
+            <tfoot>
+              <tr>
+                <td colSpan={5} className="pt-2 pr-3 text-right text-xs text-gray-500">Промежуточный итог:</td>
+                <td className="pt-2 pl-3 text-right text-xs text-gray-500 font-medium">{fmt(subtotalRegular)}</td>
               </tr>
-            )
-          })}
-        </tbody>
-        <tfoot>
-          <tr className="border-t-2 border-gray-800">
-            <td colSpan={4} className="py-3 pr-3 text-right font-semibold">Итого:</td>
-            <td className="py-3 pl-3 text-right font-bold text-base">{fmt(printTotal)}</td>
-          </tr>
-        </tfoot>
-      </table>
+            </tfoot>
+          )}
+        </table>
+      )}
+
+      {/* Разделитель и секция Китай */}
+      {chinaItems.length > 0 && (
+        <>
+          {showBoth && (
+            <div style={{ borderTop: '2px solid #8B1A1A', margin: '12px 0 10px' }} />
+          )}
+          <p className="text-sm font-bold mb-2" style={{ color: '#8B1A1A' }}>🇨🇳 КИТАЙ</p>
+          <table className="w-full text-sm border-collapse mb-1">
+            <thead>{COL_HEADERS}</thead>
+            <tbody>
+              <ItemRows items={chinaItems} startIdx={regularItems.length} />
+            </tbody>
+            {showBoth && (
+              <tfoot>
+                <tr>
+                  <td colSpan={5} className="pt-2 pr-3 text-right text-xs text-gray-500">Промежуточный итог:</td>
+                  <td className="pt-2 pl-3 text-right text-xs text-gray-500 font-medium">{fmt(subtotalChina)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </>
+      )}
+
+      {/* Итого */}
+      <div style={{ borderTop: '2px solid #8B1A1A', marginTop: 12 }} className="pt-3 flex justify-end">
+        <div className="text-right">
+          <span className="text-sm font-semibold text-gray-600 mr-6">ИТОГО К ОПЛАТЕ:</span>
+          <span className="text-lg font-bold">{fmt(printTotal)}</span>
+        </div>
+      </div>
 
       {o.notes && (
-        <div className="text-sm text-gray-600 border rounded p-3 mb-4">
+        <div className="text-sm text-gray-600 border rounded p-3 mt-4">
           <span className="font-semibold">Примечания: </span>{o.notes}
         </div>
       )}
 
       {hasAssemblyChanges && (
-        <div className="text-sm border border-gray-300 rounded p-3 mb-6 bg-gray-50">
+        <div className="text-sm border border-gray-300 rounded p-3 mt-4 mb-6 bg-gray-50">
           <p className="font-semibold mb-1.5">Изменения при сборке:</p>
           {removedItems.map((i: any) => (
             <p key={i.id} className="text-gray-700">• {i.product?.name ?? `Товар #${i.id}`}: позиция снята</p>
