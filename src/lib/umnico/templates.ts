@@ -27,75 +27,44 @@ export const umnicoTemplates = {
       .map(item => `• ${item.name} — ${item.qty} шт × ${item.price.toLocaleString('ru-RU')} ₸`)
       .join('\n')
 
-    return `🆕 *НОВЫЙ ЗАКАЗ #${details.orderId}*
-
-👤 Клиент: ${details.clientName}${details.companyName ? ` | ${details.companyName}` : ''}
-📞 Телефон: ${details.clientPhone}
-
-📦 Состав заказа:
+    return `🆕 ЗАКАЗ #${details.orderId}
+👤 ${details.clientName}${details.companyName ? ` | ${details.companyName}` : ''}
+📞 ${details.clientPhone}
 ${itemsList}
-
-💰 Итого: *${details.total.toLocaleString('ru-RU')} ₸*
-
-⏰ Резерв действует 30 минут
-
-🔗 ${details.adminUrl}
-
-_Flowers B2B • Уральск_`
+💰 ${details.total.toLocaleString('ru-RU')} ₸ | Резерв 30 мин
+🔗 ${details.adminUrl}`
   },
 
   orderConfirmedToClient: ({ orderId, clientName, total }: StatusDetails): string =>
-    `✅ *Ваш заказ #${orderId} подтверждён*
-
-${clientName}, ваш заказ принят и будет собран в ближайшее время.
-
-💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
-
-Мы сообщим, когда заказ будет готов. 🌸
-
-_Flowers B2B • Уральск_`,
+    `✅ Заказ #${orderId} подтверждён
+${clientName}, заказ принят и будет собран в ближайшее время.
+💰 Сумма: ${total.toLocaleString('ru-RU')} ₸
+_Цветы Уральска_`,
 
   orderPackedToClient: ({ orderId, clientName, total, photoUrl }: StatusDetails): string =>
     `📦 Заказ #${orderId} собран и готов к получению
 ${clientName}, ваш заказ ждёт вас!
 💰 Сумма: ${total.toLocaleString('ru-RU')} ₸${photoUrl ? `\n📸 ${photoUrl}` : ''}
-📍 ул. Промышленная, 15 | Пн-Пт 8:00-18:00, Сб 9:00-15:00
+📍 ул. Каримуллина, 11 | Пн-Пт 8:00-18:00, Сб 9:00-15:00
 _Цветы Уральска_`,
 
   orderDeliveredToClient: ({ orderId, clientName, total }: StatusDetails): string =>
-    `🎉 *Заказ #${orderId} выдан*
-
-${clientName}, спасибо за покупку!
-
-💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
-
-Ждём вас снова! 🌸
-
-_Flowers B2B • Уральск_`,
+    `🎉 Заказ #${orderId} выдан
+${clientName}, спасибо за покупку! Ждём вас снова 🌸
+💰 Сумма: ${total.toLocaleString('ru-RU')} ₸
+_Цветы Уральска_`,
 
   orderConfirmedToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
-    `✅ *Заказ #${orderId} подтверждён*
-
-👤 Менеджер: ${managerName}
-💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
-
-_Flowers B2B • Уральск_`,
+    `✅ Заказ #${orderId} подтверждён
+👤 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
   orderPackedToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
-    `📦 *Заказ #${orderId} собран*
-
-👤 Менеджер: ${managerName}
-💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
-
-_Flowers B2B • Уральск_`,
+    `📦 Заказ #${orderId} собран
+👤 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
   orderDeliveredToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
-    `🎉 *Заказ #${orderId} выдан*
-
-👤 Менеджер: ${managerName}
-💰 Сумма: *${total.toLocaleString('ru-RU')} ₸*
-
-_Flowers B2B • Уральск_`,
+    `🎉 Заказ #${orderId} выдан
+👤 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
   orderCreatedToClient: (
     orderId: string,
@@ -108,16 +77,10 @@ _Flowers B2B • Уральск_`,
       .join('\n')
 
     return `✅ Заказ #${orderId} принят!
-
 ${clientName}, ваш заказ принят в обработку.
-
-📦 Состав заказа:
 ${itemsList}
-
-💰 Итого: ${total.toLocaleString('ru-RU')} ₸
-
-Мы свяжемся с вами для подтверждения в ближайшее время.
-
+💰 ${total.toLocaleString('ru-RU')} ₸
+Свяжемся для подтверждения в ближайшее время.
 _Цветы Уральска_`
   },
 }
