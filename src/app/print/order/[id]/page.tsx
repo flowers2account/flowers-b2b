@@ -34,12 +34,11 @@ function ItemRows({ items, startIdx }: { items: any[]; startIdx: number }) {
     <>
       {items.map((item: any, idx: number) => {
         const qty = item.qty_actual ?? item.qty_ordered ?? item.qty
-        const stemLength = item.product?.stem_length ?? null
         return (
           <tr key={item.id} className="border-b border-gray-200">
             <td className="py-2 pr-2 text-gray-400">{startIdx + idx + 1}</td>
             <td className="py-2 pr-3">{item.product?.name ?? `Товар #${item.id}`}</td>
-            <td className="py-2 px-2 text-center text-gray-600">{stemLength ? `${stemLength} см` : '—'}</td>
+            <td className="py-2 px-2 text-center text-gray-600">—</td>
             <td className="py-2 px-3 text-center">{qty}</td>
             <td className="py-2 px-3 text-right">{fmt(item.price)}</td>
             <td className="py-2 pl-3 text-right font-medium">{fmt(qty * item.price)}</td>
@@ -56,14 +55,18 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   if (isNaN(orderId)) notFound()
 
   const supabase = await createClient()
-  const { data: order } = await supabase
+  const { data: order, error: orderError } = await supabase
     .from('orders')
     .select(`id, status, total, notes, created_at, guest_phone, guest_name,
              client:client_id(name, phone),
-             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, origin, stem_length))`)
+             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, origin))`)
     .eq('id', orderId)
     .single()
 
+  if (orderError) {
+    console.error('Print page query error:', orderError.message)
+    notFound()
+  }
   if (!order) notFound()
 
   const o = order as any
