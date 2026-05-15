@@ -13,12 +13,16 @@ interface StatusDetails {
   clientName: string
   total: number
   photoUrl?: string
+  items?: Array<{ name: string; qty: number }>
 }
 
 interface ManagerStatusDetails {
   orderId: string
   managerName: string
+  clientName?: string
+  companyName?: string
   total: number
+  items?: Array<{ name: string; qty: number }>
 }
 
 export const umnicoTemplates = {
@@ -41,6 +45,11 @@ ${clientName}, заказ принят и будет собран в ближа�
 💰 Сумма: ${total.toLocaleString('ru-RU')} ₸
 _Цветы Уральска_`,
 
+  orderConfirmedToManager: ({ orderId, managerName, clientName, companyName, total }: ManagerStatusDetails): string =>
+    `✅ Заказ #${orderId} подтверждён
+👤 ${clientName ?? '—'}${companyName ? ` | ${companyName}` : ''}
+👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
+
   orderPackedToClient: ({ orderId, clientName, total, photoUrl }: StatusDetails): string =>
     `📦 Заказ #${orderId} собран и готов к получению
 ${clientName}, ваш заказ ждёт вас!
@@ -48,23 +57,30 @@ ${clientName}, ваш заказ ждёт вас!
 📍 ул. Каримуллина, 11 | Пн-Пт 8:00-18:00, Сб 9:00-15:00
 _Цветы Уральска_`,
 
-  orderDeliveredToClient: ({ orderId, clientName, total }: StatusDetails): string =>
-    `🎉 Заказ #${orderId} выдан
-${clientName}, спасибо за покупку! Ждём вас снова 🌸
-💰 Сумма: ${total.toLocaleString('ru-RU')} ₸
-_Цветы Уральска_`,
-
-  orderConfirmedToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
-    `✅ Заказ #${orderId} подтверждён
-👤 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
-
-  orderPackedToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
+  orderPackedToManager: ({ orderId, managerName, clientName, companyName, total }: ManagerStatusDetails): string =>
     `📦 Заказ #${orderId} собран
-👤 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
+👤 ${clientName ?? '—'}${companyName ? ` | ${companyName}` : ''}
+👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
-  orderDeliveredToManager: ({ orderId, managerName, total }: ManagerStatusDetails): string =>
-    `🎉 Заказ #${orderId} выдан
-👤 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
+  orderDeliveredToClient: ({ orderId, clientName, total, items }: StatusDetails): string => {
+    const itemsList = items?.length
+      ? '\n' + items.map(i => `• ${i.name} — ${i.qty} шт`).join('\n')
+      : ''
+    return `🎉 Заказ #${orderId} выдан
+${clientName}, спасибо за покупку! 🌸${itemsList}
+💰 Итого: ${total.toLocaleString('ru-RU')} ₸
+_Цветы Уральска_`
+  },
+
+  orderDeliveredToManager: ({ orderId, managerName, clientName, companyName, total, items }: ManagerStatusDetails): string => {
+    const itemsList = items?.length
+      ? '\n' + items.map(i => `• ${i.name} — ${i.qty} шт`).join('\n')
+      : ''
+    return `🎉 Заказ #${orderId} выдан
+👤 ${clientName ?? '—'}${companyName ? ` | ${companyName}` : ''}
+👔 ${managerName}${itemsList}
+💰 ${total.toLocaleString('ru-RU')} ₸`
+  },
 
   orderCreatedToClient: (
     orderId: string,

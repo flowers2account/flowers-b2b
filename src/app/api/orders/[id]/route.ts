@@ -83,7 +83,7 @@ export async function PATCH(
       const [{ data: orderData }, { data: historyRecord }] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, total, clients(name, phone)')
+          .select('id, total, guest_name, guest_phone, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, is_removed, product:product_id(name))')
           .eq('id', orderId)
           .single(),
         supabase
@@ -95,11 +95,21 @@ export async function PATCH(
           .maybeSingle(),
       ])
 
-      const clientPhone = (orderData?.clients as any)?.phone
-      const clientName = (orderData?.clients as any)?.name || 'Уважаемый клиент'
+      const clientPhone = (orderData?.clients as any)?.phone ?? orderData?.guest_phone
+      const clientName = (orderData?.clients as any)?.name ?? orderData?.guest_name ?? 'Уважаемый клиент'
+      const companyName = (orderData?.clients as any)?.company_name ?? undefined
       const managerName = (historyRecord as any)?.manager_name || 'Менеджер'
       const total = orderData?.total ?? 0
       const orderIdStr = String(orderId)
+
+      const deliveredItems = status === 'delivered'
+        ? ((orderData?.order_items ?? []) as any[])
+            .filter(i => !i.is_removed)
+            .map(i => ({
+              name: (i.product as any)?.name ?? 'Товар',
+              qty: i.qty_actual ?? i.qty_ordered ?? i.qty,
+            }))
+        : undefined
 
       if (clientPhone) {
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
@@ -110,7 +120,7 @@ export async function PATCH(
               : status === 'assembled'
               ? umnicoTemplates.orderPackedToClient({ orderId: orderIdStr, clientName, total })
               : status === 'delivered'
-              ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr, clientName, total })
+              ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr, clientName, total, items: deliveredItems })
               : null
 
           if (clientMessage) {
@@ -126,11 +136,11 @@ export async function PATCH(
         if (managerHasWhatsApp) {
           const managerMessage =
             status === 'confirmed'
-              ? umnicoTemplates.orderConfirmedToManager({ orderId: orderIdStr, managerName, total })
+              ? umnicoTemplates.orderConfirmedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total })
               : status === 'assembled'
-              ? umnicoTemplates.orderPackedToManager({ orderId: orderIdStr, managerName, total })
+              ? umnicoTemplates.orderPackedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total })
               : status === 'delivered'
-              ? umnicoTemplates.orderDeliveredToManager({ orderId: orderIdStr, managerName, total })
+              ? umnicoTemplates.orderDeliveredToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: deliveredItems })
               : null
 
           if (managerMessage) {
