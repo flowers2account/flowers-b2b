@@ -94,12 +94,22 @@ export async function PATCH(
         .from('order_history')
         .select('manager_name')
         .eq('order_id', orderId)
-        .eq('status_to', 'assembled')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      const managerName = historyRecord?.manager_name || 'Менеджер'
+      let managerName = historyRecord?.manager_name || null
+
+      if (!managerName && changed_by) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', changed_by)
+          .maybeSingle()
+        managerName = (profile as any)?.full_name || null
+      }
+
+      managerName = managerName || 'Менеджер'
 
       console.log('Client phone:', clientPhone)
       console.log('Client name:', clientName)

@@ -17,16 +17,18 @@ export async function POST(req: NextRequest) {
   // Find or create client by phone
   const { data: existingClient } = await supabase
     .from('clients')
-    .select('id, name')
+    .select('id, name, company_name')
     .eq('phone', normalizedPhone)
     .maybeSingle()
 
   let clientId: string
   let clientName: string | null = null
+  let companyName: string | null = null
 
   if (existingClient) {
     clientId = existingClient.id
     clientName = existingClient.name
+    companyName = (existingClient as any).company_name ?? null
     if (name) {
       await supabase.from('clients').update({ name }).eq('id', clientId)
       clientName = name
@@ -148,8 +150,9 @@ export async function POST(req: NextRequest) {
           process.env.UMNICO_MANAGER_PHONE,
           umnicoTemplates.newOrderToManager({
             orderId: String(orderId),
-            clientName: name || normalizedPhone,
+            clientName: clientName || name || normalizedPhone,
             clientPhone: normalizedPhone,
+            companyName: companyName || undefined,
             total,
             items: items.map((i: any) => ({ name: i.name || 'Товар', qty: i.qty, price: i.price })),
             adminUrl: 'https://flowers-b2b-phi.vercel.app/admin'

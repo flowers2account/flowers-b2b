@@ -2,6 +2,7 @@ interface OrderDetails {
   orderId: string
   clientName: string
   clientPhone: string
+  companyName?: string
   total: number
   items: Array<{ name: string; qty: number; price: number }>
   adminUrl: string
@@ -28,7 +29,7 @@ export const umnicoTemplates = {
 
     return `🆕 *НОВЫЙ ЗАКАЗ #${details.orderId}*
 
-👤 Клиент: ${details.clientName}
+👤 Клиент: ${details.clientName}${details.companyName ? ` | ${details.companyName}` : ''}
 📞 Телефон: ${details.clientPhone}
 
 📦 Состав заказа:
