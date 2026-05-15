@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import PrintActions from '@/components/print/PrintActions'
 
+export const dynamic = 'force-dynamic'
+
 const statusLabel: Record<string, string> = {
   pending: 'Новый',
   reserved: 'В брони',
