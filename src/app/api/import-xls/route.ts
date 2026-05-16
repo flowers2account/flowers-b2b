@@ -223,8 +223,10 @@ export async function POST(req: NextRequest) {
   const { error: syncError } = await supabase.rpc('sync_stock_from_batches')
   if (syncError) console.error('Stock sync error:', syncError)
 
-  // После последнего файла — деактивируем товары категории, которых не было в импорте
-  if (isLast && categoryOverride && importedProductIds.size > 0) {
+  // Деактивируем товары только при одиночной загрузке (isFirst=true И isLast=true).
+  // При множественных файлах importedProductIds содержит только последний файл,
+  // что ошибочно деактивирует товары из предыдущих файлов.
+  if (isFirst && isLast && categoryOverride && importedProductIds.size > 0) {
     const { data: allInCategory } = await supabase
       .from('products')
       .select('id')
