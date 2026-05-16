@@ -231,14 +231,13 @@ export default function CashierView() {
           </div>
 
           {/* Product grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, overflowY: 'auto', flex: 1, alignContent: 'flex-start', paddingBottom: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20, overflowY: 'auto', flex: 1, alignContent: 'flex-start', paddingBottom: 8 }}>
             {filtered.map(p => {
               const inCart = inCartSet.has(p.id)
               const isLow = p.available_qty > 0 && p.available_qty < 50
               const isOut = p.available_qty === 0
               const cartItem = cart.find(i => i.id === p.id)
               const displayName = p.variety_name || p.name
-              const meta = p.length_str || ''
               return (
                 <div
                   key={p.id}
@@ -247,65 +246,72 @@ export default function CashierView() {
                     background: '#fff',
                     border: `1px solid ${inCart ? ACCENT : '#E6DFD9'}`,
                     borderRadius: 12,
-                    boxShadow: inCart ? `0 0 0 2px #F7EEF2` : '0 1px 3px rgba(0,0,0,0.06)',
+                    boxShadow: inCart ? `0 0 0 2px #F7EEF2, 0 2px 8px rgba(0,0,0,0.08)` : '0 1px 3px rgba(0,0,0,0.07)',
                     overflow: 'hidden',
                     display: 'flex', flexDirection: 'column',
                     cursor: isOut ? 'default' : 'pointer',
                     opacity: isOut ? 0.55 : 1,
                   }}
                 >
-                  {/* Фото — фиксированная высота чтобы не схлопывалось */}
-                  <div style={{ height: 130, background: '#F7EEF2', position: 'relative', flexShrink: 0, overflow: 'hidden' }}>
+                  {/* Фото 180px */}
+                  <div style={{ height: 180, background: '#F7EEF2', position: 'relative', flexShrink: 0, overflow: 'hidden' }}>
                     {p.image_url
                       ? <img src={p.image_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, opacity: 0.35, background: 'repeating-linear-gradient(-45deg,transparent 0 8px,rgba(139,58,90,0.04) 8px 16px)' }}>🌸</div>
+                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, opacity: 0.3, background: 'repeating-linear-gradient(-45deg,transparent 0 8px,rgba(139,58,90,0.04) 8px 16px)' }}>🌸</div>
                     }
-                    {/* Остаток — левый нижний угол как в каталоге */}
+                    {/* Галочка — левый верхний, ярко зелёная */}
+                    {inCart && (
+                      <span style={{
+                        position: 'absolute', top: 8, left: 8,
+                        width: 26, height: 26, borderRadius: '50%',
+                        background: '#10b981',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 6px rgba(16,185,129,0.45)',
+                        zIndex: 2,
+                      }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </span>
+                    )}
+                    {/* Остаток — левый нижний (сдвигается вправо когда есть галочка) */}
                     <span style={{
-                      position: 'absolute', bottom: 7, left: 7,
-                      background: isOut ? 'rgba(200,50,50,0.85)' : isLow ? 'rgba(217,83,79,0.85)' : 'rgba(0,0,0,0.55)',
-                      color: '#fff', fontSize: 10, fontWeight: 700,
-                      padding: '3px 7px', borderRadius: 6, backdropFilter: 'blur(4px)',
+                      position: 'absolute', bottom: 8,
+                      left: inCart ? 'auto' : 8,
+                      right: inCart ? 8 : 'auto',
+                      background: isOut ? 'rgba(200,50,50,0.88)' : isLow ? 'rgba(217,83,79,0.88)' : 'rgba(0,0,0,0.58)',
+                      color: '#fff', fontSize: 11, fontWeight: 700,
+                      padding: '3px 8px', borderRadius: 6, backdropFilter: 'blur(4px)',
                     }}>
                       {isOut ? 'Нет' : `${p.available_qty} шт`}
                     </span>
-                    {/* pack_size — правый верхний */}
+                    {/* pack_size — правый верхний, бордовый */}
                     <span style={{
-                      position: 'absolute', top: 7, right: 7,
-                      background: 'rgba(255,255,255,0.85)',
-                      color: '#7A7780', fontSize: 9, fontWeight: 600,
-                      padding: '2px 6px', borderRadius: 6, backdropFilter: 'blur(4px)',
+                      position: 'absolute', top: 8, right: 8,
+                      background: 'rgba(139,58,90,0.9)',
+                      color: '#fff', fontSize: 10, fontWeight: 600,
+                      padding: '3px 7px', borderRadius: 6,
                     }}>
                       уп.{p.pack_size}
                     </span>
-                    {/* Галочка если в корзине */}
-                    {inCart && (
-                      <span style={{
-                        position: 'absolute', top: 7, left: 7,
-                        width: 22, height: 22, borderRadius: '50%',
-                        background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 2px 6px rgba(139,58,90,0.35)',
-                      }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </span>
-                    )}
                   </div>
 
                   {/* Тело карточки */}
-                  <div style={{ padding: '9px 11px 11px', display: 'flex', flexDirection: 'column', flex: 1, gap: 2 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.25, color: INK }}>
+                  <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>
+                    <div style={{
+                      fontSize: 14, fontWeight: 600, lineHeight: 1.3, color: INK,
+                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    }}>
                       {displayName}
                     </div>
-                    {meta && (
-                      <div style={{ fontSize: 11, color: '#7A7780', marginTop: 1 }}>{meta}</div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: ACCENT }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 4 }}>
+                      {p.length_str && (
+                        <span style={{ fontSize: 11, color: '#7A7780' }}>{p.length_str}</span>
+                      )}
+                      <span style={{ fontSize: 16, fontWeight: 700, color: ACCENT, marginLeft: 'auto' }}>
                         {p.price.toLocaleString('ru-RU')} ₸
                       </span>
                     </div>
                     {inCart && cartItem && (
-                      <div style={{ fontSize: 11, fontWeight: 600, color: ACCENT, marginTop: 3 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#10b981', paddingTop: 2 }}>
                         ✓ {cartItem.qty} шт в заказе
                       </div>
                     )}
