@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
 
-type Product = { id: number; name: string; price: number; pack_size: number; available_qty: number; category: string }
+type Product = { id: number; name: string; price: number; pack_size: number; available_qty: number; category: string; image_url: string | null; variety_name: string | null; length_str: string | null }
 type CartItem = Product & { qty: number }
 type Client = { id: string; name: string | null; phone: string | null; company_name?: string | null }
 
@@ -231,34 +231,42 @@ export default function CashierView() {
                   borderRadius: 12, overflow: 'hidden', cursor: isOut ? 'default' : 'pointer',
                   display: 'flex', flexDirection: 'column',
                   boxShadow: inCart ? `0 0 0 3px #F7EEF2` : '0 1px 2px rgba(40,20,30,0.04)',
-                  position: 'relative', opacity: isOut ? 0.5 : 1, textAlign: 'left',
-                  transition: 'transform 0.1s',
+                  opacity: isOut ? 0.5 : 1, textAlign: 'left',
                 }}>
-                  <div style={{ aspectRatio: '1', background: SOFT, position: 'relative', display: 'flex', alignItems: 'flex-end' }}>
+                  {/* Фото */}
+                  <div style={{ height: 110, background: SOFT, position: 'relative', flexShrink: 0, overflow: 'hidden' }}>
+                    {p.image_url
+                      ? <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, opacity: 0.25 }}>🌸</div>
+                    }
+                    {/* Бейдж остатка */}
                     <span style={{
-                      position: 'absolute', top: 7, left: 7,
-                      background: isOut ? 'rgba(180,56,56,0.85)' : 'rgba(26,26,31,0.78)',
-                      color: '#fff', fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 999,
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      position: 'absolute', top: 6, left: 6,
+                      background: isOut ? 'rgba(180,56,56,0.88)' : 'rgba(20,20,25,0.72)',
+                      color: '#fff', fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 999,
+                      display: 'inline-flex', alignItems: 'center', gap: 4, backdropFilter: 'blur(4px)',
                     }}>
                       {!isOut && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isLow ? '#F2A93B' : '#5ED27A', display: 'inline-block' }} />}
-                      {isOut ? 'нет' : `${p.available_qty}`}
+                      {isOut ? 'нет' : `${p.available_qty} шт`}
                     </span>
+                    {/* Галочка если в корзине */}
                     {inCart && (
-                      <span style={{ position: 'absolute', top: 7, right: 7, width: 24, height: 24, borderRadius: '50%', background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(139,58,90,0.3)' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: '50%', background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(139,58,90,0.4)' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       </span>
                     )}
-                    {inCart && cartItem && (
-                      <span style={{ position: 'absolute', bottom: 6, right: 8, fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: ACCENT }}>{cartItem.qty} шт</span>
-                    )}
                   </div>
-                  <div style={{ padding: '9px 10px', display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.2, color: INK, letterSpacing: '-0.005em' }}>{p.name}</div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 3 }}>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: ACCENT }}>{p.price.toLocaleString('ru-RU')} ₸</span>
+                  {/* Описание */}
+                  <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, color: INK }}>{p.variety_name || p.name}</div>
+                    {p.length_str && <div style={{ fontSize: 10, color: '#7A7780' }}>{p.length_str}</div>}
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 4 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: ACCENT }}>{p.price.toLocaleString('ru-RU')} ₸</span>
                       <span style={{ fontSize: 10, color: '#7A7780' }}>уп.{p.pack_size}</span>
                     </div>
+                    {inCart && cartItem && (
+                      <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, marginTop: 2 }}>В корзине: {cartItem.qty} шт</div>
+                    )}
                   </div>
                 </button>
               )
