@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/auth-store'
 import NewOrderModal from './NewOrderModal'
 import AssemblyModal from './AssemblyModal'
+import OrderEditModal from './OrderEditModal'
 
 type HistoryEntry = {
   id: number
@@ -76,6 +77,7 @@ export default function OrdersPanel() {
   const [assemblyOrder, setAssemblyOrder] = useState<Order | null>(null)
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [statusError, setStatusError] = useState<{ orderId: number; message: string } | null>(null)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
 
   // Filters
   const [datePreset, setDatePreset] = useState<DatePreset>('')
@@ -355,6 +357,23 @@ export default function OrdersPanel() {
           onSaved={() => { setAssemblyOrder(null); loadOrders() }}
         />
       )}
+      {editingOrder && (
+        <OrderEditModal
+          orderId={editingOrder.id}
+          initialItems={editingOrder.order_items
+            .filter(i => !i.is_removed)
+            .map(i => ({
+              id: i.id,
+              product_id: i.product_id,
+              name: i.product?.name ?? `Товар #${i.product_id}`,
+              qty: i.qty,
+              price: i.price,
+              pack_size: i.product?.pack_size ?? 1,
+            }))}
+          onClose={() => setEditingOrder(null)}
+          onSaved={() => { setEditingOrder(null); loadOrders() }}
+        />
+      )}
       {filteredOrders.length === 0 && (
         <div className="text-sm text-gray-400 py-4">
           {orders.length === 0 ? 'Заказов нет' : 'Нет заказов, соответствующих фильтрам'}
@@ -509,6 +528,13 @@ export default function OrdersPanel() {
               className="px-3 py-1.5 bg-gray-50 text-gray-500 text-sm rounded hover:bg-gray-100 border">
               {expandedId === order.id ? '▲ История' : '▼ История'}
             </button>
+            {!['delivered', 'cancelled'].includes(order.status) && (
+              <button
+                onClick={() => setEditingOrder(order)}
+                className="px-3 py-1.5 bg-gray-50 text-gray-600 text-sm rounded hover:bg-gray-100 border">
+                ✏️ Редактировать
+              </button>
+            )}
             <button
               onClick={() => window.open(`/print/order/${order.id}`, '_blank', 'width=800,height=700')}
               className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 ml-auto">
