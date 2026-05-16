@@ -20,15 +20,14 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
     categories: { cut: true, pot: true, supply: true }
   })
 
+  // При монтировании пушим актуальное значение из localStorage на сервер,
+  // а не наоборот — API in-memory сбрасывается на каждом cold start Vercel
   useEffect(() => {
-    fetch('/api/settings/notifications')
-      .then(r => r.json())
-      .then(data => {
-        if (data.enabled !== clientNotificationsEnabled) {
-          toggleClientNotifications()
-        }
-      })
-      .catch(() => {})
+    fetch('/api/settings/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: clientNotificationsEnabled })
+    }).catch(() => {})
   }, [])
 
   const handleToggle = async () => {
