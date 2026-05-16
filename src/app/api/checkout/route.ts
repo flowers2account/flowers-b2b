@@ -165,7 +165,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (process.env.UMNICO_API_TOKEN && phone) {
+  let clientNotificationsEnabled = true
+  try {
+    const settingsRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/settings/notifications`)
+    const settingsData = await settingsRes.json()
+    clientNotificationsEnabled = settingsData.enabled
+  } catch {
+    // default to enabled if settings fetch fails
+  }
+
+  if (clientNotificationsEnabled && process.env.UMNICO_API_TOKEN && phone) {
     try {
       const hasWhatsApp = await umnicoClient.checkContact(normalizedPhone)
       if (hasWhatsApp) {

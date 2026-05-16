@@ -111,7 +111,16 @@ export async function PATCH(
             }))
         : undefined
 
-      if (clientPhone) {
+      let clientNotificationsEnabled = true
+      try {
+        const settingsRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/settings/notifications`)
+        const settingsData = await settingsRes.json()
+        clientNotificationsEnabled = settingsData.enabled
+      } catch {
+        // default to enabled if settings fetch fails
+      }
+
+      if (clientNotificationsEnabled && clientPhone) {
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
         if (hasWhatsApp) {
           const clientMessage =
