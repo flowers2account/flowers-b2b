@@ -117,11 +117,23 @@ function StockRow({ product, onSaved }: {
     <TableRow>
       <TableCell>
         <div className="flex items-center gap-2">
-          {imageUrl ? (
-            <img src={imageUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
-          ) : (
-            <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
-          )}
+          <div
+            className="relative w-8 h-8 rounded flex-shrink-0 cursor-pointer group"
+            onClick={() => fileInputRef.current?.click()}
+            title="Загрузить фото"
+          >
+            {imageUrl ? (
+              <img src={imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
+            ) : (
+              <div className="w-8 h-8 rounded bg-gray-100" />
+            )}
+            <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {uploading
+                ? <span className="text-white text-[9px]">...</span>
+                : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              }
+            </div>
+          </div>
           <span className="font-medium">{product.name}</span>
         </div>
       </TableCell>
@@ -252,15 +264,6 @@ function StockRow({ product, onSaved }: {
             className="hidden"
             onChange={handleImageUpload}
           />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-            title="Загрузить фото"
-          >
-            {uploading ? '...' : '📷'}
-          </Button>
         </div>
       </TableCell>
     </TableRow>
