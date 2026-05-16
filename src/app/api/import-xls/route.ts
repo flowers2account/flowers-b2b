@@ -81,11 +81,12 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
   const importedProductIds = new Set<number>()
 
-  // Определяем категорию по имени файла
+  // Определяем категорию и источник по имени файла
   const fileNameLower = file.name.toLowerCase()
   const categoryOverride: 'cut' | 'pot' | null =
     fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
     fileNameLower.includes('срез') ? 'cut' : null
+  const isChina = fileNameLower.includes('китай') || fileNameLower.includes('china')
 
   if (isFirst && categoryOverride) {
     const { data: allProducts } = await supabase
@@ -104,7 +105,13 @@ export async function POST(req: NextRequest) {
   for (const row of rows) {
     try {
       const _parsed = parseNomenclature(row.name)
-      const parsed = { ..._parsed, category: categoryOverride ?? _parsed.category }
+      const parsed = {
+        ..._parsed,
+        category: categoryOverride ?? _parsed.category,
+        // Китайские файлы получают суффикс — создаётся отдельный товар с отдельной ценой
+        variety_name: isChina ? `${_parsed.variety_name} (Китай)` : _parsed.variety_name,
+        origin: isChina ? 'china' : (_parsed as any).origin ?? null,
+      }
 
       // 1. Создаём или находим сорт (variety)
       const { data: variety, error: vErr } = await supabase
@@ -146,6 +153,7 @@ export async function POST(req: NextRequest) {
             name: row.name,
             is_active: true,
             previous_price: isPriceDown ? currentPrice : null,
+            ...(parsed.origin ? { origin: parsed.origin } : {}),
           })
           .eq('id', existingProduct.id)
           .select('id').single()
@@ -163,6 +171,7 @@ export async function POST(req: NextRequest) {
             category: categoryOverride ?? parsed.category,
             name: row.name,
             is_active: true,
+            origin: parsed.origin ?? null,
           })
           .select('id').single()
         if (pErr || !newProduct) throw new Error(`product insert: ${pErr?.code} ${pErr?.message}`)
