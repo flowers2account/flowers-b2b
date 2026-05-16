@@ -169,38 +169,30 @@ export async function POST(req: NextRequest) {
         product = newProduct
       }
 
-      // 3. Обновляем stock — СУММИРУЕМ qty
+      // 3. Обновляем stock (временно — sync_stock_from_batches скорректирует после цикла)
       const { data: existingStock } = await supabase
         .from('stock')
-        .select('qty, qty_reserved')
+        .select('qty_reserved')
         .eq('product_id', product.id)
         .maybeSingle()
 
       const qtyReserved = existingStock?.qty_reserved ?? 0
-      // При первом вхождении товара в этой сессии: если isFirst — сбрасываем базу до 0,
-      // иначе берём текущий остаток (продолжаем суммировать к существующему)
-      const baseQty = (isFirst && !processedProductIds.has(product.id))
-        ? 0
-        : (existingStock?.qty ?? 0)
-      const newQty = baseQty + row.qty
 
       const { error: stockErr } = await supabase.from('stock').upsert({
         product_id: product.id,
-        qty: newQty,
+        qty: row.qty,
         qty_reserved: qtyReserved,
         price: row.price,
-        is_available: newQty > qtyReserved,
+        is_available: row.qty > qtyReserved,
       }, { onConflict: 'product_id' })
       if (stockErr) throw new Error(`stock upsert: ${stockErr.message}`)
 
       processedProductIds.add(product.id)
 
-      // 4. Заменяем партии: деактивируем старые, создаём одну свежую
-      await supabase.from('batches')
-        .update({ is_active: false })
-        .eq('product_id', product.id)
-        .eq('is_active', true)
-
+      // 4. Добавляем партию — НЕ деактивируем существующие активные партии этого товара.
+      // isFirst уже деактивировал все партии категории в начале запроса.
+      // Так все партии текущей сессии остаются активными, и sync_stock_from_batches
+      // суммирует их все: batch(175) + batch(13) = 188.
       await supabase.from('batches').insert({
         product_id: product.id,
         price: row.price,
