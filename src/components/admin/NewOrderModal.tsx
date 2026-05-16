@@ -7,14 +7,21 @@ type Product = { id: number; name: string; price: number; pack_size: number; ava
 type CartItem = Product & { qty: number }
 type StockRow = { product_id: number; price: number; available_qty: number; products: { id: number; name: string; pack_size: number } | null }
 
-export default function NewOrderModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+type Props = {
+  onClose: () => void
+  onCreated: () => void
+  initialClient?: Client
+  initialItems?: CartItem[]
+}
+
+export default function NewOrderModal({ onClose, onCreated, initialClient, initialItems }: Props) {
   const supabase = createClient()
   const [clients, setClients] = useState<Client[]>([])
   const [clientSearch, setClientSearch] = useState('')
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(initialClient ?? null)
   const [productSearch, setProductSearch] = useState('')
   const [products, setProducts] = useState<Product[]>([])
-  const [cart, setCart] = useState<CartItem[]>([])
+  const [cart, setCart] = useState<CartItem[]>(initialItems ?? [])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {

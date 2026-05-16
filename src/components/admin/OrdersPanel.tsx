@@ -78,6 +78,7 @@ export default function OrdersPanel() {
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [statusError, setStatusError] = useState<{ orderId: number; message: string } | null>(null)
   const [editingOrder, setEditingOrder] = useState<Order | null>(null)
+  const [repeatOrder, setRepeatOrder] = useState<Order | null>(null)
 
   // Filters
   const [datePreset, setDatePreset] = useState<DatePreset>('')
@@ -360,6 +361,25 @@ export default function OrdersPanel() {
           onCreated={() => { setShowNewOrder(false); loadOrders() }}
         />
       )}
+      {repeatOrder && (
+        <NewOrderModal
+          onClose={() => setRepeatOrder(null)}
+          onCreated={() => { setRepeatOrder(null); loadOrders() }}
+          initialClient={repeatOrder.client_id && repeatOrder.client
+            ? { id: repeatOrder.client_id, name: repeatOrder.client.name, phone: repeatOrder.client.phone }
+            : undefined}
+          initialItems={repeatOrder.order_items
+            .filter(i => !i.is_removed)
+            .map(i => ({
+              id: i.product_id,
+              name: i.product?.name ?? `Товар #${i.product_id}`,
+              price: i.price,
+              pack_size: i.product?.pack_size ?? 1,
+              available_qty: 0,
+              qty: i.qty,
+            }))}
+        />
+      )}
       {assemblyOrder && (
         <AssemblyModal
           orderId={assemblyOrder.id}
@@ -595,6 +615,11 @@ export default function OrdersPanel() {
                 ✏️ Редактировать
               </button>
             )}
+            <button
+              onClick={() => setRepeatOrder(order)}
+              className="px-3 py-1.5 bg-gray-50 text-gray-600 text-sm rounded hover:bg-gray-100 border">
+              🔁 Повторить
+            </button>
             <button
               onClick={() => window.open(`/print/order/${order.id}`, '_blank', 'width=800,height=700')}
               className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 ml-auto">
