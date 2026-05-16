@@ -114,70 +114,70 @@ function StockRow({ product, onSaved }: {
   const reserveClass = activeReserved > 0 ? 'text-green-600 font-semibold' : 'text-muted-foreground'
 
   return (
-    <TableRow>
-      <TableCell>
-        <div className="flex items-center gap-2">
+    <TableRow className="text-xs">
+      <TableCell className="py-1 px-2">
+        <div className="flex items-center gap-1.5 min-w-0">
           <div
-            className="relative w-8 h-8 rounded flex-shrink-0 cursor-pointer group"
+            className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
             title="Загрузить фото"
           >
             {imageUrl ? (
-              <img src={imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
+              <img src={imageUrl} alt="" className="w-7 h-7 rounded object-cover" />
             ) : (
-              <div className="w-8 h-8 rounded bg-gray-100" />
+              <div className="w-7 h-7 rounded bg-gray-100" />
             )}
             <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               {uploading
-                ? <span className="text-white text-[9px]">...</span>
-                : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                ? <span className="text-white text-[8px]">...</span>
+                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               }
             </div>
           </div>
-          <span className="font-medium">{product.name}</span>
+          <span className="font-medium truncate">{product.name}</span>
         </div>
       </TableCell>
-      <TableCell>
-        <Badge variant={product.category === 'cut' ? 'default' : 'secondary'}>
-          {product.category === 'cut' ? '✂️ Срез' : '🪴 Горшок'}
-        </Badge>
+      <TableCell className="py-1 px-1">
+        <span className="text-xs text-gray-500 whitespace-nowrap">
+          {product.category === 'cut' ? '✂️' : product.category === 'pot' ? '🪴' : '📦'}
+        </span>
       </TableCell>
-      <TableCell>
+      <TableCell className="py-1 px-1">
         <Input
           type="number"
           value={qty}
           onChange={e => setQty(e.target.value)}
-          className="w-24 h-8 text-center"
+          className="w-16 h-7 text-center text-xs px-1"
         />
       </TableCell>
-      <TableCell className="text-center text-sm text-muted-foreground">
-        {available} шт
+      <TableCell className="py-1 px-1 text-center text-xs text-muted-foreground whitespace-nowrap">
+        {available}
       </TableCell>
-      <TableCell className={`text-center text-sm ${reserveClass}`}>
-        {activeReserved} шт
+      <TableCell className={`py-1 px-1 text-center text-xs whitespace-nowrap ${reserveClass}`}>
+        {activeReserved}
       </TableCell>
-      <TableCell>
+      <TableCell className="py-1 px-1">
         <Input
           type="number"
           value={price}
           onChange={e => setPrice(e.target.value)}
-          className="w-28 h-8 text-center"
+          className="w-20 h-7 text-center text-xs px-1"
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="py-1 px-1">
         <Input
           type="number"
           value={packSize}
           onChange={e => setPackSize(e.target.value)}
-          className="w-20 h-8 text-center"
+          className="w-14 h-7 text-center text-xs px-1"
         />
       </TableCell>
       {/* Color picker cell */}
-      <TableCell>
+      <TableCell className="py-1 px-1">
         <div ref={colorPickerRef} className="relative">
           <button
             onClick={() => setColorsOpen(prev => !prev)}
-            className="flex flex-wrap gap-0.5 items-center min-w-[56px] h-8 px-1.5 border border-dashed rounded hover:border-gray-400 transition-colors"
+            className="flex flex-wrap gap-0.5 items-center min-w-[44px] h-7 px-1 border border-dashed rounded hover:border-gray-400 transition-colors"
             style={{ borderColor: colorsOpen ? '#7a1c2e' : undefined }}
             title="Редактировать цвета"
           >
@@ -247,24 +247,22 @@ function StockRow({ product, onSaved }: {
         </div>
       </TableCell>
 
-      <TableCell>
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            onClick={save}
-            disabled={saving}
-            className={saved ? 'bg-green-600 hover:bg-green-700' : ''}
-          >
-            {saving ? '...' : saved ? '✓' : 'Сохранить'}
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-        </div>
+      <TableCell className="py-1 px-1">
+        <Button
+          size="sm"
+          onClick={save}
+          disabled={saving}
+          className={`h-7 text-xs px-2 ${saved ? 'bg-green-600 hover:bg-green-700' : ''}`}
+        >
+          {saving ? '...' : saved ? '✓' : 'Сохр.'}
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
       </TableCell>
     </TableRow>
   )
@@ -304,16 +302,16 @@ export default function AdminTable({ products, onReload }: { products: Product[]
       <div className="rounded-lg border bg-white shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Наименование</TableHead>
-              <TableHead>Категория</TableHead>
-              <TableHead className="text-center">Остаток</TableHead>
-              <TableHead className="text-center">Доступно</TableHead>
-              <TableHead className="text-center">Резерв</TableHead>
-              <TableHead className="text-center">Цена (₸)</TableHead>
-              <TableHead className="text-center">Уп.</TableHead>
-              <TableHead className="text-center">Цвет</TableHead>
-              <TableHead></TableHead>
+            <TableRow className="text-xs">
+              <TableHead className="py-2 px-2">Наименование</TableHead>
+              <TableHead className="py-2 px-1 w-8">Кат.</TableHead>
+              <TableHead className="py-2 px-1 text-center w-20">Остаток</TableHead>
+              <TableHead className="py-2 px-1 text-center w-14">Дост.</TableHead>
+              <TableHead className="py-2 px-1 text-center w-14">Рез.</TableHead>
+              <TableHead className="py-2 px-1 text-center w-24">Цена ₸</TableHead>
+              <TableHead className="py-2 px-1 text-center w-16">Уп.</TableHead>
+              <TableHead className="py-2 px-1 text-center w-12">Цвет</TableHead>
+              <TableHead className="py-2 px-1 w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
