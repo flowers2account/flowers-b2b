@@ -90,6 +90,12 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
         >
           📅 Кампании
         </Link>
+        <Link
+          href="/admin/cashier"
+          className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 ml-auto"
+        >
+          🖥️ Касса
+        </Link>
       </div>
 
       {tab === 'stock' && (
