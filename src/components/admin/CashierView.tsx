@@ -153,10 +153,10 @@ export default function CashierView() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: '60px 1fr', height: 'calc(100vh - 57px)', overflow: 'hidden', background: '#F6F2EF', fontFamily: "'Golos Text', -apple-system, sans-serif" }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 57px)', overflow: 'hidden', background: '#F6F2EF', fontFamily: "'Golos Text', -apple-system, sans-serif" }}>
 
       {/* ── TOPBAR ── */}
-      <div style={{ background: INK, borderBottom: '1px solid #000', display: 'flex', alignItems: 'center', padding: '0 22px', gap: 18 }}>
+      <div style={{ flexShrink: 0, background: INK, borderBottom: '1px solid #000', display: 'flex', alignItems: 'center', padding: '0 22px', gap: 18, height: 60 }}>
         <Link href="/admin" style={{ height: 36, padding: '0 14px', display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="m15 18-6-6 6-6"/></svg>
           Админка
@@ -190,10 +190,10 @@ export default function CashierView() {
       </div>
 
       {/* ── BODY ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 460px', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-        {/* LEFT: product picker */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px 16px 16px 20px', gap: 12 }}>
+        {/* LEFT: catalog-section — скроллится целиком */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '16px 16px 16px 20px', gap: 12 }}>
 
           {/* Search bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#fff', border: `2px solid ${BORDER}`, borderRadius: 14 }}>
@@ -230,8 +230,8 @@ export default function CashierView() {
             ))}
           </div>
 
-          {/* Product grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20, overflowY: 'auto', flex: 1, alignContent: 'flex-start', paddingBottom: 8 }}>
+          {/* Product grid — растёт вниз, родитель скроллится */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20, paddingBottom: 16 }}>
             {filtered.map(p => {
               const inCart = inCartSet.has(p.id)
               const isLow = p.available_qty > 0 && p.available_qty < 50
@@ -327,8 +327,8 @@ export default function CashierView() {
           </div>
         </div>
 
-        {/* RIGHT: order builder */}
-        <div style={{ background: '#fff', borderLeft: `1px solid #EFEAE5`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* RIGHT: order-section */}
+        <div style={{ width: 460, flexShrink: 0, background: '#fff', borderLeft: `1px solid #EFEAE5`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Header */}
           <div style={{ padding: '14px 20px', borderBottom: `1px solid #EFEAE5`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
