@@ -215,6 +215,15 @@ export default function OrdersPanel() {
     loadOrders()
   }
 
+  async function deleteOrder(orderId: number) {
+    if (!window.confirm(`Удалить заказ #${orderId}? Это действие нельзя отменить.`)) return
+    await supabase.from('reservations').delete().eq('order_id', orderId)
+    await supabase.from('order_history').delete().eq('order_id', orderId)
+    await supabase.from('order_items').delete().eq('order_id', orderId)
+    await supabase.from('orders').delete().eq('id', orderId)
+    loadOrders()
+  }
+
   const statusLabel: Record<string, string> = {
     pending: '⏳ Новый',
     reserved: '🔒 В брони',
@@ -539,6 +548,11 @@ export default function OrdersPanel() {
               onClick={() => window.open(`/print/order/${order.id}`, '_blank', 'width=800,height=700')}
               className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 ml-auto">
               🖨 Печать
+            </button>
+            <button
+              onClick={() => deleteOrder(order.id)}
+              className="px-3 py-1.5 bg-red-50 text-red-500 text-sm rounded hover:bg-red-100 border border-red-200">
+              🗑
             </button>
           </div>
 
