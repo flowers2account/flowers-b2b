@@ -23,7 +23,7 @@ const PAY_METHODS = [
 ]
 
 export default function CashierView() {
-  const supabase = createClient()
+  const supabase = createClient() // used for clients list
   const { phone: userPhone } = useAuthStore()
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -62,22 +62,9 @@ export default function CashierView() {
 
   // Load all available products
   useEffect(() => {
-    async function load() {
-      const { data: stockData } = await supabase
-        .from('stock_available').select('product_id, price, available_qty').gt('available_qty', 0)
-      if (!stockData?.length) return
-      const ids = stockData.map((s: any) => s.product_id)
-      const { data: productData } = await supabase
-        .from('products').select('id, name, pack_size, category')
-        .in('id', ids).eq('is_active', true).order('name')
-      const stockMap = new Map(stockData.map((s: any) => [s.product_id, s]))
-      setAllProducts((productData ?? []).map((p: any) => ({
-        id: p.id, name: p.name, pack_size: p.pack_size ?? 1, category: p.category ?? 'cut',
-        price: (stockMap.get(p.id) as any)?.price ?? 0,
-        available_qty: (stockMap.get(p.id) as any)?.available_qty ?? 0,
-      })))
-    }
-    load()
+    fetch('/api/cashier/products')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setAllProducts(data) })
   }, [])
 
   // Load clients
