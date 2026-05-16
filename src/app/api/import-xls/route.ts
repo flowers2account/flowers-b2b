@@ -93,10 +93,13 @@ export async function POST(req: NextRequest) {
       .eq('category', categoryOverride).eq('is_active', true)
     if (allProducts?.length) {
       const ids = allProducts.map(p => p.id)
+      // Деактивируем старые партии, но stock НЕ обнуляем — будем суммировать
       await supabase.from('batches').update({ is_active: false }).in('product_id', ids)
-      await supabase.from('stock').update({ qty: 0, is_available: false }).in('product_id', ids)
     }
   }
+
+  // Товары, уже обработанные в этом запросе (для сброса qty до 0 при первом вхождении)
+  const processedProductIds = new Set<number>()
 
   for (const row of rows) {
     try {
@@ -166,23 +169,31 @@ export async function POST(req: NextRequest) {
         product = newProduct
       }
 
-      // 3. Обновляем stock — qty из файла, qty_reserved сохраняем
+      // 3. Обновляем stock — СУММИРУЕМ qty
       const { data: existingStock } = await supabase
         .from('stock')
-        .select('qty_reserved')
+        .select('qty, qty_reserved')
         .eq('product_id', product.id)
         .maybeSingle()
 
       const qtyReserved = existingStock?.qty_reserved ?? 0
+      // При первом вхождении товара в этой сессии: если isFirst — сбрасываем базу до 0,
+      // иначе берём текущий остаток (продолжаем суммировать к существующему)
+      const baseQty = (isFirst && !processedProductIds.has(product.id))
+        ? 0
+        : (existingStock?.qty ?? 0)
+      const newQty = baseQty + row.qty
 
       const { error: stockErr } = await supabase.from('stock').upsert({
         product_id: product.id,
-        qty: row.qty,
+        qty: newQty,
         qty_reserved: qtyReserved,
         price: row.price,
-        is_available: row.qty > qtyReserved,
+        is_available: newQty > qtyReserved,
       }, { onConflict: 'product_id' })
       if (stockErr) throw new Error(`stock upsert: ${stockErr.message}`)
+
+      processedProductIds.add(product.id)
 
       // 4. Заменяем партии: деактивируем старые, создаём одну свежую
       await supabase.from('batches')
