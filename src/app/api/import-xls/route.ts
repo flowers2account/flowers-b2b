@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
 
   let success = 0
   let errors = 0
+  let zeroed = 0
   const errorLog: string[] = []
   const today = new Date().toISOString().split('T')[0]
   const importedProductIds = new Set<number>()
@@ -214,7 +215,28 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const zeroed = 0
+  // После последнего файла — деактивируем товары категории, которых не было в импорте
+  if (isLast && categoryOverride && importedProductIds.size > 0) {
+    const { data: allInCategory } = await supabase
+      .from('products')
+      .select('id')
+      .eq('category', categoryOverride)
+      .eq('is_active', true)
+
+    if (allInCategory?.length) {
+      const toDeactivate = allInCategory
+        .map((p: { id: number }) => p.id)
+        .filter((id: number) => !importedProductIds.has(id))
+
+      if (toDeactivate.length > 0) {
+        await supabase
+          .from('products')
+          .update({ is_active: false })
+          .in('id', toDeactivate)
+        zeroed = toDeactivate.length
+      }
+    }
+  }
 
   return NextResponse.json({ success, errors, zeroed, errorLog })
 }
