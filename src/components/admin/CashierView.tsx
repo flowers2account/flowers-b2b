@@ -73,9 +73,22 @@ export default function CashierView() {
       .then(({ data }: { data: Client[] | null }) => setClients(data ?? []))
   }, [])
 
+  function matchesFilter(p: Product, cat: string): boolean {
+    const n = (p.variety_name || p.name).toLowerCase()
+    if (cat === 'all')   return true
+    if (cat === 'roses') return n.includes('роз') || n.includes('ros')
+    if (cat === 'green') return (
+      n.includes('зелен') || n.includes('эвкал') || n.includes('питто') ||
+      n.includes('рускус') || n.includes('гипсо') || n.includes('аспараг') ||
+      n.includes('листья') || n.includes('салал') || n.includes('зелень')
+    )
+    if (cat === 'exotic') return !matchesFilter(p, 'roses') && !matchesFilter(p, 'green') && p.category === 'cut'
+    return true
+  }
+
   const filtered = allProducts.filter(p => {
-    const matchCat = category === 'all' || p.category === category
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase())
+    const matchCat = matchesFilter(p, category)
+    const matchSearch = !search || (p.variety_name || p.name).toLowerCase().includes(search.toLowerCase())
     return matchCat && matchSearch
   })
 
@@ -104,10 +117,10 @@ export default function CashierView() {
   const totalQty = cart.reduce((s, i) => s + i.qty, 0)
 
   const cats = [
-    { id: 'all', label: 'Все', count: allProducts.length },
-    { id: 'cut', label: '🌹 Срез', count: allProducts.filter(p => p.category === 'cut').length },
-    { id: 'pot', label: '🪴 Горшечные', count: allProducts.filter(p => p.category === 'pot').length },
-    { id: 'supply', label: '📦 Расходники', count: allProducts.filter(p => p.category === 'supply').length },
+    { id: 'all',    label: 'Все',     count: allProducts.length },
+    { id: 'roses',  label: '🌹 Розы', count: allProducts.filter(p => matchesFilter(p, 'roses')).length },
+    { id: 'green',  label: '🌿 Зелень', count: allProducts.filter(p => matchesFilter(p, 'green')).length },
+    { id: 'exotic', label: '✨ Экзотика', count: allProducts.filter(p => matchesFilter(p, 'exotic')).length },
   ].filter(c => c.count > 0 || c.id === 'all')
 
   const filteredClients = clients.filter(c =>
@@ -218,57 +231,86 @@ export default function CashierView() {
           </div>
 
           {/* Product grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, overflowY: 'auto', flex: 1, alignContent: 'flex-start', paddingBottom: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, overflowY: 'auto', flex: 1, alignContent: 'flex-start', paddingBottom: 8 }}>
             {filtered.map(p => {
               const inCart = inCartSet.has(p.id)
               const isLow = p.available_qty > 0 && p.available_qty < 50
               const isOut = p.available_qty === 0
               const cartItem = cart.find(i => i.id === p.id)
+              const displayName = p.variety_name || p.name
+              const meta = p.length_str || ''
               return (
-                <button key={p.id} onClick={() => tapProduct(p)} disabled={isOut} style={{
-                  background: '#fff',
-                  border: inCart ? `2px solid ${ACCENT}` : `1px solid #EFEAE5`,
-                  borderRadius: 12, overflow: 'hidden', cursor: isOut ? 'default' : 'pointer',
-                  display: 'flex', flexDirection: 'column',
-                  boxShadow: inCart ? `0 0 0 3px #F7EEF2` : '0 1px 2px rgba(40,20,30,0.04)',
-                  opacity: isOut ? 0.5 : 1, textAlign: 'left',
-                }}>
-                  {/* Фото */}
-                  <div style={{ height: 110, background: SOFT, position: 'relative', flexShrink: 0, overflow: 'hidden' }}>
+                <div
+                  key={p.id}
+                  onClick={() => tapProduct(p)}
+                  style={{
+                    background: '#fff',
+                    border: `1px solid ${inCart ? ACCENT : '#E6DFD9'}`,
+                    borderRadius: 12,
+                    boxShadow: inCart ? `0 0 0 2px #F7EEF2` : '0 1px 3px rgba(0,0,0,0.06)',
+                    overflow: 'hidden',
+                    display: 'flex', flexDirection: 'column',
+                    cursor: isOut ? 'default' : 'pointer',
+                    opacity: isOut ? 0.55 : 1,
+                  }}
+                >
+                  {/* Фото — фиксированная высота чтобы не схлопывалось */}
+                  <div style={{ height: 130, background: '#F7EEF2', position: 'relative', flexShrink: 0, overflow: 'hidden' }}>
                     {p.image_url
-                      ? <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, opacity: 0.25 }}>🌸</div>
+                      ? <img src={p.image_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, opacity: 0.35, background: 'repeating-linear-gradient(-45deg,transparent 0 8px,rgba(139,58,90,0.04) 8px 16px)' }}>🌸</div>
                     }
-                    {/* Бейдж остатка */}
+                    {/* Остаток — левый нижний угол как в каталоге */}
                     <span style={{
-                      position: 'absolute', top: 6, left: 6,
-                      background: isOut ? 'rgba(180,56,56,0.88)' : 'rgba(20,20,25,0.72)',
-                      color: '#fff', fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 999,
-                      display: 'inline-flex', alignItems: 'center', gap: 4, backdropFilter: 'blur(4px)',
+                      position: 'absolute', bottom: 7, left: 7,
+                      background: isOut ? 'rgba(200,50,50,0.85)' : isLow ? 'rgba(217,83,79,0.85)' : 'rgba(0,0,0,0.55)',
+                      color: '#fff', fontSize: 10, fontWeight: 700,
+                      padding: '3px 7px', borderRadius: 6, backdropFilter: 'blur(4px)',
                     }}>
-                      {!isOut && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isLow ? '#F2A93B' : '#5ED27A', display: 'inline-block' }} />}
-                      {isOut ? 'нет' : `${p.available_qty} шт`}
+                      {isOut ? 'Нет' : `${p.available_qty} шт`}
+                    </span>
+                    {/* pack_size — правый верхний */}
+                    <span style={{
+                      position: 'absolute', top: 7, right: 7,
+                      background: 'rgba(255,255,255,0.85)',
+                      color: '#7A7780', fontSize: 9, fontWeight: 600,
+                      padding: '2px 6px', borderRadius: 6, backdropFilter: 'blur(4px)',
+                    }}>
+                      уп.{p.pack_size}
                     </span>
                     {/* Галочка если в корзине */}
                     {inCart && (
-                      <span style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: '50%', background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(139,58,90,0.4)' }}>
+                      <span style={{
+                        position: 'absolute', top: 7, left: 7,
+                        width: 22, height: 22, borderRadius: '50%',
+                        background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 6px rgba(139,58,90,0.35)',
+                      }}>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       </span>
                     )}
                   </div>
-                  {/* Описание */}
-                  <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, color: INK }}>{p.variety_name || p.name}</div>
-                    {p.length_str && <div style={{ fontSize: 10, color: '#7A7780' }}>{p.length_str}</div>}
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: ACCENT }}>{p.price.toLocaleString('ru-RU')} ₸</span>
-                      <span style={{ fontSize: 10, color: '#7A7780' }}>уп.{p.pack_size}</span>
+
+                  {/* Тело карточки */}
+                  <div style={{ padding: '9px 11px 11px', display: 'flex', flexDirection: 'column', flex: 1, gap: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.25, color: INK }}>
+                      {displayName}
+                    </div>
+                    {meta && (
+                      <div style={{ fontSize: 11, color: '#7A7780', marginTop: 1 }}>{meta}</div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: ACCENT }}>
+                        {p.price.toLocaleString('ru-RU')} ₸
+                      </span>
                     </div>
                     {inCart && cartItem && (
-                      <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, marginTop: 2 }}>В корзине: {cartItem.qty} шт</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: ACCENT, marginTop: 3 }}>
+                        ✓ {cartItem.qty} шт в заказе
+                      </div>
                     )}
                   </div>
-                </button>
+                </div>
               )
             })}
             {filtered.length === 0 && (
