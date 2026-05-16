@@ -99,17 +99,26 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Товары, уже обработанные в этом запросе (для сброса qty до 0 при первом вхождении)
   const processedProductIds = new Set<number>()
+  // Отслеживаем цену первого вхождения каждой комбинации variety_name+length_str в этом файле.
+  // Если то же сочетание встречается снова с другой ценой → создаём отдельный товар.
+  const processedVLPrice = new Map<string, number>() // "varietyName:lengthStr" → price
 
   for (const row of rows) {
     try {
       const _parsed = parseNomenclature(row.name)
+      const baseVarietyName = isChina ? `${_parsed.variety_name} (Китай)` : _parsed.variety_name
+      const vlKey = `${baseVarietyName}:${_parsed.length_str ?? ''}`
+      const seenPrice = processedVLPrice.get(vlKey)
+      // Если тот же variety+length уже встречался в этом файле с другой ценой → суффикс цены
+      const effectiveVarietyName = (seenPrice !== undefined && Math.abs(seenPrice - row.price) > 1)
+        ? `${baseVarietyName} [${Math.round(row.price)}₸]`
+        : baseVarietyName
+
       const parsed = {
         ..._parsed,
         category: categoryOverride ?? _parsed.category,
-        // Китайские файлы получают суффикс — создаётся отдельный товар с отдельной ценой
-        variety_name: isChina ? `${_parsed.variety_name} (Китай)` : _parsed.variety_name,
+        variety_name: effectiveVarietyName,
         origin: isChina ? 'china' : (_parsed as any).origin ?? null,
       }
 
@@ -196,8 +205,6 @@ export async function POST(req: NextRequest) {
       }, { onConflict: 'product_id' })
       if (stockErr) throw new Error(`stock upsert: ${stockErr.message}`)
 
-      processedProductIds.add(product.id)
-
       // 4. Добавляем партию — НЕ деактивируем существующие активные партии этого товара.
       // isFirst уже деактивировал все партии категории в начале запроса.
       // Так все партии текущей сессии остаются активными, и sync_stock_from_batches
@@ -221,6 +228,8 @@ export async function POST(req: NextRequest) {
       })
 
       importedProductIds.add(product.id)
+      processedProductIds.add(product.id)
+      if (!processedVLPrice.has(vlKey)) processedVLPrice.set(vlKey, row.price)
       success++
     } catch (e) {
       errors++
