@@ -28,7 +28,7 @@ type OrderItem = {
   product: { name: string; pack_size: number } | null
 }
 
-type Client = { name: string | null; phone: string | null } | null
+type Client = { name: string | null; phone: string | null; company_name: string | null } | null
 
 type Order = {
   id: number
@@ -151,7 +151,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) console.error('Orders error:', error)
@@ -172,7 +172,17 @@ export default function OrdersPanel() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  async function updateStatus(orderId: number, status: string) {
+  const [paymentData, setPaymentData] = useState<Record<number, { method: string; comment: string }>>({})
+
+  function getPayment(orderId: number) {
+    return paymentData[orderId] ?? { method: '', comment: '' }
+  }
+
+  function setPayment(orderId: number, field: 'method' | 'comment', value: string) {
+    setPaymentData(prev => ({ ...prev, [orderId]: { ...getPayment(orderId), [field]: value } }))
+  }
+
+  async function updateStatus(orderId: number, status: string, extra?: { payment_method?: string; payment_comment?: string }) {
     if (updatingOrderId === orderId) return
     setUpdatingOrderId(orderId)
     setStatusError(null)
@@ -180,7 +190,7 @@ export default function OrdersPanel() {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, changed_by: user?.id ?? null }),
+        body: JSON.stringify({ status, changed_by: user?.id ?? null, ...extra }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -416,10 +426,14 @@ export default function OrdersPanel() {
           {(() => {
             const clientName = order.client?.name ?? order.guest_name
             const clientPhone = order.client?.phone ?? order.guest_phone
+            const companyName = (order.client as any)?.company_name
             if (!clientName && !clientPhone) return null
+            const displayName = companyName && clientName
+              ? `${companyName} / ${clientName}`
+              : companyName || clientName
             return (
               <div className="text-xs text-gray-600 flex gap-3">
-                {clientName && <span>👤 {clientName}</span>}
+                {displayName && <span>👤 {displayName}</span>}
                 {clientPhone && <span>📞 {clientPhone}</span>}
               </div>
             )
@@ -524,14 +538,51 @@ export default function OrdersPanel() {
                 🔧 Продолжить сборку
               </button>
             )}
-            {order.status === 'assembled' && (
-              <button
-                onClick={() => updateStatus(order.id, 'delivered')}
-                disabled={updatingOrderId === order.id}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
-                ✅ Выдать
-              </button>
-            )}
+            {order.status === 'assembled' && (() => {
+              const pm = getPayment(order.id)
+              const METHODS = [
+                { id: 'cash',     label: '💵 Наличные' },
+                { id: 'halyk_qr', label: '📱 Halyk QR' },
+                { id: 'other',    label: '💳 Прочее' },
+              ]
+              return (
+                <div className="w-full space-y-2 mt-1 mb-1">
+                  <div className="text-xs text-gray-600">Способ оплаты:</div>
+                  <div className="flex gap-4">
+                    {METHODS.map(m => (
+                      <label key={m.id} className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pm.method === m.id}
+                          onChange={() => setPayment(order.id, 'method', m.id)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">{m.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <textarea
+                    value={pm.comment}
+                    onChange={e => setPayment(order.id, 'comment', e.target.value)}
+                    placeholder="Комментарий (необязательно)..."
+                    className="w-full border rounded px-2 py-1 text-sm resize-none"
+                    rows={2}
+                  />
+                  <button
+                    onClick={async () => {
+                      await updateStatus(order.id, 'delivered', {
+                        payment_method: pm.method || undefined,
+                        payment_comment: pm.comment || undefined,
+                      })
+                      window.open(`/print/order/${order.id}`, '_blank')
+                    }}
+                    disabled={updatingOrderId === order.id}
+                    className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50">
+                    ✅ Выдать
+                  </button>
+                </div>
+              )
+            })()}
             <button
               onClick={() => toggleExpanded(order.id)}
               className="px-3 py-1.5 bg-gray-50 text-gray-500 text-sm rounded hover:bg-gray-100 border">

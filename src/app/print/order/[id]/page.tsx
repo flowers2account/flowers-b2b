@@ -57,8 +57,8 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   const supabase = await createClient()
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select(`id, status, total, notes, created_at, guest_phone, guest_name,
-             client:client_id(name, phone),
+    .select(`id, status, total, notes, created_at, guest_phone, guest_name, payment_method, payment_comment,
+             client:client_id(name, phone, company_name),
              order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, origin))`)
     .eq('id', orderId)
     .single()
@@ -72,6 +72,10 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   const o = order as any
   const clientName = o.client?.name ?? o.guest_name ?? '—'
   const clientPhone = o.client?.phone ?? o.guest_phone ?? null
+  const companyName = o.client?.company_name ?? null
+  const clientDisplay = companyName && clientName !== '—'
+    ? `${companyName} / ${clientName}`
+    : companyName || clientName
   const date = new Date(o.created_at).toLocaleDateString('ru-RU', {
     timeZone: 'Asia/Oral', day: '2-digit', month: '2-digit', year: 'numeric',
   })
@@ -112,7 +116,7 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
         </div>
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Покупатель</p>
-          <p className="font-medium">{clientName}</p>
+          <p className="font-medium">{clientDisplay}</p>
           {clientPhone && <p className="text-gray-600">{clientPhone}</p>}
         </div>
       </div>
@@ -166,6 +170,22 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
           <span className="text-lg font-bold">{fmt(printTotal)}</span>
         </div>
       </div>
+
+      {(o.payment_method || o.payment_comment) && (
+        <div className="mt-4 text-sm text-gray-700 border rounded p-3 bg-gray-50">
+          {o.payment_method && (
+            <div className="mb-1">
+              <strong>Оплата:</strong>{' '}
+              {o.payment_method === 'cash' ? '💵 Наличные'
+                : o.payment_method === 'halyk_qr' ? '📱 Halyk QR'
+                : '💳 Прочее'}
+            </div>
+          )}
+          {o.payment_comment && (
+            <div><strong>Комментарий:</strong> {o.payment_comment}</div>
+          )}
+        </div>
+      )}
 
       {o.notes && (
         <div className="text-sm text-gray-600 border rounded p-3 mt-4">

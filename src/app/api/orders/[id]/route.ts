@@ -13,7 +13,7 @@ export async function PATCH(
   const { id } = await params
   const orderId = parseInt(id)
 
-  const { status, changed_by } = await req.json()
+  const { status, changed_by, payment_method, payment_comment } = await req.json()
   if (!status) return NextResponse.json({ error: 'Missing status' }, { status: 400 })
 
   const { data: order } = await supabase
@@ -24,9 +24,13 @@ export async function PATCH(
 
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const updateFields: Record<string, unknown> = { status }
+  if (payment_method !== undefined) updateFields.payment_method = payment_method
+  if (payment_comment !== undefined) updateFields.payment_comment = payment_comment
+
   const { error: updateError } = await supabase
     .from('orders')
-    .update({ status })
+    .update(updateFields)
     .eq('id', orderId)
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
