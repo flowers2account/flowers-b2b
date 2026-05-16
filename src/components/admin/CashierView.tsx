@@ -73,21 +73,8 @@ export default function CashierView() {
       .then(({ data }: { data: Client[] | null }) => setClients(data ?? []))
   }, [])
 
-  function matchesFilter(p: Product, cat: string): boolean {
-    const n = (p.variety_name || p.name).toLowerCase()
-    if (cat === 'all')   return true
-    if (cat === 'roses') return n.includes('роз') || n.includes('ros')
-    if (cat === 'green') return (
-      n.includes('зелен') || n.includes('эвкал') || n.includes('питто') ||
-      n.includes('рускус') || n.includes('гипсо') || n.includes('аспараг') ||
-      n.includes('листья') || n.includes('салал') || n.includes('зелень')
-    )
-    if (cat === 'exotic') return !matchesFilter(p, 'roses') && !matchesFilter(p, 'green') && p.category === 'cut'
-    return true
-  }
-
   const filtered = allProducts.filter(p => {
-    const matchCat = matchesFilter(p, category)
+    const matchCat = category === 'all' || p.category === category
     const matchSearch = !search || (p.variety_name || p.name).toLowerCase().includes(search.toLowerCase())
     return matchCat && matchSearch
   })
@@ -117,10 +104,10 @@ export default function CashierView() {
   const totalQty = cart.reduce((s, i) => s + i.qty, 0)
 
   const cats = [
-    { id: 'all',    label: 'Все',     count: allProducts.length },
-    { id: 'roses',  label: '🌹 Розы', count: allProducts.filter(p => matchesFilter(p, 'roses')).length },
-    { id: 'green',  label: '🌿 Зелень', count: allProducts.filter(p => matchesFilter(p, 'green')).length },
-    { id: 'exotic', label: '✨ Экзотика', count: allProducts.filter(p => matchesFilter(p, 'exotic')).length },
+    { id: 'all',    label: 'Все',          count: allProducts.length },
+    { id: 'cut',    label: '🌸 Срезанные', count: allProducts.filter(p => p.category === 'cut').length },
+    { id: 'pot',    label: '🪴 Горшечные', count: allProducts.filter(p => p.category === 'pot').length },
+    { id: 'supply', label: '📦 Расходка',  count: allProducts.filter(p => p.category === 'supply').length },
   ].filter(c => c.count > 0 || c.id === 'all')
 
   const filteredClients = clients.filter(c =>
