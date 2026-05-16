@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data: productData } = await supabase
     .from('products')
-    .select('id, name, pack_size, category, image_url, variety_name, length_str')
+    .select('id, name, pack_size, category, image_url, variety_name, length_str, origin')
     .in('id', ids)
     .eq('is_active', true)
     .order('name')
@@ -31,6 +31,7 @@ export async function GET() {
     image_url: p.image_url ?? null,
     variety_name: p.variety_name ?? null,
     length_str: p.length_str ?? null,
+    origin: p.origin ?? null,
     price: (stockMap.get(p.id) as any)?.price ?? 0,
     available_qty: (stockMap.get(p.id) as any)?.available_qty ?? 0,
   }))

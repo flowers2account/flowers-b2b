@@ -107,19 +107,20 @@ export async function POST(req: NextRequest) {
   for (const row of rows) {
     try {
       const _parsed = parseNomenclature(row.name)
-      const baseVarietyName = isChina ? `${_parsed.variety_name} (Китай)` : _parsed.variety_name
-      const vlKey = `${baseVarietyName}:${_parsed.length_str ?? ''}`
+      const originValue: string | null = isChina ? 'china' : (_parsed as any).origin ?? null
+      // Ключ включает origin — China и non-China одного товара не конфликтуют
+      const vlKey = `${_parsed.variety_name}:${_parsed.length_str ?? ''}:${originValue ?? ''}`
       const seenPrice = processedVLPrice.get(vlKey)
-      // Если тот же variety+length уже встречался в этом файле с другой ценой → суффикс цены
+      // Одинаковые variety+length+origin но разная цена → суффикс цены (редкий случай)
       const effectiveVarietyName = (seenPrice !== undefined && Math.abs(seenPrice - row.price) > 1)
-        ? `${baseVarietyName} [${Math.round(row.price)}₸]`
-        : baseVarietyName
+        ? `${_parsed.variety_name} [${Math.round(row.price)}₸]`
+        : _parsed.variety_name
 
       const parsed = {
         ..._parsed,
         category: categoryOverride ?? _parsed.category,
         variety_name: effectiveVarietyName,
-        origin: isChina ? 'china' : (_parsed as any).origin ?? null,
+        origin: originValue,
       }
 
       // 1. Создаём или находим сорт (variety)

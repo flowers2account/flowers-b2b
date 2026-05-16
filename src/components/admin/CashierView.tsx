@@ -4,7 +4,12 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
 
-type Product = { id: number; name: string; price: number; pack_size: number; available_qty: number; category: string; image_url: string | null; variety_name: string | null; length_str: string | null }
+type Product = { id: number; name: string; price: number; pack_size: number; available_qty: number; category: string; image_url: string | null; variety_name: string | null; length_str: string | null; origin: string | null }
+
+const ORIGIN_FLAGS: Record<string, string> = {
+  china: '🇨🇳', ecuador: '🇪🇨', kenya: '🇰🇪',
+  holland: '🇳🇱', colombia: '🇨🇴', local: '🏠',
+}
 type CartItem = Product & { qty: number }
 type Client = { id: string; name: string | null; phone: string | null; company_name?: string | null }
 
@@ -289,11 +294,16 @@ export default function CashierView() {
                     }}>
                       {displayName}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                       {p.length_str && (
                         <span style={{ fontSize: 11, color: '#7A7780' }}>{p.length_str}</span>
                       )}
-                      <span style={{ fontSize: 16, fontWeight: 700, color: ACCENT, marginLeft: 'auto' }}>
+                      {p.origin && ORIGIN_FLAGS[p.origin] && (
+                        <span style={{ fontSize: 13 }} title={p.origin}>{ORIGIN_FLAGS[p.origin]}</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', marginTop: 'auto', paddingTop: 4 }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: ACCENT }}>
                         {p.price.toLocaleString('ru-RU')} ₸
                       </span>
                     </div>
