@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  const { client_id, guest_name, guest_phone, items, confirmed } = await req.json()
+  const { client_id, guest_name, guest_phone, items, confirmed, payment_method } = await req.json()
 
   if (!client_id && !guest_name && !guest_phone) {
     return NextResponse.json({ error: 'client_id or guest info required' }, { status: 400 })
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       guest_phone: guest_phone ?? null,
       status: 'pending',
       total,
+      payment_method: payment_method ?? null,
     })
     .select().single()
   if (!order) return NextResponse.json({ error: oErr?.message }, { status: 500 })
@@ -64,9 +65,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (confirmed) {
-    await supabase.from('orders').update({ status: 'confirmed' }).eq('id', order.id)
+    // Касса: подтверждение + сразу выдача
+    // 1. Списываем остатки через FIFO
     const { error: rpcErr } = await supabase.rpc('confirm_order_fifo', { p_order_id: order.id })
     if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 })
+    // 2. Удаляем резервирования
+    await supabase.from('reservations').delete().eq('order_id', order.id)
+    // 3. Сразу ставим статус "выдан"
+    await supabase.from('orders').update({ status: 'delivered' }).eq('id', order.id)
   } else {
     await supabase.from('orders').update({ status: 'reserved' }).eq('id', order.id)
   }
