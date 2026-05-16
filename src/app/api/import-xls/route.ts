@@ -166,7 +166,25 @@ export async function POST(req: NextRequest) {
         product = newProduct
       }
 
-      // 3. Заменяем партии: деактивируем старые, создаём одну свежую
+      // 3. Обновляем stock — qty из файла, qty_reserved сохраняем
+      const { data: existingStock } = await supabase
+        .from('stock')
+        .select('qty_reserved')
+        .eq('product_id', product.id)
+        .maybeSingle()
+
+      const qtyReserved = existingStock?.qty_reserved ?? 0
+
+      const { error: stockErr } = await supabase.from('stock').upsert({
+        product_id: product.id,
+        qty: row.qty,
+        qty_reserved: qtyReserved,
+        price: row.price,
+        is_available: row.qty > qtyReserved,
+      }, { onConflict: 'product_id' })
+      if (stockErr) throw new Error(`stock upsert: ${stockErr.message}`)
+
+      // 4. Заменяем партии: деактивируем старые, создаём одну свежую
       await supabase.from('batches')
         .update({ is_active: false })
         .eq('product_id', product.id)
@@ -180,23 +198,6 @@ export async function POST(req: NextRequest) {
         arrival_date: today,
         is_active: true,
       })
-
-      // 4. Обновляем stock — qty из файла, qty_reserved сохраняем
-      const { data: existingStock } = await supabase
-        .from('stock')
-        .select('qty_reserved')
-        .eq('product_id', product.id)
-        .maybeSingle()
-
-      const qtyReserved = existingStock?.qty_reserved ?? 0
-
-      await supabase.from('stock').upsert({
-        product_id: product.id,
-        qty: row.qty,
-        qty_reserved: qtyReserved,
-        price: row.price,
-        is_available: row.qty > qtyReserved,
-      }, { onConflict: 'product_id' })
 
       // 5. Запись в ledger
       await supabase.from('inventory_ledger').insert({
@@ -214,6 +215,10 @@ export async function POST(req: NextRequest) {
       errorLog.push(`${row.name}: ${String(e)}`)
     }
   }
+
+  // Синхронизируем stock с batches на случай пропущенных ошибок
+  const { error: syncError } = await supabase.rpc('sync_stock_from_batches')
+  if (syncError) console.error('Stock sync error:', syncError)
 
   // После последнего файла — деактивируем товары категории, которых не было в импорте
   if (isLast && categoryOverride && importedProductIds.size > 0) {
