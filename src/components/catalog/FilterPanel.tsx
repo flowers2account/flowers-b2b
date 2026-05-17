@@ -407,28 +407,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '14px 14px 0' }}>
 
-        {/* 1. ОСТАТОК — мало / много */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-          {([
-            { id: 'low',  label: '🔴 Мало',  hint: '< 50 шт' },
-            { id: 'high', label: '🟢 Много', hint: '≥ 50 шт' },
-          ] as const).map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setStockLevel(stockLevel === opt.id ? '' : opt.id)}
-              title={opt.hint}
-              style={{
-                flex: 1, height: 32, border: `1px solid ${stockLevel === opt.id ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: stockLevel === opt.id ? 600 : 400,
-                background: stockLevel === opt.id ? 'var(--accent-light)' : 'var(--bg2)',
-                color: stockLevel === opt.id ? 'var(--accent)' : 'var(--text-mid)',
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >{opt.label}</button>
-          ))}
-        </div>
-
-        {/* 2. ЦВЕТ — cut only, always open */}
+        {/* ЦВЕТ — cut only, always open */}
         {category === 'cut' && (
           <StaticGroup label="Цвет">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
@@ -555,6 +534,27 @@ export default function FilterPanel({ products }: { products: Product[] }) {
             </CollapsibleGroup>
           </>
         )}
+
+        {/* ОСТАТОК — мало / много (внизу, по умолчанию не активен) */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 10, marginBottom: 4 }}>
+          {([
+            { id: 'low',  label: '🔴 Мало',  hint: '< 50 шт' },
+            { id: 'high', label: '🟢 Много', hint: '≥ 50 шт' },
+          ] as const).map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setStockLevel(stockLevel === opt.id ? '' : opt.id)}
+              title={opt.hint}
+              style={{
+                flex: 1, height: 32, border: `1px solid ${stockLevel === opt.id ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: stockLevel === opt.id ? 600 : 400,
+                background: stockLevel === opt.id ? 'var(--accent-light)' : 'var(--bg2)',
+                color: stockLevel === opt.id ? 'var(--accent)' : 'var(--text-mid)',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >{opt.label}</button>
+          ))}
+        </div>
 
         {/* bottom padding so last item isn't behind sticky button */}
         <div style={{ height: 8 }} />
