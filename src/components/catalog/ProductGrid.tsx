@@ -337,7 +337,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
   const isMobile = useIsMobile()
   const {
-    category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search,
+    category, subcat, varietyType, colors, onlyDiscount, stockLevel, search,
     lengths, origins, potSizes, tags, floralRoles, seasons,
     setSearch, reset,
   } = useFilters()
@@ -388,7 +388,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (subcat && (p.subcategory || '') !== subcat) return false
       if (varietyType && (p.variety_type || '') !== varietyType) return false
       if (colors.length > 0 && !colors.some(c => p.colors?.includes(c) || p.color === c)) return false
-      if (onlyAvailable && available <= 0) return false
+      if (available <= 0) return false
+      if (stockLevel === 'low'  && available >= 50) return false
+      if (stockLevel === 'high' && available < 50)  return false
       if (onlyDiscount && !hasDiscount) return false
       if (search) {
         const name = (p.variety_name || p.name).toLowerCase()
@@ -444,7 +446,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
 
     return list
-  }, [products, category, subcat, varietyType, colors, onlyAvailable, onlyDiscount, search, lengths, origins, potSizes, tags, floralRoles, seasons, sort])
+  }, [products, category, subcat, varietyType, colors, onlyDiscount, stockLevel, search, lengths, origins, potSizes, tags, floralRoles, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])

@@ -369,10 +369,10 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, onlyAvailable, subcat, varietyType,
+    category, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
-    floralRoles, seasons,
-    setOnlyAvailable, setSubcat, setVarietyType,
+    floralRoles, seasons, stockLevel,
+    setStockLevel, setSubcat, setVarietyType,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
     toggleFloralRole, toggleSeason, reset,
   } = useFilters()
@@ -386,7 +386,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   useEffect(() => {
     setOpenGroups(prev => {
       const next = { ...prev }
-      if (onlyAvailable)          next.available = true
       if (lengths.length > 0)     next.length    = true
       if (origins.length > 0)     next.origin    = true
       if (seasons.length > 0)     next.season    = true
@@ -395,7 +394,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
       if (subcat)                 next.subcat    = true
       return next
     })
-  }, [onlyAvailable, lengths, origins, seasons, tags, potSizes, subcat])
+  }, [lengths, origins, seasons, tags, potSizes, subcat])
 
   const tog = (key: keyof typeof DEFAULT_OPEN) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -408,14 +407,25 @@ export default function FilterPanel({ products }: { products: Product[] }) {
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '14px 14px 0' }}>
 
-        {/* 1. НАЛИЧИЕ — toggle без заголовка */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '7px 8px', fontSize: 12, marginBottom: 10,
-          background: 'var(--bg2)', borderRadius: 'var(--radius-btn)',
-        }}>
-          <span>Только в наличии</span>
-          <Toggle checked={onlyAvailable} onChange={setOnlyAvailable} />
+        {/* 1. ОСТАТОК — мало / много */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+          {([
+            { id: 'low',  label: '🔴 Мало',  hint: '< 50 шт' },
+            { id: 'high', label: '🟢 Много', hint: '≥ 50 шт' },
+          ] as const).map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setStockLevel(stockLevel === opt.id ? '' : opt.id)}
+              title={opt.hint}
+              style={{
+                flex: 1, height: 32, border: `1px solid ${stockLevel === opt.id ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: stockLevel === opt.id ? 600 : 400,
+                background: stockLevel === opt.id ? 'var(--accent-light)' : 'var(--bg2)',
+                color: stockLevel === opt.id ? 'var(--accent)' : 'var(--text-mid)',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >{opt.label}</button>
+          ))}
         </div>
 
         {/* 2. ЦВЕТ — cut only, always open */}

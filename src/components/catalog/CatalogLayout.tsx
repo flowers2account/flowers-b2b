@@ -90,7 +90,7 @@ export default function CatalogLayout({
   const { filteredCount } = useProductsStore()
   const chips = useFilterChips()
   const {
-    onlyAvailable, colors, lengths, origins, potSizes,
+    stockLevel, colors, lengths, origins, potSizes,
     tags, floralRoles, seasons, subcat,
   } = useFilters()
 
@@ -98,7 +98,7 @@ export default function CatalogLayout({
   const cartTotal = total()
 
   const activeFiltersCount = [
-    onlyAvailable,
+    stockLevel !== '',
     colors.length > 0,
     lengths.length > 0,
     origins.length > 0,

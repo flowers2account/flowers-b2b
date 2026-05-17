@@ -2,12 +2,15 @@ import { create } from 'zustand'
 
 export type FilterCategory = 'all' | 'cut' | 'pot' | 'supply'
 
+export type StockLevel = '' | 'low' | 'high'
+
 type FilterStore = {
   category: FilterCategory
   subcat: string
   varietyType: string
   onlyAvailable: boolean
   onlyDiscount: boolean
+  stockLevel: StockLevel
   search: string
   colors: string[]
   lengths: number[]
@@ -22,6 +25,7 @@ type FilterStore = {
   setVarietyType: (v: string) => void
   setOnlyAvailable: (v: boolean) => void
   setOnlyDiscount: (v: boolean) => void
+  setStockLevel: (v: StockLevel) => void
   setSearch: (v: string) => void
   toggleColor: (v: string) => void
   toggleLength: (v: number) => void
@@ -42,6 +46,7 @@ export const useFilters = create<FilterStore>((set) => ({
   varietyType: '',
   onlyAvailable: true,
   onlyDiscount: false,
+  stockLevel: '',
   search: '',
   colors: [],
   lengths: [],
@@ -60,6 +65,7 @@ export const useFilters = create<FilterStore>((set) => ({
   setVarietyType:   (varietyType) => set({ varietyType }),
   setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
   setOnlyDiscount:  (onlyDiscount) => set({ onlyDiscount }),
+  setStockLevel:    (stockLevel) => set({ stockLevel }),
   setSearch:        (search) => set({ search }),
   toggleColor:      (v) => set(s => ({ colors:      tog(s.colors,      v) })),
   toggleLength:     (v) => set(s => ({ lengths:     s.lengths.includes(v) ? s.lengths.filter(l => l !== v) : [...s.lengths, v] })),
@@ -70,7 +76,7 @@ export const useFilters = create<FilterStore>((set) => ({
   toggleSeason:     (v) => set(s => ({ seasons:     tog(s.seasons,     v) })),
   reset: () => set({
     category: 'cut', subcat: '', varietyType: '',
-    onlyAvailable: true, onlyDiscount: false,
+    onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', colors: [], lengths: [], origins: [], potSizes: [], tags: [],
     floralRoles: [], seasons: [],
   }),

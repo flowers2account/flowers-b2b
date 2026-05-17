@@ -16,7 +16,7 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
   const [products, setProducts] = useState(initialProducts)
   const { clientNotificationsEnabled, toggleClientNotifications } = useSettingsStore()
   const [filters, setFilters] = useState({
-    inStockOnly: false,
+    inStockOnly: true,
     categories: { cut: true, pot: true, supply: true }
   })
 

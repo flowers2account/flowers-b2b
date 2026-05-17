@@ -42,9 +42,9 @@ const POT_SIZE_LABELS: Record<string, string> = {
 
 export function useFilterChips(): Chip[] {
   const {
-    subcat, varietyType, onlyAvailable, colors, lengths, origins,
+    subcat, varietyType, stockLevel, colors, lengths, origins,
     potSizes, tags, floralRoles, seasons,
-    setSubcat, setVarietyType, setOnlyAvailable,
+    setSubcat, setVarietyType, setStockLevel,
     toggleColor, toggleLength, toggleOrigin, togglePotSize,
     toggleTag, toggleFloralRole, toggleSeason,
   } = useFilters()
@@ -56,7 +56,8 @@ export function useFilterChips(): Chip[] {
       if (varietyType) parts.push(VARIETY_TYPE_LABELS[varietyType] ?? varietyType)
       result.push({ label: parts.join(' · '), onRemove: () => { setSubcat(''); setVarietyType('') } })
     }
-    if (onlyAvailable) result.push({ label: 'В наличии', onRemove: () => setOnlyAvailable(false) })
+    if (stockLevel === 'low')  result.push({ label: '🔴 Мало (< 50)', onRemove: () => setStockLevel('') })
+    if (stockLevel === 'high') result.push({ label: '🟢 Много (≥ 50)', onRemove: () => setStockLevel('') })
     colors.forEach(c => result.push({ label: COLOR_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
     lengths.forEach(l => result.push({ label: l >= 80 ? '80+ см' : `${l} см`, onRemove: () => toggleLength(l) }))
     origins.forEach(o => result.push({ label: o, onRemove: () => toggleOrigin(o) }))
@@ -65,5 +66,5 @@ export function useFilterChips(): Chip[] {
     floralRoles.forEach(r => result.push({ label: FLORAL_LABELS[r] ?? r, onRemove: () => toggleFloralRole(r) }))
     seasons.forEach(s => result.push({ label: SEASON_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
     return result
-  }, [subcat, varietyType, onlyAvailable, colors, lengths, origins, potSizes, tags, floralRoles, seasons])
+  }, [subcat, varietyType, stockLevel, colors, lengths, origins, potSizes, tags, floralRoles, seasons])
 }
