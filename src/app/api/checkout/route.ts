@@ -167,11 +167,11 @@ export async function POST(req: NextRequest) {
 
   let clientNotificationsEnabled = true
   try {
-    const settingsRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/settings/notifications`)
-    const settingsData = await settingsRes.json()
-    clientNotificationsEnabled = settingsData.enabled
+    const { data: setting } = await supabase
+      .from('app_settings').select('value').eq('key', 'client_notifications_enabled').single()
+    clientNotificationsEnabled = setting?.value !== 'false'
   } catch {
-    // default to enabled if settings fetch fails
+    // default to enabled
   }
 
   if (clientNotificationsEnabled && process.env.UMNICO_API_TOKEN && phone) {
