@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import AdminTable from './AdminTable'
 import ImportXLS from './ImportXLS'
 import OrdersPanel from './OrdersPanel'
@@ -19,16 +19,6 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
     inStockOnly: false,
     categories: { cut: true, pot: true, supply: true }
   })
-
-  // При монтировании пушим актуальное значение из localStorage на сервер,
-  // а не наоборот — API in-memory сбрасывается на каждом cold start Vercel
-  useEffect(() => {
-    fetch('/api/settings/notifications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: clientNotificationsEnabled })
-    }).catch(() => {})
-  }, [])
 
   const handleToggle = async () => {
     toggleClientNotifications()
