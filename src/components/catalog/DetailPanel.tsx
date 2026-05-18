@@ -8,7 +8,6 @@ import { useProductsStore } from '@/lib/products-store'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
 import { COLORS } from '@/lib/colors'
-import { useIsMobile } from '@/lib/use-mobile'
 
 
 const FLORAL_ROLE_MAP: Record<string, { label: string; icon: string }> = {
@@ -123,12 +122,11 @@ function StateEmpty() {
 
 // ── State B: product detail ──────────────────────────────────────────────────
 
-function StateDetail({ product, onGoToCart, onBack }: { product: Product; onGoToCart: () => void; onBack: () => void }) {
+function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: () => void }) {
   const { items, add, update, total } = useCart()
   const { isAuthed } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
-  const isMobile = useIsMobile()
 
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
@@ -195,21 +193,6 @@ function StateDetail({ product, onGoToCart, onBack }: { product: Product; onGoTo
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', overflowY: 'auto', padding: '12px 12px 0' }}>
-
-      {/* Mobile back button */}
-      {isMobile && (
-        <button
-          onClick={onBack}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--accent)', fontSize: 12, fontWeight: 500,
-            fontFamily: 'inherit', padding: '0 0 10px 0', flexShrink: 0,
-          }}
-        >
-          ← К каталогу
-        </button>
-      )}
 
       {/* Gallery */}
       <div style={{ flexShrink: 0 }}>
@@ -634,6 +617,6 @@ export default function DetailPanel() {
   const { panel, product, setPanel } = useDetailStore()
 
   if (panel === 'cart') return <StateCart onBack={() => setPanel('detail')} />
-  if (panel === 'detail' && product) return <StateDetail product={product} onGoToCart={() => setPanel('cart')} onBack={() => setPanel('empty')} />
+  if (panel === 'detail' && product) return <StateDetail product={product} onGoToCart={() => setPanel('cart')} />
   return <StateEmpty />
 }
