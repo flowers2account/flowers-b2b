@@ -1,11 +1,12 @@
-// Server component — reads searchParams directly as prop (reliable, no hooks needed)
+// Next.js 15+ / 16: searchParams is a Promise — must be awaited
 import OrdersPageClient from './OrdersPageClient'
 
-export default function AdminOrdersPage({
+export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: { mode?: string }
+  searchParams: Promise<{ mode?: string }>
 }) {
-  const mode = searchParams.mode === 'kanban' ? 'kanban' : 'table'
+  const params = await searchParams
+  const mode = params.mode === 'kanban' ? 'kanban' : 'table'
   return <OrdersPageClient mode={mode} />
 }
