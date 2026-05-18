@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
+import Link from 'next/link'
 import OrdersPanel from '@/components/admin/OrdersPanel'
 import OrdersKanban from './OrdersKanban'
 import type { KanbanOrder } from './OrderCard'
