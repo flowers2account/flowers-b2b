@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeSupplierName, NormalizationResult } from '@/lib/naming/supplier-translations';
+import { normalizeText } from '@/lib/utils/normalize-text';
 
 // ========================================
 // ТИПЫ
@@ -24,13 +25,6 @@ interface GeminiTranslation {
 // ========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ========================================
-
-function normalizeText(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ');
-}
 
 function extractKeywords(product: string): string[] {
   const normalized = normalizeText(product);
