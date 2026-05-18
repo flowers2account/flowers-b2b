@@ -11,6 +11,8 @@ interface TranslationResult {
   method: 'db_exact' | 'ai_assisted' | 'rule_based';
   source?: string;
   editable: boolean;
+  isEdited?: boolean;
+  isFlagged?: boolean;
 }
 
 export default function BulkTranslationPage() {
@@ -61,8 +63,20 @@ export default function BulkTranslationPage() {
       updated[index] = {
         ...updated[index],
         translated: newTranslation,
+        isEdited: true,
         method: 'rule_based',
         source: 'manual'
+      };
+      return updated;
+    });
+  };
+
+  const handleFlag = (index: number) => {
+    setResults(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        isFlagged: !updated[index].isFlagged
       };
       return updated;
     });
@@ -85,8 +99,9 @@ export default function BulkTranslationPage() {
         normalized_original: normalizeText(r.original),
         translated: r.translated,
         confidence: r.confidence,
-        source: r.source || r.method,
+        source: r.isEdited ? 'manual' : (r.source || r.method),
         approved_by: user.id,
+        is_flagged: r.isFlagged || false,
         category: null
       }));
 
@@ -228,12 +243,13 @@ export default function BulkTranslationPage() {
                   <th className="py-3 px-4">Оригинальное имя (Поставщик)</th>
                   <th className="py-3 px-4">Корректный русский перевод (Редактируемый)</th>
                   <th className="py-3 px-4 w-28 text-center">Уверенность</th>
+                  <th className="py-3 px-4 w-24 text-center">Действия</th>
                   <th className="py-3 px-4 w-36 text-center">Источник</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {results.map((r, i) => (
-                  <tr key={i} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={i} className={`transition-colors hover:bg-slate-50/80 ${r.isFlagged ? 'bg-red-50' : r.isEdited ? 'bg-yellow-50' : ''}`}>
                     <td className="py-3 px-4 text-center font-mono text-xs text-slate-400 bg-slate-50/40">
                       {i + 1}
                     </td>
@@ -257,6 +273,19 @@ export default function BulkTranslationPage() {
                         {Math.round(r.confidence * 100)}%
                       </span>
                     </td>
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => handleFlag(i)}
+                        className={`text-xs px-2 py-1 rounded ${
+                          r.isFlagged
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                        title={r.isFlagged ? 'Снять флаг' : 'Пометить ошибкой'}
+                      >
+                        {r.isFlagged ? '🚫' : '🏴'}
+                      </button>
+                    </td>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       {getMethodBadge(r.method)}
                     </td>
@@ -268,9 +297,23 @@ export default function BulkTranslationPage() {
 
           {/* Панель действий */}
           <div className="bg-slate-50 px-4 py-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-            <p className="text-xs text-slate-500">
-              💡 Внимательно просмотрите строки перед одобрением. Все одобренные переводы попадут в общую память системы.
-            </p>
+            <div className="flex flex-col gap-1">
+              <p className="text-xs text-slate-500">
+                💡 Внимательно просмотрите строки перед одобрением. Все одобренные переводы попадут в общую память системы.
+              </p>
+              <div className="text-xs text-slate-500 flex gap-3">
+                {results.filter(r => r.isEdited).length > 0 && (
+                  <span className="text-yellow-600">
+                    ✏️ Отредактировано: {results.filter(r => r.isEdited).length}
+                  </span>
+                )}
+                {results.filter(r => r.isFlagged).length > 0 && (
+                  <span className="text-red-600">
+                    🚫 Помечено ошибками: {results.filter(r => r.isFlagged).length}
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex gap-3 shrink-0">
               <button
                 onClick={() => {
