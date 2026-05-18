@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/lib/auth-store'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ChangePinModal from '@/components/cabinet/ChangePinModal'
 
 type CampaignOrder = {
   id: number
@@ -146,6 +147,7 @@ export default function CabinetPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [campaignOrders, setCampaignOrders] = useState<CampaignOrder[]>([])
   const [loading, setLoading] = useState(true)
+  const [pinModalOpen, setPinModalOpen] = useState(false)
 
   useEffect(() => {
     init()
@@ -192,8 +194,18 @@ export default function CabinetPage() {
           <h1 className="text-2xl font-bold text-gray-800">Мои заказы</h1>
           <p className="text-sm text-gray-500 mt-1">📞 {phone}</p>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Каталог</Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setPinModalOpen(true)}
+            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            🔑 Сменить PIN
+          </button>
+          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Каталог</Link>
+        </div>
       </div>
+
+      <ChangePinModal isOpen={pinModalOpen} onClose={() => setPinModalOpen(false)} />
 
       {loading ? (
         <div className="text-center py-12 text-gray-400">Загрузка...</div>
