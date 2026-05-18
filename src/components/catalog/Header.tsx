@@ -52,7 +52,7 @@ export default function Header() {
 
   const NAV = [
     { href: '/', label: 'Каталог' },
-    ...(isAuthed ? [{ href: '/cabinet', label: 'Мои заказы' }] : []),
+    ...(isAuthed ? [{ href: '/cabinet', label: 'Личный кабинет / Мои заказы' }] : []),
   ]
 
   return (
