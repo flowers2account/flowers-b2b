@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/lib/auth-store'
 import toast from 'react-hot-toast'
 
 interface Product {
@@ -37,6 +38,7 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
 
   const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  const { user } = useAuthStore()
 
   if (!isOpen) return null
 
@@ -101,6 +103,7 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
         body: JSON.stringify({
           product_id: selectedProduct.id,
           quantity,
+          userId: user?.id,
           reason: reason.trim() || null,
           photo_url,
         }),

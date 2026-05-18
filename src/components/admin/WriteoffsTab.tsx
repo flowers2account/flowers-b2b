@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import WriteoffModal from './WriteoffModal'
+import { useAuthStore } from '@/lib/auth-store'
 
 interface Writeoff {
   id: number
@@ -27,12 +28,13 @@ export default function WriteoffsTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  const { user } = useAuthStore()
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/writeoffs')
+      const res = await fetch(`/api/writeoffs?userId=${user?.id ?? ''}`)
       const result = await res.json()
       if (result.success) {
         setWriteoffs(result.data ?? [])

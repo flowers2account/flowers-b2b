@@ -82,6 +82,12 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
           🗑 Списания
         </button>
         <Link
+          href="/admin/orders"
+          className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+        >
+          📌 Заказы / Канбан
+        </Link>
+        <Link
           href="/admin/campaigns"
           className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
         >
