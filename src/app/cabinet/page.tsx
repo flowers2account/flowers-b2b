@@ -4,6 +4,8 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ChangePinModal from '@/components/cabinet/ChangePinModal'
+import EditProfileModal from '@/components/cabinet/EditProfileModal'
+import { createClient } from '@/lib/supabase/client'
 
 type CampaignOrder = {
   id: number
@@ -148,16 +150,31 @@ export default function CabinetPage() {
   const [campaignOrders, setCampaignOrders] = useState<CampaignOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [clientInfo, setClientInfo] = useState<{ name: string | null; company_name: string | null } | null>(null)
 
   useEffect(() => {
     init()
   }, [])
+
+  async function loadClientInfo() {
+    if (!phone) return
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('clients')
+      .select('name, company_name')
+      .or(`phone.eq.${phone},phone.eq.${phone.replace('+', '')}`)
+      .maybeSingle()
+    if (data) setClientInfo({ name: data.name, company_name: data.company_name })
+  }
 
   useEffect(() => {
     if (!isAuthed || !phone) {
       router.push('/')
       return
     }
+
+    loadClientInfo()
 
     const fetches: Promise<void>[] = [
       fetch(`/api/cabinet?phone=${encodeURIComponent(phone)}`)
@@ -189,23 +206,44 @@ export default function CabinetPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Мои заказы</h1>
           <p className="text-sm text-gray-500 mt-1">📞 {phone}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setPinModalOpen(true)}
-            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
-          >
-            🔑 Сменить PIN
+        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Каталог</Link>
+      </div>
+
+      {/* Профиль */}
+      <div className="border rounded-xl bg-white px-4 py-3 mb-5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-800 truncate">
+            {clientInfo?.name || 'Имя не указано'}
+          </p>
+          {clientInfo?.company_name && (
+            <p className="text-xs text-gray-500 truncate">{clientInfo.company_name}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setEditProfileOpen(true)}
+            className="text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+            ✏️ Профиль
           </button>
-          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Каталог</Link>
+          <button onClick={() => setPinModalOpen(true)}
+            className="text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+            🔑 PIN
+          </button>
         </div>
       </div>
 
       <ChangePinModal isOpen={pinModalOpen} onClose={() => setPinModalOpen(false)} />
+      <EditProfileModal
+        isOpen={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+        currentName={clientInfo?.name || ''}
+        currentCompany={clientInfo?.company_name || ''}
+        onSuccess={() => { loadClientInfo(); setEditProfileOpen(false) }}
+      />
 
       {loading ? (
         <div className="text-center py-12 text-gray-400">Загрузка...</div>
