@@ -5,33 +5,40 @@ import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import OrderCard, { type KanbanOrder } from './OrderCard'
 
+// ── Column color schemes ───────────────────────────────────────────
+
+const SCHEME: Record<string, {
+  colBg: string; colBorder: string
+  headBg: string; headText: string
+  dotColor: string; emptyText: string
+}> = {
+  pending:   { colBg: 'bg-yellow-50', colBorder: 'border-yellow-200', headBg: 'bg-yellow-100', headText: 'text-yellow-900', dotColor: 'bg-yellow-400', emptyText: 'text-yellow-400' },
+  reserved:  { colBg: 'bg-purple-50', colBorder: 'border-purple-200', headBg: 'bg-purple-100', headText: 'text-purple-900', dotColor: 'bg-purple-400', emptyText: 'text-purple-400' },
+  confirmed: { colBg: 'bg-green-50',  colBorder: 'border-green-200',  headBg: 'bg-green-100',  headText: 'text-green-900',  dotColor: 'bg-green-400',  emptyText: 'text-green-400'  },
+  delivered: { colBg: 'bg-gray-50',   colBorder: 'border-gray-200',   headBg: 'bg-gray-100',   headText: 'text-gray-700',   dotColor: 'bg-gray-400',   emptyText: 'text-gray-400'   },
+}
+
 // ── Draggable wrapper ──────────────────────────────────────────────
 
 function DraggableCard({
   order,
-  activeId,
   onCardClick,
 }: {
   order: KanbanOrder
-  activeId: number | null
   onCardClick: (o: KanbanOrder) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: order.id,
   })
 
-  const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    touchAction: 'none',
-  }
-
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <OrderCard
-        order={order}
-        onClick={onCardClick}
-        isDragging={isDragging}
-      />
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), touchAction: 'none' }}
+      {...listeners}
+      {...attributes}
+    >
+      <OrderCard order={order} onClick={onCardClick} isDragging={isDragging} />
     </div>
   )
 }
@@ -41,7 +48,7 @@ function DraggableCard({
 interface Props {
   columnKey: string
   label: string
-  colorClass: string
+  colorClass: string    // kept for backward compat, not used in new scheme
   orders: KanbanOrder[]
   activeId: number | null
   onCardClick: (order: KanbanOrder) => void
@@ -50,46 +57,41 @@ interface Props {
 export default function KanbanColumn({
   columnKey,
   label,
-  colorClass,
   orders,
-  activeId,
   onCardClick,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: columnKey })
+  const sc = SCHEME[columnKey] ?? SCHEME.delivered
 
   return (
     <div
       ref={setNodeRef}
       className={[
-        'flex-1 min-w-[270px] max-w-[340px] rounded-xl p-3 shrink-0 transition-colors duration-150',
-        isOver ? 'bg-pink-50 ring-2 ring-[#7a1c2e]/30' : 'bg-gray-50',
+        'flex-1 min-w-[270px] max-w-[340px] shrink-0 rounded-xl border-2 overflow-hidden transition-shadow duration-150',
+        sc.colBg, sc.colBorder,
+        isOver ? 'shadow-lg ring-2 ring-[#7a1c2e]/25' : '',
       ].join(' ')}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3 px-1">
+      {/* Colored header strip */}
+      <div className={`px-3 py-2.5 ${sc.headBg} flex items-center justify-between`}>
         <div className="flex items-center gap-2">
-          <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`} />
-          <h3 className="font-semibold text-sm text-gray-700">{label}</h3>
+          <span className={`w-2.5 h-2.5 rounded-full ${sc.dotColor}`} />
+          <h3 className={`font-semibold text-sm ${sc.headText}`}>{label}</h3>
         </div>
-        <span className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded-full text-gray-500 font-medium">
+        <span className="text-xs bg-white/70 border border-white/50 px-2 py-0.5 rounded-full font-mono font-semibold text-gray-600 shadow-sm">
           {orders.length}
         </span>
       </div>
 
-      {/* Cards */}
-      <div className="space-y-2.5 min-h-[60px]">
+      {/* Cards area */}
+      <div className="p-2.5 space-y-2 min-h-[80px]">
         {orders.length === 0 ? (
-          <div className={`text-xs text-center py-6 transition-colors ${isOver ? 'text-[#7a1c2e]' : 'text-gray-400'}`}>
-            {isOver ? 'Отпустите здесь' : 'Нет заказов'}
+          <div className={`text-xs text-center py-8 transition-colors ${isOver ? 'text-[#7a1c2e] font-medium' : sc.emptyText}`}>
+            {isOver ? '📥 Отпустите здесь' : '📭 Нет заказов'}
           </div>
         ) : (
           orders.map(o => (
-            <DraggableCard
-              key={o.id}
-              order={o}
-              activeId={activeId}
-              onCardClick={onCardClick}
-            />
+            <DraggableCard key={o.id} order={o} onCardClick={onCardClick} />
           ))
         )}
       </div>

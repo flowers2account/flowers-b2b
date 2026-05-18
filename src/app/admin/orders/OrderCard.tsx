@@ -22,6 +22,19 @@ function minExpiry(r: { expires_at: string }[]): string | null {
   return r.reduce((m, x) => x.expires_at < m ? x.expires_at : m, r[0].expires_at)
 }
 
+function reserveInfo(expiresAt: string): { text: string; cls: string; pulse: boolean } {
+  const mins = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60_000)
+  if (mins <= 0)  return { text: '⏰ Резерв истёк!', cls: 'bg-red-100 text-red-700',    pulse: true  }
+  if (mins <= 10) return { text: `⏰ ${mins} мин`,   cls: 'bg-orange-100 text-orange-700', pulse: true  }
+  return             { text: `⏰ ${mins} мин`,   cls: 'bg-gray-100 text-gray-600',    pulse: false }
+}
+
+function amountClass(total: number): string {
+  if (total >= 100_000) return 'text-purple-700 font-bold'
+  if (total >= 50_000)  return 'text-rose-600 font-semibold'
+  return 'text-gray-800 font-semibold'
+}
+
 interface Props {
   order: KanbanOrder
   onClick?: (order: KanbanOrder) => void
@@ -30,9 +43,9 @@ interface Props {
 }
 
 export default function OrderCard({ order, onClick, isDragOverlay, isDragging }: Props) {
-  const name    = order.client?.name ?? order.guest_name
-  const company = order.client?.company_name
-  const phone   = order.client?.phone ?? order.guest_phone
+  const name        = order.client?.name ?? order.guest_name
+  const company     = order.client?.company_name
+  const phone       = order.client?.phone ?? order.guest_phone
   const displayName = company && name ? `${company} / ${name}` : company || name
   const itemsCount  = order.order_items.filter(i => !i.is_removed).length
   const expiresAt   = (order.status === 'pending' || order.status === 'reserved')
@@ -43,15 +56,16 @@ export default function OrderCard({ order, onClick, isDragOverlay, isDragging }:
     <div
       onClick={isDragOverlay ? undefined : () => onClick?.(order)}
       className={[
-        'bg-white rounded-lg p-3.5 border border-gray-200 transition-all duration-150 select-none',
+        'bg-white rounded-lg px-3.5 py-3 border transition-all duration-150 select-none',
         isDragOverlay
-          ? 'shadow-2xl rotate-2 scale-105 opacity-95'
+          ? 'shadow-2xl rotate-2 scale-105 opacity-95 border-gray-200'
           : isDragging
-            ? 'opacity-40'
-            : 'shadow-sm hover:shadow-md hover:border-gray-300 cursor-grab active:cursor-grabbing',
+            ? 'opacity-35 border-gray-100'
+            : 'shadow-sm hover:shadow-md hover:scale-[1.01] hover:border-[#7a1c2e]/30 cursor-grab active:cursor-grabbing border-gray-200',
       ].join(' ')}
     >
-      <div className="flex justify-between items-start mb-2">
+      {/* Header row */}
+      <div className="flex justify-between items-center mb-2">
         <span className="font-mono text-xs text-gray-400">#{order.id}</span>
         <div className="flex items-center gap-1.5">
           {badge && (
@@ -66,6 +80,7 @@ export default function OrderCard({ order, onClick, isDragOverlay, isDragging }:
         </div>
       </div>
 
+      {/* Client */}
       {(displayName || phone) && (
         <div className="mb-2.5">
           {displayName && <div className="text-sm font-medium text-gray-800 leading-tight truncate">{displayName}</div>}
@@ -73,18 +88,25 @@ export default function OrderCard({ order, onClick, isDragOverlay, isDragging }:
         </div>
       )}
 
-      <div className="flex justify-between items-center text-sm">
-        <span className="font-semibold text-gray-800">{order.total.toLocaleString('ru-RU')} ₸</span>
-        <span className="text-xs text-gray-400">{itemsCount} поз.</span>
+      {/* Amount + items count */}
+      <div className="flex justify-between items-center">
+        <span className={`text-sm ${amountClass(order.total)}`}>
+          {order.total.toLocaleString('ru-RU')} ₸
+        </span>
+        <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono text-gray-500">
+          {itemsCount} поз.
+        </span>
       </div>
 
-      {expiresAt && (
-        <div className="mt-2 text-[11px] text-orange-600 font-medium">
-          ⏰ резерв до {new Date(expiresAt).toLocaleTimeString('ru-RU', {
-            timeZone: 'Asia/Oral', hour: '2-digit', minute: '2-digit',
-          })}
-        </div>
-      )}
+      {/* Reserve expiry */}
+      {expiresAt && (() => {
+        const ri = reserveInfo(expiresAt)
+        return (
+          <div className={`mt-2 px-2 py-1 rounded text-xs font-medium ${ri.cls} ${ri.pulse ? 'animate-pulse' : ''}`}>
+            {ri.text}
+          </div>
+        )
+      })()}
     </div>
   )
 }

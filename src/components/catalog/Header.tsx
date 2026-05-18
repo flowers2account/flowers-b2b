@@ -1,12 +1,42 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useFilters, type FilterCategory } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import AuthModal from './AuthModal'
+
+function OrdersViewToggle() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const mode = searchParams.get('mode') || (
+    typeof window !== 'undefined' ? (localStorage.getItem('ordersViewMode') || 'table') : 'table'
+  )
+
+  function setMode(m: string) {
+    if (typeof window !== 'undefined') localStorage.setItem('ordersViewMode', m)
+    router.push(`/admin/orders?mode=${m}`)
+  }
+
+  return (
+    <div className="flex gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.15)' }}>
+      {([{ k: 'table', l: '📊 Таблица' }, { k: 'kanban', l: '📌 Канбан' }]).map(({ k, l }) => (
+        <button
+          key={k}
+          onClick={() => setMode(k)}
+          className="px-3 py-1 text-[12px] font-medium rounded transition-all"
+          style={mode === k
+            ? { background: '#fff', color: 'var(--accent)' }
+            : { color: 'rgba(255,255,255,0.85)' }}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 const CATS: { id: FilterCategory; label: string }[] = [
   { id: 'cut', label: '🌸 Срезанные' },
@@ -154,8 +184,15 @@ export default function Header() {
           style={{ overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
         >
 
-          {/* Категории */}
-          <CategoryPills />
+          {/* Категории — скрыты на странице заказов */}
+          {pathname !== '/admin/orders' && <CategoryPills />}
+
+          {/* Переключатель режима заказов — только на /admin/orders */}
+          {pathname === '/admin/orders' && (
+            <Suspense fallback={null}>
+              <OrdersViewToggle />
+            </Suspense>
+          )}
 
           {/* Корзина — только десктоп */}
           <button
