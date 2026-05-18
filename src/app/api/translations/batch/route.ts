@@ -224,10 +224,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Batch] Found ${dbResults.length} exact matches in DB`);
 
-    // ШАГ 4: Отбор для AI (confidence < 0.85 и нет в БД)
+    // ШАГ 4: Отбор для AI (confidence < 0.85 и нет в БД — ни forward, ни reverse)
     const needAI = ruleResults.filter(r => {
       const inDB = dbResults.some((db: Record<string, unknown>) =>
-        db.normalized_original === r.normalized
+        db._direction === 'forward'
+          ? db.normalized_original === r.normalized
+          : db.normalized_translated === r.normalized
       );
       return r.ruleResult.confidence < 0.85 && !inDB;
     });
