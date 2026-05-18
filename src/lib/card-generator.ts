@@ -1,4 +1,7 @@
+import QRCode from 'qrcode';
+
 export interface CardData {
+  id: number;
   name: string;
   price: number;
   origin: string | null;
@@ -229,11 +232,28 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   ctx.fillStyle = BRAND_LIGHT;
   ctx.fillRect(0, FOOTER_Y, W, 52);
 
+  // Phone — left side
   ctx.fillStyle = INK;
   ctx.font = `500 15px ${FONT_BODY}`;
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('📱  +7 700 757 52 43', W / 2, FOOTER_Y + 26);
+  ctx.fillText('📱  +7 700 757 52 43', PAD, FOOTER_Y + 26);
+
+  // QR code — right side
+  try {
+    const searchQuery = encodeURIComponent(data.name);
+    const qrUrl = `https://flowers-b2b-phi.vercel.app/?search=${searchQuery}`;
+    const qrDataUrl = await QRCode.toDataURL(qrUrl, {
+      width: 80,
+      margin: 1,
+      color: { dark: '#1C1C1C', light: '#F7EEF2' },
+    });
+    const qrImg = await loadImage(qrDataUrl);
+    const QR_SIZE = 42;
+    ctx.drawImage(qrImg, W - PAD - QR_SIZE, FOOTER_Y + 5, QR_SIZE, QR_SIZE);
+  } catch {
+    // QR generation failed — silently skip
+  }
 
   // ── Export ───────────────────────────────────────────────────────
   return new Promise<Blob>((resolve, reject) => {

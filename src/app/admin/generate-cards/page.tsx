@@ -137,6 +137,7 @@ export default function GenerateCardsPage() {
       if (imageUrl) {
         try {
           const blob = await generateProductCard({
+            id: p.id,
             name: p.name, price: p.price, origin: p.origin,
             colors: p.colors, color: p.color,
             availableQty: p.available_qty, packSize: p.pack_size,
