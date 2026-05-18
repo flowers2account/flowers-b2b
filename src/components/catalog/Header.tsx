@@ -1,38 +1,12 @@
 'use client'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useFilters, type FilterCategory } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
-
-function OrdersViewToggle() {
-  const searchParams = useSearchParams()
-  const mode = searchParams.get('mode') || 'table'
-
-  return (
-    <div className="flex gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.15)' }}>
-      {([
-        { k: 'table',  l: '📊 Таблица', href: '/admin/orders?mode=table'  },
-        { k: 'kanban', l: '📌 Канбан',  href: '/admin/orders?mode=kanban' },
-      ]).map(({ k, l, href }) => (
-        <Link
-          key={k}
-          href={href}
-          prefetch={false}
-          className="px-3 py-1 text-[12px] font-medium rounded transition-all no-underline"
-          style={mode === k
-            ? { background: '#fff', color: 'var(--accent)' }
-            : { color: 'rgba(255,255,255,0.85)' }}
-        >
-          {l}
-        </Link>
-      ))}
-    </div>
-  )
-}
 
 const CATS: { id: FilterCategory; label: string }[] = [
   { id: 'cut', label: '🌸 Срезанные' },
@@ -184,15 +158,8 @@ export default function Header() {
           style={{ overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
         >
 
-          {/* Категории — скрыты на странице заказов */}
-          {pathname !== '/admin/orders' && <CategoryPills />}
-
-          {/* Переключатель режима заказов — только на /admin/orders */}
-          {pathname === '/admin/orders' && (
-            <Suspense fallback={null}>
-              <OrdersViewToggle />
-            </Suspense>
-          )}
+          {/* Категории */}
+          <CategoryPills />
 
           {/* Корзина — только десктоп */}
           <button
