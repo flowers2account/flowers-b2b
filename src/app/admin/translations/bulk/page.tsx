@@ -129,7 +129,7 @@ export default function BulkTranslationPage() {
         .in('normalized_original', normalizedKeys);
 
       const existingMap = new Map(
-        (existingRows ?? []).map(r => [r.normalized_original, r])
+        (existingRows ?? []).map((r: { normalized_original: string; source: string; confidence: number }) => [r.normalized_original, r])
       );
 
       const recordsToUpsert = uniqueRecords.filter(r => {
