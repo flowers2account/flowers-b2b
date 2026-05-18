@@ -91,7 +91,7 @@ export default function CatalogLayout({
   const chips = useFilterChips()
   const {
     stockLevel, colors, lengths, origins, potSizes,
-    tags, floralRoles, seasons, subcat,
+    tags, seasons, subcat,
   } = useFilters()
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -104,7 +104,6 @@ export default function CatalogLayout({
     origins.length > 0,
     potSizes.length > 0,
     tags.length > 0,
-    floralRoles.length > 0,
     seasons.length > 0,
     subcat !== '',
   ].filter(Boolean).length

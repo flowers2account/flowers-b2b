@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useFilters } from '@/lib/filter-store'
 import { COLORS } from '@/lib/colors'
-import { type Product } from './ProductCard'
+import { type Product, getAvailable } from './ProductCard'
 
 // ── category tree ─────────────────────────────────────────────────────────────
 
@@ -80,14 +80,6 @@ const TAGS_CUT = [
 const TAGS_POT = [
   { id: 'hit', label: '🔥 Хит'     },
   { id: 'new', label: '🆕 Новинка' },
-]
-const FLORAL_ROLES = [
-  { id: 'focal',   label: 'Фокусный',    icon: '🌹' },
-  { id: 'mass',    label: 'Массовый',    icon: '🌸' },
-  { id: 'line',    label: 'Линейный',    icon: '🌿' },
-  { id: 'filler',  label: 'Наполнитель', icon: '🍃' },
-  { id: 'texture', label: 'Текстура',    icon: '✨' },
-  { id: 'foliage', label: 'Зелень',      icon: '🌱' },
 ]
 const DURATIONS = [
   { id: '3-5', label: '3–5 дней' },
@@ -264,6 +256,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
     const byVT: Record<string, Record<string, number>> = {}
     base.forEach(p => {
       if (!p.subcategory) return
+      if (getAvailable(p.stock) <= 0) return
       bySC[p.subcategory] = (bySC[p.subcategory] || 0) + 1
       if (p.variety_type) {
         if (!byVT[p.subcategory]) byVT[p.subcategory] = {}
@@ -273,7 +266,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
     return { total: base.length, bySC, byVT }
   }, [products, category])
 
-  const nodes = CATEGORY_TREE[category] ?? []
+  const nodes = (CATEGORY_TREE[category] ?? []).filter(node => (bySC[node.key] ?? 0) > 0)
 
   const handleParent = (node: SubcatNode) => {
     if (node.children?.length) {
@@ -336,7 +329,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
               {countBadge(bySC[node.key] ?? 0, parentSel)}
             </div>
 
-            {hasChildren && isOpen && node.children!.map(child => {
+            {hasChildren && isOpen && node.children!.filter(child => (byVT[node.key]?.[child.varietyType] ?? 0) > 0).map(child => {
               const childActive = subcat === node.key && varietyType === child.varietyType
               const childCount  = byVT[node.key]?.[child.varietyType] ?? 0
               return (
@@ -371,10 +364,10 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   const {
     category, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
-    floralRoles, seasons, stockLevel,
+    seasons, stockLevel,
     setStockLevel, setSubcat, setVarietyType,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
-    toggleFloralRole, toggleSeason, reset,
+    toggleSeason, reset,
   } = useFilters()
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
@@ -465,27 +458,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
                 <CheckRow key={o} checked={origins.includes(o)} label={o} onChange={() => toggleOrigin(o)} />
               ))}
             </CollapsibleGroup>
-
-            <StaticGroup label="Флористическая роль">
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '2px 4px 0' }}>
-                {FLORAL_ROLES.map(r => {
-                  const on = floralRoles.includes(r.id)
-                  return (
-                    <button key={r.id} onClick={() => toggleFloralRole(r.id)} title={r.label} style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 3,
-                      padding: '3px 8px', borderRadius: 12,
-                      fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
-                      background: on ? 'var(--accent)' : '#fff',
-                      border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                      color: on ? '#fff' : 'var(--text-mid)',
-                      cursor: 'pointer',
-                    }}>
-                      <span>{r.icon}</span>{r.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </StaticGroup>
 
             <CollapsibleGroup
               label="Сезон"

@@ -25,10 +25,6 @@ const COLOR_LABELS: Record<string, string> = {
   lavender: 'Лавандовый', purple: 'Фиолетовый', green: 'Зелёный',
   mix: 'Микс', mix_pink: 'Пинк микс', mix_red_white: 'Красно-белый',
 }
-const FLORAL_LABELS: Record<string, string> = {
-  focal: '🌹 Фокусный', mass: '🌸 Массовый', line: '🌿 Линейный',
-  filler: '🍃 Наполнитель', texture: '✨ Текстура', foliage: '🌱 Зелень',
-}
 const SEASON_LABELS: Record<string, string> = {
   spring: 'Весна', summer: 'Лето', autumn: 'Осень',
   winter: 'Зима', year: 'Круглый год', year_round: 'Круглый год',
@@ -43,10 +39,10 @@ const POT_SIZE_LABELS: Record<string, string> = {
 export function useFilterChips(): Chip[] {
   const {
     subcat, varietyType, stockLevel, colors, lengths, origins,
-    potSizes, tags, floralRoles, seasons,
+    potSizes, tags, seasons,
     setSubcat, setVarietyType, setStockLevel,
     toggleColor, toggleLength, toggleOrigin, togglePotSize,
-    toggleTag, toggleFloralRole, toggleSeason,
+    toggleTag, toggleSeason,
   } = useFilters()
 
   return useMemo<Chip[]>(() => {
@@ -63,8 +59,7 @@ export function useFilterChips(): Chip[] {
     origins.forEach(o => result.push({ label: o, onRemove: () => toggleOrigin(o) }))
     potSizes.forEach(ps => result.push({ label: POT_SIZE_LABELS[ps] ?? ps, onRemove: () => togglePotSize(ps) }))
     tags.forEach(t => result.push({ label: TAG_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
-    floralRoles.forEach(r => result.push({ label: FLORAL_LABELS[r] ?? r, onRemove: () => toggleFloralRole(r) }))
     seasons.forEach(s => result.push({ label: SEASON_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
     return result
-  }, [subcat, varietyType, stockLevel, colors, lengths, origins, potSizes, tags, floralRoles, seasons])
+  }, [subcat, varietyType, stockLevel, colors, lengths, origins, potSizes, tags, seasons])
 }

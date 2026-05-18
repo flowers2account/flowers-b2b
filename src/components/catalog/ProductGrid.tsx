@@ -322,6 +322,41 @@ const ListIcon = () => (
   </svg>
 )
 
+// ── search helpers ───────────────────────────────────────────────────────────
+
+const RU_TO_EN: Record<string, string> = {
+  а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'j',
+  к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',
+  х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',
+}
+const EN_TO_RU: Record<string, string> = {
+  a:'а',b:'б',v:'в',g:'г',d:'д',e:'е',z:'з',i:'и',j:'й',k:'к',l:'л',
+  m:'м',n:'н',o:'о',p:'п',r:'р',s:'с',t:'т',u:'у',f:'ф',h:'х',y:'й',c:'к',
+}
+
+function translitRuToEn(s: string): string {
+  return s.split('').map(c => RU_TO_EN[c] ?? c).join('')
+}
+function translitEnToRu(s: string): string {
+  return s.split('').map(c => EN_TO_RU[c] ?? c).join('')
+}
+
+function matchesSearch(p: Product, query: string): boolean {
+  const q = query.toLowerCase().trim()
+  if (!q) return true
+  const haystack = [
+    p.variety_name?.toLowerCase(),
+    p.name.toLowerCase(),
+    ...((p as Product & { search_aliases?: string[] }).search_aliases?.map(a => a.toLowerCase()) ?? []),
+  ].filter(Boolean).join(' ')
+  if (haystack.includes(q)) return true
+  const qTranslit = translitRuToEn(q)
+  if (qTranslit !== q && haystack.includes(qTranslit)) return true
+  const qRu = translitEnToRu(q)
+  if (qRu !== q && haystack.includes(qRu)) return true
+  return false
+}
+
 // ── main component ───────────────────────────────────────────────────────────
 
 export default function ProductGrid({ products: initialProducts }: { products: Product[] }) {
@@ -338,7 +373,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const isMobile = useIsMobile()
   const {
     category, subcat, varietyType, colors, onlyDiscount, stockLevel, search,
-    lengths, origins, potSizes, tags, floralRoles, seasons,
+    lengths, origins, potSizes, tags, seasons,
     setSearch, reset,
   } = useFilters()
 
@@ -392,10 +427,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (stockLevel === 'low'  && available >= 50) return false
       if (stockLevel === 'high' && available < 50)  return false
       if (onlyDiscount && !hasDiscount) return false
-      if (search) {
-        const name = (p.variety_name || p.name).toLowerCase()
-        if (!name.includes(search.toLowerCase())) return false
-      }
+      if (search && !matchesSearch(p, search)) return false
       // Длина стебля (cut)
       if (lengths.length > 0) {
         const cm = p.length_cm ?? 0
@@ -426,10 +458,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         const ptags = [...(hasHit ? ['hit'] : []), ...(hasSale ? ['sale'] : []), ...(hasNew ? ['new'] : [])]
         if (!tags.some(t => ptags.includes(t))) return false
       }
-      // Флористическая роль
-      if (floralRoles.length > 0) {
-        if (!floralRoles.includes(p.floral_role || '')) return false
-      }
       // Сезон (поле может содержать несколько значений через запятую)
       if (seasons.length > 0) {
         const pSeasons = Array.isArray(p.season)
@@ -446,7 +474,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
 
     return list
-  }, [products, category, subcat, varietyType, colors, onlyDiscount, stockLevel, search, lengths, origins, potSizes, tags, floralRoles, seasons, sort])
+  }, [products, category, subcat, varietyType, colors, onlyDiscount, stockLevel, search, lengths, origins, potSizes, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])
@@ -470,8 +498,44 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Toolbar */}
       <div style={{ background: '#fff', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-        {/* Row 1: sort + view toggle + count */}
-        <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Row 1: search — full width, prominent */}
+        <div style={{ padding: '10px 16px 6px', position: 'relative' }}>
+          <svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round"
+            style={{ position: 'absolute', left: 28, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+          >
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Поиск по сорту, цвету, ферме..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus={!isMobile}
+            style={{
+              width: '100%', padding: '8px 36px 8px 34px',
+              border: `1.5px solid ${search ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 'var(--radius-input)', fontSize: 13,
+              fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+              color: 'var(--text)', background: '#fff',
+              transition: 'border-color 0.15s',
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              style={{
+                position: 'absolute', right: 28, top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--text-mid)', fontSize: 16, lineHeight: 1, padding: 2,
+              }}
+            >×</button>
+          )}
+        </div>
+
+        {/* Row 2: sort + view toggle + count */}
+        <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <select
             value={sort}
             onChange={e => setSort(e.target.value as SortKey)}
@@ -486,23 +550,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           >
             {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-
-          {/* Search: only on desktop in row 1 */}
-          {!isMobile && (
-            <input
-              type="text"
-              placeholder="Поиск по сорту, ферме..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                flex: 1, padding: '6px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-input)', fontSize: 13,
-                fontFamily: 'inherit', outline: 'none', minWidth: 0,
-                color: 'var(--text)', background: '#fff',
-              }}
-            />
-          )}
 
           <div style={{
             display: 'flex', border: '1px solid var(--border)',
@@ -525,29 +572,10 @@ export default function ProductGrid({ products: initialProducts }: { products: P
             ))}
           </div>
 
-          <span style={{ fontSize: 11, color: 'var(--text-mid)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, color: search ? 'var(--accent)' : 'var(--text-mid)', whiteSpace: 'nowrap', fontWeight: search ? 600 : 400 }}>
             {filtered.length} позиций
           </span>
         </div>
-
-        {/* Row 2: search on mobile only */}
-        {isMobile && (
-          <div style={{ padding: '0 16px 10px' }}>
-            <input
-              type="text"
-              placeholder="Поиск по сорту, ферме..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%', padding: '7px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-input)', fontSize: 13,
-                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-                color: 'var(--text)', background: '#fff',
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {/* Active filter chips */}

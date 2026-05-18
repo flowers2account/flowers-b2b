@@ -42,6 +42,7 @@ export type Product = {
   description?: string | null
   images?: string[] | null
   colors?: string[] | null
+  search_aliases?: string[] | null
   pack_size: number
   image_url?: string | null
   previous_price?: number | null
