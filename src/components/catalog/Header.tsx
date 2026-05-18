@@ -10,29 +10,25 @@ import AuthModal from './AuthModal'
 
 function OrdersViewToggle() {
   const searchParams = useSearchParams()
-  const mode = searchParams.get('mode') || (
-    typeof window !== 'undefined' ? (localStorage.getItem('ordersViewMode') || 'table') : 'table'
-  )
-
-  function setMode(m: string) {
-    if (typeof window !== 'undefined') localStorage.setItem('ordersViewMode', m)
-    // Use hard navigation so the server component receives fresh searchParams
-    window.location.href = `/admin/orders?mode=${m}`
-  }
+  const mode = searchParams.get('mode') || 'table'
 
   return (
     <div className="flex gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.15)' }}>
-      {([{ k: 'table', l: '📊 Таблица' }, { k: 'kanban', l: '📌 Канбан' }]).map(({ k, l }) => (
-        <button
+      {([
+        { k: 'table',  l: '📊 Таблица', href: '/admin/orders?mode=table'  },
+        { k: 'kanban', l: '📌 Канбан',  href: '/admin/orders?mode=kanban' },
+      ]).map(({ k, l, href }) => (
+        <Link
           key={k}
-          onClick={() => setMode(k)}
-          className="px-3 py-1 text-[12px] font-medium rounded transition-all"
+          href={href}
+          prefetch={false}
+          className="px-3 py-1 text-[12px] font-medium rounded transition-all no-underline"
           style={mode === k
             ? { background: '#fff', color: 'var(--accent)' }
             : { color: 'rgba(255,255,255,0.85)' }}
         >
           {l}
-        </button>
+        </Link>
       ))}
     </div>
   )
