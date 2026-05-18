@@ -29,7 +29,7 @@ export default function ChangePinModal({ isOpen, onClose }: Props) {
 
     if (!currentPin || !newPin || !confirmPin) { setError('Заполните все поля'); return }
     if (newPin !== confirmPin) { setError('Новые PIN-коды не совпадают'); return }
-    if (!/^\d{4,6}$/.test(newPin)) { setError('PIN — от 4 до 6 цифр'); return }
+    if (!/^\d{6}$/.test(newPin)) { setError('PIN — ровно 6 цифр'); return }
     if (currentPin === newPin) { setError('Новый PIN совпадает с текущим'); return }
 
     setLoading(true)
@@ -71,7 +71,7 @@ export default function ChangePinModal({ isOpen, onClose }: Props) {
           <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
             {[
               { label: 'Текущий PIN', value: currentPin, onChange: setCurrentPin },
-              { label: 'Новый PIN (4–6 цифр)', value: newPin, onChange: setNewPin },
+              { label: 'Новый PIN (6 цифр)', value: newPin, onChange: setNewPin },
               { label: 'Подтвердите новый PIN', value: confirmPin, onChange: setConfirmPin },
             ].map(({ label, value, onChange }) => (
               <div key={label}>

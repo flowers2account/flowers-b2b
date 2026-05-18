@@ -11,8 +11,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Не все поля заполнены' }, { status: 400 })
   }
 
-  if (!/^\d{4,6}$/.test(newPin)) {
-    return NextResponse.json({ success: false, error: 'PIN должен содержать от 4 до 6 цифр' }, { status: 400 })
+  if (!/^\d{6}$/.test(newPin)) {
+    return NextResponse.json({ success: false, error: 'PIN должен содержать ровно 6 цифр' }, { status: 400 })
   }
 
   if (currentPin === newPin) {
