@@ -111,16 +111,26 @@ export default function BulkTranslationPage() {
         category: null
       }));
 
+      const uniqueRecords = records.reduce((acc, record) => {
+        const existing = acc.find(r => r.normalized_original === record.normalized_original);
+        if (!existing) {
+          acc.push(record);
+        } else if (record.source === 'manual' || record.confidence > existing.confidence) {
+          acc[acc.indexOf(existing)] = record;
+        }
+        return acc;
+      }, [] as typeof records);
+
       const { error } = await supabase
         .from('translation_memory')
-        .upsert(records, {
+        .upsert(uniqueRecords, {
           onConflict: 'normalized_original',
           ignoreDuplicates: false
         });
 
       if (error) throw error;
 
-      alert(`✅ Успешно сохранено и одобрено позиций: ${records.length}`);
+      alert(`✅ Успешно сохранено и одобрено позиций: ${uniqueRecords.length}`);
 
       setInput('');
       setResults([]);
