@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useFilters, type FilterCategory } from '@/lib/filter-store'
@@ -9,7 +9,6 @@ import { useState, useEffect, Suspense } from 'react'
 import AuthModal from './AuthModal'
 
 function OrdersViewToggle() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const mode = searchParams.get('mode') || (
     typeof window !== 'undefined' ? (localStorage.getItem('ordersViewMode') || 'table') : 'table'
@@ -17,7 +16,8 @@ function OrdersViewToggle() {
 
   function setMode(m: string) {
     if (typeof window !== 'undefined') localStorage.setItem('ordersViewMode', m)
-    router.push(`/admin/orders?mode=${m}`)
+    // Use hard navigation so the server component receives fresh searchParams
+    window.location.href = `/admin/orders?mode=${m}`
   }
 
   return (
