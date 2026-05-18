@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { generateProductCard } from '@/lib/card-generator';
 
 interface StockData {
   price: number;
@@ -44,6 +45,9 @@ function originLabel(origin: string) {
 export default function GenerateCardsPage() {
   const [allProducts, setAllProducts] = useState<FlatProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [generatedUrls, setGeneratedUrls] = useState<string[]>([]);
 
   const [catCut, setCatCut] = useState(true);
   const [catPot, setCatPot] = useState(true);
@@ -114,9 +118,41 @@ export default function GenerateCardsPage() {
     });
   }, [allProducts, catCut, catPot, originFilter, onlyCampaignImage, minStock]);
 
-  const handleGenerate = () => {
-    // Этап 2 — будет реализован
-    alert(`Генерация ${filtered.length} карточек — в разработке`);
+  const handleGenerate = async () => {
+    if (filtered.length === 0) return;
+    setGenerating(true);
+    setProgress({ done: 0, total: filtered.length });
+
+    const urls: string[] = [];
+
+    for (let i = 0; i < filtered.length; i++) {
+      const p = filtered[i];
+      const imageUrl = p.campaign_image_url || p.image_url;
+      if (!imageUrl) { setProgress({ done: i + 1, total: filtered.length }); continue; }
+
+      try {
+        const blob = await generateProductCard({
+          name: p.name,
+          price: p.price,
+          origin: p.origin,
+          colors: p.colors,
+          color: p.color,
+          availableQty: p.available_qty,
+          packSize: p.pack_size,
+          stemsPerPack: p.stems_per_pack,
+          imageUrl,
+        });
+        urls.push(URL.createObjectURL(blob));
+      } catch (err) {
+        console.error(`Card error for ${p.name}:`, err);
+      }
+
+      setProgress({ done: i + 1, total: filtered.length });
+    }
+
+    setGenerating(false);
+    setProgress(null);
+    setGeneratedUrls(urls);
   };
 
   if (loading) {
@@ -269,14 +305,67 @@ export default function GenerateCardsPage() {
         <div className="flex gap-3">
           <button
             onClick={handleGenerate}
-            disabled={filtered.length === 0}
+            disabled={filtered.length === 0 || generating}
             className="flex-1 flex items-center justify-center gap-2 py-3 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             style={{ backgroundColor: '#7a1c2e' }}
           >
-            <span>🎨</span>
-            <span>Сгенерировать карточки ({filtered.length})</span>
+            {generating && progress ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                <span>Генерация {progress.done} / {progress.total}...</span>
+              </>
+            ) : (
+              <>
+                <span>🎨</span>
+                <span>Сгенерировать карточки ({filtered.length})</span>
+              </>
+            )}
           </button>
         </div>
+
+        {/* Результаты */}
+        {generatedUrls.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Готово: {generatedUrls.length} карточек
+              </h2>
+              <button
+                onClick={() => {
+                  generatedUrls.forEach((url, i) => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `card_${i + 1}.jpg`;
+                    a.click();
+                  });
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors"
+                style={{ backgroundColor: '#7a1c2e' }}
+              >
+                ⬇ Скачать все
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {generatedUrls.map((url, i) => (
+                <div key={url} className="group relative">
+                  <img
+                    src={url}
+                    alt={`Карточка ${i + 1}`}
+                    className="w-full rounded-lg border border-gray-100 shadow-sm"
+                  />
+                  <a
+                    href={url}
+                    download={`card_${i + 1}.jpg`}
+                    className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <span className="text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded">⬇ Скачать</span>
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
