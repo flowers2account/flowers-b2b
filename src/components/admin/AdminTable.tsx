@@ -11,7 +11,7 @@ import {
 import { COLORS } from '@/lib/colors'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; colors?: string[] | null; stock: Stock[] | Stock }
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; stock: Stock[] | Stock }
 
 const TRANSLIT: Record<string, string> = {
   а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
@@ -46,6 +46,7 @@ function StockRow({ product, onSaved }: {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
+  const [campaignImageUrl, setCampaignImageUrl] = useState(product.campaign_image_url ?? '')
   const [uploading, setUploading] = useState(false)
   const [colors, setColors] = useState<string[]>(product.colors ?? [])
   const [colorsOpen, setColorsOpen] = useState(false)
@@ -75,7 +76,7 @@ function StockRow({ product, onSaved }: {
       .update({ qty: parseInt(qty), price: parseFloat(price), updated_at: new Date().toISOString() })
       .eq('product_id', product.id)
     await supabase.from('products')
-      .update({ pack_size: parseInt(packSize), colors, stems_per_pack: stemsPerPack ? parseInt(stemsPerPack) : null })
+      .update({ pack_size: parseInt(packSize), colors, stems_per_pack: stemsPerPack ? parseInt(stemsPerPack) : null, campaign_image_url: campaignImageUrl.trim() || null })
       .eq('id', product.id)
     setSaving(false)
     setSaved(true)
@@ -118,6 +119,7 @@ function StockRow({ product, onSaved }: {
     <TableRow className="text-xs">
       <TableCell className="py-1 px-2">
         <div className="flex items-center gap-1.5 min-w-0">
+          {/* Основное фото — загрузка файлом */}
           <div
             className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
@@ -134,6 +136,31 @@ function StockRow({ product, onSaved }: {
                 : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               }
             </div>
+          </div>
+          {/* Фото кампании — URL через prompt */}
+          <div
+            className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
+            title={campaignImageUrl ? `Фото кампании: ${campaignImageUrl}` : 'Задать фото для кампаний'}
+            onClick={async () => {
+              const url = prompt('URL фото для кампаний:', campaignImageUrl)
+              if (url === null) return
+              const trimmed = url.trim() || null
+              setCampaignImageUrl(trimmed ?? '')
+              await supabase.from('products').update({ campaign_image_url: trimmed }).eq('id', product.id)
+            }}
+          >
+            {campaignImageUrl ? (
+              <>
+                <img src={campaignImageUrl} alt="" className="w-7 h-7 rounded object-cover" style={{ outline: '2px solid #7a1c2e', outlineOffset: 1 }} />
+                <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </div>
+              </>
+            ) : (
+              <div className="w-7 h-7 rounded border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center group-hover:border-[#7a1c2e] group-hover:bg-pink-50 transition-colors">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" className="group-hover:stroke-[#7a1c2e]"><path d="M12 5v14M5 12h14"/></svg>
+              </div>
+            )}
           </div>
           <span className="font-medium truncate">{product.name}</span>
         </div>
@@ -260,6 +287,16 @@ function StockRow({ product, onSaved }: {
       </TableCell>
 
       <TableCell className="py-1 px-1">
+        <Input
+          type="text"
+          value={campaignImageUrl}
+          onChange={e => setCampaignImageUrl(e.target.value)}
+          className="w-28 h-7 text-[10px] px-1"
+          placeholder="URL кампании"
+          title="Фото для кампаний"
+        />
+      </TableCell>
+      <TableCell className="py-1 px-1">
         <Button
           size="sm"
           onClick={save}
@@ -324,6 +361,7 @@ export default function AdminTable({ products, onReload }: { products: Product[]
               <TableHead className="py-2 px-1 text-center w-16">Уп.</TableHead>
               <TableHead className="py-2 px-1 text-center w-16">Стебл.</TableHead>
               <TableHead className="py-2 px-1 text-center w-12">Цвет</TableHead>
+              <TableHead className="py-2 px-1 w-32">Фото кам.</TableHead>
               <TableHead className="py-2 px-1 w-16"></TableHead>
             </TableRow>
           </TableHeader>
