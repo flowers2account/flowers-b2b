@@ -87,6 +87,12 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
           🌐 Переводы
         </Link>
         <Link
+          href="/admin/generate-cards"
+          className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+        >
+          🎨 Карточки
+        </Link>
+        <Link
           href="/admin/cashier"
           className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 ml-auto"
         >
