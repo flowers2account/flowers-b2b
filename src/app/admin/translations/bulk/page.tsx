@@ -249,7 +249,7 @@ export default function BulkTranslationPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {results.map((r, i) => (
-                  <tr key={i} className={`transition-colors hover:bg-slate-50/80 ${r.isFlagged ? 'bg-red-50' : r.isEdited ? 'bg-yellow-50' : ''}`}>
+                  <tr key={i} className={`transition-colors hover:bg-slate-50/80 ${r.isFlagged ? 'bg-red-50 border-l-4 border-red-500' : r.isEdited ? 'bg-yellow-50 border-l-4 border-yellow-500' : ''}`}>
                     <td className="py-3 px-4 text-center font-mono text-xs text-slate-400 bg-slate-50/40">
                       {i + 1}
                     </td>
@@ -276,14 +276,14 @@ export default function BulkTranslationPage() {
                     <td className="py-3 px-4 text-center">
                       <button
                         onClick={() => handleFlag(i)}
-                        className={`text-xs px-2 py-1 rounded ${
+                        className={`text-xs px-2 py-1 rounded transition-colors ${
                           r.isFlagged
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
-                        title={r.isFlagged ? 'Снять флаг' : 'Пометить ошибкой'}
+                        title={r.isFlagged ? 'Снять флаг ошибки' : 'Пометить ошибкой'}
                       >
-                        {r.isFlagged ? '🚫' : '🏴'}
+                        {r.isFlagged ? '🚫 Ошибка' : '🏴 Флаг'}
                       </button>
                     </td>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
@@ -301,7 +301,7 @@ export default function BulkTranslationPage() {
               <p className="text-xs text-slate-500">
                 💡 Внимательно просмотрите строки перед одобрением. Все одобренные переводы попадут в общую память системы.
               </p>
-              <div className="text-xs text-slate-500 flex gap-3">
+              <div className="text-xs text-slate-500 flex gap-4">
                 {results.filter(r => r.isEdited).length > 0 && (
                   <span className="text-yellow-600">
                     ✏️ Отредактировано: {results.filter(r => r.isEdited).length}
