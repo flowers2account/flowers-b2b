@@ -23,6 +23,7 @@ interface Product {
   color: string | null;
   pack_size: number;
   stems_per_pack: number | null;
+  length_cm: number | null;
   stock: StockData[] | StockData | null;
 }
 
@@ -33,8 +34,8 @@ interface FlatProduct extends Omit<Product, 'stock'> {
 
 interface GeneratedCard {
   blob: Blob;
-  url: string;  // object URL for preview
-  name: string; // product name for filename
+  url: string;
+  name: string;
 }
 
 const ORIGIN_LABELS: Record<string, string> = {
@@ -47,10 +48,7 @@ function originLabel(origin: string) {
 }
 
 function sanitizeFilename(name: string): string {
-  return name
-    .replace(/[<>:"/\\|?*]/g, '')
-    .replace(/\s+/g, '_')
-    .substring(0, 50);
+  return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_').substring(0, 50);
 }
 
 export default function GenerateCardsPage() {
@@ -59,9 +57,12 @@ export default function GenerateCardsPage() {
 
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [progressTotal, setProgressTotal] = useState(0);
 
   const [downloading, setDownloading] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<GeneratedCard[] | null>(null);
+
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const [catCut, setCatCut] = useState(true);
   const [catPot, setCatPot] = useState(true);
@@ -76,7 +77,7 @@ export default function GenerateCardsPage() {
         .from('products')
         .select(`
           id, name, image_url, campaign_image_url,
-          category, origin, colors, color, pack_size, stems_per_pack,
+          category, origin, colors, color, pack_size, stems_per_pack, length_cm,
           stock:stock_available(price, available_qty, is_available)
         `)
         .eq('is_active', true)
@@ -94,6 +95,7 @@ export default function GenerateCardsPage() {
             category: p.category, origin: p.origin,
             colors: p.colors, color: p.color,
             pack_size: p.pack_size, stems_per_pack: p.stems_per_pack,
+            length_cm: p.length_cm,
             price: s?.price ?? 0,
             available_qty: s?.available_qty ?? 0,
           };
@@ -123,22 +125,46 @@ export default function GenerateCardsPage() {
     });
   }, [allProducts, catCut, catPot, originFilter, onlyCampaignImage, minStock]);
 
+  // Keep selection consistent when filters change
+  useEffect(() => {
+    setSelectedIds(prev => {
+      const filteredIds = new Set(filtered.map(p => p.id));
+      const next = new Set<number>();
+      prev.forEach(id => { if (filteredIds.has(id)) next.add(id); });
+      return next;
+    });
+  }, [filtered]);
+
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() { setSelectedIds(new Set(filtered.map(p => p.id))); }
+  function deselectAll() { setSelectedIds(new Set()); }
+
   const handleGenerate = async () => {
-    if (filtered.length === 0) return;
+    const toGenerate = filtered.filter(p => selectedIds.has(p.id));
+    if (toGenerate.length === 0) return;
+
     setGenerating(true);
     setProgress(0);
+    setProgressTotal(toGenerate.length);
     setGeneratedCards(null);
 
     const cards: GeneratedCard[] = [];
 
-    for (let i = 0; i < filtered.length; i++) {
-      const p = filtered[i];
+    for (let i = 0; i < toGenerate.length; i++) {
+      const p = toGenerate[i];
       const imageUrl = p.campaign_image_url || p.image_url;
       if (imageUrl) {
         try {
           const blob = await generateProductCard({
-            id: p.id,
-            name: p.name, price: p.price, origin: p.origin,
+            id: p.id, name: p.name, length_cm: p.length_cm,
+            price: p.price, origin: p.origin,
             colors: p.colors, color: p.color,
             availableQty: p.available_qty, packSize: p.pack_size,
             stemsPerPack: p.stems_per_pack, imageUrl,
@@ -181,6 +207,7 @@ export default function GenerateCardsPage() {
   };
 
   const totalBytes = generatedCards?.reduce((s, c) => s + c.blob.size, 0) ?? 0;
+  const genTotal = progressTotal || filtered.length;
 
   if (loading) {
     return (
@@ -203,10 +230,7 @@ export default function GenerateCardsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Генерация карточек</h1>
             <p className="text-sm text-gray-500 mt-0.5">Карточки товаров для WhatsApp / Telegram</p>
           </div>
-          <Link
-            href="/admin"
-            className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-white transition-colors"
-          >
+          <Link href="/admin" className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-white transition-colors">
             ← В админку
           </Link>
         </div>
@@ -230,22 +254,16 @@ export default function GenerateCardsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-2">Происхождение</label>
-              <select
-                value={originFilter}
-                onChange={e => setOriginFilter(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7a1c2e]/30 focus:border-[#7a1c2e]"
-              >
+              <select value={originFilter} onChange={e => setOriginFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7a1c2e]/30 focus:border-[#7a1c2e]">
                 <option value="all">Все</option>
                 {origins.map(o => <option key={o} value={o}>{originLabel(o)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-2">Мин. остаток, шт</label>
-              <input
-                type="number" min={0} value={minStock}
-                onChange={e => setMinStock(parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7a1c2e]/30 focus:border-[#7a1c2e]"
-              />
+              <input type="number" min={0} value={minStock} onChange={e => setMinStock(parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7a1c2e]/30 focus:border-[#7a1c2e]" />
             </div>
             <div className="flex items-end pb-1">
               <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -265,26 +283,61 @@ export default function GenerateCardsPage() {
           </div>
         </div>
 
-        {/* Предпросмотр */}
+        {/* Предпросмотр с чекбоксами */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Предпросмотр исходных фото</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Выбор товаров</h2>
+            {filtered.length > 0 && (
+              <div className="flex items-center gap-3">
+                <button onClick={selectAll} className="text-xs font-medium hover:underline" style={{ color: '#7a1c2e' }}>
+                  Выбрать все
+                </button>
+                <span className="text-gray-300">|</span>
+                <button onClick={deselectAll} className="text-xs text-gray-500 hover:underline">Снять выбор</button>
+                <span className="text-xs text-gray-600">
+                  Выбрано: <span className="font-semibold" style={{ color: '#7a1c2e' }}>{selectedIds.size}</span> из {filtered.length}
+                </span>
+              </div>
+            )}
+          </div>
+
           {filtered.length === 0 ? (
             <div className="py-16 text-center text-gray-400 text-sm">Нет товаров по заданным фильтрам</div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-80 overflow-y-auto pr-1">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-96 overflow-y-auto pr-1">
               {filtered.map(p => {
                 const photo = p.campaign_image_url || p.image_url;
+                const selected = selectedIds.has(p.id);
                 return (
-                  <div key={p.id} className="border border-gray-100 rounded-lg overflow-hidden group relative">
-                    <div className="aspect-square bg-gray-50 overflow-hidden">
-                      <img src={photo!} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                  <div
+                    key={p.id}
+                    onClick={() => toggleSelect(p.id)}
+                    className="border rounded-lg overflow-hidden cursor-pointer transition-all relative"
+                    style={selected ? { outline: '2px solid #7a1c2e', outlineOffset: 1 } : { borderColor: '#f3f4f6' }}
+                  >
+                    {/* Checkbox */}
+                    <div className="absolute top-1 left-1 z-10">
+                      <input
+                        type="checkbox"
+                        readOnly
+                        checked={selected}
+                        className="w-3.5 h-3.5 rounded pointer-events-none"
+                        style={{ accentColor: '#7a1c2e' }}
+                      />
                     </div>
+                    {/* КМП badge */}
                     {p.campaign_image_url && (
-                      <span className="absolute top-1 right-1 text-white text-[9px] font-bold px-1 py-0.5 rounded" style={{ backgroundColor: '#7a1c2e' }}>КМП</span>
+                      <span className="absolute top-1 right-1 text-white text-[8px] font-bold px-1 py-0.5 rounded z-10" style={{ backgroundColor: '#7a1c2e' }}>КМП</span>
                     )}
+                    <div className="aspect-square bg-gray-50 overflow-hidden">
+                      <img src={photo!} alt={p.name} className="w-full h-full object-cover" />
+                    </div>
                     <div className="px-1.5 py-1">
                       <p className="text-[10px] font-medium text-gray-700 truncate leading-tight">{p.name}</p>
-                      <p className="text-[10px] text-gray-400">{p.price.toLocaleString('ru-RU')} ₸</p>
+                      <p className="text-[10px] text-gray-400">
+                        {p.price.toLocaleString('ru-RU')} ₸
+                        {p.length_cm ? ` · ${p.length_cm} см` : ''}
+                      </p>
                     </div>
                   </div>
                 );
@@ -297,33 +350,37 @@ export default function GenerateCardsPage() {
         <div className="space-y-3">
           <button
             onClick={handleGenerate}
-            disabled={filtered.length === 0 || generating}
+            disabled={selectedIds.size === 0 || generating}
             className="w-full flex items-center justify-center gap-2 py-3 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             style={{ backgroundColor: '#7a1c2e' }}
           >
             {generating ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                <span>Генерация {progress} / {filtered.length}...</span>
+                <span>Генерация {progress} / {progressTotal}...</span>
               </>
             ) : (
               <>
                 <span>🎨</span>
-                <span>Сгенерировать карточки ({filtered.length})</span>
+                <span>
+                  {selectedIds.size === 0
+                    ? 'Выберите товары для генерации'
+                    : `Сгенерировать карточки (${selectedIds.size})`}
+                </span>
               </>
             )}
           </button>
 
-          {generating && filtered.length > 0 && (
+          {generating && progressTotal > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex justify-between text-xs text-gray-500 mb-1.5">
                 <span>Обработка изображений...</span>
-                <span>{Math.round((progress / filtered.length) * 100)}%</span>
+                <span>{Math.round((progress / progressTotal) * 100)}%</span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${(progress / filtered.length) * 100}%`, backgroundColor: '#7a1c2e' }}
+                  style={{ width: `${(progress / progressTotal) * 100}%`, backgroundColor: '#7a1c2e' }}
                 />
               </div>
               <p className="text-xs text-gray-400 mt-2 text-center">
@@ -336,7 +393,6 @@ export default function GenerateCardsPage() {
         {/* Результаты */}
         {generatedCards && generatedCards.length > 0 && (
           <>
-            {/* Статистика */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { label: 'Карточек создано', value: generatedCards.length, color: '#7a1c2e' },
@@ -351,42 +407,25 @@ export default function GenerateCardsPage() {
               ))}
             </div>
 
-            {/* Карточки + скачать */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                   Готово: {generatedCards.length} карточек
                 </h2>
-                <button
-                  onClick={handleDownloadAll}
-                  disabled={downloading}
+                <button onClick={handleDownloadAll} disabled={downloading}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors disabled:opacity-50"
-                  style={{ backgroundColor: '#3D6B50' }}
-                >
+                  style={{ backgroundColor: '#3D6B50' }}>
                   {downloading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                      <span>Создание архива...</span>
-                    </>
-                  ) : (
-                    <>📦 Скачать ZIP ({generatedCards.length})</>
-                  )}
+                    <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>Создание архива...</span></>
+                  ) : <>📦 Скачать ZIP ({generatedCards.length})</>}
                 </button>
               </div>
-
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {generatedCards.map((card, i) => (
                   <div key={card.url} className="group relative">
-                    <img
-                      src={card.url}
-                      alt={card.name}
-                      className="w-full rounded-lg border border-gray-100 shadow-sm"
-                    />
-                    <a
-                      href={card.url}
-                      download={`${String(i + 1).padStart(3, '0')}_${sanitizeFilename(card.name)}.jpg`}
-                      className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                    >
+                    <img src={card.url} alt={card.name} className="w-full rounded-lg border border-gray-100 shadow-sm" />
+                    <a href={card.url} download={`${String(i + 1).padStart(3, '0')}_${sanitizeFilename(card.name)}.jpg`}
+                      className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
                       <span className="text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded">⬇ Скачать</span>
                     </a>
                   </div>
@@ -394,19 +433,13 @@ export default function GenerateCardsPage() {
               </div>
             </div>
 
-            {/* Навигация */}
             <div className="flex gap-3">
-              <Link
-                href="/admin"
-                className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 hover:bg-white transition-colors inline-flex items-center gap-2"
-              >
+              <Link href="/admin" className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 hover:bg-white transition-colors inline-flex items-center gap-2">
                 ← Вернуться в админку
               </Link>
-              <button
-                onClick={() => { setGeneratedCards(null); setProgress(0); }}
+              <button onClick={() => { setGeneratedCards(null); setProgress(0); setProgressTotal(0); }}
                 className="px-5 py-2.5 border rounded-xl text-sm font-medium transition-colors"
-                style={{ borderColor: '#7a1c2e', color: '#7a1c2e' }}
-              >
+                style={{ borderColor: '#7a1c2e', color: '#7a1c2e' }}>
                 🔄 Сгенерировать заново
               </button>
             </div>

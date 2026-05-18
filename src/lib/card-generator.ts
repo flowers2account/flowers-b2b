@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 export interface CardData {
   id: number;
   name: string;
+  length_cm: number | null;
   price: number;
   origin: string | null;
   colors: string[] | null;
@@ -173,8 +174,13 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, INFO_Y, W, INFO_H);
 
-  // Product name — wrap up to 2 lines
-  const nameText = data.name.toUpperCase();
+  // Product name — strip length suffixes, wrap up to 2 lines
+  const nameText = data.name
+    .replace(/\(?\d{2,3}\s?см\)?/gi, '')  // "(40 см)", "40см"
+    .replace(/\(?\d{2,3}\)?(\s|$)/g, (m, trail) => trail)  // "(40) " or "40 " standalone
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
   ctx.font = `500 22px ${FONT_HEADING}`;
   ctx.fillStyle = BRAND;
   ctx.textAlign = 'left';
@@ -192,6 +198,7 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   const metaParts: string[] = [];
   if (originStr) metaParts.push(originStr);
   if (colorList.length > 0) metaParts.push(colorList.map(c => colorEmoji(c)).join(' '));
+  if (data.length_cm && data.length_cm > 0) metaParts.push(`${data.length_cm} см`);
 
   if (metaParts.length > 0) {
     ctx.font = `400 14px ${FONT_BODY}`;
