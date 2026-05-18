@@ -10,7 +10,7 @@ export default async function HomePage() {
   const supabase = await createClient()
   const { data: products } = await supabase
     .from('products')
-    .select(`id, name, variety_name, length_str, length_cm, category, subcategory, variety_type, color, colors, floral_role, stem_durability, season, origin, description, pot_size, pack_size, image_url, images, previous_price, stock:stock_available (price, qty, qty_reserved, is_available, available_qty, reserved_qty)`)
+    .select(`id, name, variety_name, length_str, length_cm, category, subcategory, variety_type, color, colors, floral_role, stem_durability, season, origin, description, pot_size, pack_size, stems_per_pack, image_url, images, previous_price, stock:stock_available (price, qty, qty_reserved, is_available, available_qty, reserved_qty)`)
     .eq('is_active', true)
     .order('variety_name')
     .order('length_cm')

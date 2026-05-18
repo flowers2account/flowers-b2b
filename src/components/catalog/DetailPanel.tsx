@@ -280,6 +280,10 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
 
           <Row label="Кратность">{packSize} шт</Row>
 
+          {product.stems_per_pack && product.stems_per_pack > 0 && (
+            <Row label="Стеблей в уп.">{product.stems_per_pack} шт</Row>
+          )}
+
           {isAuthed && (
             <Row label="Остаток">
               <span style={{ color: availColor, fontWeight: 700 }}>{available} шт</span>

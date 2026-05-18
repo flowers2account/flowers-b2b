@@ -11,7 +11,7 @@ import {
 import { COLORS } from '@/lib/colors'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; colors?: string[] | null; stock: Stock[] | Stock }
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; colors?: string[] | null; stock: Stock[] | Stock }
 
 const TRANSLIT: Record<string, string> = {
   а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
@@ -42,6 +42,7 @@ function StockRow({ product, onSaved }: {
   const [qty, setQty] = useState(String(s?.qty ?? 0))
   const [price, setPrice] = useState(String(s?.price ?? 0))
   const [packSize, setPackSize] = useState(String(product.pack_size ?? 5))
+  const [stemsPerPack, setStemsPerPack] = useState(String(product.stems_per_pack ?? ''))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
@@ -74,7 +75,7 @@ function StockRow({ product, onSaved }: {
       .update({ qty: parseInt(qty), price: parseFloat(price), updated_at: new Date().toISOString() })
       .eq('product_id', product.id)
     await supabase.from('products')
-      .update({ pack_size: parseInt(packSize), colors })
+      .update({ pack_size: parseInt(packSize), colors, stems_per_pack: stemsPerPack ? parseInt(stemsPerPack) : null })
       .eq('id', product.id)
     setSaving(false)
     setSaved(true)
@@ -170,6 +171,17 @@ function StockRow({ product, onSaved }: {
           value={packSize}
           onChange={e => setPackSize(e.target.value)}
           className="w-14 h-7 text-center text-xs px-1"
+        />
+      </TableCell>
+      <TableCell className="py-1 px-1">
+        <Input
+          type="number"
+          min="0"
+          step="1"
+          value={stemsPerPack}
+          onChange={e => setStemsPerPack(e.target.value)}
+          className="w-14 h-7 text-center text-xs px-1"
+          placeholder="—"
         />
       </TableCell>
       {/* Color picker cell */}
@@ -310,6 +322,7 @@ export default function AdminTable({ products, onReload }: { products: Product[]
               <TableHead className="py-2 px-1 text-center w-14">Рез.</TableHead>
               <TableHead className="py-2 px-1 text-center w-24">Цена ₸</TableHead>
               <TableHead className="py-2 px-1 text-center w-16">Уп.</TableHead>
+              <TableHead className="py-2 px-1 text-center w-16">Стебл.</TableHead>
               <TableHead className="py-2 px-1 text-center w-12">Цвет</TableHead>
               <TableHead className="py-2 px-1 w-16"></TableHead>
             </TableRow>
