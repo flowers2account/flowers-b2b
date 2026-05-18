@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { normalizeSupplierName, NormalizationResult } from '@/lib/naming/supplier-translations';
 import { normalizeText } from '@/lib/utils/normalize-text';
 
+export const dynamic = 'force-dynamic';
+
 // ========================================
 // ТИПЫ
 // ========================================
