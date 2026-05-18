@@ -89,7 +89,7 @@ export default function GenerateCardsPage() {
             available_qty: s?.available_qty ?? 0,
           };
         })
-        .filter(p => p.available_qty > 0 && (p.image_url || p.campaign_image_url));
+        .filter((p: FlatProduct) => p.available_qty > 0 && (p.image_url || p.campaign_image_url));
 
       setAllProducts(flat);
       setLoading(false);
