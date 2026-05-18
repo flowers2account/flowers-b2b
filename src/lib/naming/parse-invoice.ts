@@ -1,6 +1,6 @@
 // src/lib/naming/parse-invoice.ts
 import * as XLSX from 'xlsx';
-import { normalizeSupplierName } from './supplier-translations';
+import { normalizeWithAI } from './ai-normalizer';
 import type { ParsedInvoice, InvoiceType, InvoiceTranslation } from './types';
 
 /**
@@ -29,9 +29,9 @@ export async function parseInvoiceFile(file: File): Promise<ParsedInvoice> {
     let translations: InvoiceTranslation[] = [];
 
     if (type === 'astrafund') {
-      translations = parseAstrafund(firstSheet);
+      translations = await parseAstrafund(firstSheet);
     } else if (type === 'horti_fair') {
-      translations = parseHortiFair(firstSheet);
+      translations = await parseHortiFair(firstSheet);
     }
 
     return {
@@ -79,22 +79,19 @@ function detectInvoiceType(sheet: XLSX.WorkSheet): InvoiceType {
  * - Строка 21+: данные товаров
  * - Колонка 4 (индекс 4): Product description
  */
-function parseAstrafund(sheet: XLSX.WorkSheet): InvoiceTranslation[] {
+async function parseAstrafund(sheet: XLSX.WorkSheet): Promise<InvoiceTranslation[]> {
   const translations: InvoiceTranslation[] = [];
   const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
 
-  // Начинаем со строки 21 (индекс 20), пропускаем код клиента
   for (let row = 20; row <= range.e.r; row++) {
     const cellProduct = XLSX.utils.encode_cell({ r: row, c: 4 });
     const original = sheet[cellProduct]?.v;
 
-    // Пропускаем пустые, служебные строки
     if (!original || typeof original !== 'string') continue;
     if (original === 'Product' || original === 'CVURIN') continue;
     if (original.trim().length === 0) continue;
 
-    // Нормализуем
-    const result = normalizeSupplierName(original);
+    const result = await normalizeWithAI(original, 'cut');
 
     translations.push({
       original: original.trim(),
@@ -115,10 +112,9 @@ function parseAstrafund(sheet: XLSX.WorkSheet): InvoiceTranslation[] {
  * - Строка 2+: данные товаров
  * - Колонка "Product description": названия товаров
  */
-function parseHortiFair(sheet: XLSX.WorkSheet): InvoiceTranslation[] {
+async function parseHortiFair(sheet: XLSX.WorkSheet): Promise<InvoiceTranslation[]> {
   const translations: InvoiceTranslation[] = [];
 
-  // Конвертируем в массив массивов
   const data: any[][] = XLSX.utils.sheet_to_json(sheet, {
     header: 1,
     defval: '',
@@ -127,7 +123,6 @@ function parseHortiFair(sheet: XLSX.WorkSheet): InvoiceTranslation[] {
 
   if (data.length < 2) return translations;
 
-  // Строка 1 (индекс 1) = заголовки
   const headers = data[1] as string[];
   const productIdx = headers.indexOf('Product description');
 
@@ -136,17 +131,14 @@ function parseHortiFair(sheet: XLSX.WorkSheet): InvoiceTranslation[] {
     return translations;
   }
 
-  // Данные начинаются со строки 2 (индекс 2)
   for (let i = 2; i < data.length; i++) {
     const row = data[i];
     const original = row[productIdx];
 
-    // Пропускаем пустые
     if (!original || typeof original !== 'string') continue;
     if (original.trim().length === 0) continue;
 
-    // Нормализуем
-    const result = normalizeSupplierName(original);
+    const result = await normalizeWithAI(original, 'cut');
 
     translations.push({
       original: original.trim(),

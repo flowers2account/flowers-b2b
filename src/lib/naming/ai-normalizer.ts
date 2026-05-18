@@ -3,11 +3,15 @@ import { normalizeSupplierName } from './supplier-translations';
 import type { NormalizationResult } from './supplier-translations';
 
 const CONFIDENCE_THRESHOLD = 0.7;
+const GEMINI_MODEL = 'gemini-2.5-flash-lite-latest';
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 /**
- * Нормализация с AI fallback
- * 1. Rule-based first (быстро, бесплатно)
- * 2. Если confidence < 0.7 → Claude API (медленно, платно, точно)
+ * Нормализация с AI fallback через Gemini API
+ *
+ * Workflow:
+ * 1. Rule-based first (быстро, бесплатно, 243 known products)
+ * 2. Если confidence < 0.7 → Gemini API (2-3s, платно, но точно)
  */
 export async function normalizeWithAI(
   original: string,
@@ -17,41 +21,41 @@ export async function normalizeWithAI(
   // ШАГ 1: Rule-based нормализация
   const ruleBasedResult = normalizeSupplierName(original);
 
-  // Если уверенность высокая — возвращаем сразу
+  // Если уверенность высокая — возвращаем сразу (экономим API calls)
   if (ruleBasedResult.confidence >= CONFIDENCE_THRESHOLD) {
     return ruleBasedResult;
   }
 
-  // ШАГ 2: Низкая уверенность → спрашиваем AI
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // ШАГ 2: Низкая уверенность → спрашиваем Gemini
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.warn('ANTHROPIC_API_KEY not set, using rule-based result');
+    console.warn('GOOGLE_GEMINI_API_KEY not set, using rule-based result');
     return ruleBasedResult;
   }
 
   try {
-    const aiResult = await askClaudeForTranslation(original, category, apiKey);
+    const aiResult = await askGeminiForTranslation(original, category, apiKey);
 
-    // Сравниваем результаты
+    // Если AI уверен больше — используем его результат
     if (aiResult.confidence > ruleBasedResult.confidence) {
       return {
         ...aiResult,
         matchedBy: 'ai_assisted',
         warnings: [
           ...(aiResult.warnings || []),
-          `fallback_from_rule_based: ${ruleBasedResult.confidence.toFixed(2)}`
+          `rule_based_fallback: ${ruleBasedResult.confidence.toFixed(2)}`
         ]
       };
     }
   } catch (error) {
-    console.error('AI normalization failed:', error);
+    console.error('Gemini API error:', error);
   }
 
   return ruleBasedResult;
 }
 
-async function askClaudeForTranslation(
+async function askGeminiForTranslation(
   original: string,
   category: 'cut' | 'pot' | undefined,
   apiKey: string
@@ -59,29 +63,33 @@ async function askClaudeForTranslation(
 
   const prompt = buildPrompt(original, category);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 200,
-      messages: [{ role: 'user', content: prompt }]
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 100,
+        topP: 0.8,
+        topK: 10
+      }
     })
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Claude API error ${response.status}: ${error}`);
+    throw new Error(`Gemini API error ${response.status}: ${error}`);
   }
 
   const data = await response.json();
-  const text = data.content[0].text;
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-  return parseClaudeResponse(text, original);
+  if (!text) {
+    throw new Error('No text in Gemini response');
+  }
+
+  return parseGeminiResponse(text, original);
 }
 
 function buildPrompt(original: string, category?: 'cut' | 'pot'): string {
@@ -101,7 +109,7 @@ ${categoryHint}
    - semp. → sempervivens
    - benja. → benjamina
    - frag. → fragrans
-   - delic. → deliciosa
+   - delic. → делициоза
    - exal. → exaltata
    - pulc. → pulcherrima
    - sim. → simsii
@@ -128,7 +136,7 @@ ${original}
 ОТВЕТ (только перевод, без объяснений):`;
 }
 
-function parseClaudeResponse(
+function parseGeminiResponse(
   text: string,
   original: string
 ): NormalizationResult {
@@ -141,10 +149,14 @@ function parseClaudeResponse(
   if (normalized === original.toLowerCase()) confidence = 0.5;
   if (normalized.includes('error') || normalized.includes('unknown')) confidence = 0.4;
 
-  return {
-    normalized,
-    confidence,
-    matchedBy: 'ai',
-    warnings: undefined
-  };
+  // Повышаем если есть признаки качественного перевода
+  if (
+    normalized.includes('хризантема') || normalized.includes('роза') ||
+    normalized.includes('лилия')      || normalized.includes('антуриум') ||
+    normalized.includes('фикус')      || normalized.includes('монстера')
+  ) {
+    confidence = Math.min(confidence + 0.1, 0.95);
+  }
+
+  return { normalized, confidence, matchedBy: 'ai', warnings: undefined };
 }
