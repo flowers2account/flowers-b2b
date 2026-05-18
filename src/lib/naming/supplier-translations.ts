@@ -345,10 +345,8 @@ const CANONICAL_PREFIXES = Object.entries(SUPPLIER_PREFIXES)
 export type NormalizationResult = {
   normalized: string;
   confidence: number;
-  matchedBy: 'exact' | 'exact_after_cleanup' | 'prefix' | 'fallback';
+  matchedBy: 'exact' | 'exact_after_cleanup' | 'prefix' | 'fallback' | 'ai' | 'ai_assisted';
   warnings?: string[];
-  // TODO: Добавить taxonomy для аналитики
-  // taxonomy?: { family: string; form?: string; variety: string; color?: string; }
 };
 
 // ============================================================================
