@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+const GEMINI_MODEL = 'models/gemini-flash-lite-latest';
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/${GEMINI_MODEL}:generateContent`;
+
 export async function GET() {
   const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
 
@@ -8,24 +11,23 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-    );
+    const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Переведи: Chr T Commander Pink' }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 50 },
+      }),
+    });
+
     const data = await response.json();
 
-    const generateModels = data.models
-      ?.filter((m: { supportedGenerationMethods?: string[] }) =>
-        m.supportedGenerationMethods?.includes('generateContent')
-      )
-      .map((m: { name: string; displayName: string }) => ({
-        name: m.name,
-        displayName: m.displayName,
-      }));
-
     return NextResponse.json({
-      total: data.models?.length ?? 0,
-      generateContent: generateModels?.length ?? 0,
-      models: generateModels,
+      status: response.status,
+      ok: response.ok,
+      model: GEMINI_MODEL,
+      text: data.candidates?.[0]?.content?.parts?.[0]?.text ?? null,
+      error: data.error ?? null,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
