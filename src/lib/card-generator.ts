@@ -127,17 +127,21 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   await waitFonts();
 
   const W = 600;
-  const H = 800;
+  const H = 850;
+  const HEADER_H = 60;
+  const PHOTO_H = 450;
+  const INFO_H = 280;
+  const FOOTER_H = 60;
+  const PAD = 20;
+
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
   // ── Header ──────────────────────────────────────────────────────
-  const HEADER_H = 58;
   ctx.fillStyle = BRAND;
   ctx.fillRect(0, 0, W, HEADER_H);
-
   ctx.fillStyle = '#FFFFFF';
   ctx.font = `600 18px ${FONT_BODY}`;
   ctx.textAlign = 'center';
@@ -146,16 +150,12 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
 
   // ── Photo ────────────────────────────────────────────────────────
   const PHOTO_Y = HEADER_H;
-  const PHOTO_H = 430;
-
   ctx.fillStyle = '#f3f4f6';
   ctx.fillRect(0, PHOTO_Y, W, PHOTO_H);
-
   try {
     const img = await loadImage(data.imageUrl);
     drawImageCover(ctx, img, 0, PHOTO_Y, W, PHOTO_H);
   } catch {
-    // Placeholder
     ctx.fillStyle = '#e5e7eb';
     ctx.fillRect(0, PHOTO_Y, W, PHOTO_H);
     ctx.fillStyle = '#9ca3af';
@@ -167,32 +167,52 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
 
   // ── Info block ───────────────────────────────────────────────────
   const INFO_Y = PHOTO_Y + PHOTO_H;
-  const INFO_H = H - INFO_Y - 52; // 52 = footer height
-  const PAD = 20;
-  let cy = INFO_Y + 18;
-
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, INFO_Y, W, INFO_H);
 
-  // Product name — strip length suffixes, wrap up to 2 lines
-  const nameText = data.name
-    .replace(/\(?\d{2,3}\s?см\)?/gi, '')  // "(40 см)", "40см"
-    .replace(/\(?\d{2,3}\)?(\s|$)/g, (m, trail) => trail)  // "(40) " or "40 " standalone
+  // Clean name once — used for both QR URL and rendered text
+  const cleanName = data.name
+    .replace(/\(?\d{2,3}\s?см\)?/gi, '')
+    .replace(/\(?\d{2,3}\)?(\s|$)/g, (_m, trail: string) => trail)
     .replace(/\s+/g, ' ')
-    .trim()
-    .toUpperCase();
-  ctx.font = `500 22px ${FONT_HEADING}`;
-  ctx.fillStyle = BRAND;
+    .trim();
+
+  // QR code (generate first, draw after text)
+  const QR_SIZE = 120;
+  const qrX = W - PAD - QR_SIZE;
+  const qrY = INFO_Y + PAD;
+  let qrImg: HTMLImageElement | null = null;
+  try {
+    const searchQuery = encodeURIComponent(cleanName);
+    const qrUrl = `https://flowers-b2b-phi.vercel.app/?search=${searchQuery}`;
+    const qrDataUrl = await QRCode.toDataURL(qrUrl, {
+      width: 360,
+      margin: 1,
+      color: { dark: '#1C1C1C', light: '#FFFFFF' },
+    });
+    qrImg = await loadImage(qrDataUrl);
+  } catch {
+    // silently skip
+  }
+
+  // Text area width leaves room for QR + gap
+  const textW = qrX - PAD - 15;
+  let cy = INFO_Y + PAD;
+
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const nameLines = wrapText(ctx, nameText, W - PAD * 2).slice(0, 2);
+
+  // Product name
+  ctx.font = `500 22px ${FONT_HEADING}`;
+  ctx.fillStyle = BRAND;
+  const nameLines = wrapText(ctx, cleanName.toUpperCase(), textW).slice(0, 2);
   for (const line of nameLines) {
     ctx.fillText(line, PAD, cy);
-    cy += 28;
+    cy += 26;
   }
-  cy += 4;
+  cy += 8;
 
-  // Origin + color circles (no color text labels)
+  // Origin · color circles · length
   const colorList = data.colors?.length ? data.colors : (data.color ? [data.color] : []);
   const originStr = data.origin ? (ORIGIN_MAP[data.origin.toLowerCase()] ?? data.origin) : null;
   const metaParts: string[] = [];
@@ -204,16 +224,16 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
     ctx.font = `400 14px ${FONT_BODY}`;
     ctx.fillStyle = STONE;
     ctx.fillText(metaParts.join('  •  '), PAD, cy);
-    cy += 22;
+    cy += 26;
   }
 
-  cy += 6;
+  cy += 8;
 
   // Price
-  ctx.font = `700 34px ${FONT_BODY}`;
+  ctx.font = `700 32px ${FONT_BODY}`;
   ctx.fillStyle = BRAND;
   ctx.fillText(`${data.price.toLocaleString('ru-RU')} ₸`, PAD, cy);
-  cy += 44;
+  cy += 42;
 
   // Stock
   ctx.font = `400 13px ${FONT_BODY}`;
@@ -231,36 +251,28 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   // Stems per pack
   if (data.stemsPerPack && data.stemsPerPack > 0) {
     ctx.fillStyle = STONE;
-    ctx.fillText(`🌸  В упаковке: ${data.stemsPerPack} стеблей`, PAD, cy);
+    ctx.fillText(`🌸  В упаковке: ${data.stemsPerPack} стебл.`, PAD, cy);
+  }
+
+  // Draw QR + caption
+  if (qrImg) {
+    ctx.drawImage(qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
+    ctx.fillStyle = STONE;
+    ctx.font = `400 10px ${FONT_BODY}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Сканируйте', qrX + QR_SIZE / 2, qrY + QR_SIZE + 12);
+    ctx.fillText('для заказа', qrX + QR_SIZE / 2, qrY + QR_SIZE + 23);
   }
 
   // ── Footer ───────────────────────────────────────────────────────
-  const FOOTER_Y = H - 52;
+  const FOOTER_Y = H - FOOTER_H;
   ctx.fillStyle = BRAND_LIGHT;
-  ctx.fillRect(0, FOOTER_Y, W, 52);
-
-  // Phone — left side
+  ctx.fillRect(0, FOOTER_Y, W, FOOTER_H);
   ctx.fillStyle = INK;
-  ctx.font = `500 15px ${FONT_BODY}`;
-  ctx.textAlign = 'left';
+  ctx.font = `600 18px ${FONT_BODY}`;
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('📱  +7 700 757 52 43', PAD, FOOTER_Y + 26);
-
-  // QR code — right side
-  try {
-    const searchQuery = encodeURIComponent(data.name);
-    const qrUrl = `https://flowers-b2b-phi.vercel.app/?search=${searchQuery}`;
-    const qrDataUrl = await QRCode.toDataURL(qrUrl, {
-      width: 80,
-      margin: 1,
-      color: { dark: '#1C1C1C', light: '#F7EEF2' },
-    });
-    const qrImg = await loadImage(qrDataUrl);
-    const QR_SIZE = 42;
-    ctx.drawImage(qrImg, W - PAD - QR_SIZE, FOOTER_Y + 5, QR_SIZE, QR_SIZE);
-  } catch {
-    // QR generation failed — silently skip
-  }
+  ctx.fillText('📱  +7 700 757 52 43', W / 2, FOOTER_Y + FOOTER_H / 2);
 
   // ── Export ───────────────────────────────────────────────────────
   return new Promise<Blob>((resolve, reject) => {
