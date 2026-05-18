@@ -2,7 +2,7 @@
 import { normalizeSupplierName } from './supplier-translations';
 import type { NormalizationResult } from './supplier-translations';
 
-const CONFIDENCE_THRESHOLD = 0.7;
+const CONFIDENCE_THRESHOLD = 0.85;
 const GEMINI_MODEL = 'models/gemini-flash-lite-latest';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/${GEMINI_MODEL}:generateContent`;
 
