@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
-import Link from 'next/link'
 import OrdersPanel from '@/components/admin/OrdersPanel'
 import OrdersKanban from './OrdersKanban'
 import type { KanbanOrder } from './OrderCard'
@@ -70,12 +69,7 @@ export default function OrdersPageClient({ mode }: Props) {
   if (!isAuthed) return null
 
   return (
-    <div className="max-w-[1480px] mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-5">
-        <Link href="/admin" className="text-sm text-gray-400 hover:text-gray-600">← Админка</Link>
-        <h1 className="text-xl font-bold text-gray-800">Заказы</h1>
-      </div>
-
+    <>
       {mode === 'table'
         ? <OrdersPanel />
         : <OrdersKanban onOrderClick={setDetailOrder} />
@@ -84,6 +78,6 @@ export default function OrdersPageClient({ mode }: Props) {
       {detailOrder && (
         <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />
       )}
-    </div>
+    </>
   )
 }
