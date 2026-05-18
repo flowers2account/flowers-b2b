@@ -94,12 +94,18 @@ export default function BulkTranslationPage() {
         return;
       }
 
+      const methodToSource = (method: string): 'ai' | 'manual' | 'rule_based' => {
+        if (method === 'ai_assisted') return 'ai';
+        if (method === 'rule_based') return 'rule_based';
+        return 'manual'; // db_exact и всё остальное = ранее одобрено вручную
+      };
+
       const records = results.map(r => ({
         original: r.original,
         normalized_original: normalizeText(r.original),
         translated: r.translated,
         confidence: r.confidence,
-        source: r.isEdited ? 'manual' : (r.source || r.method),
+        source: r.isEdited ? 'manual' : methodToSource(r.method),
         approved_by: user.id,
         is_flagged: r.isFlagged || false,
         category: null
