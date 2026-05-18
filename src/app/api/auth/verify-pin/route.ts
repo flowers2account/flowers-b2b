@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const { phone, pin } = body
   if (!phone || !pin) return NextResponse.json({ error: 'Нет телефона или кода' }, { status: 400 })
+  if (!/^\d{6}$/.test(pin)) return NextResponse.json({ error: 'PIN должен содержать ровно 6 цифр' }, { status: 400 })
 
   const normalized = normalizePhone(phone)
   const email = `${normalized.replace('+', '')}@flowers.local`
