@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   if (!client.pin) {
     return NextResponse.json(
-      { exists: false, error: 'PIN не установлен. Обратитесь к администратору.' },
+      { exists: false, error: 'PIN-код не установлен. Обратитесь к администратору.' },
       { status: 400 }
     )
   }
