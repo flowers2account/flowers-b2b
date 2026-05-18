@@ -1,5 +1,3 @@
-import { COLORS } from '@/lib/colors';
-
 export interface CardData {
   name: string;
   price: number;
@@ -32,18 +30,25 @@ const INK = '#1C1C1C';
 const GREEN = '#3D6B50';
 
 function colorEmoji(key: string): string {
+  const normalized = key.toLowerCase().trim();
   const map: Record<string, string> = {
+    // English keys (from DB)
     white: '⚪', cream: '🟡', pink: '🩷', peach: '🟠',
     red: '🔴', bordeaux: '🔴', orange: '🟠', yellow: '🟡',
     lavender: '🟣', purple: '🟣', green: '🟢',
     mix: '🎨', mix_pink: '🩷', mix_red_white: '🔴',
+    violet: '🟣', blue: '🔵', coral: '🩷', lilac: '🟣',
+    lime: '🟢', cyan: '🔵', mint: '🟢', beige: '🟤',
+    brown: '🟤', black: '⚫', grey: '⚪', gray: '⚪',
+    // Russian names (fallback)
+    'белый': '⚪', 'красный': '🔴', 'розовый': '🩷', 'желтый': '🟡',
+    'оранжевый': '🟠', 'фиолетовый': '🟣', 'синий': '🔵', 'зеленый': '🟢',
+    'бордовый': '🔴', 'персиковый': '🟠', 'кремовый': '🟡', 'микс': '🎨',
+    'голубой': '🔵', 'сиреневый': '🟣', 'лиловый': '🟣', 'салатовый': '🟢',
+    'коралловый': '🩷', 'бежевый': '🟤', 'коричневый': '🟤',
+    'черный': '⚫', 'серый': '⚪',
   };
-  return map[key] ?? '⚪';
-}
-
-function colorLabel(key: string): string {
-  const def = COLORS.find(c => c.key === key);
-  return def?.label ?? key;
+  return map[normalized] ?? '⚪';
 }
 
 function wrapText(
@@ -178,12 +183,12 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   }
   cy += 4;
 
-  // Origin + color row
-  const colorKey = data.colors?.[0] ?? data.color ?? null;
+  // Origin + color circles (no color text labels)
+  const colorList = data.colors?.length ? data.colors : (data.color ? [data.color] : []);
   const originStr = data.origin ? (ORIGIN_MAP[data.origin.toLowerCase()] ?? data.origin) : null;
   const metaParts: string[] = [];
   if (originStr) metaParts.push(originStr);
-  if (colorKey) metaParts.push(`${colorEmoji(colorKey)} ${colorLabel(colorKey)}`);
+  if (colorList.length > 0) metaParts.push(colorList.map(c => colorEmoji(c)).join(' '));
 
   if (metaParts.length > 0) {
     ctx.font = `400 14px ${FONT_BODY}`;
@@ -228,7 +233,7 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   ctx.font = `500 15px ${FONT_BODY}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('📱  +7 747 610 8458', W / 2, FOOTER_Y + 26);
+  ctx.fillText('📱  +7 700 757 52 43', W / 2, FOOTER_Y + 26);
 
   // ── Export ───────────────────────────────────────────────────────
   return new Promise<Blob>((resolve, reject) => {
