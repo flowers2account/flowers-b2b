@@ -3,12 +3,17 @@
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+interface StockRow {
+  qty: number
+  qty_reserved: number
+}
+
 interface Product {
   id: number
   name: string
   variety_name: string | null
   length_str: string | null
-  stock?: { qty: number }[] | null
+  stock?: StockRow[] | null
 }
 
 interface Props {
@@ -19,6 +24,11 @@ interface Props {
 
 function productLabel(p: Product): string {
   return [p.variety_name || p.name, p.length_str].filter(Boolean).join(' ')
+}
+
+function calcAvailable(p: Product | null): number {
+  if (!p || !Array.isArray(p.stock) || !p.stock[0]) return 0
+  return Math.max(0, p.stock[0].qty - p.stock[0].qty_reserved)
 }
 
 export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
@@ -40,16 +50,19 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
   async function handleSearch(q: string) {
     setQuery(q)
     setSelected(null)
+    setError('')
     if (q.length < 2) { setResults([]); return }
 
+    // !inner excludes products without stock; gt filters out zero-stock
     const { data } = await supabase
       .from('products')
-      .select('id, name, variety_name, length_str, stock(qty)')
+      .select('id, name, variety_name, length_str, stock!inner(qty, qty_reserved)')
       .or(`name.ilike.%${q}%,variety_name.ilike.%${q}%`)
       .eq('is_active', true)
+      .gt('stock.qty', 0)
       .limit(12)
 
-    setResults(data || [])
+    setResults((data as Product[]) || [])
   }
 
   function selectProduct(p: Product) {
@@ -57,6 +70,18 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
     setQuery(productLabel(p))
     setResults([])
     setQuantity(1)
+    setError('')
+  }
+
+  function handleQuantityChange(val: number) {
+    const avail = calcAvailable(selected)
+    if (val > avail) {
+      setError(`Доступно только ${avail} шт`)
+      setQuantity(avail)
+    } else {
+      setError('')
+      setQuantity(val < 1 ? 1 : val)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -64,9 +89,9 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
     if (!selected) { setError('Выберите товар'); return }
     if (quantity <= 0) { setError('Количество должно быть > 0'); return }
 
-    const available = Array.isArray(selected.stock) ? (selected.stock[0]?.qty ?? 0) : 0
-    if (quantity > available) {
-      setError(`На складе только ${available} шт`)
+    const avail = calcAvailable(selected)
+    if (quantity > avail) {
+      setError(`На складе только ${avail} шт`)
       return
     }
 
@@ -74,7 +99,6 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
     setError('')
 
     try {
-      // Upload photo if provided
       let photo_url: string | null = null
       if (photo) {
         const ext = photo.name.split('.').pop()
@@ -83,10 +107,7 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
           .from('writeoff-photos')
           .upload(path, photo, { upsert: false })
 
-        if (uploadError) {
-          console.error('Photo upload failed:', uploadError.message)
-          // Continue without photo rather than failing
-        } else {
+        if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage
             .from('writeoff-photos')
             .getPublicUrl(path)
@@ -94,7 +115,6 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
         }
       }
 
-      // Create writeoff
       const res = await fetch('/api/writeoffs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,7 +128,6 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ошибка при списании')
 
-      // Telegram notification (fire-and-forget)
       fetch('/api/telegram/notify-writeoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,7 +144,7 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
       setTimeout(() => {
         setSuccess(false)
         setSelected(null); setQuery(''); setQuantity(1)
-        setReason(''); setPhoto(null)
+        setReason(''); setPhoto(null); setError('')
         if (fileRef.current) fileRef.current.value = ''
         onClose()
       }, 1400)
@@ -136,7 +155,7 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
     }
   }
 
-  const availableQty = selected && Array.isArray(selected.stock) ? (selected.stock[0]?.qty ?? 0) : null
+  const availableQty = calcAvailable(selected)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -161,29 +180,47 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
                 value={query}
                 onChange={e => handleSearch(e.target.value)}
                 placeholder="Начните вводить название..."
+                autoComplete="off"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-red-400"
               />
+
+              {/* Dropdown results */}
               {results.length > 0 && (
-                <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {results.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => selectProduct(p)}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between"
-                    >
-                      <span>{productLabel(p)}</span>
-                      {Array.isArray(p.stock) && p.stock[0] && (
-                        <span className="text-xs text-gray-400 ml-2">{p.stock[0].qty} шт</span>
-                      )}
-                    </button>
-                  ))}
+                <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                  {results.map(p => {
+                    const avail = calcAvailable(p)
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => selectProduct(p)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between gap-3"
+                      >
+                        <span className="font-medium text-gray-800 truncate">{productLabel(p)}</span>
+                        <span className="shrink-0 text-xs px-2 py-0.5 rounded bg-green-100 text-green-800 font-medium">
+                          {avail} шт
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
-              {selected && availableQty !== null && (
-                <p className="text-xs text-gray-500 mt-1">На складе: {availableQty} шт</p>
+
+              {/* No results message */}
+              {query.length >= 2 && results.length === 0 && !selected && (
+                <p className="text-xs text-gray-400 mt-1.5">Товары не найдены или отсутствуют на складе</p>
               )}
             </div>
+
+            {/* Selected product info */}
+            {selected && (
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm">
+                <div className="font-medium text-gray-800">{productLabel(selected)}</div>
+                <div className="text-gray-500 mt-0.5">
+                  Доступно: <span className="font-semibold text-green-700">{availableQty} шт</span>
+                </div>
+              </div>
+            )}
 
             {/* Quantity */}
             <div>
@@ -191,9 +228,9 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
               <input
                 type="number"
                 min={1}
-                max={availableQty ?? undefined}
+                max={availableQty > 0 ? availableQty : undefined}
                 value={quantity}
-                onChange={e => setQuantity(parseInt(e.target.value) || 1)}
+                onChange={e => handleQuantityChange(parseInt(e.target.value) || 1)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-red-400"
               />
             </div>
@@ -232,7 +269,7 @@ export default function WriteoffModal({ isOpen, onClose, onSuccess }: Props) {
                 className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
                 Отмена
               </button>
-              <button type="submit" disabled={loading || !selected}
+              <button type="submit" disabled={loading || !selected || availableQty === 0}
                 className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50">
                 {loading ? 'Списываем...' : 'Списать'}
               </button>

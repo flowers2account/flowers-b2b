@@ -5,7 +5,7 @@ import ImportXLS from './ImportXLS'
 import OrdersPanel from './OrdersPanel'
 import ClientsPanel from './ClientsPanel'
 import StaffPanel from './StaffPanel'
-import WriteoffModal from './WriteoffModal'
+import WriteoffsTab from './WriteoffsTab'
 import Link from 'next/link'
 import { useSettingsStore } from '@/lib/store/settingsStore'
 
@@ -14,7 +14,6 @@ type Product = { id: number; name: string; category: string; is_active: boolean;
 
 export default function AdminPageClient({ initialProducts }: { initialProducts: Product[] }) {
   const [tab, setTab] = useState('orders')
-  const [writeoffOpen, setWriteoffOpen] = useState(false)
   const [products, setProducts] = useState(initialProducts)
   const { clientNotificationsEnabled, toggleClientNotifications } = useSettingsStore()
   const [filters, setFilters] = useState({
@@ -76,6 +75,12 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
         >
           🧑‍💼 Сотрудники
         </button>
+        <button
+          onClick={() => setTab('writeoffs')}
+          className={`px-4 py-2 text-sm rounded-t font-medium ${tab === 'writeoffs' ? 'bg-white border border-b-white -mb-px text-red-700' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          🗑 Списания
+        </button>
         <Link
           href="/admin/orders"
           className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -110,20 +115,7 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
 
       {tab === 'stock' && (
         <>
-          <div className="flex items-center justify-between mb-2">
-            <ImportXLS onImported={reload} />
-            <button
-              onClick={() => setWriteoffOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
-            >
-              🗑 Списать товар
-            </button>
-          </div>
-          <WriteoffModal
-            isOpen={writeoffOpen}
-            onClose={() => setWriteoffOpen(false)}
-            onSuccess={reload}
-          />
+          <ImportXLS onImported={reload} />
           <div className="flex items-center gap-6 mb-4 p-4 bg-gray-50 rounded-lg">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -191,6 +183,7 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
       )}
       {tab === 'clients' && <ClientsPanel />}
       {tab === 'staff' && <StaffPanel />}
+      {tab === 'writeoffs' && <WriteoffsTab />}
     </div>
   )
 }
