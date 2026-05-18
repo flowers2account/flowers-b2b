@@ -121,16 +121,47 @@ export default function BulkTranslationPage() {
         return acc;
       }, [] as typeof records);
 
+      // Fetch existing DB records to protect manual edits and high-confidence translations
+      const normalizedKeys = uniqueRecords.map(r => r.normalized_original);
+      const { data: existingRows } = await supabase
+        .from('translation_memory')
+        .select('normalized_original, source, confidence')
+        .in('normalized_original', normalizedKeys);
+
+      const existingMap = new Map(
+        (existingRows ?? []).map(r => [r.normalized_original, r])
+      );
+
+      const recordsToUpsert = uniqueRecords.filter(r => {
+        if (r.source === 'manual') return true; // user edited in this batch — always save
+        const ex = existingMap.get(r.normalized_original);
+        if (!ex) return true; // not in DB yet — insert
+        if (ex.source === 'manual') return false; // protect existing manual edits
+        return r.confidence > ex.confidence; // update only if confidence improved
+      });
+
+      if (recordsToUpsert.length === 0) {
+        alert('ℹ️ Все записи уже актуальны в БД (ручные правки защищены)');
+        setInput('');
+        setResults([]);
+        setStats(null);
+        return;
+      }
+
       const { error } = await supabase
         .from('translation_memory')
-        .upsert(uniqueRecords, {
+        .upsert(recordsToUpsert, {
           onConflict: 'normalized_original',
           ignoreDuplicates: false
         });
 
       if (error) throw error;
 
-      alert(`✅ Успешно сохранено и одобрено позиций: ${uniqueRecords.length}`);
+      const skipped = uniqueRecords.length - recordsToUpsert.length;
+      const msg = skipped > 0
+        ? `✅ Сохранено: ${recordsToUpsert.length} шт. Пропущено (защита): ${skipped} шт.`
+        : `✅ Успешно сохранено и одобрено позиций: ${recordsToUpsert.length}`;
+      alert(msg);
 
       setInput('');
       setResults([]);
