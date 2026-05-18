@@ -80,9 +80,13 @@ export default function Header() {
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
   const cartTotal = total()
 
+  const isAdminRole = role === 'admin' || role === 'manager'
   const NAV = [
     { href: '/', label: 'Каталог' },
-    ...(isAuthed ? [{ href: '/cabinet', label: 'Личный кабинет / Мои заказы' }] : []),
+    ...(isAuthed ? [{
+      href: isAdminRole ? '/admin/orders' : '/cabinet',
+      label: isAdminRole ? 'Заказы' : 'Личный кабинет / Мои заказы',
+    }] : []),
   ]
 
   return (
