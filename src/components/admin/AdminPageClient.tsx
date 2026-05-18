@@ -5,6 +5,7 @@ import ImportXLS from './ImportXLS'
 import OrdersPanel from './OrdersPanel'
 import ClientsPanel from './ClientsPanel'
 import StaffPanel from './StaffPanel'
+import WriteoffModal from './WriteoffModal'
 import Link from 'next/link'
 import { useSettingsStore } from '@/lib/store/settingsStore'
 
@@ -13,6 +14,7 @@ type Product = { id: number; name: string; category: string; is_active: boolean;
 
 export default function AdminPageClient({ initialProducts }: { initialProducts: Product[] }) {
   const [tab, setTab] = useState('orders')
+  const [writeoffOpen, setWriteoffOpen] = useState(false)
   const [products, setProducts] = useState(initialProducts)
   const { clientNotificationsEnabled, toggleClientNotifications } = useSettingsStore()
   const [filters, setFilters] = useState({
@@ -102,7 +104,20 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
 
       {tab === 'stock' && (
         <>
-          <ImportXLS onImported={reload} />
+          <div className="flex items-center justify-between mb-2">
+            <ImportXLS onImported={reload} />
+            <button
+              onClick={() => setWriteoffOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
+            >
+              🗑 Списать товар
+            </button>
+          </div>
+          <WriteoffModal
+            isOpen={writeoffOpen}
+            onClose={() => setWriteoffOpen(false)}
+            onSuccess={reload}
+          />
           <div className="flex items-center gap-6 mb-4 p-4 bg-gray-50 rounded-lg">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
