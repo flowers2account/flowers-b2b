@@ -11,20 +11,57 @@ const supabaseAdmin = createClient(
 
 function getAccessToken(req: NextRequest): string | null {
   const cookieHeader = req.headers.get('cookie') || ''
-  const cookies = Object.fromEntries(
-    cookieHeader.split('; ').map(c => {
-      const [key, ...v] = c.split('=')
-      return [key, v.join('=')]
-    })
-  )
-  const authTokenKey = Object.keys(cookies).find(
-    key => key.startsWith('sb-') && key.endsWith('-auth-token')
-  )
-  if (!authTokenKey) return null
+
+  console.log('=== DEBUG COOKIES ===')
+  console.log('Cookie header length:', cookieHeader.length)
+
+  const authCookies = cookieHeader
+    .split('; ')
+    .filter(c => c.includes('sb-') && c.includes('auth-token'))
+
+  console.log('Auth cookies found:', authCookies.length)
+
+  if (authCookies.length === 0) {
+    console.error('No auth token cookie found')
+    console.log('Available cookies:', cookieHeader.split('; ').map(c => c.split('=')[0]))
+    return null
+  }
+
   try {
-    const tokenData = JSON.parse(decodeURIComponent(cookies[authTokenKey]))
-    return tokenData.access_token || null
-  } catch {
+    const eqIdx = authCookies[0].indexOf('=')
+    const cookieValue = authCookies[0].slice(eqIdx + 1)
+    const decodedValue = decodeURIComponent(cookieValue)
+
+    console.log('Cookie value length:', cookieValue.length)
+    console.log('Decoded value length:', decodedValue.length)
+
+    let tokenData: Record<string, unknown>
+    try {
+      tokenData = JSON.parse(decodedValue)
+    } catch {
+      console.error('Failed to parse cookie as JSON, trying base64')
+      try {
+        const base64Decoded = Buffer.from(decodedValue, 'base64').toString()
+        tokenData = JSON.parse(base64Decoded)
+      } catch {
+        console.error('Failed to decode as base64')
+        return null
+      }
+    }
+
+    console.log('Token data keys:', Object.keys(tokenData))
+
+    const accessToken = (tokenData.access_token || tokenData.accessToken) as string | undefined
+    if (!accessToken) {
+      console.error('No access_token in parsed data')
+      return null
+    }
+
+    console.log('Access token found, length:', accessToken.length)
+    return accessToken
+
+  } catch (error) {
+    console.error('Error extracting access token:', error)
     return null
   }
 }
@@ -46,12 +83,30 @@ async function checkRole(userId: string): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const { user, error: authError } = await getAuthUser(req)
+  console.log('=== WRITEOFF POST START ===')
+  console.log('Headers:', Object.fromEntries(req.headers.entries()))
 
-    console.log('=== WRITEOFF DEBUG ===')
-    console.log('User:', user?.id, user?.email)
-    console.log('Auth error:', authError)
+  try {
+    const accessToken = getAccessToken(req)
+
+    if (!accessToken) {
+      console.error('=== NO ACCESS TOKEN ===')
+      return NextResponse.json({
+        error: 'Not authenticated',
+        debug: 'No access token in cookies',
+      }, { status: 401 })
+    }
+
+    console.log('Access token extracted successfully')
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(accessToken)
+
+    console.log('Auth check:', {
+      hasUser: !!user,
+      userId: user?.id,
+      email: user?.email,
+      error: authError?.message,
+    })
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized', debug: authError }, { status: 401 })
