@@ -73,19 +73,33 @@ async function findSimilarFromDB(products: string[], limit: number = 10) {
 async function findExactInDB(normalizedProducts: string[]) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from('translation_memory')
-    .select('*')
-    .in('normalized_original', normalizedProducts)
-    .eq('is_flagged', false)
-    .not('approved_by', 'is', null);
+  const [forwardResult, reverseResult] = await Promise.all([
+    supabase
+      .from('translation_memory')
+      .select('original, normalized_original, translated, normalized_translated, confidence, source')
+      .in('normalized_original', normalizedProducts)
+      .eq('is_flagged', false)
+      .not('approved_by', 'is', null),
+    supabase
+      .from('translation_memory')
+      .select('original, normalized_original, translated, normalized_translated, confidence, source')
+      .in('normalized_translated', normalizedProducts)
+      .eq('is_flagged', false)
+      .not('approved_by', 'is', null),
+  ]);
 
-  if (error) {
-    console.error('[findExactInDB] Error:', error);
-    return [];
-  }
+  if (forwardResult.error) console.error('[findExactInDB] Forward error:', forwardResult.error);
+  if (reverseResult.error) console.error('[findExactInDB] Reverse error:', reverseResult.error);
 
-  return data || [];
+  const forward = (forwardResult.data || []).map(r => ({ ...r, _direction: 'forward' as const }));
+  const reverse = (reverseResult.data || []).map(r => ({ ...r, _direction: 'reverse' as const }));
+
+  // Forward takes priority — exclude reverse hits already covered by forward
+  const forwardKeys = new Set(forward.map(r => r.normalized_translated));
+  const uniqueReverse = reverse.filter(r => !forwardKeys.has(r.normalized_translated));
+
+  console.log(`[findExactInDB] Forward: ${forward.length}, Reverse: ${uniqueReverse.length}`);
+  return [...forward, ...uniqueReverse];
 }
 
 async function translateBatchWithGemini(
@@ -238,14 +252,19 @@ export async function POST(request: NextRequest) {
 
     // ШАГ 6: Merge результатов
     const final: TranslationResult[] = ruleResults.map(r => {
-      // Приоритет 1: Exact match в БД
+      // Приоритет 1: Exact match в БД (прямой или обратный)
       const dbMatch = dbResults.find((db: Record<string, unknown>) =>
-        db.normalized_original === r.normalized
+        db._direction === 'forward'
+          ? db.normalized_original === r.normalized
+          : db.normalized_translated === r.normalized
       );
       if (dbMatch) {
+        const isReverse = dbMatch._direction === 'reverse';
         return {
           original: r.original,
-          translated: dbMatch.translated as string,
+          translated: isReverse
+            ? (dbMatch.original as string)
+            : (dbMatch.translated as string),
           confidence: 1.0,
           method: 'db_exact' as const,
           source: dbMatch.source as string | undefined,

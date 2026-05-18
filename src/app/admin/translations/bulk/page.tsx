@@ -86,8 +86,12 @@ export default function BulkTranslationPage() {
     if (results.length === 0) return;
     setSaving(true);
     try {
+      console.log('🚀 [handleApprove] START, results:', results.length);
+
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
+
+      console.log('👤 [handleApprove] User:', user?.id ?? 'NOT AUTHENTICATED');
 
       if (!user) {
         alert('Необходима авторизация администратора');
@@ -122,9 +126,14 @@ export default function BulkTranslationPage() {
         return acc;
       }, [] as typeof records);
 
+      console.log('📦 [handleApprove] Unique records:', uniqueRecords.length);
+
       // Smart upsert via RPC — DB function handles manual edit protection
       const rpcErrors: string[] = [];
-      for (const record of uniqueRecords) {
+      for (let i = 0; i < uniqueRecords.length; i++) {
+        const record = uniqueRecords[i];
+        console.log(`🔄 [${i + 1}/${uniqueRecords.length}] "${record.original}" → source=${record.source}, is_edited=${record.is_edited}`);
+
         const { error } = await supabase.rpc('upsert_translation', {
           p_original: record.original,
           p_normalized_original: record.normalized_original,
@@ -135,8 +144,16 @@ export default function BulkTranslationPage() {
           p_is_flagged: record.is_flagged,
           p_is_edited: record.is_edited,
         });
-        if (error) rpcErrors.push(error.message);
+
+        if (error) {
+          console.error(`❌ [handleApprove] RPC error for "${record.original}":`, error);
+          rpcErrors.push(error.message);
+        } else {
+          console.log(`✅ [handleApprove] Saved: "${record.original}"`);
+        }
       }
+
+      console.log(`📊 [handleApprove] Done. Errors: ${rpcErrors.length}/${uniqueRecords.length}`);
 
       if (rpcErrors.length > 0) {
         throw new Error(`Не удалось сохранить ${rpcErrors.length} записей`);
