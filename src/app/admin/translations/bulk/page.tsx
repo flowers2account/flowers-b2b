@@ -108,9 +108,10 @@ export default function BulkTranslationPage() {
         source: r.isEdited ? 'manual' : methodToSource(r.method),
         approved_by: user.id,
         is_flagged: r.isFlagged || false,
-        category: null
+        is_edited: r.isEdited || false,
       }));
 
+      // Deduplicate by normalized_original — prefer manual or higher confidence
       const uniqueRecords = records.reduce((acc, record) => {
         const existing = acc.find(r => r.normalized_original === record.normalized_original);
         if (!existing) {
@@ -121,47 +122,27 @@ export default function BulkTranslationPage() {
         return acc;
       }, [] as typeof records);
 
-      // Fetch existing DB records to protect manual edits and high-confidence translations
-      const normalizedKeys = uniqueRecords.map(r => r.normalized_original);
-      const { data: existingRows } = await supabase
-        .from('translation_memory')
-        .select('normalized_original, source, confidence')
-        .in('normalized_original', normalizedKeys);
-
-      const existingMap = new Map(
-        (existingRows ?? []).map((r: { normalized_original: string; source: string; confidence: number }) => [r.normalized_original, r])
-      );
-
-      const recordsToUpsert = uniqueRecords.filter(r => {
-        if (r.source === 'manual') return true; // user edited in this batch — always save
-        const ex = existingMap.get(r.normalized_original);
-        if (!ex) return true; // not in DB yet — insert
-        if (ex.source === 'manual') return false; // protect existing manual edits
-        return r.confidence > ex.confidence; // update only if confidence improved
-      });
-
-      if (recordsToUpsert.length === 0) {
-        alert('ℹ️ Все записи уже актуальны в БД (ручные правки защищены)');
-        setInput('');
-        setResults([]);
-        setStats(null);
-        return;
+      // Smart upsert via RPC — DB function handles manual edit protection
+      const rpcErrors: string[] = [];
+      for (const record of uniqueRecords) {
+        const { error } = await supabase.rpc('upsert_translation', {
+          p_original: record.original,
+          p_normalized_original: record.normalized_original,
+          p_translated: record.translated,
+          p_confidence: record.confidence,
+          p_source: record.source,
+          p_approved_by: record.approved_by,
+          p_is_flagged: record.is_flagged,
+          p_is_edited: record.is_edited,
+        });
+        if (error) rpcErrors.push(error.message);
       }
 
-      const { error } = await supabase
-        .from('translation_memory')
-        .upsert(recordsToUpsert, {
-          onConflict: 'normalized_original',
-          ignoreDuplicates: false
-        });
+      if (rpcErrors.length > 0) {
+        throw new Error(`Не удалось сохранить ${rpcErrors.length} записей`);
+      }
 
-      if (error) throw error;
-
-      const skipped = uniqueRecords.length - recordsToUpsert.length;
-      const msg = skipped > 0
-        ? `✅ Сохранено: ${recordsToUpsert.length} шт. Пропущено (защита): ${skipped} шт.`
-        : `✅ Успешно сохранено и одобрено позиций: ${recordsToUpsert.length}`;
-      alert(msg);
+      alert(`✅ Успешно сохранено и одобрено позиций: ${uniqueRecords.length}`);
 
       setInput('');
       setResults([]);
