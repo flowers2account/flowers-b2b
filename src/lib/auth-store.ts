@@ -27,15 +27,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (_initialized) return
     _initialized = true
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    // getSession() reads from localStorage and auto-refreshes if needed —
+    // getUser() makes a network round-trip and returns null if the access
+    // token is expired before the refresh completes.
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, phone')
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .single()
     set({
-      user: { id: user.id },
+      user: { id: session.user.id },
       role: (profile?.role ?? null) as Role,
       phone: profile?.phone ?? null,
       isAuthed: true,
@@ -79,3 +82,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, role: null, phone: null, isAuthed: false })
   },
 }))
+
+// Keep store in sync with Supabase auth events (token refresh, sign-out from
+// another tab, etc.). Runs once when the module is first loaded in the browser.
+if (typeof window !== 'undefined') {
+  createClient().auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      _initialized = false
+      useAuthStore.setState({ user: null, role: null, phone: null, isAuthed: false })
+    }
+  })
+}
