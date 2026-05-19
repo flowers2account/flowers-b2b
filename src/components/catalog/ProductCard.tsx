@@ -41,6 +41,7 @@ export type Product = {
   origin?: string | null
   description?: string | null
   images?: string[] | null
+  campaign_image_url?: string | null
   colors?: string[] | null
   search_aliases?: string[] | null
   pack_size: number

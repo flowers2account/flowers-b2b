@@ -131,6 +131,8 @@ function GridCard({
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
   const displayName = product.variety_name || product.name
   const meta = [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
+  const [hovered, setHovered] = useState(false)
+  const hasSecondPhoto = !!product.campaign_image_url
 
   return (
     <div
@@ -144,9 +146,21 @@ function GridCard({
       }}
     >
       {/* Фото */}
-      <div style={{ aspectRatio: '1/1', position: 'relative', background: 'var(--accent-light)', overflow: 'hidden' }}>
+      <div
+        style={{ aspectRatio: '1/1', position: 'relative', background: 'var(--accent-light)', overflow: 'hidden' }}
+        onMouseEnter={() => hasSecondPhoto && setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
         {product.image_url ? (
-          <img src={product.image_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img
+            src={product.image_url}
+            alt={displayName}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              opacity: hovered && hasSecondPhoto ? 0 : 1,
+              transition: 'opacity 0.3s ease',
+            }}
+          />
         ) : (
           <div style={{
             width: '100%', height: '100%', display: 'flex', alignItems: 'center',
@@ -155,6 +169,17 @@ function GridCard({
           }}>
             🌸
           </div>
+        )}
+        {hasSecondPhoto && (
+          <img
+            src={product.campaign_image_url!}
+            alt={displayName}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              opacity: hovered ? 1 : 0,
+              transition: 'opacity 0.3s ease',
+            }}
+          />
         )}
         <QtyBadge qty={available} />
         {/* Теги */}

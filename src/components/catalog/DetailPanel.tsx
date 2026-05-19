@@ -138,9 +138,15 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
   const cartSum = total()
 
-  const images: string[] = product.images?.length
-    ? product.images
-    : product.image_url ? [product.image_url] : []
+  const images: string[] = (() => {
+    if (product.images?.length) return product.images
+    const imgs: string[] = []
+    if (product.image_url) imgs.push(product.image_url)
+    if (product.campaign_image_url && product.campaign_image_url !== product.image_url) {
+      imgs.push(product.campaign_image_url)
+    }
+    return imgs
+  })()
   const mainPhoto = images[photoIdx] ?? null
 
   const displayName = product.variety_name || product.name
