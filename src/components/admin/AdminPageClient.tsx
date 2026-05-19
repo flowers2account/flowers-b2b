@@ -51,7 +51,7 @@ type Product = { id: number; name: string; category: string; is_active: boolean;
 
 export default function AdminPageClient({ initialProducts }: { initialProducts: Product[] }) {
   const [tab, setTab] = useState('orders')
-  const [orderMode, setOrderMode] = useState<'kanban' | 'table'>('kanban')
+  const [orderMode, setOrderMode] = useState<'kanban' | 'table'>('table')
   const [detailOrder, setDetailOrder] = useState<KanbanOrder | null>(null)
   const [products, setProducts] = useState(initialProducts)
   const { clientNotificationsEnabled, toggleClientNotifications } = useSettingsStore()
@@ -213,18 +213,18 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
               </label>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={() => setOrderMode('kanban')}
-                  className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
-                  style={orderMode === 'kanban' ? { backgroundColor: '#7a1c2e', color: '#fff' } : { color: '#555' }}
-                >
-                  📌 Канбан
-                </button>
-                <button
                   onClick={() => setOrderMode('table')}
                   className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
                   style={orderMode === 'table' ? { backgroundColor: '#7a1c2e', color: '#fff' } : { color: '#555' }}
                 >
                   📊 Таблица
+                </button>
+                <button
+                  onClick={() => setOrderMode('kanban')}
+                  className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
+                  style={orderMode === 'kanban' ? { backgroundColor: '#7a1c2e', color: '#fff' } : { color: '#555' }}
+                >
+                  📌 Канбан
                 </button>
               </div>
             </div>
