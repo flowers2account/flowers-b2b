@@ -4,8 +4,6 @@ import { normalizePhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
-const WA_NUMBER = '77476108458'
-
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const { phone } = body
@@ -80,13 +78,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 3. Build WhatsApp link — client sees PIN inside the pre-filled message
-  const text = encodeURIComponent(
-    `Ваш PIN: ${client.pin}\nДля входа в каталог цветов.`
-  )
   return NextResponse.json({
     exists: true,
     name: client.name || client.company_name || '',
-    whatsappUrl: `https://wa.me/${WA_NUMBER}?text=${text}`,
   })
 }

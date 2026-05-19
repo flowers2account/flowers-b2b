@@ -106,3 +106,16 @@ ${itemsList}
 _Цветы Уральска_`
   },
 }
+
+export function authPinToClient(clientName: string, pin: string): string {
+  return `Здравствуйте${clientName ? ', ' + clientName : ''}!
+
+Ваш PIN-код для входа в каталог цветов: *${pin}*
+
+Код действителен 30 минут.
+⚠️ Никому не сообщайте этот код.
+
+—
+🌸 Цветы Уральска
+📞 +7 (747) 610-84-58`
+}
