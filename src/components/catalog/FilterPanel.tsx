@@ -64,8 +64,16 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
 // ── static filter options ─────────────────────────────────────────────────────
 
 
-const LENGTHS   = [40, 50, 60, 70, 80]
-const ORIGINS   = ['Эквадор', 'Кения', 'Голландия', 'Китай']
+const LENGTHS_FALLBACK = [40, 50, 60, 70, 80]
+const ORIGINS_FALLBACK = ['ecuador', 'kenya', 'holland', 'china', 'russia', 'colombia']
+const ORIGIN_LABELS: Record<string, string> = {
+  ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
+  china: 'Китай', russia: 'Россия', colombia: 'Колумбия', local: 'Местный',
+}
+const SEASON_LABELS: Record<string, string> = {
+  spring: 'Весна', summer: 'Лето', autumn: 'Осень',
+  winter: 'Зима', year: 'Круглый год', year_round: 'Круглый год',
+}
 const POT_SIZES = [
   { id: 'до12',  label: 'до 12 см' },
   { id: '14-17', label: '14–17 см' },
@@ -459,11 +467,36 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               onToggle={() => tog('length')}
               activeCount={lengths.length}
             >
-              {LENGTHS.map(l => (
-                <CheckRow key={l} checked={lengths.includes(l)}
-                  label={l >= 80 ? '80+ см' : `${l} см`}
-                  onChange={() => toggleLength(l)} />
-              ))}
+              {(facets
+                ? Object.entries(facets.lengthCounts)
+                    .map(([l, count]) => ({ value: Number(l), count }))
+                    .sort((a, b) => a.value - b.value)
+                : LENGTHS_FALLBACK.map(l => ({ value: l, count: null }))
+              ).map(({ value: l, count }) => {
+                const dimmed = facets !== null && (count ?? 0) === 0 && !lengths.includes(l)
+                return (
+                  <label
+                    key={l}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '5px 8px', fontSize: 12,
+                      borderRadius: 'var(--radius-btn)',
+                      cursor: dimmed ? 'default' : 'pointer',
+                      opacity: dimmed ? 0.25 : 1,
+                      transition: 'opacity 0.2s',
+                    }}
+                  >
+                    <input
+                      type="checkbox" checked={lengths.includes(l)}
+                      onChange={() => !dimmed && toggleLength(l)}
+                      disabled={dimmed}
+                      style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: dimmed ? 'default' : 'pointer' }}
+                    />
+                    <span style={{ flex: 1 }}>{l} см</span>
+                    {count !== null && <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{count}</span>}
+                  </label>
+                )
+              })}
             </CollapsibleGroup>
 
             <CollapsibleGroup
@@ -472,9 +505,36 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               onToggle={() => tog('origin')}
               activeCount={origins.length}
             >
-              {ORIGINS.map(o => (
-                <CheckRow key={o} checked={origins.includes(o)} label={o} onChange={() => toggleOrigin(o)} />
-              ))}
+              {(facets
+                ? Object.entries(facets.originCounts)
+                    .map(([key, count]) => ({ key, label: ORIGIN_LABELS[key] ?? key, count }))
+                    .sort((a, b) => a.label.localeCompare(b.label))
+                : ORIGINS_FALLBACK.map(key => ({ key, label: ORIGIN_LABELS[key] ?? key, count: null }))
+              ).map(({ key, label, count }) => {
+                const dimmed = facets !== null && (count ?? 0) === 0 && !origins.includes(key)
+                return (
+                  <label
+                    key={key}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '5px 8px', fontSize: 12,
+                      borderRadius: 'var(--radius-btn)',
+                      cursor: dimmed ? 'default' : 'pointer',
+                      opacity: dimmed ? 0.25 : 1,
+                      transition: 'opacity 0.2s',
+                    }}
+                  >
+                    <input
+                      type="checkbox" checked={origins.includes(key)}
+                      onChange={() => !dimmed && toggleOrigin(key)}
+                      disabled={dimmed}
+                      style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: dimmed ? 'default' : 'pointer' }}
+                    />
+                    <span style={{ flex: 1 }}>{label}</span>
+                    {count !== null && <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{count}</span>}
+                  </label>
+                )
+              })}
             </CollapsibleGroup>
 
             <CollapsibleGroup
@@ -483,9 +543,35 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               onToggle={() => tog('season')}
               activeCount={seasons.length}
             >
-              {SEASONS.map(s => (
-                <CheckRow key={s.id} checked={seasons.includes(s.id)} label={s.label} onChange={() => toggleSeason(s.id)} />
-              ))}
+              {(facets
+                ? Object.entries(facets.seasonCounts)
+                    .map(([key, count]) => ({ key, label: SEASON_LABELS[key] ?? key, count }))
+                : SEASONS.map(s => ({ key: s.id, label: s.label, count: null }))
+              ).map(({ key, label, count }) => {
+                const dimmed = facets !== null && (count ?? 0) === 0 && !seasons.includes(key)
+                return (
+                  <label
+                    key={key}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '5px 8px', fontSize: 12,
+                      borderRadius: 'var(--radius-btn)',
+                      cursor: dimmed ? 'default' : 'pointer',
+                      opacity: dimmed ? 0.25 : 1,
+                      transition: 'opacity 0.2s',
+                    }}
+                  >
+                    <input
+                      type="checkbox" checked={seasons.includes(key)}
+                      onChange={() => !dimmed && toggleSeason(key)}
+                      disabled={dimmed}
+                      style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: dimmed ? 'default' : 'pointer' }}
+                    />
+                    <span style={{ flex: 1 }}>{label}</span>
+                    {count !== null && <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{count}</span>}
+                  </label>
+                )
+              })}
             </CollapsibleGroup>
 
             <CollapsibleGroup

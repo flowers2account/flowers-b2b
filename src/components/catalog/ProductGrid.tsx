@@ -459,12 +459,11 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       // Длина стебля (cut)
       if (lengths.length > 0) {
         const cm = p.length_cm ?? 0
-        if (!lengths.some(l => l >= 80 ? cm >= 80 : cm === l)) return false
+        if (!lengths.includes(cm)) return false
       }
-      // Источник (cut) — фильтрует по p.name пока нет отдельного поля origin
       if (origins.length > 0) {
         const src = ((p as any).origin as string | undefined) ?? ''
-        if (src && !origins.includes(src)) return false
+        if (!src || !origins.includes(src)) return false
       }
       // Размер горшка (pot)
       if (potSizes.length > 0 && p.pot_size != null) {

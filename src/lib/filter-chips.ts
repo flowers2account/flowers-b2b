@@ -29,6 +29,10 @@ const SEASON_LABELS: Record<string, string> = {
   spring: 'Весна', summer: 'Лето', autumn: 'Осень',
   winter: 'Зима', year: 'Круглый год', year_round: 'Круглый год',
 }
+const ORIGIN_LABELS: Record<string, string> = {
+  ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
+  china: 'Китай', russia: 'Россия', colombia: 'Колумбия', local: 'Местный',
+}
 const TAG_LABELS: Record<string, string> = {
   hit: '🔥 Хит', sale: '🏷 Акция', new: '🆕 Новинка',
 }
@@ -55,8 +59,8 @@ export function useFilterChips(): Chip[] {
     if (stockLevel === 'low')  result.push({ label: '🔴 Мало (< 50)', onRemove: () => setStockLevel('') })
     if (stockLevel === 'high') result.push({ label: '🟢 Много (≥ 50)', onRemove: () => setStockLevel('') })
     colors.forEach(c => result.push({ label: COLOR_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
-    lengths.forEach(l => result.push({ label: l >= 80 ? '80+ см' : `${l} см`, onRemove: () => toggleLength(l) }))
-    origins.forEach(o => result.push({ label: o, onRemove: () => toggleOrigin(o) }))
+    lengths.forEach(l => result.push({ label: `${l} см`, onRemove: () => toggleLength(l) }))
+    origins.forEach(o => result.push({ label: ORIGIN_LABELS[o] ?? o, onRemove: () => toggleOrigin(o) }))
     potSizes.forEach(ps => result.push({ label: POT_SIZE_LABELS[ps] ?? ps, onRemove: () => togglePotSize(ps) }))
     tags.forEach(t => result.push({ label: TAG_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
     seasons.forEach(s => result.push({ label: SEASON_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))

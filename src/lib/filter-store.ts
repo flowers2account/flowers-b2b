@@ -8,6 +8,9 @@ export type Facets = {
   subcatCounts: Record<string, number>
   vtCounts: Record<string, number>
   colorCounts: Record<string, number>
+  lengthCounts: Record<number, number>
+  originCounts: Record<string, number>
+  seasonCounts: Record<string, number>
 }
 
 type FilterStore = {

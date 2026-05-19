@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const [{ data: products }, { data: stockData }] = await Promise.all([
     admin
       .from('products')
-      .select('id, subcategory, variety_type, colors, color')
+      .select('id, subcategory, variety_type, colors, color, length_cm, origin, season')
       .eq('is_active', true)
       .eq('category', category),
     admin
@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
     variety_type: string | null
     colors: string[] | null
     color: string | null
+    length_cm: number | null
+    origin: string | null
+    season: string | string[] | null
   }
 
   const base = (products as RawProduct[] ?? []).filter(
@@ -57,16 +60,35 @@ export async function POST(req: NextRequest) {
       if (p.variety_type) vtCounts[p.variety_type] = (vtCounts[p.variety_type] || 0) + 1
     })
 
-  // colorCounts: filtered by subcat + varietyType (but NOT by colors — standard faceting)
+  // colorBase: filtered by subcat + varietyType — used for all remaining facets
   const colorBase = base.filter(p =>
     (!subcat || p.subcategory === subcat) &&
     (!varietyType || p.variety_type === varietyType)
   )
+
   const colorCounts: Record<string, number> = {}
   colorBase.forEach(p => {
     const cols = p.colors?.length ? p.colors : (p.color ? [p.color] : [])
     cols.forEach(c => { colorCounts[c] = (colorCounts[c] || 0) + 1 })
   })
 
-  return NextResponse.json({ subcatCounts, vtCounts, colorCounts })
+  const lengthCounts: Record<number, number> = {}
+  colorBase.forEach(p => {
+    if (p.length_cm) lengthCounts[p.length_cm] = (lengthCounts[p.length_cm] || 0) + 1
+  })
+
+  const originCounts: Record<string, number> = {}
+  colorBase.forEach(p => {
+    if (p.origin) originCounts[p.origin] = (originCounts[p.origin] || 0) + 1
+  })
+
+  const seasonCounts: Record<string, number> = {}
+  colorBase.forEach(p => {
+    const keys = Array.isArray(p.season)
+      ? p.season
+      : (p.season || '').split(',').map((s: string) => s.trim()).filter(Boolean)
+    keys.forEach((s: string) => { seasonCounts[s] = (seasonCounts[s] || 0) + 1 })
+  })
+
+  return NextResponse.json({ subcatCounts, vtCounts, colorCounts, lengthCounts, originCounts, seasonCounts })
 }
