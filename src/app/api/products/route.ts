@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { data } = await query
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const today = new Date().toISOString().split('T')[0]
   const result = (data ?? []).map((p: any) => ({
     ...p,
-    is_new: p.arrival_date ? new Date(p.arrival_date) >= sevenDaysAgo : false,
+    is_new: p.arrival_date === today,
   }))
   return NextResponse.json(result)
 }

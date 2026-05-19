@@ -39,13 +39,13 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const today = new Date().toISOString().split('T')[0]
   let products = (data ?? []).map((p: any) => {
     const s = Array.isArray(p.stock) ? p.stock[0] : p.stock
     return {
       ...p,
       stock: s ?? null,
-      is_new: p.arrival_date ? new Date(p.arrival_date) >= sevenDaysAgo : false,
+      is_new: p.arrival_date === today,
     }
   })
 
