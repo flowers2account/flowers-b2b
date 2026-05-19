@@ -143,10 +143,15 @@ function StockRow({ product, onSaved }: {
   const activeReserved = s?.reserved_qty ?? 0
   const reserveClass = activeReserved > 0 ? 'text-green-600 font-semibold' : 'text-muted-foreground'
 
+  const noStock = (s?.qty ?? 0) === 0
+
   return (
-    <TableRow className="text-xs">
+    <TableRow className={`text-xs ${noStock ? 'opacity-50' : ''}`}>
       <TableCell className="py-1 px-2">
         <div className="flex items-center gap-1.5 min-w-0">
+          {!product.is_active && (
+            <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded flex-shrink-0">новый</span>
+          )}
           {/* Основное фото — загрузка файлом */}
           <div
             className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
@@ -349,37 +354,90 @@ function StockRow({ product, onSaved }: {
   )
 }
 
-export default function AdminTable({ products, onReload }: { products: Product[]; onReload?: () => void }) {
+export default function AdminTable({ onReload }: { products?: Product[]; onReload?: () => void }) {
   const [search, setSearch] = useState('')
+  const [inStockOnly, setInStockOnly] = useState(false)
+  const [data, setData] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
 
+  // Debounce search to avoid request on every keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 350)
+    return () => clearTimeout(id)
+  }, [search])
+
+  async function load() {
+    setLoading(true)
+    const params = new URLSearchParams()
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (inStockOnly) params.set('inStock', 'true')
+    const res = await fetch(`/api/admin/products?${params}`)
+    const json = await res.json()
+    setData(Array.isArray(json) ? json : [])
+    setLoading(false)
+    onReload?.()
+  }
+
+  useEffect(() => { load() }, [debouncedSearch, inStockOnly])
+
+  // Realtime: reload on reservation changes
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
-      .channel('reservations-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => {
-        onReload?.()
-      })
+      .channel('admin-reservations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, load)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [onReload])
-
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  )
+  }, [])
 
   return (
     <div>
-      <div className="flex gap-3 mb-4">
-        <Input
-          placeholder="🔍 Поиск..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <Badge variant="outline" className="self-center">
-          {filtered.length} позиций
+      {/* Тулбар */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Input
+            placeholder="🔍 Поиск по названию, сорту, стране, длине..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pr-8"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
+            >×</button>
+          )}
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none whitespace-nowrap">
+          <div
+            role="switch"
+            aria-checked={inStockOnly}
+            onClick={() => setInStockOnly(v => !v)}
+            className="relative"
+            style={{
+              width: 34, height: 20, borderRadius: 10,
+              background: inStockOnly ? '#3D6B50' : '#d1d5db',
+              cursor: 'pointer', flexShrink: 0, transition: 'background 0.18s',
+            }}
+          >
+            <div style={{
+              position: 'absolute', top: 3,
+              left: inStockOnly ? 17 : 3,
+              width: 14, height: 14,
+              borderRadius: '50%', background: '#fff',
+              transition: 'left 0.18s',
+            }} />
+          </div>
+          <span className="text-sm font-medium">В наличии</span>
+        </label>
+
+        <Badge variant="outline" className="whitespace-nowrap">
+          {loading ? '...' : `${data.length} позиций`}
         </Badge>
       </div>
+
       <div className="rounded-lg border bg-white shadow-sm">
         <Table>
           <TableHeader>
@@ -398,11 +456,21 @@ export default function AdminTable({ products, onReload }: { products: Product[]
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(p => (
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={11} className="text-center py-8 text-gray-400 text-sm">Загрузка...</TableCell>
+              </TableRow>
+            )}
+            {!loading && data.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={11} className="text-center py-8 text-gray-400 text-sm">Ничего не найдено</TableCell>
+              </TableRow>
+            )}
+            {!loading && data.map(p => (
               <StockRow
                 key={p.id}
                 product={p}
-                onSaved={() => {}}
+                onSaved={load}
               />
             ))}
           </TableBody>

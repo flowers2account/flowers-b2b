@@ -49,16 +49,12 @@ function OrderDetailModal({ order, onClose, onSwitchToTable }: { order: KanbanOr
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
 type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; stock: Stock[] | Stock }
 
-export default function AdminPageClient({ initialProducts }: { initialProducts: Product[] }) {
+export default function AdminPageClient({ initialProducts: _ }: { initialProducts?: Product[] }) {
   const [tab, setTab] = useState('orders')
   const [orderMode, setOrderMode] = useState<'kanban' | 'table'>('table')
   const [detailOrder, setDetailOrder] = useState<KanbanOrder | null>(null)
-  const [products, setProducts] = useState(initialProducts)
+  const [stockKey, setStockKey] = useState(0)
   const { clientNotificationsEnabled, toggleClientNotifications } = useSettingsStore()
-  const [filters, setFilters] = useState({
-    inStockOnly: true,
-    categories: { cut: true, pot: true, supply: true }
-  })
 
   const handleToggle = async () => {
     toggleClientNotifications()
@@ -67,24 +63,6 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: !clientNotificationsEnabled })
     })
-  }
-
-  const filteredProducts = products.filter(product => {
-    if (filters.inStockOnly) {
-      const stock = Array.isArray(product.stock) ? product.stock[0] : product.stock
-      if (!stock || stock.qty <= 0) return false
-    }
-    const enabledCategories = Object.entries(filters.categories)
-      .filter(([, enabled]) => enabled)
-      .map(([category]) => category)
-    if (enabledCategories.length === 0) return false
-    return enabledCategories.includes(product.category)
-  })
-
-  async function reload() {
-    const res = await fetch('/api/products')
-    const data = await res.json()
-    if (data) setProducts(data)
   }
 
   return (
@@ -154,53 +132,8 @@ export default function AdminPageClient({ initialProducts }: { initialProducts: 
 
       {tab === 'stock' && (
         <>
-          <ImportXLS onImported={reload} />
-          <div className="flex items-center gap-6 mb-4 p-4 bg-gray-50 rounded-lg">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.inStockOnly}
-                onChange={(e) => setFilters(prev => ({ ...prev, inStockOnly: e.target.checked }))}
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              <span className="text-sm font-medium">В наличии</span>
-            </label>
-            <div className="h-6 w-px bg-gray-300" />
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">Категории:</span>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.categories.cut}
-                  onChange={(e) => setFilters(prev => ({ ...prev, categories: { ...prev.categories, cut: e.target.checked } }))}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <span className="text-sm">🌹 Срез</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.categories.pot}
-                  onChange={(e) => setFilters(prev => ({ ...prev, categories: { ...prev.categories, pot: e.target.checked } }))}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <span className="text-sm">🪴 Горшок</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.categories.supply}
-                  onChange={(e) => setFilters(prev => ({ ...prev, categories: { ...prev.categories, supply: e.target.checked } }))}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <span className="text-sm">📦 Расходка</span>
-              </label>
-            </div>
-          </div>
-          <div className="text-sm text-gray-500 mb-2">
-            Показано: {filteredProducts.length} из {products.length}
-          </div>
-          <AdminTable products={filteredProducts} onReload={reload} />
+          <ImportXLS onImported={() => setStockKey(k => k + 1)} />
+          <AdminTable key={stockKey} />
         </>
       )}
       {tab === 'orders' && (
