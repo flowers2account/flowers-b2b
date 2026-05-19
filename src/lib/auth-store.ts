@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { Session } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePhone } from '@/lib/phone'
 
@@ -96,7 +97,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 }))
 
 if (typeof window !== 'undefined') {
-  createClient().auth.onAuthStateChange(async (event: string, session) => {
+  createClient().auth.onAuthStateChange(async (event: string, session: Session | null) => {
     if (event === 'SIGNED_OUT') {
       _initialized = false
       useAuthStore.setState({ user: null, role: null, phone: null, isAuthed: false })
