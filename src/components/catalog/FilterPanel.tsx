@@ -422,28 +422,26 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         {category === 'cut' && (
           <StaticGroup label="Цвет">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
-              {COLORS.map(c => {
-                const count = facets?.colorCounts?.[c.key] ?? null
-                const dimmed = facets !== null && (count ?? 0) === 0 && !colors.includes(c.key)
-                return (
-                  <div
-                    key={c.key}
-                    onClick={() => !dimmed && toggleColor(c.key)}
-                    title={count !== null ? `${c.label} (${count})` : c.label}
-                    style={{
-                      width: 20, height: 20, borderRadius: '50%',
-                      cursor: dimmed ? 'default' : 'pointer',
-                      flexShrink: 0,
-                      background: ('gradient' in c ? c.gradient : c.bg) as string,
-                      border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
-                      outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
-                      outlineOffset: 2,
-                      opacity: dimmed ? 0.2 : 1,
-                      transition: 'opacity 0.2s',
-                    }}
-                  />
-                )
-              })}
+              {COLORS
+                .filter(c => !facets || (facets.colorCounts[c.key] ?? 0) > 0 || colors.includes(c.key))
+                .map(c => {
+                  const count = facets?.colorCounts?.[c.key] ?? null
+                  return (
+                    <div
+                      key={c.key}
+                      onClick={() => toggleColor(c.key)}
+                      title={count !== null ? `${c.label} (${count})` : c.label}
+                      style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        cursor: 'pointer', flexShrink: 0,
+                        background: ('gradient' in c ? c.gradient : c.bg) as string,
+                        border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
+                        outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
+                        outlineOffset: 2,
+                      }}
+                    />
+                  )
+                })}
             </div>
           </StaticGroup>
         )}
