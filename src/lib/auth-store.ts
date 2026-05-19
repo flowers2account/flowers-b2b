@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 // Keep store in sync with Supabase auth events (token refresh, sign-out from
 // another tab, etc.). Runs once when the module is first loaded in the browser.
 if (typeof window !== 'undefined') {
-  createClient().auth.onAuthStateChange((event) => {
+  createClient().auth.onAuthStateChange((event: string) => {
     if (event === 'SIGNED_OUT') {
       _initialized = false
       useAuthStore.setState({ user: null, role: null, phone: null, isAuthed: false })
