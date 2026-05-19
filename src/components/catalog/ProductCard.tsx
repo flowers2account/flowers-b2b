@@ -48,6 +48,8 @@ export type Product = {
   stems_per_pack?: number | null
   image_url?: string | null
   previous_price?: number | null
+  arrival_date?: string | null
+  is_new?: boolean
   stock: Stock[] | Stock
 }
 

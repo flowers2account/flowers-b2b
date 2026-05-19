@@ -207,6 +207,7 @@ function GridCard({
         {/* Теги */}
         <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           {hasDiscount && <TagBadge type="sale" />}
+          {product.is_new && <TagBadge type="new" />}
         </div>
       </div>
 
@@ -521,6 +522,14 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     if (sort === 'price_asc') list = [...list].sort((a, b) => getPrice(a.stock) - getPrice(b.stock))
     else if (sort === 'price_desc') list = [...list].sort((a, b) => getPrice(b.stock) - getPrice(a.stock))
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
+    else {
+      // Default: новинки первыми, затем по умолчанию
+      list = [...list].sort((a, b) => {
+        if (a.is_new && !b.is_new) return -1
+        if (!a.is_new && b.is_new) return 1
+        return 0
+      })
+    }
 
     return list
   }, [products, category, subcat, varietyType, colors, onlyDiscount, stockLevel, search, lengths, origins, potSizes, tags, seasons, sort])

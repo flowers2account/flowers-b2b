@@ -11,7 +11,7 @@ import {
 import { COLORS } from '@/lib/colors'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; stock: Stock[] | Stock }
+type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; is_new?: boolean; stock: Stock[] | Stock }
 
 const TRANSLIT: Record<string, string> = {
   а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
@@ -149,6 +149,9 @@ function StockRow({ product, onSaved }: {
     <TableRow className={`text-xs ${noStock ? 'opacity-50' : ''}`}>
       <TableCell className="py-1 px-2">
         <div className="flex items-center gap-1.5 min-w-0">
+          {product.is_new && (
+            <span className="text-[9px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">NEW</span>
+          )}
           {!product.is_active && (
             <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded flex-shrink-0">новый</span>
           )}
@@ -314,6 +317,15 @@ function StockRow({ product, onSaved }: {
         </div>
       </TableCell>
 
+      <TableCell className="py-1 px-1 text-center">
+        {product.arrival_date ? (
+          <span className="text-[10px] text-gray-500 whitespace-nowrap">
+            {new Date(product.arrival_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+          </span>
+        ) : (
+          <span className="text-gray-300">—</span>
+        )}
+      </TableCell>
       <TableCell className="py-1 px-1">
         <Input
           type="text"
@@ -451,6 +463,7 @@ export default function AdminTable({ onReload }: { products?: Product[]; onReloa
               <TableHead className="py-2 px-1 text-center w-16">Уп.</TableHead>
               <TableHead className="py-2 px-1 text-center w-16">Стебл.</TableHead>
               <TableHead className="py-2 px-1 text-center w-12">Цвет</TableHead>
+              <TableHead className="py-2 px-1 w-24">Поступл.</TableHead>
               <TableHead className="py-2 px-1 w-32">Фото кам.</TableHead>
               <TableHead className="py-2 px-1 w-16"></TableHead>
             </TableRow>

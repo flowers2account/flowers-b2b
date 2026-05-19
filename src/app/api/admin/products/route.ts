@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, name, variety_name, length_str, length_cm, category,
       subcategory, pack_size, stems_per_pack, image_url, campaign_image_url,
-      colors, color, origin, is_active,
+      colors, color, origin, is_active, arrival_date,
       stock:stock(price, qty, qty_reserved, is_available)
     `)
     .order('variety_name', { ascending: true, nullsFirst: false })
@@ -39,9 +39,14 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
   let products = (data ?? []).map((p: any) => {
     const s = Array.isArray(p.stock) ? p.stock[0] : p.stock
-    return { ...p, stock: s ?? null }
+    return {
+      ...p,
+      stock: s ?? null,
+      is_new: p.arrival_date ? new Date(p.arrival_date) >= sevenDaysAgo : false,
+    }
   })
 
   if (inStock) {
