@@ -96,7 +96,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 }))
 
 if (typeof window !== 'undefined') {
-  createClient().auth.onAuthStateChange(async (event, session) => {
+  createClient().auth.onAuthStateChange(async (event: string, session) => {
     if (event === 'SIGNED_OUT') {
       _initialized = false
       useAuthStore.setState({ user: null, role: null, phone: null, isAuthed: false })
