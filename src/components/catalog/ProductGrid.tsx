@@ -132,7 +132,9 @@ function GridCard({
   const displayName = product.variety_name || product.name
   const meta = [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
   const [hovered, setHovered] = useState(false)
+  const [activePhoto, setActivePhoto] = useState(0)
   const hasSecondPhoto = !!product.campaign_image_url
+  const showSecond = hasSecondPhoto && (hovered || activePhoto === 1)
 
   return (
     <div
@@ -157,7 +159,7 @@ function GridCard({
             alt={displayName}
             style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-              opacity: hovered && hasSecondPhoto ? 0 : 1,
+              opacity: showSecond ? 0 : 1,
               transition: 'opacity 0.3s ease',
             }}
           />
@@ -176,10 +178,30 @@ function GridCard({
             alt={displayName}
             style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-              opacity: hovered ? 1 : 0,
+              opacity: showSecond ? 1 : 0,
               transition: 'opacity 0.3s ease',
             }}
           />
+        )}
+        {/* Точки-переключатели — только если есть 2 фото */}
+        {hasSecondPhoto && (
+          <div
+            style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4, zIndex: 3 }}
+            onClick={e => e.stopPropagation()}
+          >
+            {[0, 1].map(i => (
+              <div
+                key={i}
+                onClick={() => setActivePhoto(i)}
+                style={{
+                  width: 5, height: 5, borderRadius: '50%', cursor: 'pointer',
+                  background: i === activePhoto ? '#fff' : 'rgba(255,255,255,0.45)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                  transition: 'background 0.2s',
+                }}
+              />
+            ))}
+          </div>
         )}
         <QtyBadge qty={available} />
         {/* Теги */}

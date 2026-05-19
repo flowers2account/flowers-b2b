@@ -39,6 +39,8 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
+  const [activePhoto, setActivePhoto] = useState(0)
+  const [hovered, setHovered] = useState(false)
 
   const productId = Number(params.id)
 
@@ -116,7 +118,9 @@ export default function ProductPage() {
   if (!product) return null
 
   const displayName = product.variety_name || product.name
-  const photo = product.campaign_image_url || product.image_url
+  const photos = [product.image_url, product.campaign_image_url].filter(Boolean) as string[]
+  const hasSecondPhoto = photos.length > 1
+  const showSecond = hasSecondPhoto && (hovered || activePhoto === 1)
   const colorKeys = product.colors?.length ? product.colors : product.color ? [product.color] : []
   const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
   const originLabel = product.origin ? ORIGIN_MAP[product.origin.toLowerCase()] ?? product.origin : null
@@ -145,11 +149,45 @@ export default function ProductPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
           {/* Фото */}
-          <div className="aspect-square bg-pink-50 relative overflow-hidden">
-            {photo ? (
-              <img src={photo} alt={displayName} className="w-full h-full object-cover" />
+          <div
+            className="aspect-square bg-pink-50 relative overflow-hidden"
+            onMouseEnter={() => hasSecondPhoto && setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+          >
+            {photos[0] ? (
+              <img
+                src={photos[0]}
+                alt={displayName}
+                className="w-full h-full object-cover absolute inset-0"
+                style={{ opacity: showSecond ? 0 : 1, transition: 'opacity 0.35s ease' }}
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-8xl opacity-30">🌸</div>
+            )}
+            {hasSecondPhoto && (
+              <img
+                src={photos[1]}
+                alt={displayName}
+                className="w-full h-full object-cover absolute inset-0"
+                style={{ opacity: showSecond ? 1 : 0, transition: 'opacity 0.35s ease' }}
+              />
+            )}
+            {/* Точки-переключатели */}
+            {hasSecondPhoto && (
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 z-10">
+                {photos.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setActivePhoto(i); setHovered(false) }}
+                    style={{
+                      width: 7, height: 7, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0,
+                      background: i === activePhoto ? '#fff' : 'rgba(255,255,255,0.45)',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                      transition: 'background 0.2s',
+                    }}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
