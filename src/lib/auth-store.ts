@@ -14,8 +14,20 @@ interface AuthState {
   logout: () => Promise<void>
 }
 
-
 let _initialized = false
+
+async function fetchProfile(userId: string) {
+  try {
+    const { data } = await createClient()
+      .from('profiles')
+      .select('role, phone')
+      .eq('id', userId)
+      .single()
+    return data
+  } catch {
+    return null
+  }
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -26,23 +38,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   init: async () => {
     if (_initialized) return
     _initialized = true
-    const supabase = createClient()
-    // getSession() reads from localStorage and auto-refreshes if needed —
-    // getUser() makes a network round-trip and returns null if the access
-    // token is expired before the refresh completes.
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) return
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, phone')
-      .eq('id', session.user.id)
-      .single()
-    set({
-      user: { id: session.user.id },
-      role: (profile?.role ?? null) as Role,
-      phone: profile?.phone ?? null,
-      isAuthed: true,
-    })
+    try {
+      const { data: { session } } = await createClient().auth.getSession()
+      if (!session?.user) {
+        _initialized = false  // allow retry — no session yet
+        return
+      }
+      const profile = await fetchProfile(session.user.id)
+      set({
+        user: { id: session.user.id },
+        role: (profile?.role ?? null) as Role,
+        phone: profile?.phone ?? null,
+        isAuthed: true,
+      })
+    } catch {
+      _initialized = false  // allow retry on network error
+    }
   },
 
   login: async (phone: string, pin: string) => {
@@ -66,6 +77,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     console.log('PROFILE:', { profile, profileError: profileError?.message })
 
+    _initialized = true
     set({
       user: { id: userId },
       role: (profile?.role ?? null) as Role,
@@ -77,19 +89,35 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await createClient().auth.signOut()
+    _initialized = false
     set({ user: null, role: null, phone: null, isAuthed: false })
   },
 }))
 
-// Keep store in sync with Supabase auth events (token refresh, sign-out from
-// another tab, etc.). Runs once when the module is first loaded in the browser.
 if (typeof window !== 'undefined') {
-  createClient().auth.onAuthStateChange((event: string) => {
+  createClient().auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_OUT') {
       _initialized = false
       useAuthStore.setState({ user: null, role: null, phone: null, isAuthed: false })
+      return
+    }
+
+    // INITIAL_SESSION fires on page load when a stored session exists in localStorage.
+    // Handling it here restores auth state before any useEffect runs.
+    if (event === 'INITIAL_SESSION' && session?.user && !_initialized) {
+      _initialized = true
+      try {
+        const profile = await fetchProfile(session.user.id)
+        useAuthStore.setState({
+          user: { id: session.user.id },
+          role: (profile?.role ?? null) as Role,
+          phone: profile?.phone ?? null,
+          isAuthed: true,
+        })
+      } catch {
+        _initialized = false
+      }
     }
   })
 }
