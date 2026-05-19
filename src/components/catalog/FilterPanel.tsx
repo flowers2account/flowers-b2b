@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useFilters } from '@/lib/filter-store'
 import { COLORS } from '@/lib/colors'
 import { type Product, getAvailable } from './ProductCard'
+import { ORIGIN_LABELS } from '@/lib/filter-chips'
 
 // ── category tree ─────────────────────────────────────────────────────────────
 
@@ -66,10 +67,6 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
 
 const LENGTHS_FALLBACK = [40, 50, 60, 70, 80]
 const ORIGINS_FALLBACK = ['ecuador', 'kenya', 'holland', 'china', 'russia', 'colombia']
-const ORIGIN_LABELS: Record<string, string> = {
-  ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
-  china: 'Китай', russia: 'Россия', colombia: 'Колумбия', local: 'Местный',
-}
 const SEASON_LABELS: Record<string, string> = {
   spring: 'Весна', summer: 'Лето', autumn: 'Осень',
   winter: 'Зима', year: 'Круглый год', year_round: 'Круглый год',
@@ -88,11 +85,6 @@ const TAGS_CUT = [
 const TAGS_POT = [
   { id: 'hit', label: '🔥 Хит'     },
   { id: 'new', label: '🆕 Новинка' },
-]
-const DURATIONS = [
-  { id: '3-5', label: '3–5 дней' },
-  { id: '5-7', label: '5–7 дней' },
-  { id: '7+',  label: '7+ дней'  },
 ]
 const SEASONS = [
   { id: 'spring', label: 'Весна'      },

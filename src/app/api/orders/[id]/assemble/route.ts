@@ -29,7 +29,7 @@ export async function PATCH(
       .from('order_items')
       .update({ qty_actual: item.qty_actual, is_removed: item.is_removed })
       .eq('id', item.id)
-    if (itemError) console.log('ORDER_ITEM UPDATE ERROR:', itemError)
+    if (itemError) console.error('ORDER_ITEM UPDATE ERROR:', itemError)
   }
 
   const { data: updatedItems, error: itemsSelectError } = await supabase
@@ -37,7 +37,7 @@ export async function PATCH(
     .select('qty_actual, qty_ordered, price, is_removed')
     .eq('order_id', orderId)
 
-  if (itemsSelectError) console.log('ORDER_ITEMS SELECT ERROR:', itemsSelectError)
+  if (itemsSelectError) console.error('ORDER_ITEMS SELECT ERROR:', itemsSelectError)
 
   const newTotal = (updatedItems ?? [])
     .filter((i: any) => !i.is_removed)
@@ -54,8 +54,6 @@ export async function PATCH(
     })
     .eq('id', Number(id))
 
-  console.log('UPDATE ERROR:', updateError)
-
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
@@ -66,12 +64,7 @@ export async function PATCH(
     status_to: 'assembled',
     changed_by: changed_by ?? null,
   })
-  if (historyError) console.log('HISTORY INSERT ERROR:', historyError)
-
-  console.log('=== ASSEMBLE: Starting notifications ===')
-  console.log('Order ID:', orderId)
-  console.log('UMNICO_API_TOKEN set:', !!process.env.UMNICO_API_TOKEN)
-  console.log('Photo URL:', assembly_photo_url ?? 'none')
+  if (historyError) console.error('HISTORY INSERT ERROR:', historyError)
 
   if (process.env.UMNICO_API_TOKEN) {
     try {

@@ -72,7 +72,7 @@ export default function AdminPage() {
       <h1 className="text-2xl font-bold text-green-900 font-serif mb-6">
         ⚙️ Управление остатками
       </h1>
-      <AdminPageClient initialProducts={products} />
+      <AdminPageClient />
     </main>
   )
 }

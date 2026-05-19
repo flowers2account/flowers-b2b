@@ -35,6 +35,7 @@ export interface CampaignItem {
     variety_name: string | null;
     length_str: string | null;
     image_url: string | null;
+    campaign_image_url: string | null;
     category: string;
   };
 }

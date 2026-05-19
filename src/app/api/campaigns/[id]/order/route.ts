@@ -45,7 +45,6 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    console.log('[ORDER] Starting order creation for campaign:', id)
     const supabase = createAdminClient();
     const campaignId = parseInt(id);
 
@@ -57,7 +56,6 @@ export async function POST(
     }
 
     const body = await request.json();
-    console.log('[ORDER] Received body:', JSON.stringify(body))
     const { items, guest_phone, guest_name, client_id } = body;
 
     // Для гостей требуем телефон и имя
@@ -77,7 +75,6 @@ export async function POST(
     }
 
     // 1. Проверяем что кампания существует и открыта
-    console.log('[ORDER] Fetching campaign...')
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('id, status, closes_at, allowed_price_groups')
@@ -205,7 +202,6 @@ export async function POST(
       
     } else {
       // Создаём новый предзаказ
-      console.log('[ORDER] Creating campaign order...')
       const { data: newOrder, error: createError } = await supabase
         .from('campaign_orders')
         .insert({
@@ -241,7 +237,6 @@ export async function POST(
       };
     });
     
-    console.log('[ORDER] Inserting order items:', orderItems)
     const { error: itemsInsertError } = await supabase
       .from('campaign_order_items')
       .insert(orderItems);

@@ -63,20 +63,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     const email = `${normalized.replace('+', '')}@flowers.local`
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pin })
-    console.log('AUTH RESULT:', { userId: data?.user?.id, error: error?.message })
 
     if (error || !data?.user) {
       return { error: 'Неверный телефон или PIN' }
     }
 
     const userId = data.user.id
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role, phone')
       .eq('id', userId)
       .single()
-
-    console.log('PROFILE:', { profile, profileError: profileError?.message })
 
     _initialized = true
     set({

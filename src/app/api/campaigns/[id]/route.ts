@@ -51,6 +51,7 @@ export async function GET(
           variety_name,
           length_str,
           image_url,
+          campaign_image_url,
           category,
           color,
           colors,

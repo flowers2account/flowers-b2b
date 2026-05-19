@@ -366,7 +366,7 @@ function StockRow({ product, onSaved }: {
   )
 }
 
-export default function AdminTable({ onReload }: { products?: Product[]; onReload?: () => void }) {
+export default function AdminTable() {
   const [search, setSearch] = useState('')
   const [inStockOnly, setInStockOnly] = useState(false)
   const [data, setData] = useState<Product[]>([])
@@ -388,7 +388,6 @@ export default function AdminTable({ onReload }: { products?: Product[]; onReloa
     const json = await res.json()
     setData(Array.isArray(json) ? json : [])
     setLoading(false)
-    onReload?.()
   }
 
   useEffect(() => { load() }, [debouncedSearch, inStockOnly])

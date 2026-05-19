@@ -16,6 +16,7 @@ type ProductData = {
   variety_name: string | null
   length_str: string | null
   image_url: string | null
+  campaign_image_url: string | null
   category: string
   color: string | null
   colors: string[] | null
@@ -541,8 +542,8 @@ export default function CampaignDetailPage() {
                 className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow"
               >
                 <div className="aspect-square bg-pink-50 relative overflow-hidden">
-                  {p?.image_url
-                    ? <img src={p.image_url} alt={displayName} className="w-full h-full object-cover" />
+                  {(p?.campaign_image_url || p?.image_url)
+                    ? <img src={p.campaign_image_url || p.image_url!} alt={displayName} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-5xl select-none">🌸</div>
                   }
                   {item.min_qty > item.pack_size && (

@@ -29,7 +29,7 @@ const SEASON_LABELS: Record<string, string> = {
   spring: 'Весна', summer: 'Лето', autumn: 'Осень',
   winter: 'Зима', year: 'Круглый год', year_round: 'Круглый год',
 }
-const ORIGIN_LABELS: Record<string, string> = {
+export const ORIGIN_LABELS: Record<string, string> = {
   ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
   china: 'Китай', russia: 'Россия', colombia: 'Колумбия', local: 'Местный',
 }
