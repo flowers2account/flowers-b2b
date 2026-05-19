@@ -245,12 +245,15 @@ function StaticGroup({ label, children }: { label: string; children: React.React
 // ── accordion subcategory section ─────────────────────────────────────────────
 
 function AccordionSubcats({ products }: { products: Product[] }) {
-  const { category, subcat, varietyType, setSubcat, setVarietyType } = useFilters()
+  const { category, subcat, varietyType, setSubcat, setVarietyType, facets } = useFilters()
   const [openItem, setOpenItem] = useState('')
 
   useEffect(() => { setOpenItem('') }, [category])
 
-  const { total, bySC, byVT } = useMemo(() => {
+  // Auto-open selected subcat to show variety types
+  useEffect(() => { if (subcat) setOpenItem(subcat) }, [subcat])
+
+  const { bySC, byVT } = useMemo(() => {
     const base = products.filter(p => category === 'all' || p.category === category)
     const bySC: Record<string, number> = {}
     const byVT: Record<string, Record<string, number>> = {}
@@ -263,10 +266,14 @@ function AccordionSubcats({ products }: { products: Product[] }) {
         byVT[p.subcategory][p.variety_type] = (byVT[p.subcategory][p.variety_type] || 0) + 1
       }
     })
-    return { total: base.length, bySC, byVT }
+    return { bySC, byVT }
   }, [products, category])
 
-  const nodes = (CATEGORY_TREE[category] ?? []).filter(node => (bySC[node.key] ?? 0) > 0)
+  // When subcat is selected — show only that node; otherwise show all with stock
+  const allNodes = (CATEGORY_TREE[category] ?? []).filter(node => (bySC[node.key] ?? 0) > 0)
+  const nodes = subcat
+    ? allNodes.filter(n => n.key === subcat)
+    : allNodes
 
   const handleParent = (node: SubcatNode) => {
     if (node.children?.length) {
@@ -326,7 +333,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
             >
               {hasChildren && <Chevron open={isOpen} />}
               <span style={{ flex: 1 }}>{node.label}</span>
-              {countBadge(bySC[node.key] ?? 0, parentSel)}
+              {countBadge(facets?.subcatCounts?.[node.key] ?? bySC[node.key] ?? 0, parentSel)}
             </div>
 
             {hasChildren && isOpen && node.children!.filter(child => (byVT[node.key]?.[child.varietyType] ?? 0) > 0).map(child => {
@@ -347,7 +354,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
                 >
                   <span style={{ fontSize: 10, opacity: 0.5, marginRight: 2 }}>•</span>
                   <span style={{ flex: 1, fontSize: 11 }}>{child.label}</span>
-                  {countBadge(childCount, childActive)}
+                  {countBadge(facets?.vtCounts?.[child.varietyType] ?? childCount, childActive)}
                 </div>
               )
             })}
@@ -364,13 +371,16 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   const {
     category, subcat, varietyType,
     colors, lengths, origins, potSizes, tags,
-    seasons, stockLevel,
+    seasons, stockLevel, onlyAvailable, facets,
     setStockLevel, setSubcat, setVarietyType,
     toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
-    toggleSeason, reset,
+    toggleSeason, reset, loadFacets,
   } = useFilters()
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
+
+  // Recalculate facets when structural filters change (not colors — standard faceting behavior)
+  useEffect(() => { loadFacets() }, [category, subcat, varietyType, onlyAvailable])
 
   // Reset group open states when category changes
   useEffect(() => { setOpenGroups({ ...DEFAULT_OPEN }) }, [category])
@@ -404,20 +414,28 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         {category === 'cut' && (
           <StaticGroup label="Цвет">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
-              {COLORS.map(c => (
-                <div
-                  key={c.key}
-                  onClick={() => toggleColor(c.key)}
-                  title={c.label}
-                  style={{
-                    width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
-                    background: ('gradient' in c ? c.gradient : c.bg) as string,
-                    border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
-                    outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
-                    outlineOffset: 2,
-                  }}
-                />
-              ))}
+              {COLORS.map(c => {
+                const count = facets?.colorCounts?.[c.key] ?? null
+                const dimmed = facets !== null && (count ?? 0) === 0 && !colors.includes(c.key)
+                return (
+                  <div
+                    key={c.key}
+                    onClick={() => !dimmed && toggleColor(c.key)}
+                    title={count !== null ? `${c.label} (${count})` : c.label}
+                    style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      cursor: dimmed ? 'default' : 'pointer',
+                      flexShrink: 0,
+                      background: ('gradient' in c ? c.gradient : c.bg) as string,
+                      border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
+                      outline: colors.includes(c.key) ? '2px solid var(--accent)' : 'none',
+                      outlineOffset: 2,
+                      opacity: dimmed ? 0.2 : 1,
+                      transition: 'opacity 0.2s',
+                    }}
+                  />
+                )
+              })}
             </div>
           </StaticGroup>
         )}

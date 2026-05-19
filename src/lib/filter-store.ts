@@ -4,6 +4,12 @@ export type FilterCategory = 'all' | 'cut' | 'pot' | 'supply'
 
 export type StockLevel = '' | 'low' | 'high'
 
+export type Facets = {
+  subcatCounts: Record<string, number>
+  vtCounts: Record<string, number>
+  colorCounts: Record<string, number>
+}
+
 type FilterStore = {
   category: FilterCategory
   subcat: string
@@ -18,6 +24,7 @@ type FilterStore = {
   potSizes: string[]
   tags: string[]
   seasons: string[]
+  facets: Facets | null
 
   setCategory: (v: FilterCategory) => void
   setSubcat: (v: string) => void
@@ -33,12 +40,13 @@ type FilterStore = {
   toggleTag: (v: string) => void
   toggleSeason: (v: string) => void
   reset: () => void
+  loadFacets: () => Promise<void>
 }
 
 const tog = (arr: string[], v: string) =>
   arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
 
-export const useFilters = create<FilterStore>((set) => ({
+export const useFilters = create<FilterStore>()((set, get) => ({
   category: 'cut',
   subcat: '',
   varietyType: '',
@@ -52,6 +60,7 @@ export const useFilters = create<FilterStore>((set) => ({
   potSizes: [],
   tags: [],
   seasons: [],
+  facets: null,
 
   setCategory: (category) => set({
     category, subcat: '', varietyType: '',
@@ -74,6 +83,18 @@ export const useFilters = create<FilterStore>((set) => ({
     category: 'cut', subcat: '', varietyType: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', colors: [], lengths: [], origins: [], potSizes: [], tags: [],
-    seasons: [],
+    seasons: [], facets: null,
   }),
+  loadFacets: async () => {
+    const { category, subcat, varietyType, onlyAvailable } = get()
+    const res = await fetch('/api/facets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category, subcat, varietyType, onlyAvailable }),
+    })
+    if (res.ok) {
+      const facets: Facets = await res.json()
+      set({ facets })
+    }
+  },
 }))
