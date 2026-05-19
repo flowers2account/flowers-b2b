@@ -122,7 +122,7 @@ function StateEmpty() {
 
 // ── State B: product detail ──────────────────────────────────────────────────
 
-function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: () => void }) {
+function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoToCart: () => void; onClose: () => void }) {
   const { items, add, update, total } = useCart()
   const { isAuthed } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
@@ -198,10 +198,34 @@ function StateDetail({ product, onGoToCart }: { product: Product; onGoToCart: ()
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', overflowY: 'auto', padding: '12px 12px 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', overflowY: 'auto' }}>
+
+      {/* Close bar */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: '#fff', borderBottom: '1px solid var(--border)',
+        padding: '8px 12px', flexShrink: 0,
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-mid)', fontSize: 12, fontFamily: 'inherit',
+            padding: '4px 6px', borderRadius: 'var(--radius-btn)',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg2)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          К каталогу
+        </button>
+      </div>
 
       {/* Gallery */}
-      <div style={{ flexShrink: 0 }}>
+      <div style={{ flexShrink: 0, padding: '12px 12px 0' }}>
         <div style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative' }}>
           {mainPhoto ? (
             <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'var(--bg2)' }} />
@@ -627,6 +651,6 @@ export default function DetailPanel() {
   const { panel, product, setPanel } = useDetailStore()
 
   if (panel === 'cart') return <StateCart onBack={() => setPanel('detail')} />
-  if (panel === 'detail' && product) return <StateDetail product={product} onGoToCart={() => setPanel('cart')} />
+  if (panel === 'detail' && product) return <StateDetail product={product} onGoToCart={() => setPanel('cart')} onClose={() => setPanel('empty')} />
   return <StateEmpty />
 }
