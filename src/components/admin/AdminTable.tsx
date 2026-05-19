@@ -48,9 +48,11 @@ function StockRow({ product, onSaved }: {
   const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
   const [campaignImageUrl, setCampaignImageUrl] = useState(product.campaign_image_url ?? '')
   const [uploading, setUploading] = useState(false)
+  const [campaignUploading, setCampaignUploading] = useState(false)
   const [colors, setColors] = useState<string[]>(product.colors ?? [])
   const [colorsOpen, setColorsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const campaignFileInputRef = useRef<HTMLInputElement>(null)
   const colorPickerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
@@ -111,6 +113,32 @@ function StockRow({ product, onSaved }: {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  async function handleCampaignImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCampaignUploading(true)
+
+    const ext = file.name.split('.').pop()
+    const path = `campaign_${slugify(product.name)}.${ext}`
+
+    const { error } = await supabase.storage
+      .from('product-images')
+      .upload(path, file, { upsert: true })
+
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(path)
+
+      const urlWithBust = `${publicUrl}?t=${Date.now()}`
+      await supabase.from('products').update({ campaign_image_url: publicUrl }).eq('id', product.id)
+      setCampaignImageUrl(urlWithBust)
+    }
+
+    setCampaignUploading(false)
+    if (campaignFileInputRef.current) campaignFileInputRef.current.value = ''
+  }
+
   const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
   const activeReserved = s?.reserved_qty ?? 0
   const reserveClass = activeReserved > 0 ? 'text-green-600 font-semibold' : 'text-muted-foreground'
@@ -137,30 +165,25 @@ function StockRow({ product, onSaved }: {
               }
             </div>
           </div>
-          {/* Фото кампании — URL через prompt */}
+          {/* Фото кампании — загрузка файлом/камерой */}
           <div
             className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
-            title={campaignImageUrl ? `Фото кампании: ${campaignImageUrl}` : 'Задать фото для кампаний'}
-            onClick={async () => {
-              const url = prompt('URL фото для кампаний:', campaignImageUrl)
-              if (url === null) return
-              const trimmed = url.trim() || null
-              setCampaignImageUrl(trimmed ?? '')
-              await supabase.from('products').update({ campaign_image_url: trimmed }).eq('id', product.id)
-            }}
+            title="Загрузить фото кампании"
+            onClick={() => campaignFileInputRef.current?.click()}
           >
             {campaignImageUrl ? (
-              <>
-                <img src={campaignImageUrl} alt="" className="w-7 h-7 rounded object-cover" style={{ outline: '2px solid #7a1c2e', outlineOffset: 1 }} />
-                <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </div>
-              </>
+              <img src={campaignImageUrl} alt="" className="w-7 h-7 rounded object-cover" style={{ outline: '2px solid #7a1c2e', outlineOffset: 1 }} />
             ) : (
               <div className="w-7 h-7 rounded border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center group-hover:border-[#7a1c2e] group-hover:bg-pink-50 transition-colors">
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" className="group-hover:stroke-[#7a1c2e]"><path d="M12 5v14M5 12h14"/></svg>
               </div>
             )}
+            <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {campaignUploading
+                ? <span className="text-white text-[8px]">...</span>
+                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              }
+            </div>
           </div>
           <span className="font-medium truncate">{product.name}</span>
         </div>
@@ -309,8 +332,17 @@ function StockRow({ product, onSaved }: {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          capture="environment"
           className="hidden"
           onChange={handleImageUpload}
+        />
+        <input
+          ref={campaignFileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleCampaignImageUpload}
         />
       </TableCell>
     </TableRow>
