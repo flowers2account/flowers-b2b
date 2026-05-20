@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeText } from '@/lib/utils/normalize-text';
 
@@ -362,20 +363,35 @@ export default function BulkTranslationPage() {
             <div className="flex gap-3 shrink-0">
               <button
                 onClick={() => {
-                  const csv = [
-                    'Original,Translated,Confidence,Method',
-                    ...results.map(r => `"${r.original}","${r.translated}",${r.confidence},${r.method}`)
-                  ].join('\n');
-                  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `translations_batch_${new Date().toISOString().slice(0, 10)}.csv`;
-                  a.click();
+                  const METHOD_LABELS: Record<string, string> = {
+                    db_exact: 'База данных',
+                    ai_assisted: 'AI (Gemini)',
+                    rule_based: 'Жёсткие правила',
+                  }
+                  const data = results.map(r => ({
+                    'Оригинал (поставщик)': r.original,
+                    'Русский перевод': r.translated,
+                    'Уверенность': `${Math.round(r.confidence * 100)}%`,
+                    'Источник': METHOD_LABELS[r.method] ?? r.method,
+                    'Отредактировано': r.isEdited ? 'Да' : 'Нет',
+                    'Помечено ошибкой': r.isFlagged ? 'Да' : 'Нет',
+                  }))
+                  const ws = XLSX.utils.json_to_sheet(data)
+                  ws['!cols'] = [
+                    { wch: 35 },
+                    { wch: 40 },
+                    { wch: 13 },
+                    { wch: 20 },
+                    { wch: 15 },
+                    { wch: 18 },
+                  ]
+                  const wb = XLSX.utils.book_new()
+                  XLSX.utils.book_append_sheet(wb, ws, 'Переводы')
+                  XLSX.writeFile(wb, `translations_${new Date().toISOString().split('T')[0]}.xlsx`)
                 }}
                 className="inline-flex items-center px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-medium shadow-sm transition-colors text-xs"
               >
-                📥 Скачать .CSV
+                📥 Скачать Excel
               </button>
               <button
                 onClick={handleApprove}
