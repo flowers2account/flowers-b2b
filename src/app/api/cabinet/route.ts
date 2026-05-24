@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         qty_actual,
         is_removed,
         price,
-        product:products ( name )
+        product:products ( name, display_name )
       )
     `)
     .eq('client_id', client.id)

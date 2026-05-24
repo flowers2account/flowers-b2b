@@ -188,44 +188,26 @@ export async function POST(req: NextRequest) {
         product = newProduct
       }
 
-      // 3. Обновляем stock (временно — sync_stock_from_batches скорректирует после цикла)
-      const { data: existingStock } = await supabase
-        .from('stock')
-        .select('qty_reserved')
-        .eq('product_id', product.id)
-        .maybeSingle()
-
-      const qtyReserved = existingStock?.qty_reserved ?? 0
-
-      const { error: stockErr } = await supabase.from('stock').upsert({
-        product_id: product.id,
-        qty: row.qty,
-        qty_reserved: qtyReserved,
-        price: row.price,
-        is_available: row.qty > qtyReserved,
-      }, { onConflict: 'product_id' })
-      if (stockErr) throw new Error(`stock upsert: ${stockErr.message}`)
-
-      // 4. Добавляем партию — НЕ деактивируем существующие активные партии этого товара.
-      // isFirst уже деактивировал все партии категории в начале запроса.
-      // Так все партии текущей сессии остаются активными, и sync_stock_from_batches
-      // суммирует их все: batch(175) + batch(13) = 188.
-      await supabase.from('batches').insert({
-        product_id: product.id,
-        price: row.price,
-        stock: row.qty,
-        stock_reserved: 0,
-        arrival_date: today,
-        is_active: true,
+      // 3. Партия (найти по цене → UPDATE stock) или создать новую через sync_stock_from_1c.
+      // Поиск по (product_id, price) БЕЗ arrival_date — дата прихода не перезаписывается.
+      // Если isFirst деактивировал все партии выше — функция создаст новую с arrival_date=today.
+      const { error: syncErr } = await supabase.rpc('sync_stock_from_1c', {
+        p_name: row.name,
+        p_new_qty: row.qty,
+        p_new_price: row.price,
+        p_arrival_date: today,
       })
+      if (syncErr) throw new Error(`sync_stock: ${syncErr.message}`)
 
-      // 5. Запись в ledger
+      // 4. Запись в ledger
       await supabase.from('inventory_ledger').insert({
         product_id: product.id,
         action: 'import',
         quantity: row.qty,
+        qty_before: 0,
+        qty_after: row.qty,
         reference_type: 'import',
-        created_by: userId,
+        created_by: userId || null,
       })
 
       importedProductIds.add(product.id)

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('products')
-    .select(`id, name, variety_name, length_str, length_cm, category, subcategory, variety_type, color, colors, floral_role, stem_durability, season, tags, origin, description, pot_size, pack_size, image_url, campaign_image_url, images, previous_price, arrival_date, stock:stock_available (price, qty, qty_reserved, is_available, reserved_qty, available_qty)`)
+    .select(`id, name, display_name, variety_name, length_str, length_cm, category, subcategory, variety_type, color, colors, floral_role, stem_durability, season, tags, origin, description, pot_size, pack_size, image_url, campaign_image_url, images, previous_price, arrival_date, stock:stock_available (price, qty, qty_reserved, is_available, reserved_qty, available_qty)`)
     .eq('is_active', true)
     .order('variety_name')
     .order('length_cm')

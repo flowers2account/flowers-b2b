@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
 
-type Product = { id: number; name: string; price: number; pack_size: number; available_qty: number; category: string; image_url: string | null; variety_name: string | null; length_str: string | null; origin: string | null }
+type Product = { id: number; name: string; display_name?: string | null; price: number; pack_size: number; available_qty: number; category: string; image_url: string | null; variety_name: string | null; length_str: string | null; origin: string | null }
 
 const ORIGIN_FLAGS: Record<string, string> = {
   china: '🇨🇳', ecuador: '🇪🇨', kenya: '🇰🇪',
@@ -80,7 +80,7 @@ export default function CashierView() {
 
   const filtered = allProducts.filter(p => {
     const matchCat = category === 'all' || p.category === category
-    const matchSearch = !search || (p.variety_name || p.name).toLowerCase().includes(search.toLowerCase())
+    const matchSearch = !search || (p.display_name || p.variety_name || p.name).toLowerCase().includes(search.toLowerCase())
     return matchCat && matchSearch
   })
 
@@ -229,7 +229,7 @@ export default function CashierView() {
               const isLow = p.available_qty > 0 && p.available_qty < 50
               const isOut = p.available_qty === 0
               const cartItem = cart.find(i => i.id === p.id)
-              const displayName = p.variety_name || p.name
+              const displayName = p.display_name || p.variety_name || p.name
               return (
                 <div
                   key={p.id}

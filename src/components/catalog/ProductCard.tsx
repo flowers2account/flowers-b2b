@@ -27,6 +27,7 @@ type Stock = {
 export type Product = {
   id: number
   name: string
+  display_name?: string | null
   variety_name: string | null
   length_str: string | null
   length_cm: number | null
@@ -89,7 +90,7 @@ export default function ProductCard({ product, qty, isAuthed, onDecrement, onInc
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
-  const displayName = product.variety_name || product.name
+  const displayName = product.display_name || product.variety_name || product.name
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow">

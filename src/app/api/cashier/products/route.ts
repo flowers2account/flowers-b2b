@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data: productData } = await supabase
     .from('products')
-    .select('id, name, pack_size, category, image_url, variety_name, length_str, origin')
+    .select('id, name, display_name, pack_size, category, image_url, variety_name, length_str, origin')
     .in('id', ids)
     .eq('is_active', true)
     .order('name')
@@ -25,7 +25,7 @@ export async function GET() {
 
   const result = (productData ?? []).map((p: any) => ({
     id: p.id,
-    name: p.name,
+    name: p.display_name || p.name,
     pack_size: p.pack_size ?? 1,
     category: p.category ?? 'cut',
     image_url: p.image_url ?? null,

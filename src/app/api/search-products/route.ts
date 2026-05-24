@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const { data: products } = await supabase
     .from('products')
-    .select('id, name, pack_size')
+    .select('id, name, display_name, pack_size')
     .in('id', productIds)
     .ilike('name', `%${q}%`)
     .eq('is_active', true)
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   const result = (products ?? []).map(p => ({
     id: p.id,
-    name: p.name,
+    name: p.display_name || p.name,
     pack_size: p.pack_size ?? 1,
     price: stockMap.get(p.id)?.price ?? 0,
     available_qty: stockMap.get(p.id)?.available_qty ?? 0,

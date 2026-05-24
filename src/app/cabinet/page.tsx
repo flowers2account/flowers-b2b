@@ -39,7 +39,7 @@ type OrderItem = {
   qty_actual: number | null
   is_removed: boolean
   price: number
-  product: { name: string } | null
+  product: { name: string; display_name?: string | null } | null
 }
 
 type Order = {
@@ -350,7 +350,7 @@ export default function CabinetPage() {
                   {visibleItems.map(item => (
                     <div key={item.id} className="flex justify-between text-sm">
                       <span className="text-gray-700">
-                        {item.product?.name ?? '—'} × {item.qty_actual ?? item.qty_ordered ?? item.qty}
+                        {(item.product?.display_name || item.product?.name) ?? '—'} × {item.qty_actual ?? item.qty_ordered ?? item.qty}
                       </span>
                       <span className="text-gray-500">
                         {((item.qty_actual ?? item.qty_ordered ?? item.qty) * item.price).toLocaleString()} ₸

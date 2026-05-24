@@ -149,7 +149,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   })()
   const mainPhoto = images[photoIdx] ?? null
 
-  const displayName = product.variety_name || product.name
+  const displayName = product.display_name || product.variety_name || product.name
   const originLabel = product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null
   const metaParts = [
     product.length_cm ? `${product.length_cm} см` : product.length_str,
