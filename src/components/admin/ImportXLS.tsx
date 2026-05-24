@@ -6,7 +6,16 @@ import { useAuthStore } from '@/lib/auth-store'
 export default function ImportXLS({ onImported }: { onImported: () => void }) {
   const [loading, setLoading] = useState(false)
   const [files, setFiles] = useState<File[]>([])
-  const [results, setResults] = useState<{ name: string; success: number; errors: number; zeroed?: number }[]>([])
+  const [results, setResults] = useState<{
+    name: string
+    success: number
+    errors: number
+    zeroed?: number
+    ai_enriched?: number
+    ai_cached?: number
+    ai_failed?: number
+    varieties_species_filled?: number
+  }[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
   const user = useAuthStore(s => s.user)
 
@@ -32,7 +41,16 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
       try {
         const res = await fetch('/api/import-xls', { method: 'POST', body: formData })
         const data = await res.json()
-        setResults(prev => [...prev, { name: file.name, success: data.success ?? 0, errors: data.errors ?? 0, zeroed: data.zeroed ?? 0 }])
+        setResults(prev => [...prev, {
+          name: file.name,
+          success: data.success ?? 0,
+          errors: data.errors ?? 0,
+          zeroed: data.zeroed ?? 0,
+          ai_enriched: data.ai_enriched,
+          ai_cached: data.ai_cached,
+          ai_failed: data.ai_failed,
+          varieties_species_filled: data.varieties_species_filled,
+        }])
       } catch (e) {
         setResults(prev => [...prev, { name: file.name, success: 0, errors: 1 }])
       }
@@ -75,11 +93,22 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
       {results.length > 0 && (
         <div className="text-sm space-y-1">
           {results.map((r, i) => (
-            <div key={i} className="flex gap-3 text-xs">
-              <span className="text-gray-500 truncate max-w-[200px]">{r.name}</span>
-              <span className="text-green-700">+{r.success}</span>
-              {r.errors > 0 && <span className="text-red-600">err:{r.errors}</span>}
-              {r.zeroed ? <span className="text-orange-500">обнулено:{r.zeroed}</span> : null}
+            <div key={i} className="text-xs space-y-0.5">
+              <div className="flex gap-3">
+                <span className="text-gray-500 truncate max-w-[200px]">{r.name}</span>
+                <span className="text-green-700">+{r.success}</span>
+                {r.errors > 0 && <span className="text-red-600">err:{r.errors}</span>}
+                {r.zeroed ? <span className="text-orange-500">обнулено:{r.zeroed}</span> : null}
+              </div>
+              {((r.ai_enriched ?? 0) > 0 || (r.ai_cached ?? 0) > 0) && (
+                <div className="text-blue-600 pl-1">
+                  AI: +{r.ai_enriched ?? 0} новых, {r.ai_cached ?? 0} из кэша
+                  {(r.varieties_species_filled ?? 0) > 0 && `, виды: ${r.varieties_species_filled}`}
+                </div>
+              )}
+              {(r.ai_failed ?? 0) > 0 && (
+                <div className="text-amber-600 pl-1">AI не справился: {r.ai_failed}</div>
+              )}
             </div>
           ))}
         </div>

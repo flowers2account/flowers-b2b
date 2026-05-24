@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import * as XLSX from 'xlsx'
 import { parseNomenclature } from '@/lib/parse-nomenclature'
+import { enrichProductBatch } from '@/lib/naming/ai-enrichment'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -81,6 +82,16 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
   const importedProductIds = new Set<number>()
 
+  // AI enrichment for all rows before main loop
+  const aiStats = { ai_enriched: 0, ai_cached: 0, ai_failed: 0, varieties_species_filled: 0 }
+  let enrichedMap = new Map<string, Awaited<ReturnType<typeof enrichProductBatch>>[number]>()
+  try {
+    const enriched = await enrichProductBatch(rows.map(r => r.name))
+    enrichedMap = new Map(enriched.map(e => [e.raw_name, e]))
+  } catch (err) {
+    console.error('[import-xls] enrichProductBatch failed:', err)
+  }
+
   // Определяем категорию и источник по имени файла
   const fileNameLower = file.name.toLowerCase()
   const categoryOverride: 'cut' | 'pot' | null =
@@ -106,6 +117,11 @@ export async function POST(req: NextRequest) {
 
   for (const row of rows) {
     try {
+      const enriched = enrichedMap.get(row.name)
+      if (enriched?.source === 'cache') aiStats.ai_cached++
+      else if (enriched?.source === 'ai') aiStats.ai_enriched++
+      else aiStats.ai_failed++
+
       const _parsed = parseNomenclature(row.name)
       const originValue: string | null = isChina ? 'china' : (_parsed as any).origin ?? null
       // Ключ включает origin — China и non-China одного товара не конфликтуют
@@ -127,8 +143,14 @@ export async function POST(req: NextRequest) {
       const { data: variety, error: vErr } = await supabase
         .from('varieties')
         .upsert({ name: parsed.variety_name, category: categoryOverride ?? parsed.category }, { onConflict: 'name', ignoreDuplicates: false })
-        .select('id').single()
+        .select('id, species_id').single()
       if (vErr || !variety) throw new Error(`variety: ${vErr?.code} ${vErr?.message}`)
+
+      // Fill species_id from AI if variety doesn't have it yet
+      if (!(variety as any).species_id && enriched?.species_id) {
+        await supabase.from('varieties').update({ species_id: enriched.species_id }).eq('id', variety.id)
+        aiStats.varieties_species_filled++
+      }
 
       // 2. Создаём или находим товар (product)
       const productQuery = supabase
@@ -164,6 +186,7 @@ export async function POST(req: NextRequest) {
             is_active: true,
             previous_price: isPriceDown ? currentPrice : null,
             ...(parsed.origin ? { origin: parsed.origin } : {}),
+            ...(enriched?.country_iso ? { country_iso: enriched.country_iso } : {}),
           })
           .eq('id', existingProduct.id)
           .select('id').single()
@@ -182,6 +205,7 @@ export async function POST(req: NextRequest) {
             name: row.name,
             is_active: true,
             origin: parsed.origin ?? null,
+            country_iso: enriched?.country_iso ?? null,
           })
           .select('id').single()
         if (pErr || !newProduct) throw new Error(`product insert: ${pErr?.code} ${pErr?.message}`)
@@ -209,6 +233,14 @@ export async function POST(req: NextRequest) {
         reference_type: 'import',
         created_by: userId || null,
       })
+
+      // 5. Обратная связь в translation_memory
+      if (enriched?.translation_memory_id) {
+        await supabase
+          .from('translation_memory')
+          .update({ product_id: product.id, variety_id: variety.id })
+          .eq('id', enriched.translation_memory_id)
+      }
 
       importedProductIds.add(product.id)
       processedProductIds.add(product.id)
@@ -249,5 +281,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success, errors, zeroed, errorLog })
+  return NextResponse.json({ success, errors, zeroed, errorLog, ...aiStats })
 }
