@@ -262,8 +262,8 @@ function GridCard({
             {dims.map((d, i) => (
               <span key={i} style={{ fontSize: 11, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
                 {d.type === 'length'
-                  ? <><span style={{ fontSize: 13 }}>↔</span>{d.val}</>
-                  : <><span style={{ fontSize: 15, lineHeight: 1 }}>⌀</span>{d.val}</>}
+                  ? <><span style={{ fontSize: 13 }}>↕</span>{d.val}</>
+                  : <><span style={{ fontSize: 18, lineHeight: 1 }}>⌀</span>{d.val}</>}
               </span>
             ))}
           </div>
@@ -351,8 +351,8 @@ function ListRow({
             {dims.map((d, i) => (
               <span key={i} style={{ fontSize: 11, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
                 {d.type === 'length'
-                  ? <><span style={{ fontSize: 13 }}>↔</span>{d.val}</>
-                  : <><span style={{ fontSize: 15, lineHeight: 1 }}>⌀</span>{d.val}</>}
+                  ? <><span style={{ fontSize: 13 }}>↕</span>{d.val}</>
+                  : <><span style={{ fontSize: 18, lineHeight: 1 }}>⌀</span>{d.val}</>}
               </span>
             ))}
           </div>

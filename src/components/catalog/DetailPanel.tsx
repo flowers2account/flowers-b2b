@@ -283,8 +283,8 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             {dims.map((d, i) => (
               <span key={i} style={{ fontSize: 12, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 3 }}>
                 {d.type === 'length'
-                  ? <><span style={{ fontSize: 14 }}>↔</span>{d.val}</>
-                  : <><span style={{ fontSize: 17, lineHeight: 1 }}>⌀</span>{d.val}</>}
+                  ? <><span style={{ fontSize: 14 }}>↕</span>{d.val}</>
+                  : <><span style={{ fontSize: 21, lineHeight: 1 }}>⌀</span>{d.val}</>}
               </span>
             ))}
           </div>
