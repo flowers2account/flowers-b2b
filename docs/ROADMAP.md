@@ -12,7 +12,7 @@
 | 2 | Добавить триггер на DELETE reservations → пересчёт qty_reserved | Supabase migration | ✅ stock_available VIEW |
 | 3 | Починить checkout в DetailPanel | `DetailPanel.tsx` | ✅ Исправлено |
 | 4 | Иконка корзины в хедере не открывает панель | Header | ✅ Исправлено |
-| 5 | Синхронизация PIN при смене в AdminTable | `AdminTable.tsx` + `/api/client/change-pin` | 🔴 Не сделано |
+| 5 | Синхронизация PIN при смене в AdminTable | `AdminTable.tsx` + `/api/client/change-pin` | ✅ Исправлено |
 
 ---
 

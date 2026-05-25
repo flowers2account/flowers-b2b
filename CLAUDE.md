@@ -189,8 +189,7 @@ CRON_SECRET=your-secret-key-here      # для тестирования cron end
 
 ## Known Issues
 
-### 🔴 Критические
-- **PIN не синхронизируется** — изменение PIN в AdminTable не обновляет Supabase Auth
+### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
 
 ### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
 - **Проблема**: Service role key не доступен в функциях на Vercel
