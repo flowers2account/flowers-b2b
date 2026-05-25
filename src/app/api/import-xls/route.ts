@@ -186,9 +186,8 @@ export async function POST(req: NextRequest) {
 
       const parsed = parseNomenclature(row.name)
       const category = categoryOverride ?? parsed.category
-      // Страна: файл → название товара → AI (в порядке приоритета)
-      const countryIso: string | null =
-        fileCountry ?? countryFromText(row.name) ?? enriched?.country_iso ?? null
+      // Страна: имя файла → AI (детект из названия товара — позже)
+      const countryIso: string | null = fileCountry ?? enriched?.country_iso ?? null
 
       // 1. UPSERT variety (ключ — только название сорта, lowercase)
       const { data: variety, error: vErr } = await supabase
