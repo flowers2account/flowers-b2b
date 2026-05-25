@@ -64,6 +64,9 @@ ${speciesRef}
 "Ред Наоми 60" → species_code:"rose_large_flowered", cultivar_cyrillic:"Ред Наоми", length_cm:60, confidence:0.95
 "Тюльпан Стронг Лав 40" → подбери точный код тюльпана, cultivar_cyrillic:"Стронг Лав", length_cm:40
 "Хризантема Бакарди 70" → подбери код хризантемы, cultivar_cyrillic:"Бакарди", length_cm:70
+"Гвоздика Стандарт Пинк 70" → species_code:"carnation_standard", cultivar_cyrillic:"Стандарт Пинк", length_cm:70
+"Гвоздика Кустовая Балтика Пинк 50" → species_code:"carnation_spray", cultivar_cyrillic:"Балтика Пинк", length_cm:50
+"Гвоздика Диантус Микс" → species_code:"carnation_spray", cultivar_cyrillic:"Диантус Микс"
 
 ВХОДНЫЕ ДАННЫЕ (верни ТОЛЬКО JSON массив без markdown):
 ${JSON.stringify(names)}`;

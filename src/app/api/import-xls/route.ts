@@ -20,6 +20,8 @@ const SPECIES_SUBCAT: Record<number, { subcat: string; vt?: string }> = {
   10: { subcat: 'gerberas' },
   11: { subcat: 'tulips'   },
   12: { subcat: 'carnations' },
+  47: { subcat: 'carnations', vt: 'single' }, // carnation_standard
+  48: { subcat: 'carnations', vt: 'spray'  }, // carnation_spray
   13: { subcat: 'lisianthus' },
   14: { subcat: 'alstroemeria' },
   16: { subcat: 'accents'  },  // peony cut
@@ -186,6 +188,15 @@ export async function POST(req: NextRequest) {
         aiStats.varieties_species_filled++
       }
 
+      // 1.5. Устанавливаем variety_id в TM ДО вставки продукта —
+      //      чтобы триггер generate_product_display_name нашёл cultivar_cyrillic
+      if (enriched?.translation_memory_id) {
+        await supabase
+          .from('translation_memory')
+          .update({ variety_id: variety.id })
+          .eq('id', enriched.translation_memory_id)
+      }
+
       // 2. Ищем product по UNIQUE ключу (variety_id, length_cm, country_iso, price)
       //    Включая is_active=false — чтобы реактивировать старую карточку с той же ценой
       let productQuery = supabase
@@ -265,11 +276,11 @@ export async function POST(req: NextRequest) {
         created_by: userId || null,
       })
 
-      // 4. Обратная связь в translation_memory
+      // 4. Обратная связь в translation_memory: записываем product_id
       if (enriched?.translation_memory_id) {
         await supabase
           .from('translation_memory')
-          .update({ product_id: productId, variety_id: variety.id })
+          .update({ product_id: productId })
           .eq('id', enriched.translation_memory_id)
       }
 
