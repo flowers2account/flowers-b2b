@@ -203,25 +203,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Деактивируем товары категории которых нет в этом импорте
-  // Только при одиночном файле (isFirst && isLast) — при множественных файлах
-  // importedProductIds содержит только последний файл, что деактивирует первые
-  if (isFirst && isLast && categoryOverride && importedProductIds.size > 0) {
-    const { data: allInCategory } = await supabase
+  // При последнем файле — деактивируем всё что не обновилось сегодня.
+  // Работает для любого числа файлов: каждый файл ставит arrival_date=today,
+  // после последнего — всё с другой датой считается отсутствующим.
+  if (isLast) {
+    const { data: stale } = await supabase
       .from('products')
       .select('id')
-      .eq('category', categoryOverride)
+      .neq('arrival_date', today)
       .eq('is_active', true)
 
-    if (allInCategory?.length) {
-      const toDeactivate = allInCategory
-        .map((p: { id: number }) => p.id)
-        .filter((id: number) => !importedProductIds.has(id))
-
-      if (toDeactivate.length > 0) {
-        await supabase.from('products').update({ is_active: false }).in('id', toDeactivate)
-        zeroed = toDeactivate.length
-      }
+    if (stale?.length) {
+      await supabase.from('products')
+        .update({ is_active: false, qty: 0 })
+        .in('id', stale.map((p: { id: number }) => p.id))
+      zeroed = stale.length
     }
   }
 
