@@ -150,6 +150,8 @@ export async function POST(req: NextRequest) {
             arrival_date: today,
             is_active: true,
             name: row.name,
+            length_cm: parsed.length_cm ?? null,
+            pot_diameter: parsed.pot_diameter ?? null,
           })
           .eq('id', existingProduct.id)
         if (pErr) throw new Error(`product update: ${pErr.message}`)
@@ -162,7 +164,8 @@ export async function POST(req: NextRequest) {
             variety_id: variety.id,
             name: row.name,
             length_cm: parsed.length_cm ?? null,
-            pack_size: 5,
+            pot_diameter: parsed.pot_diameter ?? null,
+            pack_size: category === 'pot' ? 1 : parsed.pack_size,
             category,
             price: row.price,
             qty: row.qty,
