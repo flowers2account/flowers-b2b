@@ -52,9 +52,9 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot'): { subcategor
     if (/квинс кроун|^микс/.test(n))     return { subcategory: 'roses',  variety_type: 'single' }
   }
   if (category === 'pot') {
-    if (/бамбук|драцена|замиокул|клузия|маранта|фикус|хамедорея|шеффлера/.test(n)) return { subcategory: 'green', variety_type: null }
+    if (/бамбук|драцена|замиокул|клузия|маранта|фикус|хамедорея|шеффлера|радермахера|фатсия|эонимус/.test(n)) return { subcategory: 'green', variety_type: null }
     if (/пахира|юкка/.test(n))           return { subcategory: 'large',    variety_type: null }
-    if (/каланхое|пеларгони|пеперомия|рипсалидопс|сенполия|шлюмбергера/.test(n)) return { subcategory: 'flowering', variety_type: null }
+    if (/каланхое|пеларгони|пеперомия|рипсалидопс|сенполия|шлюмбергера|гузмания|спатифиллум|цикламен|ранункулюс/.test(n)) return { subcategory: 'flowering', variety_type: null }
     if (/алое/.test(n))                  return { subcategory: 'succulents', variety_type: null }
     if (/туя|фритиллария/.test(n))       return { subcategory: 'outdoor',   variety_type: null }
     if (/антуриум|фаленопсис|орхидея|гортензия|нарцисс|гвоздика|роза/.test(n)) return { subcategory: 'flowering', variety_type: null }
