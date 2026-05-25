@@ -70,7 +70,12 @@ function deriveSubcat(speciesId: number | null | undefined, category: 'cut' | 'p
     if (entry) {
       // pot roses → flowering, not roses
       const subcat = category === 'pot' && entry.subcat === 'roses' ? 'flowering' : entry.subcat
-      const vt = category === 'pot' ? null : (entry.vt ?? null)
+      let vt = category === 'pot' ? null : (entry.vt ?? null)
+      // Для generic carnation (id=12): определяем тип по ключевым словам в названии
+      if (speciesId === 12 && vt === null && category === 'cut') {
+        const n = productName.toLowerCase()
+        vt = /ветковая|кустовая|спрей|spray/.test(n) ? 'spray' : 'single'
+      }
       return { subcategory: subcat, variety_type: vt }
     }
   }
