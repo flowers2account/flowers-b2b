@@ -329,16 +329,6 @@ function StockRow({ product, onSaved }: {
         )}
       </TableCell>
       <TableCell className="py-1 px-1">
-        <Input
-          type="text"
-          value={campaignImageUrl}
-          onChange={e => setCampaignImageUrl(e.target.value)}
-          className="w-28 h-7 text-[10px] px-1"
-          placeholder="URL кампании"
-          title="Фото для кампаний"
-        />
-      </TableCell>
-      <TableCell className="py-1 px-1">
         <Button
           size="sm"
           onClick={save}
@@ -465,19 +455,18 @@ export default function AdminTable() {
               <TableHead className="py-2 px-1 text-center w-16">Стебл.</TableHead>
               <TableHead className="py-2 px-1 text-center w-12">Цвет</TableHead>
               <TableHead className="py-2 px-1 w-24">Поступл.</TableHead>
-              <TableHead className="py-2 px-1 w-32">Фото кам.</TableHead>
               <TableHead className="py-2 px-1 w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-gray-400 text-sm">Загрузка...</TableCell>
+                <TableCell colSpan={10} className="text-center py-8 text-gray-400 text-sm">Загрузка...</TableCell>
               </TableRow>
             )}
             {!loading && data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-gray-400 text-sm">Ничего не найдено</TableCell>
+                <TableCell colSpan={10} className="text-center py-8 text-gray-400 text-sm">Ничего не найдено</TableCell>
               </TableRow>
             )}
             {!loading && data.map(p => (
