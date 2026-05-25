@@ -12,7 +12,7 @@ import { COLORS } from '@/lib/colors'
 import ProductEditModal from './ProductEditModal'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
-type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; is_new?: boolean; stock: Stock[] | Stock }
+type Product = { id: number; name: string; display_name?: string | null; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; country_iso?: string | null; farm?: string | null; is_new?: boolean; stock: Stock[] | Stock }
 
 const TRANSLIT: Record<string, string> = {
   а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
@@ -201,7 +201,7 @@ function StockRow({ product, onSaved, onEdit }: {
             className="font-medium truncate hover:text-[#8B1A1A] cursor-pointer underline-offset-2 hover:underline"
             onClick={() => onEdit(product.id)}
             title="Редактировать"
-          >{product.name}</span>
+          >{product.display_name || product.name}</span>
         </div>
       </TableCell>
       <TableCell className="py-1 px-1">

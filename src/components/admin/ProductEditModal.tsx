@@ -14,6 +14,7 @@ type ProductEdit = {
   length_cm: number | null
   pot_diameter: number | null
   country_iso: string | null
+  farm: string | null
   colors: string[] | null
   image_url: string | null
   pack_size: number
@@ -62,7 +63,7 @@ export default function ProductEditModal({
     const supabase = createClient()
     supabase
       .from('products')
-      .select('id,name,display_name,category,subcategory,variety_type,length_cm,pot_diameter,country_iso,colors,image_url,pack_size,price,qty,arrival_date,is_active')
+      .select('id,name,display_name,category,subcategory,variety_type,length_cm,pot_diameter,country_iso,farm,colors,image_url,pack_size,price,qty,arrival_date,is_active')
       .eq('id', productId)
       .single()
       .then(({ data }: { data: ProductEdit | null }) => {
@@ -87,6 +88,7 @@ export default function ProductEditModal({
       length_cm: p.length_cm,
       pot_diameter: p.pot_diameter,
       country_iso: p.country_iso || null,
+      farm: p.farm?.trim() || null,
       colors: p.colors?.length ? p.colors : null,
       image_url: p.image_url?.trim() || null,
       pack_size: p.pack_size,
@@ -166,8 +168,8 @@ export default function ProductEditModal({
               </Field>
             </div>
 
-            {/* Размеры + страна */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Размеры + страна + ферма */}
+            <div className="grid grid-cols-4 gap-3">
               <Field label="Длина (см)">
                 <input className={inp} type="number" value={p.length_cm ?? ''} onChange={e => set('length_cm', e.target.value ? +e.target.value : null)} placeholder="60" />
               </Field>
@@ -179,6 +181,9 @@ export default function ProductEditModal({
                   <option value="">—</option>
                   {COUNTRIES.map(c => <option key={c.v} value={c.v}>{c.l}</option>)}
                 </select>
+              </Field>
+              <Field label="Ферма">
+                <input className={inp} value={p.farm ?? ''} onChange={e => set('farm', e.target.value || null)} placeholder="Karen Roses" />
               </Field>
             </div>
 
