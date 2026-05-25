@@ -152,7 +152,20 @@ export async function POST(req: NextRequest) {
   const categoryOverride: 'cut' | 'pot' | null =
     fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
     fileNameLower.includes('срез') ? 'cut' : null
-  const isChina = fileNameLower.includes('китай') || fileNameLower.includes('china')
+
+  function countryFromText(s: string): string | null {
+    const t = s.toLowerCase()
+    if (/эквадор|ecuador/.test(t)) return 'EC'
+    if (/кени[яи]|kenya/.test(t))   return 'KE'
+    if (/голланд|holland|nether/.test(t)) return 'NL'
+    if (/китай|china/.test(t))      return 'CN'
+    if (/колумб|colombia/.test(t))  return 'CO'
+    if (/израил|israel/.test(t))    return 'IL'
+    if (/эфиоп|ethiopia/.test(t))   return 'ET'
+    if (/египет|egypt/.test(t))     return 'EG'
+    return null
+  }
+  const fileCountry = countryFromText(file.name)
 
   // AI-обогащение всех строк до основного цикла
   const aiStats = { ai_enriched: 0, ai_cached: 0, ai_failed: 0, varieties_species_filled: 0 }
@@ -173,8 +186,9 @@ export async function POST(req: NextRequest) {
 
       const parsed = parseNomenclature(row.name)
       const category = categoryOverride ?? parsed.category
-      // Страна: файл (isChina) имеет приоритет над AI
-      const countryIso: string | null = isChina ? 'CN' : (enriched?.country_iso ?? null)
+      // Страна: файл → название товара → AI (в порядке приоритета)
+      const countryIso: string | null =
+        fileCountry ?? countryFromText(row.name) ?? enriched?.country_iso ?? null
 
       // 1. UPSERT variety (ключ — только название сорта, lowercase)
       const { data: variety, error: vErr } = await supabase
