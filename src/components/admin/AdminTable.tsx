@@ -9,6 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table'
 import { COLORS } from '@/lib/colors'
+import ProductEditModal from './ProductEditModal'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
 type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; is_new?: boolean; stock: Stock[] | Stock }
@@ -34,9 +35,10 @@ function getStock(s: Stock[] | Stock): Stock {
   return s
 }
 
-function StockRow({ product, onSaved }: {
+function StockRow({ product, onSaved, onEdit }: {
   product: Product
   onSaved: () => void
+  onEdit: (id: number) => void
 }) {
   const s = getStock(product.stock)
   const [qty, setQty] = useState(String(s?.qty ?? 0))
@@ -195,7 +197,11 @@ function StockRow({ product, onSaved }: {
               }
             </div>
           </div>
-          <span className="font-medium truncate">{product.name}</span>
+          <span
+            className="font-medium truncate hover:text-[#8B1A1A] cursor-pointer underline-offset-2 hover:underline"
+            onClick={() => onEdit(product.id)}
+            title="Редактировать"
+          >{product.name}</span>
         </div>
       </TableCell>
       <TableCell className="py-1 px-1">
@@ -363,6 +369,7 @@ export default function AdminTable() {
   const [inStockOnly, setInStockOnly] = useState(false)
   const [data, setData] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [editId, setEditId] = useState<number | null>(null)
 
   // Debounce search to avoid request on every keystroke
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -474,11 +481,20 @@ export default function AdminTable() {
                 key={p.id}
                 product={p}
                 onSaved={load}
+                onEdit={setEditId}
               />
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {editId !== null && (
+        <ProductEditModal
+          productId={editId}
+          onClose={() => setEditId(null)}
+          onSaved={() => { load(); setEditId(null) }}
+        />
+      )}
     </div>
   )
 }
