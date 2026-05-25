@@ -416,19 +416,23 @@ export default function FilterPanel({ products }: { products: Product[] }) {
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
               {COLORS.map(c => {
                 const selected = colors.includes(c.key)
+                const count = facets?.colorCounts?.[c.key] ?? null
+                const dimmed = facets !== null && !selected && (count ?? 0) === 0
                 return (
                   <div
                     key={c.key}
-                    onClick={() => toggleColor(c.key)}
+                    onClick={() => !dimmed && toggleColor(c.key)}
                     title={c.label}
                     style={{
                       width: 20, height: 20, borderRadius: '50%',
-                      cursor: 'pointer', flexShrink: 0,
+                      cursor: dimmed ? 'default' : 'pointer', flexShrink: 0,
                       background: ('gradient' in c ? c.gradient : c.bg) as string,
                       border: `1.5px solid ${'border' in c ? c.border : '#E0E0E0'}`,
                       boxShadow: c.key === 'white' ? 'inset 0 0 0 1px #c8c8c8' : 'none',
                       outline: selected ? '2px solid var(--accent)' : 'none',
                       outlineOffset: 2,
+                      opacity: dimmed ? 0.25 : 1,
+                      transition: 'opacity 0.2s',
                     }}
                   />
                 )

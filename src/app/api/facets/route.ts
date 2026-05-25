@@ -7,7 +7,7 @@ const admin = createAdminClient()
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
-  const { category = 'cut', onlyAvailable = true } = body
+  const { category = 'cut', onlyAvailable = true, subcat = null, varietyType = null } = body
 
   const { data: products } = await admin
     .from('products')
@@ -25,33 +25,40 @@ export async function POST(req: NextRequest) {
     qty: number
   }
 
-  const base = (products as RawProduct[] ?? []).filter(
+  // All available products in category
+  const allBase = (products as RawProduct[] ?? []).filter(
     p => !onlyAvailable || p.qty > 0
   )
 
+  // subcatCounts: never filtered by subcat so user can always switch categories
+  const subcatCounts: Record<string, number> = {}
+  allBase.forEach(p => {
+    if (p.subcategory) subcatCounts[p.subcategory] = (subcatCounts[p.subcategory] || 0) + 1
+  })
+
+  // vtCounts: scoped to selected subcat
+  const subcatBase = subcat ? allBase.filter(p => p.subcategory === subcat) : allBase
+  const vtCounts: Record<string, number> = {}
+  subcatBase.forEach(p => {
+    if (p.variety_type) vtCounts[p.variety_type] = (vtCounts[p.variety_type] || 0) + 1
+  })
+
+  // color/length/origin: scoped to both subcat and varietyType selections
+  const detailBase = varietyType ? subcatBase.filter(p => p.variety_type === varietyType) : subcatBase
+
   const colorCounts: Record<string, number> = {}
-  base.forEach(p => {
+  detailBase.forEach(p => {
     (p.colors ?? []).forEach(c => { colorCounts[c] = (colorCounts[c] || 0) + 1 })
   })
 
   const lengthCounts: Record<number, number> = {}
-  base.forEach(p => {
+  detailBase.forEach(p => {
     if (p.length_cm) lengthCounts[p.length_cm] = (lengthCounts[p.length_cm] || 0) + 1
   })
 
   const originCounts: Record<string, number> = {}
-  base.forEach(p => {
+  detailBase.forEach(p => {
     if (p.country_iso) originCounts[p.country_iso] = (originCounts[p.country_iso] || 0) + 1
-  })
-
-  const subcatCounts: Record<string, number> = {}
-  base.forEach(p => {
-    if (p.subcategory) subcatCounts[p.subcategory] = (subcatCounts[p.subcategory] || 0) + 1
-  })
-
-  const vtCounts: Record<string, number> = {}
-  base.forEach(p => {
-    if (p.variety_type) vtCounts[p.variety_type] = (vtCounts[p.variety_type] || 0) + 1
   })
 
   return NextResponse.json({
