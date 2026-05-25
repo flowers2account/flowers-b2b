@@ -151,15 +151,16 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
   const displayName = product.display_name || product.variety_name || product.name
   const originLabel = product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null
-  const metaParts = [
-    product.category === 'pot'
-      ? [
-          product.length_cm ? `${product.length_cm} см` : null,
-          (product as any).pot_diameter ? `⌀${(product as any).pot_diameter}` : null,
-        ].filter(Boolean).join(' · ') || null
-      : (product.length_cm ? `${product.length_cm} см` : product.length_str),
-    originLabel,
-  ].filter(Boolean)
+  type Dim = { type: 'length' | 'diam'; val: string }
+  const dims: Dim[] = product.category === 'pot'
+    ? [
+        product.length_cm ? { type: 'length', val: `${product.length_cm}см` } : null,
+        (product as any).pot_diameter ? { type: 'diam', val: `${(product as any).pot_diameter}` } : null,
+      ].filter(Boolean) as Dim[]
+    : (product.length_cm || product.length_str
+        ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
+        : [])
+  const metaParts = [originLabel].filter(Boolean)
 
   const colorKeys = product.colors?.length ? product.colors : product.color ? [product.color] : []
   const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
@@ -275,6 +276,19 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         }}>
           {displayName}
         </div>
+
+        {/* Размеры */}
+        {dims.length > 0 && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 6 }}>
+            {dims.map((d, i) => (
+              <span key={i} style={{ fontSize: 12, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 3 }}>
+                {d.type === 'length'
+                  ? <><span style={{ fontSize: 14 }}>↔</span>{d.val}</>
+                  : <><span style={{ fontSize: 17, lineHeight: 1 }}>⌀</span>{d.val}</>}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Meta */}
         {metaParts.length > 0 && (

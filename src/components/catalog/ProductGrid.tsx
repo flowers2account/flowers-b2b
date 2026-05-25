@@ -130,12 +130,15 @@ function GridCard({
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
   const displayName = product.display_name || product.variety_name || product.name
-  const meta = product.category === 'pot'
+  type Dim = { type: 'length' | 'diam'; val: string }
+  const dims: Dim[] = product.category === 'pot'
     ? [
-        product.length_cm ? `${product.length_cm} см` : null,
-        product.pot_diameter ? `⌀${product.pot_diameter}` : null,
-      ].filter(Boolean).join(' · ')
-    : [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
+        product.length_cm ? { type: 'length', val: `${product.length_cm}см` } : null,
+        product.pot_diameter ? { type: 'diam', val: `${product.pot_diameter}` } : null,
+      ].filter(Boolean) as Dim[]
+    : (product.length_cm || product.length_str
+        ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
+        : [])
   const [hovered, setHovered] = useState(false)
   const [activePhoto, setActivePhoto] = useState(0)
   const hasSecondPhoto = !!product.campaign_image_url
@@ -254,8 +257,16 @@ function GridCard({
           </div>
         )}
 
-        {meta && (
-          <div style={{ fontSize: 11, color: 'var(--text-mid)', marginTop: 2 }}>{meta}</div>
+        {dims.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginTop: 2, flexWrap: 'wrap' }}>
+            {dims.map((d, i) => (
+              <span key={i} style={{ fontSize: 11, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
+                {d.type === 'length'
+                  ? <><span style={{ fontSize: 13 }}>↔</span>{d.val}</>
+                  : <><span style={{ fontSize: 15, lineHeight: 1 }}>⌀</span>{d.val}</>}
+              </span>
+            ))}
+          </div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
@@ -300,12 +311,15 @@ function ListRow({
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
   const displayName = product.display_name || product.variety_name || product.name
-  const meta = product.category === 'pot'
+  type Dim = { type: 'length' | 'diam'; val: string }
+  const dims: Dim[] = product.category === 'pot'
     ? [
-        product.length_cm ? `${product.length_cm} см` : null,
-        product.pot_diameter ? `⌀${product.pot_diameter}` : null,
-      ].filter(Boolean).join(' · ')
-    : [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
+        product.length_cm ? { type: 'length', val: `${product.length_cm}см` } : null,
+        product.pot_diameter ? { type: 'diam', val: `${product.pot_diameter}` } : null,
+      ].filter(Boolean) as Dim[]
+    : (product.length_cm || product.length_str
+        ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
+        : [])
 
   return (
     <div
@@ -332,7 +346,17 @@ function ListRow({
         <div style={{ fontFamily: 'var(--font-playfair)', fontSize: 13, fontWeight: 400, lineHeight: 1.25, color: 'var(--text)' }}>
           {displayName}
         </div>
-        {meta && <div style={{ fontSize: 11, color: 'var(--text-mid)', marginTop: 2 }}>{meta}</div>}
+        {dims.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginTop: 2 }}>
+            {dims.map((d, i) => (
+              <span key={i} style={{ fontSize: 11, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
+                {d.type === 'length'
+                  ? <><span style={{ fontSize: 13 }}>↔</span>{d.val}</>
+                  : <><span style={{ fontSize: 15, lineHeight: 1 }}>⌀</span>{d.val}</>}
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>
             {available === 0 ? 'Нет в наличии' : `${available} шт`}
