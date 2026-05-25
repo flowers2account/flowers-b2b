@@ -11,10 +11,10 @@ export async function GET(request: NextRequest) {
     .from('products')
     .select(`
       id, name, display_name, length_cm, category, pack_size,
-      colors, image_url, arrival_date, price, qty, country_iso,
-      stock:stock_available(available_qty)
+      colors, image_url, arrival_date, price, qty, country_iso
     `)
     .eq('is_active', true)
+    .gt('qty', 0)
     .order('name')
     .order('length_cm')
 
@@ -34,20 +34,16 @@ export async function GET(request: NextRequest) {
 
   const { data } = await query
   const today = new Date().toISOString().split('T')[0]
-  const result = (data ?? []).map((p: any) => {
-    const stockRow = Array.isArray(p.stock) ? p.stock[0] : p.stock
-    const available_qty = stockRow?.available_qty ?? p.qty
-    return {
-      ...p,
-      is_new: p.arrival_date === today,
-      stock: {
-        price: p.price,
-        qty: p.qty,
-        qty_reserved: Math.max(0, p.qty - available_qty),
-        is_available: available_qty > 0,
-        available_qty,
-      },
-    }
-  })
+  const result = (data ?? []).map((p: any) => ({
+    ...p,
+    is_new: p.arrival_date === today,
+    stock: {
+      price: p.price,
+      qty: p.qty,
+      qty_reserved: 0,
+      is_available: p.qty > 0,
+      available_qty: p.qty,
+    },
+  }))
   return NextResponse.json(result)
 }

@@ -26,7 +26,9 @@
       "Bash(cp \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\NAMING_SYSTEM_STATE.md\" \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\NAMING_SYSTEM_STATE.md\")",
       "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\DATABASE_SCHEMA.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\DATABASE_SCHEMA.md\")",
       "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\ARCHITECTURE.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\ARCHITECTURE.md\")",
-      "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\BUSINESS_LOGIC.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\BUSINESS_LOGIC.md\")"
+      "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\BUSINESS_LOGIC.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\BUSINESS_LOGIC.md\")",
+      "WebFetch(domain:flowers-b2b-phi.vercel.app)",
+      "mcp__claude_ai_Vercel__list_deployments"
     ]
   }
 }

@@ -15,8 +15,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, name, display_name, length_cm, category,
       pack_size, image_url, colors, country_iso,
-      price, qty, is_active, arrival_date,
-      stock:stock_available(qty, qty_reserved, available_qty, is_active)
+      price, qty, is_active, arrival_date
     `)
     .order('name')
     .order('length_cm', { ascending: true, nullsFirst: false })
@@ -27,21 +26,36 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await query
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Fetch reserved quantities separately
+  const ids = (data ?? []).map((p: any) => p.id)
+  let reservedMap = new Map<number, number>()
+  if (ids.length > 0) {
+    const now = new Date().toISOString()
+    const { data: resData } = await admin
+      .from('reservations')
+      .select('product_id, qty')
+      .in('product_id', ids)
+      .gt('expires_at', now)
+    for (const r of resData ?? []) {
+      reservedMap.set(r.product_id, (reservedMap.get(r.product_id) ?? 0) + r.qty)
+    }
+  }
 
   const today = new Date().toISOString().split('T')[0]
   let products = (data ?? []).map((p: any) => {
-    const s = Array.isArray(p.stock) ? p.stock[0] : p.stock
+    const qty_reserved = reservedMap.get(p.id) ?? 0
+    const available_qty = Math.max(0, p.qty - qty_reserved)
     return {
       ...p,
       is_new: p.arrival_date === today,
       stock: {
         price: p.price ?? 0,
-        qty: s?.qty ?? p.qty ?? 0,
-        qty_reserved: s?.qty_reserved ?? 0,
-        available_qty: s?.available_qty ?? p.qty ?? 0,
-        is_available: (s?.available_qty ?? p.qty ?? 0) > 0,
+        qty: p.qty ?? 0,
+        qty_reserved,
+        available_qty,
+        is_available: available_qty > 0,
       },
     }
   })

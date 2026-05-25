@@ -19,7 +19,7 @@ export async function GET() {
     .from('orders')
     .select(`
       id, status, total, notes, created_at, client_id,
-      order_items(id, product_id, qty, price, product:product_id(name, pack_size, stock:stock_available(available_qty), price)),
+      order_items(id, product_id, qty, price, product:product_id(name, pack_size, price, qty)),
       reservations(expires_at)
     `)
     .eq('client_id', client.id)
