@@ -56,6 +56,10 @@ export function parseNomenclature(raw: string): ParsedItem {
   name = name.replace(/\s*\(без тубы\)\s*/gi, '').trim()
   name = name.replace(/\s*\(пач[^)]*\d+\s*шт[^)]*\)\s*/gi, '').trim() // (пачке 20шт), (пачка 10шт) и т.п.
 
+  // Strip supplier/packaging stop-words
+  name = name.replace(/\b(linflowers?|линфлауэрс?|zento|зенто|\d+кор|оф\.?|bunch|box|bq)\b/gi, '')
+  name = name.replace(/\s{2,}/g, ' ').trim()
+
   const variety_name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
 
   // Category: if we found pot_diameter → pot; otherwise keyword check

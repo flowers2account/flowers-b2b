@@ -25,6 +25,10 @@ const ORIGIN_LABELS: Record<string, string> = {
   ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
   china: 'Китай', colombia: 'Колумбия', local: 'Местный',
 }
+const COUNTRY_LABELS: Record<string, string> = {
+  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
+}
 
 type SortKey = 'popular' | 'price_asc' | 'price_desc' | 'stock'
 
@@ -250,10 +254,12 @@ function GridCard({
           )
         })()}
 
-        {/* Происхождение */}
-        {product.origin && (
+        {/* Страна */}
+        {(product.country_iso || product.origin) && (
           <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 2 }}>
-            {ORIGIN_LABELS[product.origin] ?? product.origin}
+            {product.country_iso
+              ? (COUNTRY_LABELS[product.country_iso] ?? product.country_iso)
+              : (ORIGIN_LABELS[product.origin!] ?? product.origin)}
           </div>
         )}
 
