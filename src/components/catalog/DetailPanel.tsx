@@ -28,16 +28,9 @@ const ORIGIN_MAP: Record<string, string> = {
   local:    'Местный',
 }
 
-const COUNTRY_FLAGS: Record<string, { flag: string; name: string }> = {
-  EC: { flag: '🇪🇨', name: 'Эквадор' },
-  KE: { flag: '🇰🇪', name: 'Кения' },
-  NL: { flag: '🇳🇱', name: 'Голландия' },
-  CN: { flag: '🇨🇳', name: 'Китай' },
-  CO: { flag: '🇨🇴', name: 'Колумбия' },
-  RU: { flag: '🇷🇺', name: 'Россия' },
-  ET: { flag: '🇪🇹', name: 'Эфиопия' },
-  EG: { flag: '🇪🇬', name: 'Египет' },
-  IL: { flag: '🇮🇱', name: 'Израиль' },
+const COUNTRY_LABELS: Record<string, string> = {
+  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
 }
 
 const SEASON_MAP: Record<string, string> = {
@@ -162,10 +155,9 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   const mainPhoto = images[photoIdx] ?? null
 
   const displayName = product.display_name || product.variety_name || product.name
-  const countryEntry = product.country_iso ? COUNTRY_FLAGS[product.country_iso] : null
-  const countryLabel = countryEntry
-    ? `${countryEntry.flag} ${countryEntry.name}`
-    : product.country_iso ?? (product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null)
+  const countryLabel = product.country_iso
+    ? (COUNTRY_LABELS[product.country_iso] ?? product.country_iso)
+    : product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null
   type Dim = { type: 'length' | 'diam'; val: string }
   const dims: Dim[] = product.category === 'pot'
     ? [
@@ -309,11 +301,9 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           <div style={{ marginBottom: 8 }}>
             <span style={{
               fontSize: 11, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
-              borderRadius: 4, padding: '2px 7px',
-              display: 'inline-flex', alignItems: 'center', gap: 4,
+              borderRadius: 4, padding: '2px 8px', fontWeight: 500,
             }}>
-              {countryEntry && <span style={{ fontSize: 13, lineHeight: 1 }}>{countryEntry.flag}</span>}
-              {countryEntry ? countryEntry.name : countryLabel}
+              {countryLabel}
             </span>
           </div>
         )}

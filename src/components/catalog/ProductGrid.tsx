@@ -25,28 +25,18 @@ const ORIGIN_LABELS: Record<string, string> = {
   ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
   china: 'Китай', colombia: 'Колумбия', local: 'Местный',
 }
-const COUNTRY_LABELS: Record<string, { flag: string; name: string }> = {
-  EC: { flag: '🇪🇨', name: 'Эквадор' },
-  KE: { flag: '🇰🇪', name: 'Кения' },
-  NL: { flag: '🇳🇱', name: 'Голландия' },
-  CN: { flag: '🇨🇳', name: 'Китай' },
-  CO: { flag: '🇨🇴', name: 'Колумбия' },
-  RU: { flag: '🇷🇺', name: 'Россия' },
-  ET: { flag: '🇪🇹', name: 'Эфиопия' },
-  EG: { flag: '🇪🇬', name: 'Египет' },
-  IL: { flag: '🇮🇱', name: 'Израиль' },
+const COUNTRY_LABELS: Record<string, string> = {
+  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
 }
 
 function CountryBadge({ iso }: { iso: string }) {
-  const c = COUNTRY_LABELS[iso]
-  if (!c) return <span style={{ fontSize: 10, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)', borderRadius: 4, padding: '1px 5px' }}>{iso}</span>
   return (
     <span style={{
       fontSize: 10, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
-      borderRadius: 4, padding: '1px 5px',
-      display: 'inline-flex', alignItems: 'center', gap: 3,
+      borderRadius: 4, padding: '1px 6px', fontWeight: 500,
     }}>
-      <span style={{ fontSize: 12, lineHeight: 1 }}>{c.flag}</span>{c.name}
+      {COUNTRY_LABELS[iso] ?? iso}
     </span>
   )
 }
