@@ -4,14 +4,15 @@
 
 ---
 
-## 🔴 Этап 1 — Критические баги (срочно)
+## 🔴 Этап 1 — Критические баги
 
-| # | Задача | Файл |
-|---|--------|------|
-| 1 | Исправить FIFO — убрать `WHERE price = item.price` | `confirm_order_fifo()` |
-| 2 | Добавить триггер на DELETE reservations → пересчёт qty_reserved | Supabase migration |
-| 3 | Починить checkout в DetailPanel | `DetailPanel.tsx` |
-| 4 | Синхронизация PIN при смене в AdminTable | `AdminTable.tsx` + `/api/client/change-pin` |
+| # | Задача | Файл | Статус |
+|---|--------|------|--------|
+| 1 | Исправить FIFO — убрать `WHERE price = item.price` | `confirm_order_fifo()` | ✅ FIFO удалён при rebuild |
+| 2 | Добавить триггер на DELETE reservations → пересчёт qty_reserved | Supabase migration | ✅ stock_available VIEW |
+| 3 | Починить checkout в DetailPanel | `DetailPanel.tsx` | ✅ Исправлено |
+| 4 | Иконка корзины в хедере не открывает панель | Header | ✅ Исправлено |
+| 5 | Синхронизация PIN при смене в AdminTable | `AdminTable.tsx` + `/api/client/change-pin` | 🔴 Не сделано |
 
 ---
 
@@ -66,10 +67,14 @@
 
 | Дата | Что сделано |
 |------|------------|
+| 25.05.2026 | Динамические фасеты — colorCounts/lengthCounts/originCounts сужаются по subcat+varietyType |
+| 25.05.2026 | Цвета в фильтре: dim (opacity 0.25) если нет товаров в текущей выборке |
+| 25.05.2026 | display_name: подключён cultivar_cyrillic из translation_memory через variety_id |
+| 25.05.2026 | auto_parse_flower_structure: тайbreaker LENGTH(name_ru) DESC — специфичный вид побеждает |
+| 25.05.2026 | Гвоздика: добавлены species carnation_standard (47) и carnation_spray (48), автодетект variety_type |
+| 25.05.2026 | parse-nomenclature: очистка артефактов 1С `(пачке Nшт)` |
+| 25.05.2026 | Rebuild БД — плоская схема products, удалены batches/stock/FIFO |
 | 24.05.2026 | Создана база знаний docs/ (8 файлов) |
-| 24.05.2026 | Исправлен import-xls — использует sync_stock_from_1c |
-| 23.05.2026 | Исправлен sync_stock_from_1c — нет дублей, arrival_date сохраняется |
-| 23.05.2026 | Очищено 52 группы дублей партий (54 деактивировано) |
 | 20.05.2026 | AI-переводчик v1.1 — справочники species/colors/countries |
 | 09.05.2026 | Система кампаний (предзаказы Голландия/Китай) |
 | 07.05.2026 | DetailPanel, мобильная адаптация каталога, фильтры |

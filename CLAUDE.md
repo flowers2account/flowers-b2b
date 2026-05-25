@@ -189,10 +189,8 @@ CRON_SECRET=your-secret-key-here      # для тестирования cron end
 
 ## Known Issues
 
-### 🔴 Критические (до предзаказов)
-- **checkout не работает в DetailPanel** — корзина в правой панели не отправляет заказ
+### 🔴 Критические
 - **PIN не синхронизируется** — изменение PIN в AdminTable не обновляет Supabase Auth
-- **Иконка корзины в хедере** — не открывает правую панель на десктопе
 
 ### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
 - **Проблема**: Service role key не доступен в функциях на Vercel
