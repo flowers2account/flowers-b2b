@@ -32,6 +32,10 @@ const SEASON_LABELS: Record<string, string> = {
 export const ORIGIN_LABELS: Record<string, string> = {
   ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
   china: 'Китай', russia: 'Россия', colombia: 'Колумбия', local: 'Местный',
+  // ISO-коды (из country_iso в products)
+  CN: 'Китай', NL: 'Голландия', EC: 'Эквадор', KE: 'Кения',
+  CO: 'Колумбия', ET: 'Эфиопия', IL: 'Израиль', RU: 'Россия',
+  TR: 'Турция', ZA: 'ЮАР', TZ: 'Танзания', UG: 'Уганда',
 }
 const TAG_LABELS: Record<string, string> = {
   hit: '🔥 Хит', sale: '🏷 Акция', new: '🆕 Новинка',

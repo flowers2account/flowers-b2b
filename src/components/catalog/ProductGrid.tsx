@@ -519,12 +519,12 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         if (!lengths.includes(cm)) return false
       }
       if (origins.length > 0) {
-        const src = ((p as any).origin as string | undefined) ?? ''
+        const src = (p as any).country_iso ?? ''
         if (!src || !origins.includes(src)) return false
       }
       // Размер горшка (pot)
-      if (potSizes.length > 0 && p.pot_size != null) {
-        const ps = p.pot_size
+      if (potSizes.length > 0) {
+        const ps = (p as any).pot_diameter ?? p.pot_size
         const ok = potSizes.some(id => {
           if (id === 'до12')  return ps <= 12
           if (id === '14-17') return ps >= 14 && ps <= 17
