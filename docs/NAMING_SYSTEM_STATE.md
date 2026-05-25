@@ -16,7 +16,7 @@
 
 ---
 
-## 📊 Текущая схема `products` (17 полей)
+## 📊 Текущая схема `products` (19 полей)
 
 ```sql
 products (
@@ -26,6 +26,8 @@ products (
   -- Связи и категория
   variety_id      INTEGER REFERENCES varieties(id)
   category        ENUM (cut/pot)
+  subcategory     TEXT                   -- roses/chrysanthemums/lilies/... (для фильтров)
+  variety_type    TEXT                   -- single/spray/pompom/... (для фильтров)
   
   -- Имена
   name            TEXT NOT NULL          -- raw из 1С
@@ -131,7 +133,7 @@ translation_memory (
 | ❌ View `stock_available` (старый) | Пересоздан под новую логику |
 | ❌ Функция `sync_stock_from_1c` | Не нужна — INSERT/UPDATE прямо в products |
 | ❌ Функция `confirm_order_fifo` | FIFO удалён |
-| ❌ Поля products: variety_name, length_str, color, origin, pot_size, normalized_slug, previous_price, variety_type, floral_role, stem_durability, season, stems_per_pack, subcategory, search_aliases, tags, images, description, campaign_image_url | Дубли/неиспользуемые |
+| ❌ Поля products: variety_name, length_str, color, origin, pot_size, normalized_slug, previous_price, floral_role, stem_durability, season, stems_per_pack, search_aliases, tags, images, description, campaign_image_url | Дубли/неиспользуемые |
 
 ---
 
@@ -216,15 +218,27 @@ qty не трогаем (товар физически на складе)
 
 ### Функция `generate_product_display_name(product_id)`
 
-```
-INPUT: id товара
+Функция приоритетно использует `translation_memory.cultivar_cyrillic` через JOIN по `variety_id`.
 
-С species_id → "Роза однг Эксплоуер ЭКВАДОР 50см"
-  (CONCAT species.name_ru + abbrev + variety.name + country + length)
-
-Без species_id → "Эксплоуер 50см"  
-  (INITCAP variety.name + country + length)
 ```
+Приоритет 1 (TM есть cultivar_cyrillic):
+  species.name_ru + " " + cultivar_cyrillic
+  Пример: "Гвоздика Сфт Пинк"
+  
+Приоритет 2 (есть species, нет TM):
+  variety.name → убрать полный prefix species.name_ru
+              → убрать type-квалификаторы (одноголовая/ветковая/кустовая/стандарт/спрей)
+              → убрать "(страна)" в скобках
+  Пример: variety.name="Хризантема ветковая Балтика Пинк" → "Балтика Пинк"
+  
+Приоритет 3 (нет species):
+  INITCAP(variety.name) с удалением "(страна)" в скобках
+```
+
+**Что НЕ включается в display_name:**
+- Страна (показывается отдельно в карточке)
+- Аббревиатуры видов (однг, ветк, спр...)
+- Длина стебля (в карточке отдельно)
 
 ### Триггер `trg_products_display_name`
 
@@ -232,6 +246,14 @@ INPUT: id товара
 WHEN: INSERT или UPDATE поля variety_id/country_iso/length_cm/pot_diameter/name
 THEN: вызывает generate_product_display_name() и сохраняет в display_name
 ```
+
+### Связка TM → display_name через variety_id
+
+При импорте XLS `import-xls/route.ts` устанавливает `translation_memory.variety_id` **до** вставки/обновления товара — двумя путями параллельно:
+1. По `enriched.translation_memory_id` (AI-запись с полным именем включая длину)
+2. По `normalized_original = varNorm` (ручная запись без длины)
+
+Это гарантирует что триггер на INSERT products найдёт TM-запись и сразу сформирует правильный display_name.
 
 ---
 
@@ -311,32 +333,33 @@ DROP TABLE _backup_products_pre_rebuild;
 
 ---
 
-## ⚠️ Что сломано в коде на 25.05.2026
+## ✅ Статус эндпоинтов на 25.05.2026
 
-После rebuild **не работают**:
-
-| Что | Куда деть |
-|-----|-----------|
-| `/api/import-xls` | Переписать под новую схему |
-| `/api/products` | Переписать SELECT (нет JOIN со stock) |
-| `/api/checkout` | Подкорректировать INSERT reservations |
-| `/api/confirm-order` | Простое qty -= ordered_qty |
-| Триггеры на orders | Переписать (без batches) |
-| Фронт upload XLS | Может остаться как есть |
-| Фронт каталога | Может остаться (qty и price теперь напрямую) |
-
-Следующий шаг: **спека для Claude Code** на переписку этих эндпоинтов.
+| Эндпоинт | Статус |
+|----------|--------|
+| `/api/import-xls` | ✅ Работает — плоская схема, AI-обогащение, UPSERT variety + product |
+| `/api/products` | ✅ Работает — SELECT напрямую из products |
+| `/api/facets` | ✅ Работает — динамические счётчики по subcat/varietyType |
+| `/api/checkout` | ✅ Работает — INSERT reservations |
+| `/api/confirm-order` | ✅ Работает — qty -= ordered_qty |
 
 ---
 
 ## 📋 Что готово (25.05.2026)
 
-- ✅ Схема products плоская, 17 полей
+- ✅ Схема products плоская, 19 полей (+ subcategory, variety_type)
 - ✅ UNIQUE (variety_id, length_cm, country_iso, price) с NULLS NOT DISTINCT
 - ✅ pack_size в products
 - ✅ reservations таблица + RLS политики + индексы
 - ✅ stock_available VIEW (новая логика)
-- ✅ Триггер display_name (работает с новой схемой)
-- ✅ Функция generate_product_display_name (новая схема)
-- ✅ translation_memory сохранён (127 переводов)
+- ✅ Триггер display_name — использует cultivar_cyrillic из translation_memory
+- ✅ Функция generate_product_display_name — 3 приоритета, без страны и аббревиатур
+- ✅ translation_memory.variety_id — линкуется при импорте (два пути: по tm_id и по имени сорта)
+- ✅ auto_parse_flower_structure — тайbreaker по LENGTH(name_ru) DESC (более специфичный вид побеждает)
+- ✅ species: добавлены carnation_standard (id=47) и carnation_spray (id=48)
+- ✅ import-xls: автодетект variety_type гвоздик по ключевым словам (ветковая/кустовая/спрей)
+- ✅ import-xls: очистка артефактов 1С (пачке Nшт) в parse-nomenclature
+- ✅ Динамические фасеты: colorCounts/lengthCounts/originCounts сужаются по subcat+varietyType
+- ✅ Цвета в фильтре: тусклые (opacity 0.25) если count=0 в текущей выборке
+- ✅ translation_memory сохранён
 - ✅ Все backup_*_pre_rebuild таблицы созданы

@@ -429,6 +429,42 @@ Original:  Chr T Baltica Pink (вернули английский!)
 
 ---
 
+## 🔗 Интеграция TM → products (добавлено 25.05.2026)
+
+### Как cultivar_cyrillic попадает в display_name
+
+При импорте XLS (`import-xls/route.ts`) перед INSERT/UPDATE товара выполняется:
+
+```typescript
+// Устанавливаем variety_id в TM ДО вставки продукта — два пути параллельно:
+await Promise.all([
+  // 1. По ID записи из AI (имя с длиной: "гвоздика сфт пинк 60")
+  enriched?.translation_memory_id
+    ? supabase.from('translation_memory').update({ variety_id }).eq('id', tm_id)
+    : Promise.resolve(),
+  // 2. По нормализованному имени сорта (без длины: "гвоздика сфт пинк")
+  supabase.from('translation_memory').update({ variety_id })
+    .eq('normalized_original', varNorm).is('variety_id', null),
+])
+```
+
+После этого триггер `trg_products_display_name` срабатывает на INSERT/UPDATE products и вызывает `generate_product_display_name`, которая LATERAL-джойнит TM по `variety_id` и берёт `cultivar_cyrillic` как основу имени.
+
+### Почему два пути
+
+- AI кэширует запись с длиной: `normalized_original = "гвоздика сфт пинк 60"` → находит по `translation_memory_id`
+- Ручная запись в TM вводится без длины: `normalized_original = "гвоздика сфт пинк"` → находит по точному совпадению имени сорта
+
+### Приоритет источников в TM при JOIN
+
+`generate_product_display_name` выбирает TM-запись по:
+```sql
+ORDER BY (source = 'manual') DESC, confidence DESC LIMIT 1
+```
+Ручные правки (`source = 'manual'`) всегда приоритетнее AI.
+
+---
+
 ## 🚀 Недавние улучшения (v1.1)
 
 ### Добавлено в этой сессии:
