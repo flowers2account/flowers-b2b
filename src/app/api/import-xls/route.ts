@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
       //    Включая is_active=false — чтобы реактивировать старую карточку с той же ценой
       let productQuery = supabase
         .from('products')
-        .select('id')
+        .select('id, subcategory, variety_type')
         .eq('variety_id', variety.id)
         .eq('price', row.price)
 
@@ -223,8 +223,9 @@ export async function POST(req: NextRequest) {
             name: row.name,
             length_cm: parsed.length_cm ?? null,
             pot_diameter: parsed.pot_diameter ?? null,
-            subcategory,
-            variety_type,
+            // не перезаписываем если уже заполнено вручную
+            subcategory: (existingProduct as any).subcategory ?? subcategory,
+            variety_type: (existingProduct as any).variety_type ?? variety_type,
           })
           .eq('id', existingProduct.id)
         if (pErr) throw new Error(`product update: ${pErr.message}`)
