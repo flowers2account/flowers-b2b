@@ -51,9 +51,10 @@ export function parseNomenclature(raw: string): ParsedItem {
     }
   }
 
-  // Strip "(Пустая характеристика)" and similar 1C artifacts
+  // Strip 1C artifacts in parentheses
   name = name.replace(/\s*\(пустая характеристика\)\s*/gi, '').trim()
   name = name.replace(/\s*\(без тубы\)\s*/gi, '').trim()
+  name = name.replace(/\s*\(пач[^)]*\d+\s*шт[^)]*\)\s*/gi, '').trim() // (пачке 20шт), (пачка 10шт) и т.п.
 
   const variety_name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
 
