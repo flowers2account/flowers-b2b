@@ -8,14 +8,28 @@ export const revalidate = 0
 
 export default async function HomePage() {
   const supabase = await createClient()
-  const { data: products } = await supabase
+  const { data } = await supabase
     .from('products')
-    .select(`id, name, variety_name, length_str, length_cm, category, subcategory, variety_type, color, colors, floral_role, stem_durability, season, origin, description, pot_size, pack_size, stems_per_pack, image_url, images, previous_price, stock:stock_available (price, qty, qty_reserved, is_available, available_qty, reserved_qty)`)
+    .select(`id, name, display_name, length_cm, category, pack_size, colors, image_url, arrival_date, price, qty, country_iso`)
     .eq('is_active', true)
-    .order('variety_name')
+    .gt('qty', 0)
+    .order('name')
     .order('length_cm')
 
-  const list = products ?? []
+  const today = new Date().toISOString().split('T')[0]
+  const list = (data ?? []).map((p: any) => ({
+    ...p,
+    variety_name: null,
+    length_str: null,
+    is_new: p.arrival_date === today,
+    stock: {
+      price: p.price ?? 0,
+      qty: p.qty ?? 0,
+      qty_reserved: 0,
+      is_available: (p.qty ?? 0) > 0,
+      available_qty: p.qty ?? 0,
+    },
+  }))
 
   return (
     <CatalogLayout
