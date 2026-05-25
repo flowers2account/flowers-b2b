@@ -175,7 +175,6 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
     : (product.length_cm || product.length_str
         ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
         : [])
-  const metaParts = [countryLabel].filter(Boolean)
 
   const colorKeys = product.colors?.length ? product.colors : product.color ? [product.color] : []
   const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
@@ -305,10 +304,17 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           </div>
         )}
 
-        {/* Meta */}
-        {metaParts.length > 0 && (
-          <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 8 }}>
-            {metaParts.join(' · ')}
+        {/* Страна */}
+        {countryLabel && (
+          <div style={{ marginBottom: 8 }}>
+            <span style={{
+              fontSize: 11, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
+              borderRadius: 4, padding: '2px 7px',
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}>
+              {countryEntry && <span style={{ fontSize: 13, lineHeight: 1 }}>{countryEntry.flag}</span>}
+              {countryEntry ? countryEntry.name : countryLabel}
+            </span>
           </div>
         )}
 

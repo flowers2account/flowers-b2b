@@ -39,10 +39,14 @@ const COUNTRY_LABELS: Record<string, { flag: string; name: string }> = {
 
 function CountryBadge({ iso }: { iso: string }) {
   const c = COUNTRY_LABELS[iso]
-  if (!c) return <span style={{ fontSize: 11, color: 'var(--text-mid)' }}>{iso}</span>
+  if (!c) return <span style={{ fontSize: 10, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)', borderRadius: 4, padding: '1px 5px' }}>{iso}</span>
   return (
-    <span style={{ fontSize: 11, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-      <span style={{ fontSize: 13, lineHeight: 1 }}>{c.flag}</span>{c.name}
+    <span style={{
+      fontSize: 10, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
+      borderRadius: 4, padding: '1px 5px',
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+    }}>
+      <span style={{ fontSize: 12, lineHeight: 1 }}>{c.flag}</span>{c.name}
     </span>
   )
 }
