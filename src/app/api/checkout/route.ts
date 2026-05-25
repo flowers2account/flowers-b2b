@@ -47,21 +47,29 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
 
-  // Check stock availability
+  // Check availability: products.qty minus other clients' reservations
   const reserveErrors: string[] = []
   for (const item of items) {
-    const { data: stock } = await supabase.from('stock').select('qty').eq('product_id', item.id).single()
-    if (!stock) {
+    const { data: product } = await supabase
+      .from('products')
+      .select('qty')
+      .eq('id', item.id)
+      .single()
+
+    if (!product) {
       reserveErrors.push(`${item.name}: товар не найден`)
       continue
     }
-    const { data: otherRes } = await supabase.from('reservations')
+
+    const { data: otherRes } = await supabase
+      .from('reservations')
       .select('qty')
       .eq('product_id', item.id)
       .gt('expires_at', now)
-      .neq('user_id', clientId)
+      .neq('client_id', clientId)
+
     const othersReserved = (otherRes ?? []).reduce((s: number, r: any) => s + r.qty, 0)
-    const available = stock.qty - othersReserved
+    const available = product.qty - othersReserved
     if (item.qty > available) {
       reserveErrors.push(`${item.name}: доступно только ${available} шт`)
     }
@@ -84,40 +92,19 @@ export async function POST(req: NextRequest) {
     items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
   )
 
-  // Create reservations for each item (replace any existing client reservations for these products)
+  // Create reservations (replace any existing client reservations for these products)
   for (const item of items) {
-    const { data: existingRes } = await supabase.from('reservations')
-      .select('qty')
-      .eq('product_id', item.id)
-      .eq('user_id', clientId)
-      .maybeSingle()
-
-    const oldQty = existingRes?.qty ?? 0
-    const qtyChange = item.qty - oldQty
-
     await supabase.from('reservations').delete()
       .eq('product_id', item.id)
-      .eq('user_id', clientId)
+      .eq('client_id', clientId)
 
     await supabase.from('reservations').insert({
       product_id: item.id,
       qty: item.qty,
-      user_id: clientId,
+      client_id: clientId,
       expires_at,
       order_id: orderId,
     })
-
-    if (qtyChange !== 0) {
-      const { data: stock } = await supabase
-        .from('stock')
-        .select('qty_reserved')
-        .eq('product_id', item.id)
-        .single()
-      await supabase
-        .from('stock')
-        .update({ qty_reserved: (stock?.qty_reserved ?? 0) + qtyChange })
-        .eq('product_id', item.id)
-    }
   }
 
   const itemsList = items

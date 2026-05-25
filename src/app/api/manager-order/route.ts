@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
 
-  // Проверяем остатки
+  // Check availability
   const reserveErrors: string[] = []
   for (const item of items) {
     const { data: sa } = await supabase
@@ -53,25 +53,28 @@ export async function POST(req: NextRequest) {
     await supabase.from('reservations').insert({
       product_id: item.id,
       qty: item.qty,
-      user_id: client_id ?? null,
+      client_id: client_id ?? null,
       expires_at,
       order_id: order.id,
     })
-    const { data: stock } = await supabase.from('stock')
-      .select('qty_reserved').eq('product_id', item.id).single()
-    await supabase.from('stock').update({
-      qty_reserved: (stock?.qty_reserved ?? 0) + item.qty
-    }).eq('product_id', item.id)
   }
 
   if (confirmed) {
-    // Касса: подтверждение + сразу выдача
-    // 1. Списываем остатки через FIFO
-    const { error: rpcErr } = await supabase.rpc('confirm_order_fifo', { p_order_id: order.id })
-    if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 })
-    // 2. Удаляем резервирования
+    // Касса: сразу списываем остатки и выдаём
+    for (const item of items) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('qty')
+        .eq('id', item.id)
+        .single()
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ qty: product.qty - item.qty })
+          .eq('id', item.id)
+      }
+    }
     await supabase.from('reservations').delete().eq('order_id', order.id)
-    // 3. Сразу ставим статус "выдан"
     await supabase.from('orders').update({ status: 'delivered' }).eq('id', order.id)
   } else {
     await supabase.from('orders').update({ status: 'reserved' }).eq('id', order.id)

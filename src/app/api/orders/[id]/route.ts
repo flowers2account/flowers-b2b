@@ -35,44 +35,48 @@ export async function PATCH(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
-  // For confirmed status, also run FIFO stock deduction
+  // For confirmed status: deduct qty from products and clear reservations
   if (status === 'confirmed') {
-    const { error: rpcError } = await supabase.rpc('confirm_order_fifo', { p_order_id: orderId })
-    if (rpcError) {
-      // Rollback status
-      await supabase.from('orders').update({ status: order.status }).eq('id', orderId)
+    const { data: orderItems } = await supabase
+      .from('order_items')
+      .select('product_id, qty, product:product_id(name)')
+      .eq('order_id', orderId)
 
-      if (rpcError.message.includes('stock_reserved_lte_qty')) {
-        // Find which items have insufficient stock
-        const { data: orderItems } = await supabase
-          .from('order_items')
-          .select('qty, product_id, product:product_id(name)')
-          .eq('order_id', orderId)
+    const shortages: string[] = []
+    for (const item of orderItems ?? []) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('qty')
+        .eq('id', item.product_id)
+        .single()
 
-        const { data: stockRows } = await supabase
-          .from('stock')
-          .select('product_id, qty')
-          .in('product_id', (orderItems ?? []).map((i: any) => i.product_id))
-
-        const stockMap = Object.fromEntries((stockRows ?? []).map((s: any) => [s.product_id, s.qty]))
-
-        const shortages = (orderItems ?? [])
-          .filter((i: any) => i.qty > (stockMap[i.product_id] ?? 0))
-          .map((i: any) => {
-            const available = stockMap[i.product_id] ?? 0
-            const name = (i.product as any)?.name ?? `Товар #${i.product_id}`
-            return `${name} — в остатке только ${available} шт`
-          })
-
-        const message = shortages.length > 0
-          ? shortages.join('; ')
-          : 'Недостаточно товара на складе'
-
-        return NextResponse.json({ error: message }, { status: 409 })
+      if (!product || product.qty < item.qty) {
+        const available = product?.qty ?? 0
+        const name = (item.product as any)?.name ?? `Товар #${item.product_id}`
+        shortages.push(`${name} — в остатке только ${available} шт`)
       }
-
-      return NextResponse.json({ error: rpcError.message }, { status: 500 })
     }
+
+    if (shortages.length > 0) {
+      await supabase.from('orders').update({ status: order.status }).eq('id', orderId)
+      return NextResponse.json({ error: shortages.join('; ') }, { status: 409 })
+    }
+
+    for (const item of orderItems ?? []) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('qty')
+        .eq('id', item.product_id)
+        .single()
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ qty: product.qty - item.qty })
+          .eq('id', item.product_id)
+      }
+    }
+
+    await supabase.from('reservations').delete().eq('order_id', orderId)
   }
 
   await supabase.from('order_history').insert({

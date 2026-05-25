@@ -74,11 +74,13 @@ function StockRow({ product, onSaved }: {
   async function save() {
     setSaving(true)
     await supabase
-      .from('stock')
-      .update({ qty: parseInt(qty), price: parseFloat(price), updated_at: new Date().toISOString() })
-      .eq('product_id', product.id)
-    await supabase.from('products')
-      .update({ pack_size: parseInt(packSize), colors, stems_per_pack: stemsPerPack ? parseInt(stemsPerPack) : null, campaign_image_url: campaignImageUrl.trim() || null })
+      .from('products')
+      .update({
+        qty: parseInt(qty),
+        price: parseFloat(price),
+        pack_size: parseInt(packSize),
+        colors,
+      })
       .eq('id', product.id)
     setSaving(false)
     setSaved(true)

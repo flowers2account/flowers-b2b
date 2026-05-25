@@ -9,9 +9,13 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('products')
-    .select(`id, name, display_name, variety_name, length_str, length_cm, category, subcategory, variety_type, color, colors, floral_role, stem_durability, season, tags, origin, description, pot_size, pack_size, image_url, campaign_image_url, images, previous_price, arrival_date, stock:stock_available (price, qty, qty_reserved, is_available, reserved_qty, available_qty)`)
+    .select(`
+      id, name, display_name, length_cm, category, pack_size,
+      colors, image_url, arrival_date, price, qty, country_iso,
+      stock:stock_available(available_qty)
+    `)
     .eq('is_active', true)
-    .order('variety_name')
+    .order('name')
     .order('length_cm')
 
   if (searchQuery) {
@@ -19,25 +23,31 @@ export async function GET(request: NextRequest) {
       .rpc('expand_search_query', { search_text: searchQuery })
 
     if (expandedTerms && expandedTerms.length > 0) {
-      const searchConditions = expandedTerms.flatMap((term: string) => [
-        `name.ilike.%${term}%`,
-        `variety_name.ilike.%${term}%`,
-        `variety_type.ilike.%${term}%`,
-      ]).join(',')
-
+      const searchConditions = expandedTerms
+        .map((term: string) => `name.ilike.%${term}%`)
+        .join(',')
       query = query.or(searchConditions)
     } else {
-      query = query.or(
-        `name.ilike.%${searchQuery}%,variety_name.ilike.%${searchQuery}%`
-      )
+      query = query.ilike('name', `%${searchQuery}%`)
     }
   }
 
   const { data } = await query
   const today = new Date().toISOString().split('T')[0]
-  const result = (data ?? []).map((p: any) => ({
-    ...p,
-    is_new: p.arrival_date === today,
-  }))
+  const result = (data ?? []).map((p: any) => {
+    const stockRow = Array.isArray(p.stock) ? p.stock[0] : p.stock
+    const available_qty = stockRow?.available_qty ?? p.qty
+    return {
+      ...p,
+      is_new: p.arrival_date === today,
+      stock: {
+        price: p.price,
+        qty: p.qty,
+        qty_reserved: Math.max(0, p.qty - available_qty),
+        is_available: available_qty > 0,
+        available_qty,
+      },
+    }
+  })
   return NextResponse.json(result)
 }

@@ -34,19 +34,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid product_id or quantity' }, { status: 400 })
   }
 
-  const { data: stock, error: stockError } = await admin
-    .from('stock')
-    .select('qty, qty_reserved')
-    .eq('product_id', product_id)
+  const { data: product, error: productError } = await admin
+    .from('products')
+    .select('qty')
+    .eq('id', product_id)
     .single()
 
-  if (stockError || !stock) {
-    return NextResponse.json({ error: 'Product not found in stock' }, { status: 404 })
+  if (productError || !product) {
+    return NextResponse.json({ error: 'Product not found' }, { status: 404 })
   }
 
-  const available = stock.qty - stock.qty_reserved
-  if (available < quantity) {
-    return NextResponse.json({ error: `Недостаточно: доступно ${available} шт` }, { status: 400 })
+  if (product.qty < quantity) {
+    return NextResponse.json({ error: `Недостаточно: доступно ${product.qty} шт` }, { status: 400 })
   }
 
   const { data: writeoff, error: writeoffError } = await admin
@@ -60,12 +59,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ошибка создания списания' }, { status: 500 })
   }
 
-  const { error: stockUpdateError } = await admin
-    .from('stock')
-    .update({ qty: stock.qty - quantity, updated_at: new Date().toISOString() })
-    .eq('product_id', product_id)
+  const { error: updateError } = await admin
+    .from('products')
+    .update({ qty: product.qty - quantity })
+    .eq('id', product_id)
 
-  if (stockUpdateError) {
+  if (updateError) {
     await admin.from('writeoffs').delete().eq('id', writeoff.id)
     return NextResponse.json({ error: 'Ошибка обновления остатка' }, { status: 500 })
   }
@@ -74,8 +73,8 @@ export async function POST(req: NextRequest) {
     product_id,
     action: 'writeoff',
     quantity: -quantity,
-    qty_before: stock.qty,
-    qty_after: stock.qty - quantity,
+    qty_before: product.qty,
+    qty_after: product.qty - quantity,
     reference_type: 'writeoff',
     reference_id: Number(writeoff.id),
     created_by: userId,
@@ -99,7 +98,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from('writeoffs')
-    .select(`*, products(name, variety_name, length_str), profiles(full_name, display_name)`)
+    .select(`*, products(name), profiles(full_name, display_name)`)
     .order('created_at', { ascending: false })
     .limit(100)
 

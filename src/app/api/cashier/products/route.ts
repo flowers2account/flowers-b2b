@@ -7,7 +7,7 @@ export async function GET() {
 
   const { data: stockData, error: stockErr } = await supabase
     .from('stock_available')
-    .select('product_id, price, available_qty')
+    .select('product_id, available_qty')
     .gt('available_qty', 0)
 
   if (stockErr || !stockData?.length) return NextResponse.json([])
@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data: productData } = await supabase
     .from('products')
-    .select('id, name, display_name, pack_size, category, image_url, variety_name, length_str, origin')
+    .select('id, name, display_name, pack_size, category, image_url, price, length_cm, country_iso')
     .in('id', ids)
     .eq('is_active', true)
     .order('name')
@@ -29,11 +29,10 @@ export async function GET() {
     pack_size: p.pack_size ?? 1,
     category: p.category ?? 'cut',
     image_url: p.image_url ?? null,
-    variety_name: p.variety_name ?? null,
-    length_str: p.length_str ?? null,
-    origin: p.origin ?? null,
-    price: (stockMap.get(p.id) as any)?.price ?? 0,
-    available_qty: (stockMap.get(p.id) as any)?.available_qty ?? 0,
+    length_cm: p.length_cm ?? null,
+    country_iso: p.country_iso ?? null,
+    price: p.price ?? 0,
+    available_qty: stockMap.get(p.id)?.available_qty ?? 0,
   }))
 
   return NextResponse.json(result)

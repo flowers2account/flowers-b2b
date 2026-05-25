@@ -18,7 +18,15 @@
       "Bash(git rm *)",
       "Bash(node *)",
       "mcp__claude_ai_Vercel__get_deployment_build_logs",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(cp \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\IMPORT_SYSTEM.md\" \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\IMPORT_SYSTEM.md\")",
+      "Bash(cp \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\AI_TRANSLATOR_CURRENT_STATE.md\" \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\AI_TRANSLATOR.md\")",
+      "Bash(cp \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\STOCK_MANAGEMENT_FEATURE.md\" \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\STOCK_MANAGEMENT.md\")",
+      "Bash(cp \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\STOCK_QUICK_REF.md\" \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\STOCK_QUICK_REF.md\")",
+      "Bash(cp \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\NAMING_SYSTEM_STATE.md\" \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\NAMING_SYSTEM_STATE.md\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\DATABASE_SCHEMA.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\DATABASE_SCHEMA.md\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\ARCHITECTURE.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\ARCHITECTURE.md\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\BUSINESS_LOGIC.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\BUSINESS_LOGIC.md\")"
     ]
   }
 }

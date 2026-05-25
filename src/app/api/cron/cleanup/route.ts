@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  // Verify CRON_SECRET header
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
 
@@ -20,20 +19,11 @@ export async function GET(req: NextRequest) {
 
     const now = new Date().toISOString()
 
-    // Get expired reservations with details
     const { data: expiredReservations } = await supabase
       .from('reservations')
-      .select('product_id, qty')
+      .select('id')
       .lt('expires_at', now)
 
-    // Group by product_id to calculate total qty_reserved reduction
-    const qtyByProduct = new Map<number, number>()
-    for (const res of expiredReservations ?? []) {
-      const current = qtyByProduct.get(res.product_id) || 0
-      qtyByProduct.set(res.product_id, current + res.qty)
-    }
-
-    // Delete expired reservations
     const { error: deleteError } = await supabase
       .from('reservations')
       .delete()
@@ -44,28 +34,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to delete reservations' }, { status: 500 })
     }
 
-    // Update qty_reserved for affected products
-    for (const [productId, deletedQty] of qtyByProduct.entries()) {
-      const { data: stock } = await supabase
-        .from('stock')
-        .select('qty_reserved')
-        .eq('product_id', productId)
-        .single()
-
-      const newQtyReserved = Math.max(0, (stock?.qty_reserved ?? 0) - deletedQty)
-      await supabase
-        .from('stock')
-        .update({ qty_reserved: newQtyReserved })
-        .eq('product_id', productId)
-    }
-
-    const deletedCount = expiredReservations?.length ?? 0
-    const affectedProductIds = Array.from(qtyByProduct.keys())
-
     return NextResponse.json({
       success: true,
-      deleted_count: deletedCount,
-      affected_products: affectedProductIds.length,
+      deleted_count: expiredReservations?.length ?? 0,
       timestamp: now,
     })
   } catch (error) {
