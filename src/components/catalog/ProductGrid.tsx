@@ -25,9 +25,26 @@ const ORIGIN_LABELS: Record<string, string> = {
   ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
   china: 'Китай', colombia: 'Колумбия', local: 'Местный',
 }
-const COUNTRY_LABELS: Record<string, string> = {
-  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
+const COUNTRY_LABELS: Record<string, { flag: string; name: string }> = {
+  EC: { flag: '🇪🇨', name: 'Эквадор' },
+  KE: { flag: '🇰🇪', name: 'Кения' },
+  NL: { flag: '🇳🇱', name: 'Голландия' },
+  CN: { flag: '🇨🇳', name: 'Китай' },
+  CO: { flag: '🇨🇴', name: 'Колумбия' },
+  RU: { flag: '🇷🇺', name: 'Россия' },
+  ET: { flag: '🇪🇹', name: 'Эфиопия' },
+  EG: { flag: '🇪🇬', name: 'Египет' },
+  IL: { flag: '🇮🇱', name: 'Израиль' },
+}
+
+function CountryBadge({ iso }: { iso: string }) {
+  const c = COUNTRY_LABELS[iso]
+  if (!c) return <span style={{ fontSize: 11, color: 'var(--text-mid)' }}>{iso}</span>
+  return (
+    <span style={{ fontSize: 11, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+      <span style={{ fontSize: 13, lineHeight: 1 }}>{c.flag}</span>{c.name}
+    </span>
+  )
 }
 
 type SortKey = 'popular' | 'price_asc' | 'price_desc' | 'stock'
@@ -255,11 +272,9 @@ function GridCard({
         })()}
 
         {/* Страна */}
-        {(product.country_iso || product.origin) && (
-          <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 2 }}>
-            {product.country_iso
-              ? (COUNTRY_LABELS[product.country_iso] ?? product.country_iso)
-              : (ORIGIN_LABELS[product.origin!] ?? product.origin)}
+        {product.country_iso && (
+          <div style={{ marginTop: 2 }}>
+            <CountryBadge iso={product.country_iso} />
           </div>
         )}
 
@@ -367,6 +382,7 @@ function ListRow({
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>
             {available === 0 ? 'Нет в наличии' : `${available} шт`}
           </span>
+          {product.country_iso && <CountryBadge iso={product.country_iso} />}
           {hasDiscount && <TagBadge type="sale" />}
         </div>
       </div>

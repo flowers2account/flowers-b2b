@@ -28,6 +28,18 @@ const ORIGIN_MAP: Record<string, string> = {
   local:    'Местный',
 }
 
+const COUNTRY_FLAGS: Record<string, { flag: string; name: string }> = {
+  EC: { flag: '🇪🇨', name: 'Эквадор' },
+  KE: { flag: '🇰🇪', name: 'Кения' },
+  NL: { flag: '🇳🇱', name: 'Голландия' },
+  CN: { flag: '🇨🇳', name: 'Китай' },
+  CO: { flag: '🇨🇴', name: 'Колумбия' },
+  RU: { flag: '🇷🇺', name: 'Россия' },
+  ET: { flag: '🇪🇹', name: 'Эфиопия' },
+  EG: { flag: '🇪🇬', name: 'Египет' },
+  IL: { flag: '🇮🇱', name: 'Израиль' },
+}
+
 const SEASON_MAP: Record<string, string> = {
   year_round: 'Круглый год',
   year:       'Круглый год',
@@ -150,7 +162,10 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   const mainPhoto = images[photoIdx] ?? null
 
   const displayName = product.display_name || product.variety_name || product.name
-  const originLabel = product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null
+  const countryEntry = product.country_iso ? COUNTRY_FLAGS[product.country_iso] : null
+  const countryLabel = countryEntry
+    ? `${countryEntry.flag} ${countryEntry.name}`
+    : product.country_iso ?? (product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null)
   type Dim = { type: 'length' | 'diam'; val: string }
   const dims: Dim[] = product.category === 'pot'
     ? [
@@ -160,7 +175,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
     : (product.length_cm || product.length_str
         ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
         : [])
-  const metaParts = [originLabel].filter(Boolean)
+  const metaParts = [countryLabel].filter(Boolean)
 
   const colorKeys = product.colors?.length ? product.colors : product.color ? [product.color] : []
   const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
@@ -348,9 +363,6 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             <Row label="Сезон">{seasonLabel}</Row>
           )}
 
-          {originLabel && !metaParts.includes(originLabel) && (
-            <Row label="Источник">{originLabel}</Row>
-          )}
 
           {product.description && (
             <div style={{ paddingTop: 10, fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.55 }}>
