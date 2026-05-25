@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const searchQuery = request.nextUrl.searchParams.get('search')?.trim() || ''
 
+  const catalogMode = request.nextUrl.searchParams.get('catalog') === '1'
+
   let query = supabase
     .from('products')
     .select(`
@@ -14,9 +16,12 @@ export async function GET(request: NextRequest) {
       colors, image_url, arrival_date, price, qty, country_iso
     `)
     .eq('is_active', true)
-    .gt('qty', 0)
     .order('name')
     .order('length_cm')
+
+  if (!catalogMode) {
+    query = query.gt('qty', 0)
+  }
 
   if (searchQuery) {
     const { data: expandedTerms } = await supabase

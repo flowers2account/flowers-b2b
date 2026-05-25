@@ -4,12 +4,12 @@ import { useState } from 'react'
 import type { CampaignType } from '@/types/campaigns'
 
 interface Product {
-  id: string
+  id: number
   name: string
-  variety_name: string | null
-  length_str: string | null
+  display_name: string | null
+  length_cm: number | null
   category: string | null
-  stock: { price: number | null }[] | null
+  price: number | null
 }
 
 interface ItemState {
@@ -39,7 +39,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
   const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(false)
-  const [selected, setSelected] = useState<Record<string, ItemState>>({})
+  const [selected, setSelected] = useState<Record<number, ItemState>>({})
 
   // Shared
   const [loading, setLoading] = useState(false)
@@ -65,7 +65,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
     if (products.length === 0) {
       setLoadingProducts(true)
       try {
-        const res = await fetch('/api/products', { credentials: 'include' })
+        const res = await fetch('/api/products?catalog=1', { credentials: 'include' })
         const data = await res.json()
         setProducts(Array.isArray(data) ? data : [])
       } catch {
@@ -76,7 +76,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
     }
   }
 
-  function toggleProduct(id: string, currentPrice: number | null) {
+  function toggleProduct(id: number, currentPrice: number | null) {
     setSelected(prev => {
       if (prev[id]) {
         const next = { ...prev }
@@ -94,7 +94,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
     })
   }
 
-  function updateItem(id: string, field: keyof ItemState, value: string) {
+  function updateItem(id: number, field: keyof ItemState, value: string) {
     setSelected(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
   }
 
@@ -102,7 +102,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
     const q = search.toLowerCase()
     return (
       p.name.toLowerCase().includes(q) ||
-      (p.variety_name ?? '').toLowerCase().includes(q)
+      (p.display_name ?? '').toLowerCase().includes(q)
     )
   })
 
@@ -111,7 +111,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
     setError('')
     try {
       const items = Object.entries(selected).map(([product_id, s]) => ({
-        product_id,
+        product_id: parseInt(product_id),
         price: parseFloat(s.price) || 0,
         pack_size: parseInt(s.pack_size) || 1,
         min_qty: parseInt(s.min_qty) || 1,
@@ -323,8 +323,8 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
               ) : (
                 filtered.map(p => {
                   const isChecked = !!selected[p.id]
-                  const currentPrice = p.stock?.[0]?.price ?? null
-                  const displayName = [p.variety_name || p.name, p.length_str]
+                  const currentPrice = p.price ?? null
+                  const displayName = [p.display_name || p.name, p.length_cm ? p.length_cm + 'см' : null]
                     .filter(Boolean)
                     .join(' ')
 
@@ -347,7 +347,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
                           <span className="text-xs text-gray-400">
                             {p.category ?? ''}
                             {currentPrice != null && (
-                              <> · текущая цена: <span className="text-gray-500">{currentPrice} ₽</span></>
+                              <> · текущая цена: <span className="text-gray-500">{currentPrice} ₸</span></>
                             )}
                           </span>
                         </label>
@@ -357,7 +357,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: Props) {
                       {isChecked && (
                         <div className="mt-2.5 ml-6 grid grid-cols-3 gap-2">
                           <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Цена, ₽</label>
+                            <label className="block text-xs text-gray-500 mb-0.5">Цена, ₸</label>
                             <input
                               type="number"
                               value={selected[p.id].price}
