@@ -152,7 +152,12 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   const displayName = product.display_name || product.variety_name || product.name
   const originLabel = product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null
   const metaParts = [
-    product.length_cm ? `${product.length_cm} см` : product.length_str,
+    product.category === 'pot'
+      ? [
+          product.length_cm ? `${product.length_cm} см` : null,
+          (product as any).pot_diameter ? `⌀${(product as any).pot_diameter}` : null,
+        ].filter(Boolean).join(' · ') || null
+      : (product.length_cm ? `${product.length_cm} см` : product.length_str),
     originLabel,
   ].filter(Boolean)
 

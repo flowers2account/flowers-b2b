@@ -130,7 +130,12 @@ function GridCard({
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
   const displayName = product.display_name || product.variety_name || product.name
-  const meta = [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
+  const meta = product.category === 'pot'
+    ? [
+        product.length_cm ? `${product.length_cm} см` : null,
+        product.pot_diameter ? `⌀${product.pot_diameter}` : null,
+      ].filter(Boolean).join(' · ')
+    : [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
   const [hovered, setHovered] = useState(false)
   const [activePhoto, setActivePhoto] = useState(0)
   const hasSecondPhoto = !!product.campaign_image_url
@@ -295,7 +300,12 @@ function ListRow({
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
   const displayName = product.display_name || product.variety_name || product.name
-  const meta = [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
+  const meta = product.category === 'pot'
+    ? [
+        product.length_cm ? `${product.length_cm} см` : null,
+        product.pot_diameter ? `⌀${product.pot_diameter}` : null,
+      ].filter(Boolean).join(' · ')
+    : [product.length_cm ? `${product.length_cm} см` : product.length_str].filter(Boolean).join(' · ')
 
   return (
     <div
