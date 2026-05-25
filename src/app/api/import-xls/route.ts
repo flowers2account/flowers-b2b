@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
   for (const row of rawRows) {
     if (!Array.isArray(row)) continue
 
-    // Определяем формат: если col[0] пустой и col[1] - строка - это формат 1С
     const col0 = String(row[0] ?? '').trim()
     const col1 = String(row[1] ?? '').trim()
     const col2 = String(row[2] ?? '').trim()
@@ -38,33 +37,23 @@ export async function POST(req: NextRequest) {
     let name = '', qtyRaw = '', priceRaw = ''
 
     if (!col0 && col1 && col1.length > 2) {
-      // Формат 1С: пустая первая колонка
-      name = col1
-      qtyRaw = col2
-      priceRaw = col3
+      name = col1; qtyRaw = col2; priceRaw = col3
     } else if (col0 && col0.length > 2) {
-      // Старый формат: наименование в первой колонке
-      name = col0
-      qtyRaw = col1
-      priceRaw = col2
+      name = col0; qtyRaw = col1; priceRaw = col2
     } else {
       continue
     }
 
-    // Пропускаем заголовки и итоги
     const nameLower = name.toLowerCase()
-    if (nameLower.includes('наименов') || nameLower.includes('номенклат') ||
-        nameLower.includes('итог') || nameLower.includes('склад') ||
-        nameLower.includes('период') || nameLower.includes('показател') ||
-        nameLower.includes('группировк') || nameLower.includes('отбор') ||
-        nameLower === 'основная' || nameLower === 'основной склад' || nameLower === 'основной') continue
+    if (
+      nameLower.includes('наименов') || nameLower.includes('номенклат') ||
+      nameLower.includes('итог') || nameLower.includes('склад') ||
+      nameLower.includes('период') || nameLower.includes('показател') ||
+      nameLower.includes('группировк') || nameLower.includes('отбор') ||
+      nameLower === 'основная' || nameLower === 'основной склад' || nameLower === 'основной'
+    ) continue
 
-    // Парсим числа (формат 1С: "1 234,56" или "1234.56")
-    const parseNum = (s: string) => {
-      const cleaned = String(s).replace(/\s/g, '').replace(',', '.')
-      return parseFloat(cleaned)
-    }
-
+    const parseNum = (s: string) => parseFloat(String(s).replace(/\s/g, '').replace(',', '.'))
     const qty = parseNum(qtyRaw)
     const price = parseNum(priceRaw)
 
@@ -82,7 +71,14 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
   const importedProductIds = new Set<number>()
 
-  // AI enrichment for all rows before main loop
+  // Категория и страна из имени файла
+  const fileNameLower = file.name.toLowerCase()
+  const categoryOverride: 'cut' | 'pot' | null =
+    fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
+    fileNameLower.includes('срез') ? 'cut' : null
+  const isChina = fileNameLower.includes('китай') || fileNameLower.includes('china')
+
+  // AI-обогащение всех строк до основного цикла
   const aiStats = { ai_enriched: 0, ai_cached: 0, ai_failed: 0, varieties_species_filled: 0 }
   let enrichedMap = new Map<string, Awaited<ReturnType<typeof enrichProductBatch>>[number]>()
   try {
@@ -92,29 +88,6 @@ export async function POST(req: NextRequest) {
     console.error('[import-xls] enrichProductBatch failed:', err)
   }
 
-  // Определяем категорию и источник по имени файла
-  const fileNameLower = file.name.toLowerCase()
-  const categoryOverride: 'cut' | 'pot' | null =
-    fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
-    fileNameLower.includes('срез') ? 'cut' : null
-  const isChina = fileNameLower.includes('китай') || fileNameLower.includes('china')
-
-  if (isFirst && categoryOverride) {
-    const { data: allProducts } = await supabase
-      .from('products').select('id')
-      .eq('category', categoryOverride).eq('is_active', true)
-    if (allProducts?.length) {
-      const ids = allProducts.map(p => p.id)
-      // Деактивируем старые партии, но stock НЕ обнуляем — будем суммировать
-      await supabase.from('batches').update({ is_active: false }).in('product_id', ids)
-    }
-  }
-
-  const processedProductIds = new Set<number>()
-  // Отслеживаем цену первого вхождения каждой комбинации variety_name+length_str в этом файле.
-  // Если то же сочетание встречается снова с другой ценой → создаём отдельный товар.
-  const processedVLPrice = new Map<string, number>() // "varietyName:lengthStr" → price
-
   for (const row of rows) {
     try {
       const enriched = enrichedMap.get(row.name)
@@ -122,110 +95,90 @@ export async function POST(req: NextRequest) {
       else if (enriched?.source === 'ai') aiStats.ai_enriched++
       else aiStats.ai_failed++
 
-      const _parsed = parseNomenclature(row.name)
-      const originValue: string | null = isChina ? 'china' : (_parsed as any).origin ?? null
-      // Ключ включает origin — China и non-China одного товара не конфликтуют
-      const vlKey = `${_parsed.variety_name}:${_parsed.length_str ?? ''}:${originValue ?? ''}`
-      const seenPrice = processedVLPrice.get(vlKey)
-      // Одинаковые variety+length+origin но разная цена → суффикс цены (редкий случай)
-      const effectiveVarietyName = (seenPrice !== undefined && Math.abs(seenPrice - row.price) > 1)
-        ? `${_parsed.variety_name} [${Math.round(row.price)}₸]`
-        : _parsed.variety_name
+      const parsed = parseNomenclature(row.name)
+      const category = categoryOverride ?? parsed.category
+      // Страна: файл (isChina) имеет приоритет над AI
+      const countryIso: string | null = isChina ? 'CN' : (enriched?.country_iso ?? null)
 
-      const parsed = {
-        ..._parsed,
-        category: categoryOverride ?? _parsed.category,
-        variety_name: effectiveVarietyName,
-        origin: originValue,
-      }
-
-      // 1. Создаём или находим сорт (variety)
+      // 1. UPSERT variety (ключ — только название сорта, lowercase)
       const { data: variety, error: vErr } = await supabase
         .from('varieties')
-        .upsert({ name: parsed.variety_name, category: categoryOverride ?? parsed.category }, { onConflict: 'name', ignoreDuplicates: false })
-        .select('id, species_id').single()
-      if (vErr || !variety) throw new Error(`variety: ${vErr?.code} ${vErr?.message}`)
+        .upsert(
+          { name: parsed.variety_name, category },
+          { onConflict: 'name', ignoreDuplicates: false }
+        )
+        .select('id, species_id')
+        .single()
+      if (vErr || !variety) throw new Error(`variety: ${vErr?.message}`)
 
-      // Fill species_id from AI if variety doesn't have it yet
+      // Заполняем species_id от AI если у сорта его ещё нет
       if (!(variety as any).species_id && enriched?.species_id) {
         await supabase.from('varieties').update({ species_id: enriched.species_id }).eq('id', variety.id)
         aiStats.varieties_species_filled++
       }
 
-      // 2. Создаём или находим товар (product)
-      const productQuery = supabase
+      // 2. Ищем product по UNIQUE ключу (variety_id, length_cm, country_iso, price)
+      //    Включая is_active=false — чтобы реактивировать старую карточку с той же ценой
+      let productQuery = supabase
         .from('products')
-        .select('id, pack_size')
+        .select('id')
         .eq('variety_id', variety.id)
+        .eq('price', row.price)
 
-      const { data: existingProduct } = await (
-        parsed.length_str
-          ? productQuery.eq('length_str', parsed.length_str)
-          : productQuery.is('length_str', null)
-      ).maybeSingle()
+      if (parsed.length_cm !== null) {
+        productQuery = productQuery.eq('length_cm', parsed.length_cm)
+      } else {
+        productQuery = productQuery.is('length_cm', null)
+      }
 
-      let product
+      if (countryIso) {
+        productQuery = productQuery.eq('country_iso', countryIso)
+      } else {
+        productQuery = productQuery.is('country_iso', null)
+      }
+
+      const { data: existingProduct } = await productQuery.maybeSingle()
+
+      let productId: number
+
       if (existingProduct) {
-        // получаем текущую цену из stock для сравнения
-        const { data: currentStock } = await supabase
-          .from('stock')
-          .select('price')
-          .eq('product_id', existingProduct.id)
-          .maybeSingle()
-
-        const currentPrice = currentStock?.price ?? null
-        const isPriceDown = currentPrice && row.price < currentPrice
-
-        const { data: updatedProduct, error: pErr } = await supabase
+        // Обновляем qty, дату прихода и активируем (если была деактивирована)
+        const { error: pErr } = await supabase
           .from('products')
           .update({
-            variety_name: parsed.variety_name,
-            length_cm: parsed.length_cm,
-            category: categoryOverride ?? parsed.category,
-            name: row.name,
+            qty: row.qty,
+            arrival_date: today,
             is_active: true,
-            previous_price: isPriceDown ? currentPrice : null,
-            ...(parsed.origin ? { origin: parsed.origin } : {}),
-            ...(enriched?.country_iso ? { country_iso: enriched.country_iso } : {}),
+            name: row.name,
           })
           .eq('id', existingProduct.id)
-          .select('id').single()
-        if (pErr || !updatedProduct) throw new Error(`product update: ${pErr?.code} ${pErr?.message}`)
-        product = updatedProduct
+        if (pErr) throw new Error(`product update: ${pErr.message}`)
+        productId = existingProduct.id
       } else {
+        // Новая комбинация variety+length+country+price — новая карточка
         const { data: newProduct, error: pErr } = await supabase
           .from('products')
           .insert({
             variety_id: variety.id,
-            variety_name: parsed.variety_name,
-            length_str: parsed.length_str,
-            length_cm: parsed.length_cm,
-            pack_size: 5,
-            category: categoryOverride ?? parsed.category,
             name: row.name,
+            length_cm: parsed.length_cm ?? null,
+            pack_size: 5,
+            category,
+            price: row.price,
+            qty: row.qty,
+            arrival_date: today,
             is_active: true,
-            origin: parsed.origin ?? null,
-            country_iso: enriched?.country_iso ?? null,
+            country_iso: countryIso,
           })
-          .select('id').single()
-        if (pErr || !newProduct) throw new Error(`product insert: ${pErr?.code} ${pErr?.message}`)
-        product = newProduct
+          .select('id')
+          .single()
+        if (pErr || !newProduct) throw new Error(`product insert: ${pErr?.message}`)
+        productId = newProduct.id
       }
 
-      // 3. Партия (найти по цене → UPDATE stock) или создать новую через sync_stock_from_1c.
-      // Поиск по (product_id, price) БЕЗ arrival_date — дата прихода не перезаписывается.
-      // Если isFirst деактивировал все партии выше — функция создаст новую с arrival_date=today.
-      const { error: syncErr } = await supabase.rpc('sync_stock_from_1c', {
-        p_name: row.name,
-        p_new_qty: row.qty,
-        p_new_price: row.price,
-        p_arrival_date: today,
-      })
-      if (syncErr) throw new Error(`sync_stock: ${syncErr.message}`)
-
-      // 4. Запись в ledger
+      // 3. Запись в ledger (аудит импорта)
       await supabase.from('inventory_ledger').insert({
-        product_id: product.id,
+        product_id: productId,
         action: 'import',
         quantity: row.qty,
         qty_before: 0,
@@ -234,17 +187,15 @@ export async function POST(req: NextRequest) {
         created_by: userId || null,
       })
 
-      // 5. Обратная связь в translation_memory
+      // 4. Обратная связь в translation_memory
       if (enriched?.translation_memory_id) {
         await supabase
           .from('translation_memory')
-          .update({ product_id: product.id, variety_id: variety.id })
+          .update({ product_id: productId, variety_id: variety.id })
           .eq('id', enriched.translation_memory_id)
       }
 
-      importedProductIds.add(product.id)
-      processedProductIds.add(product.id)
-      if (!processedVLPrice.has(vlKey)) processedVLPrice.set(vlKey, row.price)
+      importedProductIds.add(productId)
       success++
     } catch (e) {
       errors++
@@ -252,13 +203,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Синхронизируем stock с batches на случай пропущенных ошибок
-  const { error: syncError } = await supabase.rpc('sync_stock_from_batches')
-  if (syncError) console.error('Stock sync error:', syncError)
-
-  // Деактивируем товары только при одиночной загрузке (isFirst=true И isLast=true).
-  // При множественных файлах importedProductIds содержит только последний файл,
-  // что ошибочно деактивирует товары из предыдущих файлов.
+  // Деактивируем товары категории которых нет в этом импорте
+  // Только при одиночном файле (isFirst && isLast) — при множественных файлах
+  // importedProductIds содержит только последний файл, что деактивирует первые
   if (isFirst && isLast && categoryOverride && importedProductIds.size > 0) {
     const { data: allInCategory } = await supabase
       .from('products')
@@ -272,10 +219,7 @@ export async function POST(req: NextRequest) {
         .filter((id: number) => !importedProductIds.has(id))
 
       if (toDeactivate.length > 0) {
-        await supabase
-          .from('products')
-          .update({ is_active: false })
-          .in('id', toDeactivate)
+        await supabase.from('products').update({ is_active: false }).in('id', toDeactivate)
         zeroed = toDeactivate.length
       }
     }
