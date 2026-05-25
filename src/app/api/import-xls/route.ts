@@ -6,6 +6,75 @@ import * as XLSX from 'xlsx'
 import { parseNomenclature } from '@/lib/parse-nomenclature'
 import { enrichProductBatch } from '@/lib/naming/ai-enrichment'
 
+// species_id → { subcategory, variety_type }
+const SPECIES_SUBCAT: Record<number, { subcat: string; vt?: string }> = {
+  1:  { subcat: 'roses',          vt: 'single' }, // rose_large_flowered
+  2:  { subcat: 'roses',          vt: 'spray'  }, // rose_spray
+  3:  { subcat: 'roses',          vt: 'spray'  }, // rose_garden
+  4:  { subcat: 'chrysanthemums', vt: 'single' }, // chrysanthemum_disbud
+  5:  { subcat: 'chrysanthemums', vt: 'spray'  }, // chrysanthemum_spray
+  6:  { subcat: 'chrysanthemums', vt: 'spray'  }, // chrysanthemum_santini
+  7:  { subcat: 'lilies'   },                      // lily_la
+  8:  { subcat: 'lilies'   },                      // lily_oriental
+  9:  { subcat: 'lilies'   },                      // lily_longiflorum
+  10: { subcat: 'gerberas' },
+  11: { subcat: 'tulips'   },
+  12: { subcat: 'carnations' },
+  13: { subcat: 'lisianthus' },
+  14: { subcat: 'alstroemeria' },
+  16: { subcat: 'accents'  },  // peony cut
+  17: { subcat: 'accents'  },  // ranunculus
+  21: { subcat: 'greens'   },  // eucalyptus
+  22: { subcat: 'greens'   },  // ruscus
+  28: { subcat: 'fillers'  },  // tanacetum
+  32: { subcat: 'accents'  },  // cymbidium
+  34: { subcat: 'seasonal' },  // hyacinth
+  35: { subcat: 'seasonal' },  // narcissus
+  36: { subcat: 'accents'  },  // hypericum
+  37: { subcat: 'fillers'  },  // statice
+  39: { subcat: 'accents'  },  // chamelaucium
+  40: { subcat: 'accents'  },  // matthiola
+  41: { subcat: 'accents'  },  // brunia
+  42: { subcat: 'callas'   },
+  43: { subcat: 'accents'  },  // mimosa
+  44: { subcat: 'greens'   },  // leatherleaf
+  45: { subcat: 'accents'  },  // gladiolus
+}
+
+// keyword fallback → subcategory (for products with no species)
+function getSubcatByKeyword(name: string, category: 'cut' | 'pot'): { subcategory: string | null; variety_type: string | null } {
+  const n = name.toLowerCase()
+  if (category === 'cut') {
+    if (/бамбук|бетула|саликс/.test(n)) return { subcategory: 'greens', variety_type: null }
+    if (/молюцелла|чико/.test(n))        return { subcategory: 'fillers', variety_type: null }
+    if (/дельфиниум|лекукодендрон|протея/.test(n)) return { subcategory: 'accents', variety_type: null }
+    if (/гиппеаструм/.test(n))           return { subcategory: 'spring', variety_type: null }
+    if (/квинс кроун|^микс/.test(n))     return { subcategory: 'roses',  variety_type: 'single' }
+  }
+  if (category === 'pot') {
+    if (/бамбук|драцена|замиокул|клузия|маранта|фикус|хамедорея|шеффлера/.test(n)) return { subcategory: 'green', variety_type: null }
+    if (/пахира|юкка/.test(n))           return { subcategory: 'large',    variety_type: null }
+    if (/каланхое|пеларгони|пеперомия|рипсалидопс|сенполия|шлюмбергера/.test(n)) return { subcategory: 'flowering', variety_type: null }
+    if (/алое/.test(n))                  return { subcategory: 'succulents', variety_type: null }
+    if (/туя|фритиллария/.test(n))       return { subcategory: 'outdoor',   variety_type: null }
+    if (/антуриум|фаленопсис|орхидея|гортензия|нарцисс|гвоздика|роза/.test(n)) return { subcategory: 'flowering', variety_type: null }
+  }
+  return { subcategory: null, variety_type: null }
+}
+
+function deriveSubcat(speciesId: number | null | undefined, category: 'cut' | 'pot', productName: string): { subcategory: string | null; variety_type: string | null } {
+  if (speciesId) {
+    const entry = SPECIES_SUBCAT[speciesId]
+    if (entry) {
+      // pot roses → flowering, not roses
+      const subcat = category === 'pot' && entry.subcat === 'roses' ? 'flowering' : entry.subcat
+      const vt = category === 'pot' ? null : (entry.vt ?? null)
+      return { subcategory: subcat, variety_type: vt }
+    }
+  }
+  return getSubcatByKeyword(productName, category)
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
@@ -139,10 +208,12 @@ export async function POST(req: NextRequest) {
 
       const { data: existingProduct } = await productQuery.maybeSingle()
 
+      const speciesId = (variety as any).species_id ?? enriched?.species_id ?? null
+      const { subcategory, variety_type } = deriveSubcat(speciesId, category, row.name)
+
       let productId: number
 
       if (existingProduct) {
-        // Обновляем qty, дату прихода и активируем (если была деактивирована)
         const { error: pErr } = await supabase
           .from('products')
           .update({
@@ -152,12 +223,13 @@ export async function POST(req: NextRequest) {
             name: row.name,
             length_cm: parsed.length_cm ?? null,
             pot_diameter: parsed.pot_diameter ?? null,
+            subcategory,
+            variety_type,
           })
           .eq('id', existingProduct.id)
         if (pErr) throw new Error(`product update: ${pErr.message}`)
         productId = existingProduct.id
       } else {
-        // Новая комбинация variety+length+country+price — новая карточка
         const { data: newProduct, error: pErr } = await supabase
           .from('products')
           .insert({
@@ -167,6 +239,8 @@ export async function POST(req: NextRequest) {
             pot_diameter: parsed.pot_diameter ?? null,
             pack_size: category === 'pot' ? 1 : parsed.pack_size,
             category,
+            subcategory,
+            variety_type,
             price: row.price,
             qty: row.qty,
             arrival_date: today,
