@@ -189,13 +189,21 @@ export async function POST(req: NextRequest) {
       }
 
       // 1.5. Устанавливаем variety_id в TM ДО вставки продукта —
-      //      чтобы триггер generate_product_display_name нашёл cultivar_cyrillic
-      if (enriched?.translation_memory_id) {
-        await supabase
-          .from('translation_memory')
+      //      чтобы триггер generate_product_display_name нашёл cultivar_cyrillic.
+      //      Два прохода: по id (AI-запись с длиной) и по имени сорта (ручная запись без длины).
+      const varNorm = parsed.variety_name.toLowerCase().trim().replace(/\s+/g, ' ')
+      await Promise.all([
+        enriched?.translation_memory_id
+          ? supabase.from('translation_memory')
+              .update({ variety_id: variety.id })
+              .eq('id', enriched.translation_memory_id)
+          : Promise.resolve(),
+        supabase.from('translation_memory')
           .update({ variety_id: variety.id })
-          .eq('id', enriched.translation_memory_id)
-      }
+          .eq('normalized_original', varNorm)
+          .is('variety_id', null)
+          .eq('is_flagged', false),
+      ])
 
       // 2. Ищем product по UNIQUE ключу (variety_id, length_cm, country_iso, price)
       //    Включая is_active=false — чтобы реактивировать старую карточку с той же ценой
