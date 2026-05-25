@@ -361,5 +361,8 @@ DROP TABLE _backup_products_pre_rebuild;
 - ✅ import-xls: очистка артефактов 1С (пачке Nшт) в parse-nomenclature
 - ✅ Динамические фасеты: colorCounts/lengthCounts/originCounts сужаются по subcat+varietyType
 - ✅ Цвета в фильтре: тусклые (opacity 0.25) если count=0 в текущей выборке
+- ✅ Stop-words в parse-nomenclature: LINFLOWERS/zento/bunch/box/bq убираются из raw-имён
+- ✅ country_iso из имени файла при импорте (CN/EC/KE/NL/CO/ET/EG/IL)
+- ✅ Страна в каталоге: флаг + название (🇨🇳 Китай) в GridCard, ListRow, DetailPanel
 - ✅ translation_memory сохранён
-- ✅ Все backup_*_pre_rebuild таблицы созданы
+- ✅ Backup_*_pre_rebuild таблицы созданы (можно удалить)
