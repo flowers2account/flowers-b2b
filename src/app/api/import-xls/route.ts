@@ -73,6 +73,48 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot'): { subcategor
   return { subcategory: null, variety_type: null }
 }
 
+function autoTagProduct(subcategory: string | null, variety_type: string | null, name: string): string[] {
+  const tags: string[] = []
+  const n = name.toLowerCase()
+  const sub = subcategory ?? ''
+
+  // exotic: тропические, необычные формы и фактуры
+  if (['orchids', 'anthuriums', 'proteas'].includes(sub) ||
+      /стрелиц|геликон|леукодендрон|лейкодендрон/.test(n)) {
+    tags.push('exotic')
+  }
+
+  // seasonal: ограниченный сезон поставки
+  if (sub === 'peonies' ||
+      /амарилл|гиппеаструм|нобилис|илекс|мимоза|георгин/.test(n)) {
+    tags.push('seasonal')
+  }
+
+  // spring: весенние и луковичные
+  if (['tulips', 'ranunculus', 'anemones'].includes(sub) ||
+      /нарцисс|гиацинт|мускари/.test(n)) {
+    tags.push('spring')
+  }
+
+  // wedding: популярны у свадебных флористов
+  if (['lisianthus', 'hydrangeas', 'ranunculus'].includes(sub) ||
+      (sub === 'roses' && variety_type === 'decorative') ||
+      /уайт о.?хара|playa blanca|вайт о.?хара/.test(n)) {
+    tags.push('wedding')
+  }
+
+  // premium: дорогие и статусные позиции
+  if (sub === 'peonies' ||
+      /david.?austin|дэвид.?остин/.test(n) ||
+      /phalaenopsis|фаленопсис|cymbidium|цимбидиум/.test(n) ||
+      (sub === 'proteas' && /king|кинг/.test(n)) ||
+      /premium|премиум/.test(n)) {
+    tags.push('premium')
+  }
+
+  return [...new Set(tags)]
+}
+
 function deriveSubcat(speciesId: number | null | undefined, category: 'cut' | 'pot', productName: string): { subcategory: string | null; variety_type: string | null } {
   if (speciesId) {
     const entry = SPECIES_SUBCAT[speciesId]
@@ -176,6 +218,17 @@ export async function POST(req: NextRequest) {
   }
   const fileCountry = countryFromText(file.name)
 
+  function cleanTranslatorName(s: string): string {
+    return s
+      .replace(/\*\d+/g, '')                                          // *140
+      .replace(/\b\d+\s*(?:см|cm)?\b/gi, '')                         // 140, 60см
+      .replace(/\b[A-Z]{3,}\b/g, '')                                  // LINFLOWERS, ADOMEX
+      .replace(/\s*\((?:китай|эквадор|кения|голландия|израиль|колумбия|эфиопия|россия|импорт|china)\)\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, c => c.toUpperCase())                         // INITCAP
+  }
+
   // AI-обогащение всех строк до основного цикла
   const aiStats = { ai_enriched: 0, ai_cached: 0, ai_failed: 0, varieties_species_filled: 0 }
   let enrichedMap = new Map<string, Awaited<ReturnType<typeof enrichProductBatch>>[number]>()
@@ -232,17 +285,39 @@ export async function POST(req: NextRequest) {
           .eq('is_flagged', false),
       ])
 
+      // 1.6. Ищем утверждённый перевод переводчика для display_name.
+      //      Ищем по cultivar_cyrillic в normalized_translated TM-записей с approved_by.
+      //      Имена из 2+ слов достаточно специфичны; короткие (Микс, Ред) пропускаем.
+      let translatorDisplayName: string | null = null
+      if (enriched?.cultivar_cyrillic && enriched.cultivar_cyrillic.trim().split(/\s+/).length >= 2) {
+        const cultivarNorm = enriched.cultivar_cyrillic.toLowerCase().replace(/\s+/g, ' ').trim()
+        const { data: tmApproved } = await supabase
+          .from('translation_memory')
+          .select('translated')
+          .not('approved_by', 'is', null)
+          .eq('is_flagged', false)
+          .ilike('normalized_translated', `%${cultivarNorm}%`)
+          .order('confidence', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        translatorDisplayName = tmApproved?.translated
+          ? cleanTranslatorName(tmApproved.translated)
+          : null
+      }
+
       // 2. Ищем product только по name (raw из 1С) — стабильный якорь.
       //    Цена, длина, страна — обновляемые метаданные, не идентификаторы.
       //    Включая is_active=false — чтобы реактивировать старую карточку.
       const { data: existingProduct } = await supabase
         .from('products')
-        .select('id, subcategory, variety_type, country_iso, length_cm, price')
+        .select('id, subcategory, variety_type, country_iso, length_cm, price, display_name, colors, tags')
         .eq('name', row.name)
         .maybeSingle()
 
       const speciesId = (variety as any).species_id ?? enriched?.species_id ?? null
       const { subcategory, variety_type } = deriveSubcat(speciesId, category, row.name)
+
+      const autoTags = autoTagProduct(subcategory, variety_type, row.name)
 
       let productId: number
 
@@ -267,6 +342,18 @@ export async function POST(req: NextRequest) {
         if (countryIso && !(existingProduct as any).country_iso) {
           updatePayload.country_iso = countryIso
         }
+        // display_name: проставляем из переводчика, только если ещё не задано вручную
+        if (translatorDisplayName && !(existingProduct as any).display_name) {
+          updatePayload.display_name = translatorDisplayName
+        }
+        // colors: берём из AI если у продукта ещё нет
+        if (enriched?.color && !((existingProduct as any).colors as string[] | null)?.length) {
+          updatePayload.colors = [enriched.color]
+        }
+        // tags: добавляем авто-теги если у продукта ещё нет тегов
+        if (autoTags.length && !((existingProduct as any).tags as string[] | null)?.length) {
+          updatePayload.tags = autoTags
+        }
         const { error: pErr } = await supabase
           .from('products')
           .update(updatePayload)
@@ -279,6 +366,7 @@ export async function POST(req: NextRequest) {
           .insert({
             variety_id: variety.id,
             name: row.name,
+            display_name: translatorDisplayName,
             length_cm: parsed.length_cm ?? null,
             pot_diameter: parsed.pot_diameter ?? null,
             pack_size: category === 'pot' ? 1 : parsed.pack_size,
@@ -290,6 +378,8 @@ export async function POST(req: NextRequest) {
             arrival_date: today,
             is_active: true,
             country_iso: countryIso,
+            colors: enriched?.color ? [enriched.color] : null,
+            tags: autoTags.length ? autoTags : null,
           })
           .select('id')
           .single()
