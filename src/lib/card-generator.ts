@@ -5,22 +5,17 @@ export interface CardData {
   name: string;
   length_cm: number | null;
   price: number;
-  origin: string | null;
+  country_iso: string | null;
   colors: string[] | null;
-  color: string | null;
   availableQty: number;
   packSize: number;
   stemsPerPack: number | null;
   imageUrl: string;
 }
 
-const ORIGIN_MAP: Record<string, string> = {
-  china: 'Китай',
-  holland: 'Голландия',
-  kenya: 'Кения',
-  ecuador: 'Эквадор',
-  colombia: 'Колумбия',
-  russia: 'Россия',
+const COUNTRY_LABELS: Record<string, string> = {
+  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
 };
 
 // Canvas doesn't support CSS variables — use actual family names from next/font/google
@@ -211,11 +206,11 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   }
   cy += 8;
 
-  // Origin · color circles · length
-  const colorList = data.colors?.length ? data.colors : (data.color ? [data.color] : []);
-  const originStr = data.origin ? (ORIGIN_MAP[data.origin.toLowerCase()] ?? data.origin) : null;
+  // Country · color circles · length
+  const colorList = data.colors ?? [];
+  const countryStr = data.country_iso ? (COUNTRY_LABELS[data.country_iso] ?? data.country_iso) : null;
   const metaParts: string[] = [];
-  if (originStr) metaParts.push(originStr);
+  if (countryStr) metaParts.push(countryStr);
   if (colorList.length > 0) metaParts.push(colorList.map(c => colorEmoji(c)).join(' '));
   if (data.length_cm && data.length_cm > 0) metaParts.push(`${data.length_cm} см`);
 

@@ -6,30 +6,19 @@ import JSZip from 'jszip';
 import { createClient } from '@/lib/supabase/client';
 import { generateProductCard } from '@/lib/card-generator';
 
-interface StockData {
-  price: number;
-  available_qty: number;
-  is_available: boolean;
-}
-
 interface Product {
   id: number;
   name: string;
+  display_name: string | null;
   image_url: string | null;
-  campaign_image_url: string | null;
   category: string;
-  origin: string | null;
+  country_iso: string | null;
   colors: string[] | null;
-  color: string | null;
   pack_size: number;
   stems_per_pack: number | null;
   length_cm: number | null;
-  stock: StockData[] | StockData | null;
-}
-
-interface FlatProduct extends Omit<Product, 'stock'> {
   price: number;
-  available_qty: number;
+  qty: number;
 }
 
 interface GeneratedCard {
@@ -38,21 +27,17 @@ interface GeneratedCard {
   name: string;
 }
 
-const ORIGIN_LABELS: Record<string, string> = {
-  china: 'Китай', holland: 'Голландия', kenya: 'Кения',
-  ecuador: 'Эквадор', russia: 'Россия', colombia: 'Колумбия',
+const COUNTRY_LABELS: Record<string, string> = {
+  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
 };
-
-function originLabel(origin: string) {
-  return ORIGIN_LABELS[origin.toLowerCase()] ?? origin;
-}
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_').substring(0, 50);
 }
 
 export default function GenerateCardsPage() {
-  const [allProducts, setAllProducts] = useState<FlatProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [generating, setGenerating] = useState(false);
@@ -66,8 +51,7 @@ export default function GenerateCardsPage() {
 
   const [catCut, setCatCut] = useState(true);
   const [catPot, setCatPot] = useState(true);
-  const [originFilter, setOriginFilter] = useState<string>('all');
-  const [onlyCampaignImage, setOnlyCampaignImage] = useState(false);
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [minStock, setMinStock] = useState(5);
 
   useEffect(() => {
@@ -75,42 +59,23 @@ export default function GenerateCardsPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('products')
-        .select(`
-          id, name, image_url, campaign_image_url,
-          category, origin, colors, color, pack_size, stems_per_pack, length_cm,
-          stock:stock_available(price, available_qty, is_available)
-        `)
+        .select('id, name, display_name, image_url, category, country_iso, colors, pack_size, stems_per_pack, length_cm, price, qty')
         .eq('is_active', true)
+        .gt('qty', 0)
         .order('category')
         .order('name');
 
       if (error) { console.error(error); setLoading(false); return; }
 
-      const flat: FlatProduct[] = (data ?? [])
-        .map((p: Product) => {
-          const s = Array.isArray(p.stock) ? p.stock[0] : p.stock;
-          return {
-            id: p.id, name: p.name,
-            image_url: p.image_url, campaign_image_url: p.campaign_image_url,
-            category: p.category, origin: p.origin,
-            colors: p.colors, color: p.color,
-            pack_size: p.pack_size, stems_per_pack: p.stems_per_pack,
-            length_cm: p.length_cm,
-            price: s?.price ?? 0,
-            available_qty: s?.available_qty ?? 0,
-          };
-        })
-        .filter((p: FlatProduct) => p.available_qty > 0 && (p.image_url || p.campaign_image_url));
-
-      setAllProducts(flat);
+      setAllProducts(((data ?? []) as Product[]).filter(p => p.image_url));
       setLoading(false);
     }
     load();
   }, []);
 
-  const origins = useMemo(() => {
+  const countries = useMemo(() => {
     const set = new Set<string>();
-    allProducts.forEach(p => { if (p.origin) set.add(p.origin); });
+    allProducts.forEach(p => { if (p.country_iso) set.add(p.country_iso); });
     return Array.from(set).sort();
   }, [allProducts]);
 
@@ -118,14 +83,12 @@ export default function GenerateCardsPage() {
     return allProducts.filter(p => {
       if (!catCut && p.category === 'cut') return false;
       if (!catPot && p.category === 'pot') return false;
-      if (originFilter !== 'all' && p.origin !== originFilter) return false;
-      if (onlyCampaignImage && !p.campaign_image_url) return false;
-      if (p.available_qty < minStock) return false;
+      if (countryFilter !== 'all' && p.country_iso !== countryFilter) return false;
+      if (p.qty < minStock) return false;
       return true;
     });
-  }, [allProducts, catCut, catPot, originFilter, onlyCampaignImage, minStock]);
+  }, [allProducts, catCut, catPot, countryFilter, minStock]);
 
-  // Keep selection consistent when filters change
   useEffect(() => {
     setSelectedIds(prev => {
       const filteredIds = new Set(filtered.map(p => p.id));
@@ -159,17 +122,21 @@ export default function GenerateCardsPage() {
 
     for (let i = 0; i < toGenerate.length; i++) {
       const p = toGenerate[i];
-      const imageUrl = p.campaign_image_url || p.image_url;
-      if (imageUrl) {
+      if (p.image_url) {
         try {
           const blob = await generateProductCard({
-            id: p.id, name: p.name, length_cm: p.length_cm,
-            price: p.price, origin: p.origin,
-            colors: p.colors, color: p.color,
-            availableQty: p.available_qty, packSize: p.pack_size,
-            stemsPerPack: p.stems_per_pack, imageUrl,
+            id: p.id,
+            name: p.display_name || p.name,
+            length_cm: p.length_cm,
+            price: p.price,
+            country_iso: p.country_iso,
+            colors: p.colors,
+            availableQty: p.qty,
+            packSize: p.pack_size,
+            stemsPerPack: p.stems_per_pack,
+            imageUrl: p.image_url,
           });
-          cards.push({ blob, url: URL.createObjectURL(blob), name: p.name });
+          cards.push({ blob, url: URL.createObjectURL(blob), name: p.display_name || p.name });
         } catch (err) {
           console.error(`Card error for ${p.name}:`, err);
         }
@@ -238,7 +205,7 @@ export default function GenerateCardsPage() {
         {/* Фильтры */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Фильтры</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div>
               <p className="text-xs font-medium text-gray-500 mb-2">Категория</p>
               <div className="space-y-1.5">
@@ -253,11 +220,13 @@ export default function GenerateCardsPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Происхождение</label>
-              <select value={originFilter} onChange={e => setOriginFilter(e.target.value)}
+              <label className="block text-xs font-medium text-gray-500 mb-2">Страна</label>
+              <select value={countryFilter} onChange={e => setCountryFilter(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7a1c2e]/30 focus:border-[#7a1c2e]">
                 <option value="all">Все</option>
-                {origins.map(o => <option key={o} value={o}>{originLabel(o)}</option>)}
+                {countries.map(iso => (
+                  <option key={iso} value={iso}>{COUNTRY_LABELS[iso] ?? iso}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -265,25 +234,15 @@ export default function GenerateCardsPage() {
               <input type="number" min={0} value={minStock} onChange={e => setMinStock(parseInt(e.target.value) || 0)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7a1c2e]/30 focus:border-[#7a1c2e]" />
             </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input type="checkbox" checked={onlyCampaignImage} onChange={e => setOnlyCampaignImage(e.target.checked)} className="rounded" style={{ accentColor: '#7a1c2e' }} />
-                <span className="text-sm">Только с фото кампании</span>
-              </label>
-            </div>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
             <p className="text-sm text-gray-600">
               Найдено: <span className="font-semibold" style={{ color: '#7a1c2e' }}>{filtered.length}</span> из {allProducts.length}
             </p>
-            <p className="text-xs text-gray-400">
-              {filtered.filter(p => p.campaign_image_url).length} с фото кампании ·{' '}
-              {filtered.filter(p => !p.campaign_image_url).length} только каталог
-            </p>
           </div>
         </div>
 
-        {/* Предпросмотр с чекбоксами */}
+        {/* Выбор товаров */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Выбор товаров</h2>
@@ -306,7 +265,6 @@ export default function GenerateCardsPage() {
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-96 overflow-y-auto pr-1">
               {filtered.map(p => {
-                const photo = p.campaign_image_url || p.image_url;
                 const selected = selectedIds.has(p.id);
                 return (
                   <div
@@ -315,7 +273,6 @@ export default function GenerateCardsPage() {
                     className="border rounded-lg overflow-hidden cursor-pointer transition-all relative"
                     style={selected ? { outline: '2px solid #7a1c2e', outlineOffset: 1 } : { borderColor: '#f3f4f6' }}
                   >
-                    {/* Checkbox */}
                     <div className="absolute top-1 left-1 z-10">
                       <input
                         type="checkbox"
@@ -325,15 +282,11 @@ export default function GenerateCardsPage() {
                         style={{ accentColor: '#7a1c2e' }}
                       />
                     </div>
-                    {/* КМП badge */}
-                    {p.campaign_image_url && (
-                      <span className="absolute top-1 right-1 text-white text-[8px] font-bold px-1 py-0.5 rounded z-10" style={{ backgroundColor: '#7a1c2e' }}>КМП</span>
-                    )}
                     <div className="aspect-square bg-gray-50 overflow-hidden">
-                      <img src={photo!} alt={p.name} className="w-full h-full object-cover" />
+                      <img src={p.image_url!} alt={p.display_name || p.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="px-1.5 py-1">
-                      <p className="text-[10px] font-medium text-gray-700 truncate leading-tight">{p.name}</p>
+                      <p className="text-[10px] font-medium text-gray-700 truncate leading-tight">{p.display_name || p.name}</p>
                       <p className="text-[10px] text-gray-400">
                         {p.price.toLocaleString('ru-RU')} ₸
                         {p.length_cm ? ` · ${p.length_cm} см` : ''}
@@ -383,9 +336,6 @@ export default function GenerateCardsPage() {
                   style={{ width: `${(progress / progressTotal) * 100}%`, backgroundColor: '#7a1c2e' }}
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                Может занять до минуты для большого количества товаров
-              </p>
             </div>
           )}
         </div>
@@ -398,7 +348,7 @@ export default function GenerateCardsPage() {
                 { label: 'Карточек создано', value: generatedCards.length, color: '#7a1c2e' },
                 { label: 'Общий размер', value: `${Math.round(totalBytes / 1024)} КБ`, color: '#3D6B50' },
                 { label: 'Средний размер', value: `${Math.round(totalBytes / generatedCards.length / 1024)} КБ`, color: '#2563eb' },
-                { label: 'Разрешение', value: '600×800', color: '#7c3aed' },
+                { label: 'Разрешение', value: '600×850', color: '#7c3aed' },
               ].map(stat => (
                 <div key={stat.label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
                   <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
