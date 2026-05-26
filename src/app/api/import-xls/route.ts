@@ -14,44 +14,53 @@ const SPECIES_SUBCAT: Record<number, { subcat: string; vt?: string }> = {
   4:  { subcat: 'chrysanthemums', vt: 'single' }, // chrysanthemum_disbud
   5:  { subcat: 'chrysanthemums', vt: 'spray'  }, // chrysanthemum_spray
   6:  { subcat: 'chrysanthemums', vt: 'spray'  }, // chrysanthemum_santini
-  7:  { subcat: 'lilies'   },                      // lily_la
-  8:  { subcat: 'lilies'   },                      // lily_oriental
-  9:  { subcat: 'lilies'   },                      // lily_longiflorum
-  10: { subcat: 'gerberas' },
-  11: { subcat: 'tulips'   },
-  12: { subcat: 'carnations' },
-  47: { subcat: 'carnations', vt: 'single' }, // carnation_standard
-  48: { subcat: 'carnations', vt: 'spray'  }, // carnation_spray
-  13: { subcat: 'lisianthus' },
+  7:  { subcat: 'lilies'        },                 // lily_la
+  8:  { subcat: 'lilies'        },                 // lily_oriental
+  9:  { subcat: 'lilies'        },                 // lily_longiflorum
+  10: { subcat: 'gerberas'      },
+  11: { subcat: 'tulips'        },
+  12: { subcat: 'carnations'    },
+  47: { subcat: 'carnations',   vt: 'single' },    // carnation_standard
+  48: { subcat: 'carnations',   vt: 'spray'  },    // carnation_spray
+  13: { subcat: 'lisianthus'   },                  // eustoma
   14: { subcat: 'alstroemeria' },
-  16: { subcat: 'accents'  },  // peony cut
-  17: { subcat: 'accents'  },  // ranunculus
-  21: { subcat: 'greens'   },  // eucalyptus
-  22: { subcat: 'greens'   },  // ruscus
-  28: { subcat: 'fillers'  },  // tanacetum
-  32: { subcat: 'accents'  },  // cymbidium
-  34: { subcat: 'seasonal' },  // hyacinth
-  35: { subcat: 'seasonal' },  // narcissus
-  36: { subcat: 'accents'  },  // hypericum
-  37: { subcat: 'fillers'  },  // statice
-  39: { subcat: 'accents'  },  // chamelaucium
-  40: { subcat: 'accents'  },  // matthiola
-  41: { subcat: 'accents'  },  // brunia
-  42: { subcat: 'callas'   },
-  43: { subcat: 'accents'  },  // mimosa
-  44: { subcat: 'greens'   },  // leatherleaf
-  45: { subcat: 'accents'  },  // gladiolus
+  16: { subcat: 'peonies'      },                  // peony cut
+  17: { subcat: 'ranunculus'   },
+  21: { subcat: 'greens'       },                  // eucalyptus
+  22: { subcat: 'greens'       },                  // ruscus
+  28: { subcat: 'fillers'      },                  // tanacetum
+  32: { subcat: 'orchids'      },                  // cymbidium
+  34: { subcat: 'seasonal'     },                  // hyacinth
+  35: { subcat: 'seasonal'     },                  // narcissus
+  36: { subcat: 'berries'      },                  // hypericum
+  37: { subcat: 'fillers'      },                  // statice
+  39: { subcat: 'texture'      },                  // chamelaucium (wax flower)
+  40: { subcat: 'accents'      },                  // matthiola
+  41: { subcat: 'texture'      },                  // brunia
+  42: { subcat: 'callas'       },
+  43: { subcat: 'fillers'      },                  // mimosa
+  44: { subcat: 'greens'       },                  // leatherleaf
+  45: { subcat: 'accents'      },                  // gladiolus
 }
 
 // keyword fallback → subcategory (for products with no species)
 function getSubcatByKeyword(name: string, category: 'cut' | 'pot'): { subcategory: string | null; variety_type: string | null } {
   const n = name.toLowerCase()
   if (category === 'cut') {
-    if (/бамбук|бетула|саликс/.test(n)) return { subcategory: 'greens', variety_type: null }
-    if (/молюцелла|чико/.test(n))        return { subcategory: 'fillers', variety_type: null }
-    if (/дельфиниум|лекукодендрон|протея/.test(n)) return { subcategory: 'accents', variety_type: null }
-    if (/гиппеаструм/.test(n))           return { subcategory: 'spring', variety_type: null }
-    if (/квинс кроун|^микс/.test(n))     return { subcategory: 'roses',  variety_type: 'single' }
+    if (/пион/.test(n))                  return { subcategory: 'peonies',     variety_type: null }
+    if (/ранункул/.test(n))              return { subcategory: 'ranunculus',  variety_type: null }
+    if (/анемон/.test(n))                return { subcategory: 'anemones',    variety_type: null }
+    if (/орхид|цимбидиум|фаленопсис/.test(n)) return { subcategory: 'orchids', variety_type: null }
+    if (/антуриум/.test(n))              return { subcategory: 'anthuriums',  variety_type: null }
+    if (/протея|лейкодендрон|лекукодендрон/.test(n)) return { subcategory: 'proteas', variety_type: null }
+    if (/подсолнух/.test(n))             return { subcategory: 'sunflowers',  variety_type: null }
+    if (/дельфиниум/.test(n))            return { subcategory: 'delphiniums', variety_type: null }
+    if (/гиперикум/.test(n))             return { subcategory: 'berries',     variety_type: null }
+    if (/бамбук|бетула|саликс/.test(n))  return { subcategory: 'branches',    variety_type: null }
+    if (/молюцелла|чико|статица/.test(n)) return { subcategory: 'fillers',    variety_type: null }
+    if (/бруни|хамелаций|вакс/.test(n))  return { subcategory: 'texture',     variety_type: null }
+    if (/гиппеаструм/.test(n))           return { subcategory: 'spring',      variety_type: null }
+    if (/квинс кроун|^микс/.test(n))     return { subcategory: 'roses',       variety_type: 'single' }
   }
   if (category === 'pot') {
     if (/бамбук|драцена|замиокул|клузия|маранта|фикус|хамедорея|шеффлера|радермахера|фатсия|эонимус/.test(n)) return { subcategory: 'green', variety_type: null }

@@ -5,11 +5,17 @@ export type Chip = { label: string; onRemove: () => void }
 
 const SUBCAT_LABELS: Record<string, string> = {
   roses: 'Розы', chrysanthemums: 'Хризантемы', carnations: 'Гвоздики',
-  lilies: 'Лилии', hydrangeas: 'Гортензии', lisianthus: 'Лизиантус',
-  tulips: 'Тюльпаны', gerberas: 'Герберы', callas: 'Каллы',
-  irises: 'Ирисы', alstroemeria: 'Альстромерия', accents: 'Акцентные',
-  fillers: 'Наполнители', greens: 'Зелень', seasonal: 'Сезонные',
-  spring: 'Весенние', exotic: 'Экзотика',
+  tulips: 'Тюльпаны', peonies: 'Пионы', ranunculus: 'Ранункулюсы',
+  anemones: 'Анемоны', lilies: 'Лилии', gerberas: 'Герберы',
+  lisianthus: 'Эустомы', alstroemeria: 'Альстромерии', hydrangeas: 'Гортензии',
+  orchids: 'Орхидеи', callas: 'Каллы', anthuriums: 'Антуриумы',
+  proteas: 'Протеи', sunflowers: 'Подсолнухи', irises: 'Ирисы',
+  delphiniums: 'Дельфиниумы',
+  greens: 'Зелень', branches: 'Ветки', fillers: 'Наполнители',
+  texture: 'Текстурные', berries: 'Ягоды', vines: 'Лианы',
+  // legacy
+  accents: 'Акцентные', seasonal: 'Сезонные', spring: 'Весенние', exotic: 'Экзотика',
+  // pot
   green: 'Зелёные', flowering: 'Цветущие', succulents: 'Суккуленты',
   outdoor: 'Уличные', large: 'Крупномеры',
   packaging: 'Упаковка', pots: 'Горшки', soil: 'Грунты',
