@@ -50,7 +50,7 @@ type Stock = { price: number; qty: number; qty_reserved: number; is_available: b
 type Product = { id: number; name: string; category: string; is_active: boolean; pack_size: number; image_url?: string | null; stock: Stock[] | Stock }
 
 export default function AdminPageClient() {
-  const [tab, setTab] = useState('orders')
+  const [tab, setTab] = useState('stock')
   const [orderMode, setOrderMode] = useState<'kanban' | 'table'>('table')
   const [detailOrder, setDetailOrder] = useState<KanbanOrder | null>(null)
   const [stockKey, setStockKey] = useState(0)

@@ -11,6 +11,7 @@ interface Product {
   name: string;
   display_name: string | null;
   image_url: string | null;
+  campaign_image_url: string | null;
   category: string;
   country_iso: string | null;
   colors: string[] | null;
@@ -59,7 +60,7 @@ export default function GenerateCardsPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, display_name, image_url, category, country_iso, colors, pack_size, stems_per_pack, length_cm, price, qty')
+        .select('id, name, display_name, image_url, campaign_image_url, category, country_iso, colors, pack_size, stems_per_pack, length_cm, price, qty')
         .eq('is_active', true)
         .gt('qty', 0)
         .order('category')
@@ -134,7 +135,7 @@ export default function GenerateCardsPage() {
             availableQty: p.qty,
             packSize: p.pack_size,
             stemsPerPack: p.stems_per_pack,
-            imageUrl: p.image_url,
+            imageUrl: p.campaign_image_url || p.image_url,
           });
           cards.push({ blob, url: URL.createObjectURL(blob), name: p.display_name || p.name });
         } catch (err) {

@@ -223,11 +223,13 @@ export async function POST(req: NextRequest) {
           .eq('is_flagged', false),
       ])
 
-      // 2. Ищем product по UNIQUE ключу (variety_id, length_cm, country_iso, price)
-      //    Включая is_active=false — чтобы реактивировать старую карточку с той же ценой
+      // 2. Ищем product по (variety_id, length_cm, price).
+      //    Цена — часть идентичности партии (разные цены = разные партии).
+      //    country_iso — метаданные, не идентификатор (не создаём дубли при смене страны).
+      //    Включая is_active=false — чтобы реактивировать старую карточку.
       let productQuery = supabase
         .from('products')
-        .select('id, subcategory, variety_type')
+        .select('id, subcategory, variety_type, country_iso')
         .eq('variety_id', variety.id)
         .eq('price', row.price)
 
@@ -235,12 +237,6 @@ export async function POST(req: NextRequest) {
         productQuery = productQuery.eq('length_cm', parsed.length_cm)
       } else {
         productQuery = productQuery.is('length_cm', null)
-      }
-
-      if (countryIso) {
-        productQuery = productQuery.eq('country_iso', countryIso)
-      } else {
-        productQuery = productQuery.is('country_iso', null)
       }
 
       const { data: existingProduct } = await productQuery.maybeSingle()
@@ -251,19 +247,24 @@ export async function POST(req: NextRequest) {
       let productId: number
 
       if (existingProduct) {
+        const updatePayload: Record<string, unknown> = {
+          qty: row.qty,
+          arrival_date: today,
+          is_active: true,
+          name: row.name,
+          length_cm: parsed.length_cm ?? null,
+          pot_diameter: parsed.pot_diameter ?? null,
+          // не перезаписываем если уже заполнено вручную
+          subcategory: (existingProduct as any).subcategory ?? subcategory,
+          variety_type: (existingProduct as any).variety_type ?? variety_type,
+        }
+        // обогащаем country_iso только если у продукта был NULL
+        if (countryIso && !(existingProduct as any).country_iso) {
+          updatePayload.country_iso = countryIso
+        }
         const { error: pErr } = await supabase
           .from('products')
-          .update({
-            qty: row.qty,
-            arrival_date: today,
-            is_active: true,
-            name: row.name,
-            length_cm: parsed.length_cm ?? null,
-            pot_diameter: parsed.pot_diameter ?? null,
-            // не перезаписываем если уже заполнено вручную
-            subcategory: (existingProduct as any).subcategory ?? subcategory,
-            variety_type: (existingProduct as any).variety_type ?? variety_type,
-          })
+          .update(updatePayload)
           .eq('id', existingProduct.id)
         if (pErr) throw new Error(`product update: ${pErr.message}`)
         productId = existingProduct.id

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     .from('products')
     .select(`
       id, name, display_name, length_cm, category, pack_size,
-      colors, image_url, arrival_date, price, qty, country_iso
+      colors, image_url, campaign_image_url, arrival_date, price, qty, country_iso
     `)
     .eq('is_active', true)
     .order('name')

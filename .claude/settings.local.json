@@ -28,7 +28,12 @@
       "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\ARCHITECTURE.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\ARCHITECTURE.md\")",
       "Bash(Copy-Item \"C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\docs\\\\BUSINESS_LOGIC.md\" \"C:\\\\Users\\\\Владелец\\\\Downloads\\\\BUSINESS_LOGIC.md\")",
       "WebFetch(domain:flowers-b2b-phi.vercel.app)",
-      "mcp__claude_ai_Vercel__list_deployments"
+      "mcp__claude_ai_Vercel__list_deployments",
+      "Bash(python -c ' *)",
+      "Bash(pip show *)",
+      "PowerShell(py *)",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__list_teams"
     ]
   }
 }
