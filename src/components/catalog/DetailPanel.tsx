@@ -238,7 +238,14 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
       {/* Gallery */}
       <div style={{ flexShrink: 0, padding: '12px 12px 0' }}>
-        <div style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative' }}>
+        <div
+          style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative', cursor: images.length > 1 ? 'crosshair' : 'default' }}
+          onMouseMove={images.length > 1 ? (e) => {
+            const { left, width } = e.currentTarget.getBoundingClientRect()
+            setPhotoIdx(e.clientX - left > width / 2 ? 1 : 0)
+          } : undefined}
+          onMouseLeave={images.length > 1 ? () => setPhotoIdx(0) : undefined}
+        >
           {mainPhoto ? (
             <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'var(--bg2)' }} />
           ) : (
@@ -251,23 +258,19 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
               🌸
             </div>
           )}
+          {images.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5 }}>
+              {images.map((_, i) => (
+                <div key={i} style={{
+                  width: i === photoIdx ? 16 : 6, height: 6,
+                  borderRadius: 3, background: '#fff',
+                  opacity: i === photoIdx ? 0.95 : 0.45,
+                  transition: 'width 0.15s, opacity 0.15s',
+                }} />
+              ))}
+            </div>
+          )}
         </div>
-        {images.length > 1 && (
-          <div style={{ display: 'flex', gap: 6, padding: '8px 12px', overflowX: 'auto' }}>
-            {images.map((img, i) => (
-              <button
-                key={i} onClick={() => setPhotoIdx(i)}
-                style={{
-                  width: 52, height: 52, borderRadius: 6, overflow: 'hidden',
-                  flexShrink: 0, padding: 0, cursor: 'pointer', background: 'none',
-                  border: `2px solid ${i === photoIdx ? 'var(--accent)' : 'transparent'}`,
-                }}
-              >
-                <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Body */}
