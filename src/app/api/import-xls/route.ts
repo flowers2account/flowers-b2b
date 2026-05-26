@@ -241,7 +241,6 @@ export async function POST(req: NextRequest) {
       if (existingProduct) {
         const updatePayload: Record<string, unknown> = {
           qty: row.qty,
-          arrival_date: today,
           is_active: true,
           // не перезаписываем поля, которые пользователь мог задать вручную
           subcategory: (existingProduct as any).subcategory ?? subcategory,
