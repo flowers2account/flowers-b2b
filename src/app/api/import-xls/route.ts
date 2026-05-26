@@ -223,14 +223,13 @@ export async function POST(req: NextRequest) {
           .eq('is_flagged', false),
       ])
 
-      // 2. Ищем product по (name, price) — партия идентифицируется именем и ценой.
-      //    Разные цены = разные партии. Ручные правки length_cm/country_iso не ломают поиск.
+      // 2. Ищем product только по name (raw из 1С) — стабильный якорь.
+      //    Цена, длина, страна — обновляемые метаданные, не идентификаторы.
       //    Включая is_active=false — чтобы реактивировать старую карточку.
       const { data: existingProduct } = await supabase
         .from('products')
         .select('id, subcategory, variety_type, country_iso, length_cm')
         .eq('name', row.name)
-        .eq('price', row.price)
         .maybeSingle()
 
       const speciesId = (variety as any).species_id ?? enriched?.species_id ?? null
@@ -241,6 +240,7 @@ export async function POST(req: NextRequest) {
       if (existingProduct) {
         const updatePayload: Record<string, unknown> = {
           qty: row.qty,
+          price: row.price,
           is_active: true,
           // не перезаписываем поля, которые пользователь мог задать вручную
           subcategory: (existingProduct as any).subcategory ?? subcategory,
