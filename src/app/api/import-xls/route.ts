@@ -315,24 +315,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // При последнем файле — деактивируем товары, отсутствующие в этом импорте.
-  if (isLast) {
-    const { data: allActive } = await supabase
-      .from('products')
-      .select('id')
-      .eq('is_active', true)
-
-    const toDeactivate = (allActive ?? [])
-      .map((p: { id: number }) => p.id)
-      .filter((id: number) => !importedProductIds.has(id))
-
-    if (toDeactivate.length) {
-      await supabase.from('products')
-        .update({ is_active: false, qty: 0 })
-        .in('id', toDeactivate)
-      zeroed = toDeactivate.length
-    }
-  }
-
-  return NextResponse.json({ success, errors, zeroed, errorLog, ...aiStats })
+  return NextResponse.json({
+    success, errors, zeroed, errorLog, ...aiStats,
+    importedIds: Array.from(importedProductIds),
+    category: categoryOverride ?? 'cut',
+  })
 }

@@ -28,24 +28,25 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
     setLoading(true)
     setResults([])
 
+    const allImportedIds: number[] = []
+    const importedCategories = new Set<string>()
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      const isLast = i === files.length - 1
-      const isFirst = i === 0
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('isLast', String(isLast))
-      formData.append('isFirst', String(isFirst))
+      formData.append('isFirst', String(i === 0))
       if (user?.id) formData.append('userId', user.id)
 
       try {
         const res = await fetch('/api/import-xls', { method: 'POST', body: formData })
         const data = await res.json()
+        if (data.importedIds) allImportedIds.push(...data.importedIds)
+        if (data.category) importedCategories.add(data.category)
         setResults(prev => [...prev, {
           name: file.name,
           success: data.success ?? 0,
           errors: data.errors ?? 0,
-          zeroed: data.zeroed ?? 0,
           ai_enriched: data.ai_enriched,
           ai_cached: data.ai_cached,
           ai_failed: data.ai_failed,
@@ -54,6 +55,29 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
       } catch (e) {
         setResults(prev => [...prev, { name: file.name, success: 0, errors: 1 }])
       }
+    }
+
+    // Деактивируем товары, отсутствующие в импорте, по каждой категории
+    if (importedCategories.size > 0) {
+      try {
+        const res = await fetch('/api/import-xls/finalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keepIds: allImportedIds,
+            categories: Array.from(importedCategories),
+          }),
+        })
+        const data = await res.json()
+        if (data.zeroed) {
+          setResults(prev => [...prev, {
+            name: '— деактивация',
+            success: 0,
+            errors: 0,
+            zeroed: data.zeroed,
+          }])
+        }
+      } catch {}
     }
 
     setLoading(false)
