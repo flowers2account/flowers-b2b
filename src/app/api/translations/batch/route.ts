@@ -37,7 +37,7 @@ const TRANSLATION_PREFIXES = new Set([
   'гиппеаструм','амариллис','нарцисс','гиацинт','георгин','статица',
   'мимоза','илекс','нобилис','лейкодендрон','стрелиция','геликония',
   // типы сортов
-  'кустовая','одноголовая','сантини','спрей','стандарт',
+  'ветковая','кустовая','одноголовая','сантини','спрей','стандарт',
   'махровая','махровый','махровое','восточная','восточный',
   // цветовые дескрипторы используемые как тип (не сорт)
   'ред','вайт','розовая','белый','белая','красный',
@@ -187,7 +187,7 @@ Leaf eucalyptus → Эвкалипт
 Leaf leather fern → Ледерфёрн
 
 2. Нормализовать florist forms:
-T / Spray / Spr / sp → кустовая
+T / Spray / Spr / sp → ветковая
 bl / Disb → одноголовая
 sa / Santini → сантини
 dbl / do → махровая
@@ -210,7 +210,7 @@ Altaj → Алтай
 
 4. Формат результата: [Тип] [форма] «Сорт»
 Примеры:
-Chr T Baltica White → Хризантема кустовая «Балтика Вайт»
+Chr T Baltica White → Хризантема ветковая «Балтика Вайт»
 Chrys bl Superbowl → Хризантема одноголовая «Супербол»
 Rosa sp Purple Sky → Роза кустовая «Пёрпл Скай»
 Paeonia Sarah Bernhardt → Пион «Сара Бернар»
@@ -400,7 +400,7 @@ export async function POST(request: NextRequest) {
     // ШАГ 7: Постобработка — добавляем «ёлочки» и нормализуем термины
     const finalFormatted = final
       .map(r => r.method === 'db_exact' ? r : { ...r, translated: addGuillemets(r.translated) })
-      .map(r => ({ ...r, translated: r.translated.replace(/ветковая/gi, 'кустовая') }))
+      .map(r => ({ ...r, translated: r.translated.replace(/кустовая/gi, 'ветковая') }))
 
     console.log('[Batch] Complete');
 
