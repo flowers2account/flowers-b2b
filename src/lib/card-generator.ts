@@ -32,13 +32,18 @@ function colorEmoji(key: string): string {
   const normalized = key.toLowerCase().trim();
   const map: Record<string, string> = {
     // English keys (from DB)
-    white: '⚪', cream: '🟡', pink: '🩷', peach: '🟠',
-    red: '🔴', bordeaux: '🔴', orange: '🟠', yellow: '🟡',
-    lavender: '🟣', purple: '🟣', green: '🟢',
-    mix: '🎨', mix_pink: '🩷', mix_red_white: '🔴',
-    violet: '🟣', blue: '🔵', coral: '🩷', lilac: '🟣',
-    lime: '🟢', cyan: '🔵', mint: '🟢', beige: '🟤',
-    brown: '🟤', black: '⚫', grey: '⚪', gray: '⚪',
+    white: '⚪', cream: '🟡', yellow: '🟡', orange: '🟠', peach: '🟠', coral: '🩷',
+    red: '🔴', burgundy: '🔴',
+    pink: '🩷', hot_pink: '🩷',
+    lilac: '🟣', lavender: '🟣', purple: '🟣',
+    blue: '🔵', navy: '🔵',
+    green: '🟢', lime: '🟢', silver: '⚪',
+    brown: '🟤', terracotta: '🟤',
+    black: '⚫',
+    bicolor: '🎨', multicolor: '🎨',
+    // legacy keys
+    bordeaux: '🔴', mix: '🎨', mix_pink: '🩷', mix_red_white: '🔴',
+    violet: '🟣', cyan: '🔵', mint: '🟢', beige: '🟤', grey: '⚪', gray: '⚪',
     // Russian names (fallback)
     'белый': '⚪', 'красный': '🔴', 'розовый': '🩷', 'желтый': '🟡',
     'оранжевый': '🟠', 'фиолетовый': '🟣', 'синий': '🔵', 'зеленый': '🟢',

@@ -20,10 +20,18 @@ const VARIETY_TYPE_LABELS: Record<string, string> = {
   decorative: 'Пионовидные', ot: 'ОТ-гибриды', oriental: 'Восточные', asian: 'Азиатские',
 }
 const COLOR_LABELS: Record<string, string> = {
-  white: 'Белый', cream: 'Кремовый', pink: 'Розовый', peach: 'Персиковый',
-  red: 'Красный', bordeaux: 'Бордовый', orange: 'Оранжевый', yellow: 'Жёлтый',
-  lavender: 'Лавандовый', purple: 'Фиолетовый', green: 'Зелёный',
-  mix: 'Микс', mix_pink: 'Пинк микс', mix_red_white: 'Красно-белый',
+  white: 'Белый', cream: 'Кремовый',
+  yellow: 'Жёлтый', orange: 'Оранжевый', peach: 'Персиковый', coral: 'Коралловый',
+  red: 'Красный', burgundy: 'Бордовый',
+  pink: 'Розовый', hot_pink: 'Ярко-розовый',
+  lilac: 'Сиреневый', lavender: 'Лавандовый', purple: 'Фиолетовый',
+  blue: 'Голубой', navy: 'Синий',
+  green: 'Зелёный', lime: 'Салатовый', silver: 'Серебристый',
+  brown: 'Коричневый', terracotta: 'Терракотовый',
+  black: 'Чёрный',
+  bicolor: 'Биколор', multicolor: 'Микс',
+  // legacy keys from DB
+  bordeaux: 'Бордовый', mix: 'Микс', mix_pink: 'Пинк микс', mix_red_white: 'Красно-белый',
 }
 const SEASON_LABELS: Record<string, string> = {
   spring: 'Весна', summer: 'Лето', autumn: 'Осень',
