@@ -223,23 +223,15 @@ export async function POST(req: NextRequest) {
           .eq('is_flagged', false),
       ])
 
-      // 2. Ищем product по (variety_id, length_cm, price).
-      //    Цена — часть идентичности партии (разные цены = разные партии).
-      //    country_iso — метаданные, не идентификатор (не создаём дубли при смене страны).
+      // 2. Ищем product по (name, price) — raw-имя из 1С как якорь.
+      //    Ручные правки length_cm / country_iso / display_name не ломают поиск.
       //    Включая is_active=false — чтобы реактивировать старую карточку.
-      let productQuery = supabase
+      const { data: existingProduct } = await supabase
         .from('products')
-        .select('id, subcategory, variety_type, country_iso')
-        .eq('variety_id', variety.id)
+        .select('id, subcategory, variety_type, country_iso, length_cm')
+        .eq('name', row.name)
         .eq('price', row.price)
-
-      if (parsed.length_cm !== null) {
-        productQuery = productQuery.eq('length_cm', parsed.length_cm)
-      } else {
-        productQuery = productQuery.is('length_cm', null)
-      }
-
-      const { data: existingProduct } = await productQuery.maybeSingle()
+        .maybeSingle()
 
       const speciesId = (variety as any).species_id ?? enriched?.species_id ?? null
       const { subcategory, variety_type } = deriveSubcat(speciesId, category, row.name)
@@ -251,14 +243,15 @@ export async function POST(req: NextRequest) {
           qty: row.qty,
           arrival_date: today,
           is_active: true,
-          name: row.name,
-          length_cm: parsed.length_cm ?? null,
-          pot_diameter: parsed.pot_diameter ?? null,
-          // не перезаписываем если уже заполнено вручную
+          // не перезаписываем поля, которые пользователь мог задать вручную
           subcategory: (existingProduct as any).subcategory ?? subcategory,
           variety_type: (existingProduct as any).variety_type ?? variety_type,
         }
-        // обогащаем country_iso только если у продукта был NULL
+        // length_cm: берём из парсера только если у продукта ещё не задано вручную
+        if (!(existingProduct as any).length_cm && parsed.length_cm !== null) {
+          updatePayload.length_cm = parsed.length_cm
+        }
+        // country_iso: обогащаем только если был NULL
         if (countryIso && !(existingProduct as any).country_iso) {
           updatePayload.country_iso = countryIso
         }
