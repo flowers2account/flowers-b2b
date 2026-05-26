@@ -354,7 +354,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
                 >
                   <span style={{ fontSize: 10, opacity: 0.5, marginRight: 2 }}>•</span>
                   <span style={{ flex: 1, fontSize: 11 }}>{child.label}</span>
-                  {countBadge(facets?.vtCounts?.[child.varietyType] ?? childCount, childActive)}
+                  {countBadge(childCount, childActive)}
                 </div>
               )
             })}
