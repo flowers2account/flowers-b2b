@@ -125,7 +125,7 @@ function deriveSubcat(speciesId: number | null | undefined, category: 'cut' | 'p
       // Для generic carnation (id=12): определяем тип по ключевым словам в названии
       if (speciesId === 12 && vt === null && category === 'cut') {
         const n = productName.toLowerCase()
-        vt = /ветковая|кустовая|спрей|spray/.test(n) ? 'spray' : 'single'
+        vt = /кустовая|спрей|spray/.test(n) ? 'spray' : 'single'
       }
       return { subcategory: subcat, variety_type: vt }
     }

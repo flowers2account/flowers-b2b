@@ -119,8 +119,8 @@ ${categoryHint}
 5. Lowercase, без лишних символов
 
 ПРИМЕРЫ СРЕЗКИ:
-Chr T Commander Pink → хризантема ветковая коммандер пинк
-R Tr Fireworks → роза ветковая файерворкс
+Chr T Commander Pink → хризантема кустовая коммандер пинк
+R Tr Fireworks → роза кустовая файерворкс
 Li La Brindisi → лилия ла бриндизи
 
 ПРИМЕРЫ ГОРШЕЧНЫХ:

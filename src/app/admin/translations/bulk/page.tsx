@@ -211,7 +211,7 @@ export default function BulkTranslationPage() {
           Вставьте список оригинальных названий (одна позиция в строке):
         </label>
         <p className="text-xs text-slate-500 mb-2">
-          Название сорта пишется в <strong>русских ёлочках</strong>: <span className="font-mono">Хризантема ветковая «Балтика Вайт»</span> · <span className="font-mono">Роза «Ред Наоми»</span>
+          Название сорта пишется в <strong>русских ёлочках</strong>: <span className="font-mono">Хризантема кустовая «Балтика Вайт»</span> · <span className="font-mono">Роза «Ред Наоми»</span>
         </p>
         <textarea
           value={input}
