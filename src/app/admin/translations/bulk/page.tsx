@@ -210,6 +210,9 @@ export default function BulkTranslationPage() {
         <label className="block text-sm font-semibold text-slate-700 mb-2">
           Вставьте список оригинальных названий (одна позиция в строке):
         </label>
+        <p className="text-xs text-slate-500 mb-2">
+          Название сорта пишется в <strong>русских ёлочках</strong>: <span className="font-mono">Хризантема ветковая «Балтика Вайт»</span> · <span className="font-mono">Роза «Ред Наоми»</span>
+        </p>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
