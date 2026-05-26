@@ -397,10 +397,10 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // ШАГ 7: Постобработка — добавляем «ёлочки» вокруг сорта для non-DB результатов
-    const finalFormatted = final.map(r =>
-      r.method === 'db_exact' ? r : { ...r, translated: addGuillemets(r.translated) }
-    )
+    // ШАГ 7: Постобработка — добавляем «ёлочки» и нормализуем термины
+    const finalFormatted = final
+      .map(r => r.method === 'db_exact' ? r : { ...r, translated: addGuillemets(r.translated) })
+      .map(r => ({ ...r, translated: r.translated.replace(/ветковая/gi, 'кустовая') }))
 
     console.log('[Batch] Complete');
 
