@@ -102,11 +102,50 @@ B2B платформа для оптовой торговли цветами. С
 - `arrival_date` — задаётся только при первом INSERT
 - `length_cm` — если уже заполнено вручную
 - `country_iso` — обогащается только если было NULL
-- `display_name`, `image_url`, `campaign_image_url`, `colors`
+- `display_name` — если уже задано (вручную или из переводчика), не перезаписывается
+- `colors` — обогащается из AI только если было NULL/пусто
+- `tags` — авто-теги проставляются только если тегов ещё нет
+- `image_url`, `campaign_image_url`
+
+### display_name и TM переводчика (26.05.2026)
+
+`display_name` собирается по приоритету:
+
+1. **Ручной ввод** в ProductEditModal — приоритет абсолютный, никогда не перезаписывается
+2. **Утверждённый перевод из TM переводчика** (`approved_by IS NOT NULL`, `is_flagged = false`) — берётся при импорте, если `cultivar_cyrillic` из AI-обогащения состоит из 2+ слов и совпадает с `normalized_translated` (ILIKE `%cultivar%`). Перед использованием очищается функцией `cleanTranslatorName()`
+3. **Автогенерация триггером** `generate_product_display_name` — если `display_name IS NULL` после INSERT
+
+`cleanTranslatorName()` стрипит из перевода: числа (`140`, `*140`), имена ферм (ALL-CAPS 3+ букв: `LINFLOWERS`), страны в скобках. Применяет INITCAP.  
+Пример: `"хризантема ветковая балтика 140 LINFLOWERS"` → `"Хризантема Ветковая Балтика"`
+
+Переводчик сохраняет переводы дословно (с длиной, фермой) — очистка происходит автоматически при импорте.
+
+Если перевод оказался неверным:
+- Исправить в TM переводчика (bulk-страница `/admin/translations/bulk`)
+- Очистить `display_name` в ProductEditModal (оставить пустым)
+- Повторить импорт
+
+### Авто-теги при импорте (26.05.2026)
+
+`tags` проставляются автоматически при импорте через `autoTagProduct()`, если у продукта ещё нет тегов:
+
+| Тег | По подкатегории | По ключевым словам |
+|-----|----------------|-------------------|
+| `exotic` | orchids, anthuriums, proteas | стрелиц, геликон, леукодендрон |
+| `seasonal` | peonies | амарилл, гиппеаструм, нобилис, илекс, мимоза, георгин |
+| `spring` | tulips, ranunculus, anemones | нарцисс, гиацинт, мускари |
+| `wedding` | lisianthus, hydrangeas, ranunculus, roses/decorative | White O'Hara, Playa Blanca |
+| `premium` | peonies | David Austin, фаленопсис, цимбидиум, Protea King, premium |
+
+Один товар может получить несколько тегов. Ручные теги не перезаписываются.
+
+### colors при импорте
+
+`colors` берётся из AI-обогащения (`enriched.color`) и пишется в `products.colors` как `[color]` при INSERT или UPDATE (если поле пустое). Ручные значения не трогаются.
 
 ### Поведение при INSERT (новый товар)
 
-Устанавливается всё: `name`, `price`, `qty`, `arrival_date = today`, `length_cm` из парсера, `country_iso` из имени файла, `category`, `subcategory`, `variety_type`, `pack_size`.
+Устанавливается всё: `name`, `price`, `qty`, `arrival_date = today`, `length_cm` из парсера, `country_iso` из имени файла, `category`, `subcategory`, `variety_type`, `pack_size`, `display_name` из TM переводчика (если найден — очищенный), `colors` из AI, `tags` из авто-тегирования.
 
 ### Деактивация — категориальная (26.05.2026)
 
