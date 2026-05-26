@@ -228,7 +228,7 @@ export async function POST(req: NextRequest) {
       //    Включая is_active=false — чтобы реактивировать старую карточку.
       const { data: existingProduct } = await supabase
         .from('products')
-        .select('id, subcategory, variety_type, country_iso, length_cm')
+        .select('id, subcategory, variety_type, country_iso, length_cm, price')
         .eq('name', row.name)
         .maybeSingle()
 
@@ -245,6 +245,10 @@ export async function POST(req: NextRequest) {
           // не перезаписываем поля, которые пользователь мог задать вручную
           subcategory: (existingProduct as any).subcategory ?? subcategory,
           variety_type: (existingProduct as any).variety_type ?? variety_type,
+        }
+        // previous_price: сохраняем старую цену только если новая ниже
+        if ((existingProduct as any).price && row.price < (existingProduct as any).price) {
+          updatePayload.previous_price = (existingProduct as any).price
         }
         // length_cm: берём из парсера только если у продукта ещё не задано вручную
         if (!(existingProduct as any).length_cm && parsed.length_cm !== null) {
