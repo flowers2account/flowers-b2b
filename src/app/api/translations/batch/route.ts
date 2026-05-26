@@ -28,6 +28,45 @@ interface GeminiTranslation {
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ========================================
 
+const TRANSLATION_PREFIXES = new Set([
+  // виды
+  'хризантема','роза','лилия','гербера','тюльпан','гвоздика','пион',
+  'гортензия','эустома','лизиантус','альстромерия','антуриум','орхидея',
+  'цимбидиум','калла','ирис','дельфиниум','подсолнух','ранункулюс',
+  'анемон','матрикария','гипсофила','озотхамнус','хамелациум','эвкалипт',
+  'гиппеаструм','амариллис','нарцисс','гиацинт','георгин','статица',
+  'мимоза','илекс','нобилис','лейкодендрон','стрелиция','геликония',
+  // типы сортов
+  'ветковая','кустовая','одноголовая','сантини','спрей','стандарт',
+  'махровая','махровый','махровое','восточная','восточный',
+  // цветовые дескрипторы используемые как тип (не сорт)
+  'ред','вайт','розовая','белый','белая','красный',
+  // прочие нейтральные слова
+  'микс','аквабокс','вакуум',
+])
+
+function addGuillemets(s: string): string {
+  if (!s || s.includes('«')) return s
+
+  const words = s.toLowerCase().trim().split(/\s+/)
+  let i = 0
+  while (i < words.length && TRANSLATION_PREFIXES.has(words[i])) i++
+
+  // Культивар не найден или вся строка — префиксные слова
+  if (i === 0 || i >= words.length) {
+    return s.charAt(0).toUpperCase() + s.slice(1)
+  }
+
+  const prefix = words.slice(0, i)
+  const cultivar = words.slice(i)
+
+  const prefixStr = prefix[0].charAt(0).toUpperCase() + prefix[0].slice(1)
+    + (prefix.length > 1 ? ' ' + prefix.slice(1).join(' ') : '')
+  const cultivarStr = cultivar.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
+  return `${prefixStr} «${cultivarStr}»`
+}
+
 function extractKeywords(product: string): string[] {
   const normalized = normalizeText(product);
   const words = normalized.split(/\s+/);
@@ -304,11 +343,16 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // ШАГ 7: Постобработка — добавляем «ёлочки» вокруг сорта для non-DB результатов
+    const finalFormatted = final.map(r =>
+      r.method === 'db_exact' ? r : { ...r, translated: addGuillemets(r.translated) }
+    )
+
     console.log('[Batch] Complete');
 
     return NextResponse.json({
       success: true,
-      results: final,
+      results: finalFormatted,
       stats: {
         total: products.length,
         db_exact: final.filter(f => f.method === 'db_exact').length,
