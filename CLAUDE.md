@@ -36,72 +36,138 @@ B2B платформа для оптовой торговли цветами. С
 
 ## Структура базы данных
 
-### Основные таблицы
+### Плоская схема products (актуально с 25.05.2026)
 
-- **products** — каталог товаров (розы, гвоздики и т.д.)
+Таблицы `batches` и `stock` **удалены**. Все данные хранятся напрямую в `products`:
+
+| Поле | Тип | Описание |
+|------|-----|---------|
+| `id` | int | PK |
+| `name` | text | Raw-название из 1С — **неизменяемый якорь** для импорта |
+| `display_name` | text | Отображаемое название (ручное или из триггера) |
+| `variety_id` | int | FK → varieties |
+| `category` | text | `cut` / `pot` |
+| `subcategory` | text | roses, chrysanthemums, lilies и т.д. |
+| `variety_type` | text | single / spray / pompom |
+| `length_cm` | int | Длина стебля (редактируется вручную, импорт не перезаписывает) |
+| `pot_diameter` | float | Диаметр горшка |
+| `country_iso` | text | ISO код страны (CN/EC/KE/NL/…) |
+| `farm` | text | Ферма-производитель |
+| `colors` | text[] | Массив ключей цветов |
+| `image_url` | text | Основное фото (Supabase Storage: `product-images`) |
+| `campaign_image_url` | text | Второе фото для ховер-эффекта и генератора карточек |
+| `pack_size` | int | Кратность заказа |
+| `stems_per_pack` | int | Стеблей в упаковке |
+| `price` | numeric | Цена за штуку |
+| `qty` | int | Остаток |
+| `arrival_date` | date | Дата поступления (задаётся при первом импорте, не перезаписывается) |
+| `is_active` | bool | Активен ли товар |
+| `is_new` | — | Вычисляется на лету: `arrival_date = today` |
+
+### Прочие таблицы
+
 - **varieties** — сорта товаров (Red Naomi, Freedom и т.д.)
-- **batches** — партии товара с датой поступления
-- **stock** — текущие остатки по товарам
-- **stock_available** — представление (view) доступного количества с учётом активных резервирований
+- **stock_available** — view: `product_id, qty, qty_reserved, available_qty, is_active` (без price!)
 - **orders** — заказы клиентов (статусы: pending → reserved → confirmed → cancelled)
 - **order_items** — товары в заказе
-- **reservations** — временные резервирования остатков (время истечения 30 мин)
+- **reservations** — временные резервирования остатков (30 мин)
 - **clients** — профили клиентов
 - **profiles** — дополнительные данные пользователей (роль, компания)
+- **inventory_ledger** — аудит всех изменений остатков
+- **translation_memory** — кэш AI-переводов названий
 
-## Импорт из XLS — логика sync_stock_from_1c
+⚠️ `sync_stock_from_1c` — PostgreSQL функция, **мёртвый код**. Ссылается на удалённые таблицы `batches`/`stock`. Не вызывается импортом.
 
-Функция `sync_stock_from_1c(p_name, p_new_qty, p_new_price, p_arrival_date)` вызывается при импорте XLS.
+## Импорт из XLS — актуальная логика (26.05.2026)
 
-**Логика (актуальна с 24.05.2026):**
-- XLS = снимок текущих остатков, не новое поступление
-- Поиск товара: `LOWER(TRIM(name))` → trigram fallback (`similarity > 0.85`) → CREATE
-- Поиск партии: только по `(product_id, price, is_active = true)` — `arrival_date` **не используется в поиске**
-- Партия **найдена** → `UPDATE batches SET stock = p_new_qty` (arrival_date не трогаем!)
-- Партия **не найдена** → `INSERT` новая партия с `arrival_date` из XLS (новая цена = новая поставка)
-- После изменения партии: `UPSERT stock` с пересчётом суммы всех активных партий
+Реализован в `src/app/api/import-xls/route.ts`. Функция `sync_stock_from_1c` **не используется**.
 
-⚠️ **При повторном импорте дубли НЕ создаются** — это ключевое исправление от 23.05.2026.
+### Ключ поиска: `name` (raw из 1С)
+
+```
+Ищем: products WHERE name = row.name
+```
+
+- `name` — verbatim строка из XLS, **никогда не меняется при ручном редактировании**
+- Ручные правки `length_cm`, `display_name`, `country_iso`, `image_url` не ломают поиск
+
+### Поведение при UPDATE (товар найден)
+
+Обновляется: `qty`, `price`, `is_active = true`
+
+НЕ перезаписывается (сохраняются ручные правки):
+- `arrival_date` — задаётся только при первом INSERT
+- `length_cm` — если уже заполнено вручную
+- `country_iso` — обогащается только если было NULL
+- `display_name`, `image_url`, `campaign_image_url`, `colors`
+
+### Поведение при INSERT (новый товар)
+
+Устанавливается всё: `name`, `price`, `qty`, `arrival_date = today`, `length_cm` из парсера, `country_iso` из имени файла, `category`, `subcategory`, `variety_type`, `pack_size`.
+
+### Деактивация (isLast)
+
+При загрузке последнего файла деактивируются товары **отсутствующие в импорте** (не по `arrival_date`). Используется `importedProductIds` — Set из id всех обновлённых/созданных товаров.
+
+### Страна и категория из имени файла
+
+- `countryFromText(filename)` → ISO код (EC/KE/NL/CN/CO/IL/ET/EG)
+- Наличие «горшок»/«горш» в имени → `category = 'pot'`, иначе `cut`
+
+### Несколько одинаковых строк в одном XLS
+
+Если XLS содержит несколько строк с одинаковым `name` (разные партии по разным ценам) — каждая следующая строка перезаписывает предыдущую через UPDATE (последняя цена и qty победят). Это компромисс плоской схемы.
+
+## Фото товаров
+
+- **Хранилище**: Supabase Storage, бакет `product-images`
+- **Основное фото** (`image_url`): путь `{slugify(name)}.{ext}`
+- **Второе фото** (`campaign_image_url`): путь `campaign_{slugify(name)}.{ext}`
+- **Загрузка**: клик по миниатюре в строке AdminTable → выбор файла или камера
+- **Ховер-эффект в каталоге**: GridCard переключается на `campaign_image_url` при наведении + точки-переключатели
+- **Генератор карточек**: использует `campaign_image_url` если есть, иначе `image_url`
 
 ## Логика резервирования
 
 1. **POST /api/checkout** — клиент добавляет товары в корзину
-   - Проверяет доступное количество (stock минус активные резервирования других клиентов)
+   - Проверяет доступное количество (qty минус активные резервирования)
    - Создаёт или обновляет заказ со статусом `pending`
    - Создаёт резервирование на 30 минут
    - Возвращает `order_id` и `expires_at`
 
 2. **POST /api/cancel-order** — отмена заказа
    - Меняет статус на `cancelled`
-   - Удаляет связанные резервирования (возвращает остатки в доступность)
+   - Удаляет связанные резервирования
    - Пересчитывает остатки
 
 3. **Триггер trg_confirm_order** — при смене статуса на `confirmed`
-   - Списывает остатки из `stock` на основе `order_items`
+   - Списывает остатки из `products.qty` на основе `order_items`
    - Удаляет резервирования
-   - Логирует историю отгрузки
+   - Логирует в `inventory_ledger`
 
 ## Критические замечания
 
-⚠️ **SUPABASE_SERVICE_ROLE_KEY не работает в serverless на Vercel** 
-- Причина: функции запускаются с разными контекстами, переменные окружения могут быть недоступны
-- **Решение**: Используется обычный `createClient()` (client role) + RLS политики для ограничения доступа
-- Все мутации (INSERT, UPDATE, DELETE) должны работать через RLS без обхода с service role
-- Если нужны privileged операции — использовать Auth с ролями через profiles.role
+⚠️ **SUPABASE_SERVICE_ROLE_KEY не работает в serverless на Vercel**
+- **Решение**: Используется `createClient()` (client role) + RLS политики
+- **Статус**: Постоянное ограничение архитектуры Vercel
+
+⚠️ **`stock_available` view не содержит `price`**
+- Не использовать для получения цен — брать напрямую из `products.price`
 
 ## API Маршруты
 
 | Маршрут | Метод | Описание |
 |---------|-------|---------|
-| `/api/products` | GET | Получить каталог товаров с фото и сортами |
+| `/api/products` | GET | Каталог товаров; `?catalog=1` — включая qty=0 (для кампаний) |
+| `/api/admin/products` | GET | Товары для AdminTable с резервами |
 | `/api/checkout` | POST | Создать заказ и резервирование |
-| `/api/cancel-order` | POST | Отменить заказ (меняет статус, удаляет резервирования) |
-| `/api/confirm-order` | POST | Подтвердить заказ (запускает триггер списания остатков) |
-| `/api/update-order-qty` | POST | Изменить количество товара в заказе |
-| `/api/my-orders` | GET | Получить заказы текущего клиента |
-| `/api/import-xls` | POST | Импорт товаров из Excel (только администраторы) |
-| `/api/reserve` | POST | Создать резервирование товара |
-| `/api/cron/cleanup` | GET | Cron: удаляет истекшие резервирования каждые 5 минут (защита CRON_SECRET) |
+| `/api/cancel-order` | POST | Отменить заказ |
+| `/api/confirm-order` | POST | Подтвердить заказ (триггер списания) |
+| `/api/update-order-qty` | POST | Изменить количество в заказе |
+| `/api/my-orders` | GET | Заказы текущего клиента |
+| `/api/import-xls` | POST | Импорт товаров из Excel |
+| `/api/reserve` | POST | Создать резервирование |
+| `/api/cron/cleanup` | GET | Cron: удаляет истекшие резервирования (защита CRON_SECRET) |
 
 ## Роли и доступ
 
@@ -113,127 +179,94 @@ B2B платформа для оптовой торговли цветами. С
 
 ## RLS статус (актуально на 01.05.2026)
 
-RLS **отключён** на таблицах: `clients`, `orders`, `order_items`, `reservations`, `products`, `varieties`, `batches`, `stock`, `inventory_ledger`
+RLS **отключён** на таблицах: `clients`, `orders`, `order_items`, `reservations`, `products`, `varieties`, `inventory_ledger`
 
 RLS **включён только** на: `profiles`
 
 ## База знаний проекта
 
-Документация по подсистемам находится в `docs/` — читать перед работой с соответствующей фичей:
-
 | Файл | Тема |
 |------|------|
-| `docs/IMPORT_SYSTEM.md` | Импорт XLS, `sync_stock_from_1c`, логика партий |
-| `docs/STOCK_MANAGEMENT.md` | Архитектура остатков, FIFO, баги, план исправлений |
-| `docs/STOCK_QUICK_REF.md` | Шпаргалка: ключевые таблицы, SQL диагностика |
-| `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory`, справочники |
-| `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров, план интеграции двух систем |
+| `docs/IMPORT_SYSTEM.md` | Импорт XLS (может быть устаревшим — актуальна секция выше) |
+| `docs/STOCK_MANAGEMENT.md` | Архитектура остатков |
+| `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
+| `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
 
 ## Важные файлы и папки
 
 ```
 src/
 ├── app/
-│   ├── api/              # API маршруты
-│   ├── admin/            # Страница администратора (защита через useAuthStore)
-│   └── cabinet/          # Личный кабинет клиента
+│   ├── api/
+│   │   ├── import-xls/route.ts   # Импорт XLS — основная логика
+│   │   ├── products/route.ts     # Каталог (включает campaign_image_url)
+│   │   └── admin/products/route.ts # Админ-таблица
+│   ├── admin/
+│   │   ├── page.tsx              # Открывается на вкладке "Остатки"
+│   │   └── generate-cards/       # Генератор карточек для WhatsApp
+│   └── product/[id]/             # Страница товара (клиентская)
 ├── components/
 │   ├── admin/
-│   │   └── ImportXLS.tsx # Импорт XLS — userId передаётся из useAuthStore
+│   │   ├── AdminPageClient.tsx   # Табы: Остатки (default), Заказы, Клиенты...
+│   │   ├── AdminTable.tsx        # Таблица остатков + загрузка фото
+│   │   ├── ProductEditModal.tsx  # Редактирование товара
+│   │   └── ImportXLS.tsx         # Загрузка XLS файлов
 │   └── catalog/
-│       └── AuthModal.tsx # Модальное окно входа (телефон + PIN)
+│       └── ProductGrid.tsx       # GridCard с ховер-эффектом 2-го фото
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts     # Singleton Supabase client (браузер)
 │   │   └── server.ts     # Supabase client (сервер/API)
-│   ├── auth-store.ts     # Zustand стор: user, role, phone, isAuthed
-│   ├── detail-store.ts   # Zustand стор: panel ('empty'|'detail'|'cart'), product, flashCart
-│   ├── cart-store.ts     # Zustand стор: CartItem (id, name, price, qty, available, category, image_url)
-│   ├── products-store.ts # Zustand стор: products[], filteredCount
-│   ├── filter-store.ts   # Zustand стор: все фильтры каталога
-│   ├── filter-chips.ts   # Хук useFilterChips() — чипы активных фильтров
-│   ├── colors.ts         # Палитра COLORS — единая точка, импортировать отсюда
-│   ├── use-mobile.ts     # Хук useIsMobile() — < 768px
-│   └── phone.ts          # normalizePhone() — единая нормализация телефона
-├── types/                # TypeScript типы
-└── store/                # Zustand сторы
+│   ├── card-generator.ts # Canvas-генератор карточек товаров
+│   ├── parse-nomenclature.ts # Парсер названий из 1С (длина, горшок, категория)
+│   ├── auth-store.ts     # Zustand: user, role, phone, isAuthed
+│   ├── cart-store.ts     # Zustand: CartItem[]
+│   ├── products-store.ts # Zustand: products[], filteredCount
+│   ├── filter-store.ts   # Zustand: все фильтры каталога
+│   ├── colors.ts         # Палитра COLORS — единая точка
+│   ├── use-mobile.ts     # useIsMobile() — < 768px
+│   └── phone.ts          # normalizePhone()
 ```
 
-> ⚠️ `ProductCard.tsx` используется только в `PriceTable.tsx`. Основной каталог использует `GridCard` внутри `ProductGrid.tsx` — правки карточек делать там.
+> ⚠️ `ProductCard.tsx` используется только в `PriceTable.tsx`. Основной каталог — `GridCard` внутри `ProductGrid.tsx`.
 
 ## Environment Variables
-
-### Обязательные переменные
 
 | Переменная | Описание | Где использовать |
 |------------|---------|------------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL Supabase проекта | Браузер + Backend |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (anon) key для Supabase | Браузер + Backend |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (не использовать на Vercel!) | Только локальная разработка |
-| `CRON_SECRET` | Секретный ключ для защиты cron endpoints | Vercel (только для cron задач) |
-
-### Конфигурация
-
-**.env.local** (локальная разработка):
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # только для локальных тестов
-CRON_SECRET=your-secret-key-here      # для тестирования cron endpoints
-```
-
-**Vercel Settings** (production):
-- Добавить `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- Добавить `CRON_SECRET` (сгенерировать случайную строку для безопасности)
-- ⚠️ НЕ добавлять `SUPABASE_SERVICE_ROLE_KEY` (не работает в serverless)
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (anon) key | Браузер + Backend |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (**не использовать на Vercel!**) | Только локально |
+| `CRON_SECRET` | Защита cron endpoints | Vercel |
 
 ## Known Issues
 
 ### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
+- **Решение**: `createClient()` (client role) + RLS
 
-### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
-- **Проблема**: Service role key не доступен в функциях на Vercel
-- **Решение**: Используется `createClient()` (client role) + RLS политики
-- **Статус**: Постоянное ограничение архитектуры Vercel
+### 🟡 Realtime обновления каталога не работают
+- Пользователь должен перезагрузить страницу
 
-### 🟡 Realtime обновления каталога не работают (PriceTable)
-- **Проблема**: Изменения цен в реальном времени не отражаются на фронтенде
-- **Временное решение**: Пользователь должен перезагрузить страницу для обновления цен
-
-### 🟡 WhatsApp уведомление открывается только с разрешением всплывающих окон
-- **Решение для пользователя**: Разрешить всплывающие окна для сайта в настройках браузера
+### 🟡 WhatsApp уведомление требует разрешения всплывающих окон
 
 ## Roadmap
 
-### Нормализация каталога (минимальная версия)
-- **`name_display TEXT`** — добавить в products; чистое название для клиента ("Altai Yellow" вместо "хризантема ветковая алтай LINFLOWERS"); в каталоге показывать если заполнено, иначе name
-- **Stop words в импорте XLS** — убирать LINFLOWERS/zento/2кор/оф/bunch/box из названий при парсинге
-- **Импорт ОЗ Голландия (.xlsx)** — автозаполнение color/origin/farm/image_url/name_display из инвойса
-
-### Отложено до масштабирования
-- Таблица aliases (словарь raw_name → product_id)
-- Полный dictionary pipeline
-- AI matching названий
+- **Импорт ОЗ Голландия** — автозаполнение color/farm/image_url из инвойса
+- **Нормализация дублей** — слияние товаров с одинаковым сортом но разными `name`
 
 ## Локальная разработка
 
 ```bash
-# Переменные окружения (.env.local)
 NEXT_PUBLIC_SUPABASE_URL=<url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<используется только локально, не на Vercel>
+SUPABASE_SERVICE_ROLE_KEY=<только локально>
 
-# Запуск
 npm install
 npm run dev
-
-# Сборка для production
 npm run build
 ```
 
 ## Развёртывание
 
-- **Репозиторий**: GitHub (связан с Vercel)
-- **Deploy**: При push на main — автоматический деплой в Vercel
-- **База данных**: Supabase (тот же проект для prod и dev)
-- **Переменные окружения**: Хранятся в Vercel Settings (без service role key)
+- **Репозиторий**: GitHub → автодеплой на Vercel при push в main
+- **База данных**: Supabase (один проект для prod и dev)
