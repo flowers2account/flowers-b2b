@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
@@ -157,7 +157,13 @@ function GridCard({
   const [hovered, setHovered] = useState(false)
   const [activePhoto, setActivePhoto] = useState(0)
   const hasSecondPhoto = !!product.campaign_image_url
-  const showSecond = hasSecondPhoto && (hovered || activePhoto === 1)
+  const showSecond = activePhoto === 1
+
+  useEffect(() => {
+    if (!hovered || !hasSecondPhoto) { setActivePhoto(0); return }
+    const t = setInterval(() => setActivePhoto(p => p === 0 ? 1 : 0), 1400)
+    return () => clearInterval(t)
+  }, [hovered, hasSecondPhoto])
 
   return (
     <div
