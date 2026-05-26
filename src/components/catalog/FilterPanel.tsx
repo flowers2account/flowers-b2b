@@ -87,13 +87,19 @@ const POT_SIZES = [
   { id: '25+',   label: '25+ см'   },
 ]
 const TAGS_CUT = [
-  { id: 'hit',  label: '🔥 Хит'     },
-  { id: 'sale', label: '🏷 Акция'   },
-  { id: 'new',  label: '🆕 Новинка' },
+  { id: 'hit',     label: '🔥 Хит'      },
+  { id: 'sale',    label: '🏷 Акция'    },
+  { id: 'new',     label: '🆕 Новинка'  },
+  { id: 'premium', label: '⭐ Премиум'  },
+  { id: 'wedding', label: '💍 Свадебные'},
+  { id: 'exotic',  label: '🌿 Экзотика' },
+  { id: 'seasonal',label: '🌸 Сезонные' },
+  { id: 'spring',  label: '🌷 Весна'    },
 ]
 const TAGS_POT = [
-  { id: 'hit', label: '🔥 Хит'     },
-  { id: 'new', label: '🆕 Новинка' },
+  { id: 'hit',     label: '🔥 Хит'     },
+  { id: 'new',     label: '🆕 Новинка' },
+  { id: 'premium', label: '⭐ Премиум' },
 ]
 const SEASONS = [
   { id: 'spring', label: 'Весна'      },

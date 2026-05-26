@@ -560,7 +560,12 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         const hasHit  = (p as any).is_hit === true
         const hasSale = hasDiscount
         const hasNew  = (p as any).is_new === true
-        const ptags = [...(hasHit ? ['hit'] : []), ...(hasSale ? ['sale'] : []), ...(hasNew ? ['new'] : [])]
+        const ptags = [
+          ...(hasHit  ? ['hit']  : []),
+          ...(hasSale ? ['sale'] : []),
+          ...(hasNew  ? ['new']  : []),
+          ...((p.tags ?? []) as string[]),
+        ]
         if (!tags.some(t => ptags.includes(t))) return false
       }
       // Сезон (поле может содержать несколько значений через запятую)

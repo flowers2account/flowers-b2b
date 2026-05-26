@@ -16,6 +16,7 @@ type ProductEdit = {
   country_iso: string | null
   farm: string | null
   colors: string[] | null
+  tags: string[] | null
   image_url: string | null
   pack_size: number
   price: number | null
@@ -24,9 +25,60 @@ type ProductEdit = {
   is_active: boolean
 }
 
-const SUBCAT_CUT = ['roses','chrysanthemums','lilies','gerberas','tulips','carnations','lisianthus','alstroemeria','callas','accents','greens','fillers','seasonal','spring']
-const SUBCAT_POT = ['flowering','green','succulents','large','outdoor']
-const VARIETY_TYPES = ['single','spray','pompom']
+const SUBCAT_CUT = [
+  { v: 'roses',          l: 'Розы'          },
+  { v: 'chrysanthemums', l: 'Хризантемы'    },
+  { v: 'carnations',     l: 'Гвоздики'      },
+  { v: 'tulips',         l: 'Тюльпаны'      },
+  { v: 'peonies',        l: 'Пионы'         },
+  { v: 'ranunculus',     l: 'Ранункулюсы'   },
+  { v: 'anemones',       l: 'Анемоны'       },
+  { v: 'lilies',         l: 'Лилии'         },
+  { v: 'gerberas',       l: 'Герберы'       },
+  { v: 'lisianthus',     l: 'Эустомы'       },
+  { v: 'alstroemeria',   l: 'Альстромерии'  },
+  { v: 'hydrangeas',     l: 'Гортензии'     },
+  { v: 'orchids',        l: 'Орхидеи'       },
+  { v: 'callas',         l: 'Каллы'         },
+  { v: 'anthuriums',     l: 'Антуриумы'     },
+  { v: 'proteas',        l: 'Протеи'        },
+  { v: 'sunflowers',     l: 'Подсолнухи'    },
+  { v: 'irises',         l: 'Ирисы'         },
+  { v: 'delphiniums',    l: 'Дельфиниумы'   },
+  { v: 'greens',         l: 'Зелень'        },
+  { v: 'branches',       l: 'Ветки'         },
+  { v: 'fillers',        l: 'Наполнители'   },
+  { v: 'texture',        l: 'Текстурные'    },
+  { v: 'berries',        l: 'Ягоды'         },
+  { v: 'vines',          l: 'Лианы'         },
+  { v: 'accents',        l: 'Акцентные'     },
+  { v: 'seasonal',       l: 'Сезонные'      },
+  { v: 'spring',         l: 'Весенние'      },
+  { v: 'exotic',         l: 'Экзотика'      },
+]
+const SUBCAT_POT = [
+  { v: 'green',      l: 'Зелёные растения'     },
+  { v: 'flowering',  l: 'Цветущие'             },
+  { v: 'succulents', l: 'Суккуленты и кактусы' },
+  { v: 'outdoor',    l: 'Уличные и сезонные'   },
+  { v: 'large',      l: 'Крупномеры'           },
+]
+const VARIETY_TYPES = [
+  { v: 'single',     l: 'Одноголовые' },
+  { v: 'spray',      l: 'Кустовые'    },
+  { v: 'pompom',     l: 'Помпонные'   },
+  { v: 'decorative', l: 'Пионовидные' },
+  { v: 'ot',         l: 'ОТ-гибриды'  },
+  { v: 'oriental',   l: 'Восточные'   },
+  { v: 'asian',      l: 'Азиатские'   },
+]
+const PRODUCT_TAGS = [
+  { v: 'premium', l: '⭐ Премиум'   },
+  { v: 'wedding', l: '💍 Свадебные' },
+  { v: 'exotic',  l: '🌿 Экзотика'  },
+  { v: 'seasonal',l: '🌸 Сезонные'  },
+  { v: 'spring',  l: '🌷 Весна'     },
+]
 const COUNTRIES = [
   { v: 'CN', l: 'Китай' }, { v: 'EC', l: 'Эквадор' }, { v: 'KE', l: 'Кения' },
   { v: 'NL', l: 'Голландия' }, { v: 'CO', l: 'Колумбия' }, { v: 'RU', l: 'Россия' },
@@ -63,7 +115,7 @@ export default function ProductEditModal({
     const supabase = createClient()
     supabase
       .from('products')
-      .select('id,name,display_name,category,subcategory,variety_type,length_cm,pot_diameter,country_iso,farm,colors,image_url,pack_size,price,qty,arrival_date,is_active')
+      .select('id,name,display_name,category,subcategory,variety_type,length_cm,pot_diameter,country_iso,farm,colors,tags,image_url,pack_size,price,qty,arrival_date,is_active')
       .eq('id', productId)
       .single()
       .then(({ data }: { data: ProductEdit | null }) => {
@@ -90,6 +142,7 @@ export default function ProductEditModal({
       country_iso: p.country_iso || null,
       farm: p.farm?.trim() || null,
       colors: p.colors?.length ? p.colors : null,
+      tags: p.tags?.length ? p.tags : null,
       image_url: p.image_url?.trim() || null,
       pack_size: p.pack_size,
       price: p.price,
@@ -116,6 +169,14 @@ export default function ProductEditModal({
   }
 
   const subcatOptions = p?.category === 'pot' ? SUBCAT_POT : SUBCAT_CUT
+
+  function toggleTag(v: string) {
+    setP(prev => {
+      if (!prev) return prev
+      const cur = prev.tags ?? []
+      return { ...prev, tags: cur.includes(v) ? cur.filter(t => t !== v) : [...cur, v] }
+    })
+  }
 
   return (
     <div
@@ -146,7 +207,7 @@ export default function ProductEditModal({
               </Field>
             </div>
 
-            {/* Категория + страна */}
+            {/* Категория + подкатегория + тип сорта */}
             <div className="grid grid-cols-3 gap-3">
               <Field label="Категория">
                 <select className={sel} value={p.category} onChange={e => set('category', e.target.value)}>
@@ -157,13 +218,13 @@ export default function ProductEditModal({
               <Field label="Подкатегория">
                 <select className={sel} value={p.subcategory ?? ''} onChange={e => set('subcategory', e.target.value)}>
                   <option value="">—</option>
-                  {subcatOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  {subcatOptions.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
                 </select>
               </Field>
               <Field label="Тип сорта">
                 <select className={sel} value={p.variety_type ?? ''} onChange={e => set('variety_type', e.target.value)}>
                   <option value="">—</option>
-                  {VARIETY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {VARIETY_TYPES.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
                 </select>
               </Field>
             </div>
@@ -211,6 +272,30 @@ export default function ProductEditModal({
                         flexShrink: 0,
                       }}
                     />
+                  )
+                })}
+              </div>
+            </Field>
+
+            {/* Теги */}
+            <Field label="Теги">
+              <div className="flex flex-wrap gap-2 pt-1">
+                {PRODUCT_TAGS.map(tag => {
+                  const active = p.tags?.includes(tag.v)
+                  return (
+                    <button
+                      key={tag.v}
+                      type="button"
+                      onClick={() => toggleTag(tag.v)}
+                      className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+                      style={{
+                        background: active ? '#8B1A1A' : '#fff',
+                        color: active ? '#fff' : '#6b7280',
+                        borderColor: active ? '#8B1A1A' : '#e5e7eb',
+                      }}
+                    >
+                      {tag.l}
+                    </button>
                   )
                 })}
               </div>

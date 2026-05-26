@@ -53,6 +53,8 @@ export const ORIGIN_LABELS: Record<string, string> = {
 }
 const TAG_LABELS: Record<string, string> = {
   hit: '🔥 Хит', sale: '🏷 Акция', new: '🆕 Новинка',
+  premium: '⭐ Премиум', wedding: '💍 Свадебные',
+  exotic: '🌿 Экзотика', seasonal: '🌸 Сезонные', spring: '🌷 Весна',
 }
 const POT_SIZE_LABELS: Record<string, string> = {
   'до12': 'до 12 см', '14-17': '14–17 см', '19-23': '19–23 см', '25+': '25+ см',

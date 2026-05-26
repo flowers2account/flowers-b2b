@@ -53,6 +53,7 @@ export type Product = {
   previous_price?: number | null
   arrival_date?: string | null
   is_new?: boolean
+  tags?: string[] | null
   stock: Stock[] | Stock
 }
 
