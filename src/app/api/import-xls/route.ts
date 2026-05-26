@@ -315,17 +315,20 @@ export async function POST(req: NextRequest) {
   // Работает для любого числа файлов: каждый файл ставит arrival_date=today,
   // после последнего — всё с другой датой считается отсутствующим.
   if (isLast) {
-    const { data: stale } = await supabase
+    const { data: allActive } = await supabase
       .from('products')
       .select('id')
-      .neq('arrival_date', today)
       .eq('is_active', true)
 
-    if (stale?.length) {
+    const toDeactivate = (allActive ?? [])
+      .map((p: { id: number }) => p.id)
+      .filter((id: number) => !importedProductIds.has(id))
+
+    if (toDeactivate.length) {
       await supabase.from('products')
         .update({ is_active: false, qty: 0 })
-        .in('id', stale.map((p: { id: number }) => p.id))
-      zeroed = stale.length
+        .in('id', toDeactivate)
+      zeroed = toDeactivate.length
     }
   }
 
