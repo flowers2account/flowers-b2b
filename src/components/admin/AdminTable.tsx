@@ -90,27 +90,38 @@ function StockRow({ product, onSaved, onEdit }: {
     onSaved()
   }
 
+  function extractStoragePath(url: string): string | null {
+    try {
+      const marker = '/product-images/'
+      const idx = url.indexOf(marker)
+      if (idx === -1) return null
+      return decodeURIComponent(url.slice(idx + marker.length).split('?')[0])
+    } catch { return null }
+  }
+
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
 
     const ext = file.name.split('.').pop()
-    const path = `${slugify(product.name)}.${ext}`
+    const path = `${slugify(product.name)}_${Date.now()}.${ext}`
+
+    if (imageUrl) {
+      const oldPath = extractStoragePath(imageUrl)
+      if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
+    }
 
     const { error } = await supabase.storage
       .from('product-images')
-      .upload(path, file, { upsert: true })
+      .upload(path, file, { upsert: false })
 
     if (!error) {
       const { data: { publicUrl } } = supabase.storage
         .from('product-images')
         .getPublicUrl(path)
-
-      // Append cache-buster so browser shows fresh image
-      const urlWithBust = `${publicUrl}?t=${Date.now()}`
       await supabase.from('products').update({ image_url: publicUrl }).eq('id', product.id)
-      setImageUrl(urlWithBust)
+      setImageUrl(publicUrl)
     }
 
     setUploading(false)
@@ -122,16 +133,22 @@ function StockRow({ product, onSaved, onEdit }: {
     if (!file) return
     setCampaignUploading(true)
     const ext = file.name.split('.').pop()
-    const path = `campaign_${slugify(product.name)}.${ext}`
+    const path = `campaign_${slugify(product.name)}_${Date.now()}.${ext}`
+
+    if (campaignImageUrl) {
+      const oldPath = extractStoragePath(campaignImageUrl)
+      if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
+    }
+
     const { error } = await supabase.storage
       .from('product-images')
-      .upload(path, file, { upsert: true })
+      .upload(path, file, { upsert: false })
     if (!error) {
       const { data: { publicUrl } } = supabase.storage
         .from('product-images')
         .getPublicUrl(path)
       await supabase.from('products').update({ campaign_image_url: publicUrl }).eq('id', product.id)
-      setCampaignImageUrl(`${publicUrl}?t=${Date.now()}`)
+      setCampaignImageUrl(publicUrl)
     }
     setCampaignUploading(false)
     if (campaignFileInputRef.current) campaignFileInputRef.current.value = ''
