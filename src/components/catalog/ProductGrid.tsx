@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
@@ -154,16 +154,15 @@ function GridCard({
     : (product.length_cm || product.length_str
         ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
         : [])
-  const [hovered, setHovered] = useState(false)
   const [activePhoto, setActivePhoto] = useState(0)
   const hasSecondPhoto = !!product.campaign_image_url
   const showSecond = activePhoto === 1
 
-  useEffect(() => {
-    if (!hovered || !hasSecondPhoto) { setActivePhoto(0); return }
-    const t = setInterval(() => setActivePhoto(p => p === 0 ? 1 : 0), 1400)
-    return () => clearInterval(t)
-  }, [hovered, hasSecondPhoto])
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!hasSecondPhoto) return
+    const { left, width } = e.currentTarget.getBoundingClientRect()
+    setActivePhoto(e.clientX - left > width / 2 ? 1 : 0)
+  }
 
   return (
     <div
@@ -179,8 +178,8 @@ function GridCard({
       {/* Фото */}
       <div
         style={{ aspectRatio: '1/1', position: 'relative', background: 'var(--accent-light)', overflow: 'hidden' }}
-        onMouseEnter={() => hasSecondPhoto && setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setActivePhoto(0)}
       >
         {product.image_url ? (
           <img
