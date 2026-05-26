@@ -320,14 +320,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Batch] Found ${dbResults.length} exact matches in DB`);
 
-    // ШАГ 4: Отбор для AI (confidence < 0.85 и нет в БД — ни forward, ни reverse)
+    // ШАГ 4: Отбор для AI (confidence < 0.85 ИЛИ культивар содержит латиницу, и нет в БД)
+    const SPECIES_FORMS = /^(хризантема|роза|гвоздика|эустома|гортензия|лилия|гербера|тюльпан|пион|альстромерия|антуриум|орхидея|калла|ирис|дельфиниум|подсолнух|ранункулюс|анемон|матрикария|гипсофила|цимбидиум|ветковая|одноголовая|сантини|махровая|восточная|спрей|стандарт)\s*/gi
+
     const needAI = ruleResults.filter(r => {
       const inDB = dbResults.some((db: Record<string, unknown>) =>
         db._direction === 'forward'
           ? db.normalized_original === r.normalized
           : db.normalized_translated === r.normalized
       );
-      return r.ruleResult.confidence < 0.85 && !inDB;
+      const cultivar = r.ruleResult.normalized.replace(SPECIES_FORMS, '').trim()
+      const hasLatinCultivar = cultivar.length > 0 && /[a-zA-Z]/.test(cultivar)
+      return (r.ruleResult.confidence < 0.85 || hasLatinCultivar) && !inDB;
     });
 
     console.log(`[Batch] ${needAI.length} products need AI`);
