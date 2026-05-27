@@ -252,6 +252,11 @@ function GridCard({
         }}>
           {displayName}
         </div>
+        {displayName !== product.name && (
+          <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 1, lineHeight: 1.2 }}>
+            {product.name}
+          </div>
+        )}
 
         {/* Кружки цветов — colors[] или fallback на color */}
         {(() => {

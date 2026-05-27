@@ -280,12 +280,17 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         {/* Name */}
         <div style={{
           fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400,
-          lineHeight: 1.35, color: 'var(--text)', marginBottom: 3,
+          lineHeight: 1.35, color: 'var(--text)', marginBottom: 2,
           overflow: 'hidden', display: '-webkit-box',
           WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
         }}>
           {displayName}
         </div>
+        {displayName !== product.name && (
+          <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 4 }}>
+            {product.name}
+          </div>
+        )}
 
         {/* Размеры */}
         {dims.length > 0 && (
