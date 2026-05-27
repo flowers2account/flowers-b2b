@@ -183,6 +183,7 @@ for (const item of items) {
     qty:                999,
     pack_size:          1,
     stems_per_pack:     item.quantity_stems ?? null,
+    weight_gram:        item.weight_gram ?? null,
     price:              999,
     is_active:          true,
     arrival_date:       today,
@@ -205,6 +206,7 @@ for (const item of items) {
         length_cm:      product.length_cm,
         country_iso:    product.country_iso,
         stems_per_pack: product.stems_per_pack,
+        ...(product.weight_gram ? { weight_gram: product.weight_gram } : {}),
         ...(product.variety_type ? { variety_type: product.variety_type } : {}),
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
         ...(!existing.image_url && product.image_url ? {
