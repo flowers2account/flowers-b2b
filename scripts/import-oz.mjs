@@ -101,6 +101,12 @@ function parseColor(val) {
   return OZ_COLOR[v] ?? null
 }
 
+function fixPhotoUrl(url) {
+  if (!url) return null
+  // Remove Cloudinary size constraints → full resolution
+  return url.replace(/image\/fetch\/[^/]+\//, 'image/fetch/f_auto,q_auto/')
+}
+
 // ── Основной импорт ───────────────────────────────────────────────────────────
 
 const raw   = fs.readFileSync(JSONL_PATH, 'utf-8')
@@ -133,8 +139,8 @@ for (const item of items) {
     length_cm:          item.height_cm ?? null,
     country_iso:        'NL',
     colors:             color ? [color] : null,
-    image_url:          item.image_urls?.[0] ?? null,
-    campaign_image_url: item.image_urls?.[1] ?? null,
+    image_url:          fixPhotoUrl(item.image_urls?.[0]),
+    campaign_image_url: fixPhotoUrl(item.image_urls?.[1]),
     qty:                888,
     pack_size:          item.quantity_stems ?? 10,
     price:              888,
