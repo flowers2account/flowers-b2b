@@ -144,7 +144,7 @@ function fixPhotoUrl(url) {
 
 // ── Основной импорт ───────────────────────────────────────────────────────────
 
-const raw   = fs.readFileSync(JSONL_PATH, 'utf-8')
+const raw   = fs.readFileSync(JSONL_PATH, 'utf-8').replace(/^﻿/, '')
 const all   = raw.split('\n').filter(Boolean).map(l => JSON.parse(l))
 const isAll = CATEGORY_FILTER === 'ALL'
 
@@ -180,10 +180,10 @@ for (const item of items) {
     colors:             color ? [color] : null,
     image_url:          fixPhotoUrl(item.image_urls?.[0]),
     campaign_image_url: fixPhotoUrl(item.image_urls?.[1]),
-    qty:                888,
+    qty:                999,
     pack_size:          item.quantity_stems ?? 10,
     stems_per_pack:     item.quantity_stems ?? null,
-    price:              888,
+    price:              999,
     is_active:          true,
     arrival_date:       today,
     farm:               item.producer ?? null,
