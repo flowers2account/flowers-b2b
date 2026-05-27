@@ -213,7 +213,7 @@ B2B платформа для оптовой торговли цветами. С
 
 | Маршрут | Метод | Описание |
 |---------|-------|---------|
-| `/api/products` | GET | Каталог товаров; `?catalog=1` — включая qty=0 (для кампаний) |
+| `/api/products` | GET | Каталог товаров; `?catalog=1` — включая qty=0 (для кампаний); возвращает `farm`, `stems_per_pack` |
 | `/api/admin/products` | GET | Товары для AdminTable с резервами |
 | `/api/checkout` | POST | Создать заказ и резервирование |
 | `/api/cancel-order` | POST | Отменить заказ |
@@ -292,7 +292,7 @@ src/
 │   │   ├── ProductEditModal.tsx  # Редактирование товара
 │   │   └── ImportXLS.tsx         # Загрузка XLS файлов
 │   └── catalog/
-│       └── ProductGrid.tsx       # GridCard с ховер-эффектом 2-го фото
+│       └── ProductGrid.tsx       # GridCard с ховер-эффектом 2-го фото; показывает флаг страны + ферму курсивом
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts     # Singleton Supabase client (браузер)
