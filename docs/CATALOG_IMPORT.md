@@ -15,8 +15,8 @@
 - **Waterdrinker** (waterdrinker.nl) — горшечные растения, Голландия
 
 **Что НЕ приходит из парсинга:**
-- Реальная цена (`price = null` у Waterdrinker, `888` у OZ — плейсхолдер)
-- Реальный остаток (у OZ `qty = 999`, у Waterdrinker берётся из `item.stock`)
+- Реальная цена (`price = null` у Waterdrinker, `999` у OZ — плейсхолдер)
+- Реальный остаток (`qty = 999` у OZ — плейсхолдер; у Waterdrinker берётся из `item.stock`)
 
 Цены и остатки приходят из **1С через XLS-импорт** (отдельный процесс).
 
@@ -27,7 +27,7 @@
 | Скрипт | Поставщик | Категория товаров | JSONL по умолчанию |
 |--------|-----------|-------------------|--------------------|
 | `scripts/import-oz.mjs` | OZ Export | Срезка (`cut`) | `waterdrinker-scraper/output/oz_export_cut_flowers.jsonl` |
-| `scripts/import-waterdrinker.mjs` | Waterdrinker | Горшечные (`pot`) | `waterdrinker-scraper/output/waterdrinker_catalog.jsonl` |
+| `scripts/import-waterdrinker.mjs` | Waterdrinker | Горшечные (`pot`) | `waterdrinker-scraper/output/waterdrinker_catalog_v2.jsonl` |
 
 ### Запуск
 
@@ -46,6 +46,9 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs
 
 # Waterdrinker — одна категория
 node --env-file=.env.local scripts/import-waterdrinker.mjs "Anthurium"
+
+# Waterdrinker — из конкретного файла
+node --env-file=.env.local scripts/import-waterdrinker.mjs ALL "C:\path\to\file.jsonl"
 ```
 
 ---
@@ -58,73 +61,119 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs "Anthurium"
 
 ```json
 {
-  "name": "Rosa Red Naomi Roses",
+  "id": "FBEAD09004CF11D72A7CB1737CD442E5",
+  "name": "Rosa Red Naomi",
   "category": "Rosa",
   "color_line": "Red",
   "height_cm": 70,
+  "weight_gram": 120,
   "producer": "Porta Nova",
   "quantity_stems": 25,
   "image_urls": ["https://cdn.oz-export.com/...jpg", "https://cdn.oz-export.com/...jpg"]
 }
 ```
 
-Категория `Rosa Ecuador` обрабатывается отдельно → `country_iso = 'EC'`, `variety_type = 'single'`.
+- `id` → сохраняется в `products.supplier_ref` (для маппинга цен и предзаказов)
+- Категория `Rosa Ecuador` → `country_iso = 'EC'`, `variety_type = 'single'`
+- `quantity_stems` — у хризантем OZ ставит `1` (поштучная продажа), не кратность пачки
+- `qty = 999`, `price = 999` — плейсхолдеры до прихода из 1С
 
-### Waterdrinker (`waterdrinker_catalog.jsonl`)
+### Waterdrinker v2 (`waterdrinker_catalog_v2.jsonl`)
 
 ```json
 {
-  "name": "Anthurium Tropic Jade",
-  "_category_name": "Anthurium",
+  "id": 3835233,
+  "name": "Anthurium   ...",
+  "description": "Magnificum",
+  "stock": 25,
+  "packing": { "code": "206" },
   "mainAttributes": [
-    { "code": "S01", "value": "13 cm" },
-    { "code": "S02", "value": "60 cm" }
+    { "code": "S01", "value": "12 cm" },
+    { "code": "S02", "value": "35 cm" }
   ],
   "attributes": [
-    { "code": "S50", "value": "Groen" },
-    { "code": "S62", "value": "Netherlands" }
+    { "code": "S50", "value": "diverse kleuren" },
+    { "code": "S62", "value": "Netherlands" },
+    { "code": "L11", "value": "6" }
   ],
-  "stock": 120,
-  "packing": { "code": "P12" },
-  "pictures": ["https://img.waterdrinker.nl/.../w240xh240/...jpg"]
+  "pictures": ["https://waterdrinker.blob.core.windows.net/media/w240xh240/...jpg"],
+  "_category_name": "Anthurium"
 }
 ```
 
-Атрибуты: `S01` = диаметр горшка, `S02` = высота, `S50` / `B01` = цвет (по-нидерландски), `S62` = страна.
+- `id` (числовой) → `supplier_ref` ⚠️ пока не реализовано в скрипте
+- `name` содержит мусор — реальный сорт в `description`
+- Атрибуты: `S01` = диаметр горшка, `S02` = высота, `S50` / `B01` = цвет (нидерландский), `S62` = страна, `L11` = стеблей в пачке (`pack_size`) ⚠️ пока не читается скриптом
+- Фото: `w240xh240` → `Original` для полного разрешения
+- `qty = item.stock`, `price = null`
 
 ---
 
 ## Логика UPDATE vs INSERT
 
-Ключ поиска в БД — `products.name` (verbatim строка из парсера).
+Ключ поиска в БД — `products.name`.
 
-### UPDATE (товар найден)
+### OZ — ключ: `item.name` (verbatim)
 
-Обновляется:
-- `qty`, `is_active`
-- `colors` — только если поле было пустым
-- `image_url`, `campaign_image_url` — только если поле было пустым (OZ) или `display_name` пустой (Waterdrinker)
+**UPDATE** (товар найден):
+- Всегда: `qty`, `is_active`, `subcategory`, `length_cm`, `country_iso`, `pack_size`, `stems_per_pack`, `supplier_ref`
+- Только если пустое: `weight_gram`, `variety_type`, `colors`, `image_url` + `campaign_image_url`
 
-**Не перезаписывается:**
-- `display_name` — ручные правки
-- `length_cm`, `country_iso`, `farm` — уже заполненные вручную
-- `price` — приходит из XLS, не из парсера
+**INSERT** (новый товар):  
+Устанавливается всё: `name`, `category`, `subcategory`, `length_cm`, `country_iso`, `colors`, `image_url`, `campaign_image_url`, `farm`, `pack_size`, `stems_per_pack`, `weight_gram`, `supplier_ref`, `qty = 999`, `price = 999`, `arrival_date = today`.
 
-### INSERT (новый товар)
+### Waterdrinker — ключ: `"${item.name} ${pot_size}"` (SKU включает горшок)
 
-Устанавливается всё: `name`, `category`, `subcategory`, `length_cm`, `pot_diameter`, `country_iso`, `colors`, `image_url`, `campaign_image_url`, `farm`, `pack_size`, `stems_per_pack`, `is_active`, `arrival_date = today`.
+**UPDATE**: `qty`, `is_active`, `container_code` + если пустое: `colors`, `image_url`  
+**INSERT**: полный набор полей
 
-**Упаковка (OZ):**
-- `pack_size = 1` — кратность заказа, всегда 1 (редактируется вручную в AdminTable)
-- `stems_per_pack = quantity_stems` из OZ — информационное поле (10, 25 и т.д.)
+---
 
-`display_name` генерирует триггер `generate_product_display_name` автоматически после INSERT.
+## Переводы OZ-товаров
+
+После импорта OZ-товары имеют `display_name = name` (английское название).  
+Переводим через `/api/translations/batch` (Gemini Flash Lite + кэш TM).
+
+### Текущий статус переводов
+
+| Категория | Импортировано | Переведено |
+|-----------|--------------|-----------|
+| Alstroemeria | 28 | ✅ 28 |
+| Chrysanthemum | 51 | ✅ 51 |
+| Остальные | — | — |
+
+### Рабочий процесс перевода
+
+```sql
+-- 1. Получить имена непереведённых товаров категории
+SELECT name FROM products 
+WHERE subcategory = 'roses' AND display_name = name AND qty = 999;
+
+-- 2. Прогнать через POST /api/translations/batch
+-- { "products": ["Rosa Red Naomi", ...] }
+
+-- 3. Применить UPDATE CASE ... END
+```
+
+### Правила аббревиатур (OZ хризантемы)
+
+| OZ-префикс | Тип | Перевод |
+|-----------|-----|---------|
+| `Chrys Sp` | Spray | «Хризантема ветковая» |
+| `Chrys Bl` | Branch/Block | «Хризантема ветковая» (стандарт) |
+| `Chrys Sa` | Santini | «Хризантема сантини» |
+| `Chrys T` | Top (одноголовая) | «Хризантема одноголовая» |
+
+### Правило «Микс»
+
+Если в оригинале есть слово `Mix` — в переводе сохранять «микс».  
+Пример: `Alstroemeria Fl Mix Florinca Rich` → `«Флоринка Рич Микс»`
 
 ---
 
 ## Маппинги цветов
 
-### OZ (английские названия → palette key)
+### OZ (английские → palette key)
 
 | OZ `color_line` | palette key |
 |-----------------|-------------|
@@ -163,7 +212,7 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs "Anthurium"
 | Mixed / Mix / Multicolor | `multicolor` |
 | Любой паттерн `X/Y` | `bicolor` (regex fallback) |
 
-### Waterdrinker (нидерландские названия → palette key)
+### Waterdrinker (нидерландские → palette key)
 
 | Waterdrinker | palette key |
 |--------------|-------------|
@@ -197,7 +246,7 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs "Anthurium"
 | Условие | `variety_type` |
 |---------|----------------|
 | `category = 'Rosa Ecuador'` | `single` |
-| `name.startsWith('Rosa Garden')` или `Rosa Large` или `Rosa Austin` | `decorative` |
+| `name.startsWith('Rosa Garden\|Rosa Large\|Rosa Austin')` | `decorative` |
 | `name.startsWith('Rosa Spray')` | `spray` |
 | Остальные | `null` |
 
@@ -212,15 +261,23 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs "Anthurium"
 
 ---
 
+## Известные проблемы Waterdrinker v2 (требуют доработки скрипта)
+
+- `name` в JSONL содержит мусор ("Anthurium   ...") — сорт в `description`
+- `L11` (стеблей в пачке) не читается → `pack_size` всегда `1`
+- `supplier_ref` (`item.id`) не сохраняется
+- Дефолтный путь в скрипте указывает на v1 (`waterdrinker_catalog.jsonl`)
+
+---
+
 ## Дальнейший план: маппинг 1С → каталог
 
-Сейчас товары из парсинга и товары из 1С/XLS — это **отдельные миры**.  
-1С присылает строки вида `"роза диана 70"`, а в `products.name` у нас `"Rosa Diana Roses"`.
+`supplier_ref` сохраняется для OZ-товаров — UUID из OZ Export.  
+В будущем: при получении прайса с OZ для предзаказов джойнить по `supplier_ref`.
 
-Варианты маппинга (не реализовано):
+Для маппинга 1С ↔ каталог (разные названия):
+1. **Ручная таблица синонимов** — `product_aliases(raw_name, product_id)`: XLS-импорт ищет алиас, потом `products.name`
+2. **AI-маппинг** — при XLS-импорте вызывать LLM для нечёткого матчинга
+3. **Нормализованный ключ** — `subcategory + сорт + длина` для обоих источников
 
-1. **Ручная таблица синонимов** — `name_aliases: text[]` в `products`, туда добавляем 1С-строку при первом совпадении через UI.
-2. **AI-маппинг при импорте** — при XLS-импорте если точное совпадение не найдено, вызываем LLM для нечёткого матчинга и предлагаем вариант администратору.
-3. **Нормализованный ключ** — выработать алгоритм нормализации (убрать язык, привести к `subcategory + сорт + длина`) и применять к обоим источникам.
-
-Текущий временный механизм: XLS-импорт создаёт новый `products` с 1С-именем если совпадения нет → дубли.
+Текущий временный механизм: XLS создаёт новый `products` с 1С-именем если совпадения нет → дубли.
