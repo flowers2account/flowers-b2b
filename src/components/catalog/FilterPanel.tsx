@@ -9,7 +9,11 @@ import { ORIGIN_LABELS } from '@/lib/filter-chips'
 // ── category tree ─────────────────────────────────────────────────────────────
 
 type VarietyChild = { label: string; varietyType: string }
-type SubcatNode   = { label: string; key: string; children?: VarietyChild[] }
+type SubcatLeaf   = { label: string; key: string; children?: VarietyChild[] }
+type SubcatGroup  = { label: string; isGroup: true; items: SubcatNode[] }
+type SubcatNode   = SubcatLeaf | SubcatGroup
+
+function isGroup(n: SubcatNode): n is SubcatGroup { return (n as SubcatGroup).isGroup === true }
 
 const CATEGORY_TREE: Record<string, SubcatNode[]> = {
   cut: [
@@ -56,11 +60,82 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
     { label: 'Экзотика',     key: 'exotic'       },
   ],
   pot: [
-    { label: 'Зелёные растения',     key: 'green'       },
-    { label: 'Цветущие',             key: 'flowering'   },
-    { label: 'Суккуленты и кактусы', key: 'succulents'  },
-    { label: 'Уличные и сезонные',   key: 'outdoor'     },
-    { label: 'Крупномеры',           key: 'large'       },
+    { label: 'Комнатные растения', isGroup: true as const, items: [
+      { label: 'Цветущие комнатные', isGroup: true as const, items: [
+        { label: 'Антуриум',            key: 'anthuriums'         },
+        { label: 'Бегония',             key: 'begonias'           },
+        { label: 'Луковичные',          key: 'bulbs_indoor'       },
+        { label: 'Бромелиевые',         key: 'bromeliads'         },
+        { label: 'Хризантемы горшечные',key: 'chrysanthemums_pot' },
+        { label: 'Цикламен',            key: 'cyclamen'           },
+        { label: 'Пуансеттия',          key: 'poinsettia'         },
+        { label: 'Гортензия комнатная', key: 'hydrangeas_indoor'  },
+        { label: 'Каланхоэ',            key: 'kalanchoe'          },
+        { label: 'Орхидеи',             key: 'orchids'            },
+        { label: 'Азалия комнатная',    key: 'azalea_indoor'      },
+        { label: 'Розы комнатные',      key: 'roses_indoor'       },
+        { label: 'Спатифиллум',         key: 'spathiphyllum'      },
+        { label: 'Хищные растения',     key: 'carnivorous'        },
+        { label: 'Цветущие прочие',     key: 'flowering'          },
+      ]},
+      { label: 'Декоративно-лиственные', isGroup: true as const, items: [
+        { label: 'Кактусы',             key: 'cacti'              },
+        { label: 'Калатея',             key: 'calathea'           },
+        { label: 'Драцена',             key: 'dracaena'           },
+        { label: 'Фикусы',              key: 'ficus'              },
+        { label: 'Крупнолистные',       key: 'large_leaved'       },
+        { label: 'Плющ комнатный',      key: 'hedera'             },
+        { label: 'Пальмы',              key: 'palms'              },
+        { label: 'Суккуленты',          key: 'succulents'         },
+        { label: 'Полисциас',           key: 'polyscias'          },
+        { label: 'Пахира',              key: 'pachira'            },
+        { label: 'Юкка',                key: 'yucca'              },
+        { label: 'Папоротники',         key: 'ferns'              },
+        { label: 'Замиокулькас',        key: 'zamioculcas'        },
+        { label: 'Зелёные прочие',      key: 'green'              },
+        { label: 'Крупномеры',          key: 'large'              },
+      ]},
+    ]},
+    { label: 'Садовые растения', isGroup: true as const, items: [
+      { label: 'Многолетние', isGroup: true as const, items: [
+        { label: 'Морозник',            key: 'helleborus'         },
+        { label: 'Лаванда',             key: 'lavender'           },
+        { label: 'Декоративные травы',  key: 'ornamental_grasses' },
+        { label: 'Водные растения',     key: 'aquatic'            },
+        { label: 'Многолетние прочие',  key: 'perennials'         },
+      ]},
+      { label: 'Огородные культуры', isGroup: true as const, items: [
+        { label: 'Плодовые',            key: 'fruit_plants'       },
+        { label: 'Овощные',             key: 'vegetables'         },
+        { label: 'Пряные травы',        key: 'herbs'              },
+      ]},
+      { label: 'Кустарники и деревья', isGroup: true as const, items: [
+        { label: 'Деревья',             key: 'trees'              },
+        { label: 'Самшит',              key: 'buxus'              },
+        { label: 'Вереск',              key: 'heather'            },
+        { label: 'Эрика',               key: 'erica'              },
+        { label: 'Хвойные',             key: 'conifers'           },
+        { label: 'Гаультерия',          key: 'gaultheria'         },
+        { label: 'Живая изгородь',      key: 'hedging'            },
+        { label: 'Хебе',                key: 'hebe'               },
+        { label: 'Плющ садовый',        key: 'hedera_outdoor'     },
+        { label: 'Гортензия садовая',   key: 'hydrangeas_outdoor' },
+        { label: 'Вьющиеся',            key: 'climbing_plants'    },
+        { label: 'Рододендроны',        key: 'rhododendrons'      },
+        { label: 'Азалии садовые',      key: 'azalea_outdoor'     },
+        { label: 'Розы садовые',        key: 'roses_outdoor'      },
+        { label: 'Скиммия',             key: 'skimmia'            },
+        { label: 'Кустарники прочие',   key: 'outdoor'            },
+      ]},
+      { label: 'Клумбовые и сезонные', isGroup: true as const, items: [
+        { label: 'Фуксия',              key: 'fuchsia'            },
+        { label: 'Герань',              key: 'geranium'           },
+        { label: 'Виола',               key: 'viola'              },
+        { label: 'Анютины глазки',      key: 'pansy'              },
+        { label: 'Растения для патио',  key: 'patio_plants'       },
+        { label: 'Клумбовые прочие',    key: 'bedding'            },
+      ]},
+    ]},
   ],
   supply: [
     { label: 'Упаковка',               key: 'packaging'   },
@@ -261,12 +336,43 @@ function StaticGroup({ label, children }: { label: string; children: React.React
 
 function AccordionSubcats({ products }: { products: Product[] }) {
   const { category, subcat, varietyType, setSubcat, setVarietyType, facets } = useFilters()
-  const [openItem, setOpenItem] = useState('')
+  const [openItem,   setOpenItem]   = useState('')
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
 
-  useEffect(() => { setOpenItem('') }, [category])
+  // When category changes: reset leaf open state + default-open top-level pot groups
+  useEffect(() => {
+    setOpenItem('')
+    if (category === 'pot') {
+      setOpenGroups(new Set(
+        (CATEGORY_TREE.pot ?? []).filter(isGroup).map(n => n.label)
+      ))
+    } else {
+      setOpenGroups(new Set())
+    }
+  }, [category])
 
-  // Auto-open selected subcat to show variety types
-  useEffect(() => { if (subcat) setOpenItem(subcat) }, [subcat])
+  // Auto-open selected subcat to show variety types; also open its parent groups
+  useEffect(() => {
+    if (!subcat) return
+    setOpenItem(subcat)
+    // Open all ancestor groups containing this subcat
+    const toOpen: string[] = []
+    const findAncestors = (nodes: SubcatNode[], path: string[]): boolean => {
+      for (const n of nodes) {
+        if (isGroup(n)) {
+          if (findAncestors(n.items, [...path, n.label])) {
+            toOpen.push(...path, n.label)
+            return true
+          }
+        } else if (n.key === subcat) {
+          return true
+        }
+      }
+      return false
+    }
+    findAncestors(CATEGORY_TREE[category] ?? [], [])
+    if (toOpen.length) setOpenGroups(prev => new Set([...prev, ...toOpen]))
+  }, [subcat, category])
 
   const { bySC, byVT } = useMemo(() => {
     const base = products.filter(p => category === 'all' || p.category === category)
@@ -284,16 +390,20 @@ function AccordionSubcats({ products }: { products: Product[] }) {
     return { bySC, byVT }
   }, [products, category])
 
-  // When subcat is selected — show only that node; otherwise show all with stock
-  const allNodes = (CATEGORY_TREE[category] ?? []).filter(node => (bySC[node.key] ?? 0) > 0)
-  const nodes = subcat
-    ? allNodes.filter(n => n.key === subcat)
-    : allNodes
+  const nodeHasStock = (node: SubcatNode): boolean => {
+    if (isGroup(node)) return node.items.some(nodeHasStock)
+    return (facets?.subcatCounts?.[node.key] ?? bySC[node.key] ?? 0) > 0 || subcat === node.key
+  }
 
-  const handleParent = (node: SubcatNode) => {
-    if (node.children?.length) {
-      setOpenItem(prev => prev === node.key ? '' : node.key)
-    }
+  const toggleGroup = (label: string) =>
+    setOpenGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label); else next.add(label)
+      return next
+    })
+
+  const handleParent = (node: SubcatLeaf) => {
+    if (node.children?.length) setOpenItem(prev => prev === node.key ? '' : node.key)
     setSubcat(node.key)
     setVarietyType('')
   }
@@ -322,60 +432,98 @@ function AccordionSubcats({ products }: { products: Product[] }) {
     cursor: 'pointer', transition: 'background 0.12s',
   }
 
+  const renderNode = (node: SubcatNode, depth = 0): React.ReactNode => {
+    if (isGroup(node)) {
+      if (!node.items.some(nodeHasStock)) return null
+      const open = openGroups.has(node.label)
+      return (
+        <div key={node.label}>
+          <button
+            onClick={() => toggleGroup(node.label)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+              padding: `5px ${4 + depth * 8}px`,
+              background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Chevron open={open} />
+            <span style={{
+              flex: 1, textAlign: 'left',
+              fontSize: depth === 0 ? 11 : 10,
+              fontWeight: 600,
+              color: depth === 0 ? 'var(--text)' : '#b9aab1',
+              letterSpacing: depth > 0 ? '0.08em' : undefined,
+              textTransform: depth > 0 ? 'uppercase' : undefined,
+            }}>
+              {node.label}
+            </span>
+          </button>
+          {open && (
+            <div style={{ paddingLeft: depth === 0 ? 4 : 10 }}>
+              {node.items.map(item => renderNode(item, depth + 1))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    const count = facets?.subcatCounts?.[node.key] ?? bySC[node.key] ?? 0
+    if (count === 0 && subcat !== node.key) return null
+
+    const hasChildren = !!(node.children?.length)
+    const isOpen      = openItem === node.key
+    const parentSel   = subcat === node.key && varietyType === ''
+    const hasActiveCh = subcat === node.key && varietyType !== ''
+
+    return (
+      <div key={node.key}>
+        <div
+          onClick={() => handleParent(node)}
+          className={parentSel || hasActiveCh ? '' : 'hover:bg-[var(--bg2)]'}
+          style={{
+            ...rowBase,
+            background: parentSel ? 'var(--accent)' : hasActiveCh ? 'var(--bg2)' : undefined,
+            color: parentSel ? '#fff' : 'var(--text)',
+            fontWeight: parentSel ? 600 : 400,
+          }}
+        >
+          {hasChildren && <Chevron open={isOpen} />}
+          <span style={{ flex: 1 }}>{node.label}</span>
+          {countBadge(count, parentSel)}
+        </div>
+
+        {hasChildren && isOpen && node.children!
+          .filter(child => (byVT[node.key]?.[child.varietyType] ?? 0) > 0)
+          .map(child => {
+            const childActive = subcat === node.key && varietyType === child.varietyType
+            const childCount  = byVT[node.key]?.[child.varietyType] ?? 0
+            return (
+              <div
+                key={child.varietyType}
+                onClick={() => handleChild(node.key, child)}
+                className={childActive ? '' : 'hover:bg-[var(--bg2)]'}
+                style={{
+                  ...rowBase,
+                  paddingLeft: 22,
+                  background: childActive ? 'var(--accent)' : undefined,
+                  color: childActive ? '#fff' : 'var(--text-mid)',
+                  fontWeight: childActive ? 600 : 400,
+                }}
+              >
+                <span style={{ fontSize: 10, opacity: 0.5, marginRight: 2 }}>•</span>
+                <span style={{ flex: 1, fontSize: 11 }}>{child.label}</span>
+                {countBadge(childCount, childActive)}
+              </div>
+            )
+          })
+        }
+      </div>
+    )
+  }
+
   return (
     <div>
-      {nodes.map(node => {
-        const hasChildren = !!(node.children?.length)
-        const isOpen      = openItem === node.key
-        const parentSel   = subcat === node.key && varietyType === ''
-        const hasActiveCh = subcat === node.key && varietyType !== ''
-
-        return (
-          <div key={node.key}>
-            <div
-              onClick={() => handleParent(node)}
-              className={parentSel || hasActiveCh ? '' : 'hover:bg-[var(--bg2)]'}
-              style={{
-                ...rowBase,
-                background: parentSel
-                  ? 'var(--accent)'
-                  : hasActiveCh
-                    ? 'var(--bg2)'
-                    : undefined,
-                color: parentSel ? '#fff' : 'var(--text)',
-                fontWeight: parentSel ? 600 : 400,
-              }}
-            >
-              {hasChildren && <Chevron open={isOpen} />}
-              <span style={{ flex: 1 }}>{node.label}</span>
-              {countBadge(facets?.subcatCounts?.[node.key] ?? bySC[node.key] ?? 0, parentSel)}
-            </div>
-
-            {hasChildren && isOpen && node.children!.filter(child => (byVT[node.key]?.[child.varietyType] ?? 0) > 0).map(child => {
-              const childActive = subcat === node.key && varietyType === child.varietyType
-              const childCount  = byVT[node.key]?.[child.varietyType] ?? 0
-              return (
-                <div
-                  key={child.varietyType}
-                  onClick={() => handleChild(node.key, child)}
-                  className={childActive ? '' : 'hover:bg-[var(--bg2)]'}
-                  style={{
-                    ...rowBase,
-                    paddingLeft: 22,
-                    background: childActive ? 'var(--accent)' : undefined,
-                    color: childActive ? '#fff' : 'var(--text-mid)',
-                    fontWeight: childActive ? 600 : 400,
-                  }}
-                >
-                  <span style={{ fontSize: 10, opacity: 0.5, marginRight: 2 }}>•</span>
-                  <span style={{ flex: 1, fontSize: 11 }}>{child.label}</span>
-                  {countBadge(childCount, childActive)}
-                </div>
-              )
-            })}
-          </div>
-        )
-      })}
+      {(CATEGORY_TREE[category] ?? []).map(node => renderNode(node))}
     </div>
   )
 }
