@@ -16,7 +16,7 @@
 
 **Что НЕ приходит из парсинга:**
 - Реальная цена (`price = null` у Waterdrinker, `888` у OZ — плейсхолдер)
-- Реальный остаток (у OZ `qty = 888`, у Waterdrinker берётся из `item.stock`)
+- Реальный остаток (у OZ `qty = 999`, у Waterdrinker берётся из `item.stock`)
 
 Цены и остатки приходят из **1С через XLS-импорт** (отдельный процесс).
 
@@ -113,6 +113,10 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs "Anthurium"
 ### INSERT (новый товар)
 
 Устанавливается всё: `name`, `category`, `subcategory`, `length_cm`, `pot_diameter`, `country_iso`, `colors`, `image_url`, `campaign_image_url`, `farm`, `pack_size`, `stems_per_pack`, `is_active`, `arrival_date = today`.
+
+**Упаковка (OZ):**
+- `pack_size = 1` — кратность заказа, всегда 1 (редактируется вручную в AdminTable)
+- `stems_per_pack = quantity_stems` из OZ — информационное поле (10, 25 и т.д.)
 
 `display_name` генерирует триггер `generate_product_display_name` автоматически после INSERT.
 
