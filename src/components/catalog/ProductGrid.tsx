@@ -275,14 +275,17 @@ function GridCard({
           )
         })()}
 
-        {/* Страна + ферма */}
-        {(product.country_iso || (product as any).farm) && (
+        {/* Страна + ферма + вес */}
+        {(product.country_iso || (product as any).farm || (product as any).weight_gram) && (
           <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
             {product.country_iso && <CountryBadge iso={product.country_iso} />}
             {(product as any).farm && (
               <span style={{ fontSize: 10, color: 'var(--text-mid)', fontStyle: 'italic' }}>
                 {(product as any).farm}
               </span>
+            )}
+            {(product as any).weight_gram && (
+              <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{(product as any).weight_gram} г</span>
             )}
           </div>
         )}
@@ -315,9 +318,6 @@ function GridCard({
             <span style={{ fontSize: 13, color: '#ccc', letterSpacing: '0.1em', userSelect: 'none' }}>●●● ₸</span>
           )}
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size} шт</span>
-          {(product as any).weight_gram && (
-            <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{(product as any).weight_gram} г</span>
-          )}
         </div>
 
         {/* stop propagation so stepper click doesn't open detail */}

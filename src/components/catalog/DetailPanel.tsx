@@ -300,15 +300,22 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           </div>
         )}
 
-        {/* Страна */}
-        {countryLabel && (
-          <div style={{ marginBottom: 8 }}>
-            <span style={{
-              fontSize: 11, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
-              borderRadius: 4, padding: '2px 8px', fontWeight: 500,
-            }}>
-              {countryLabel}
-            </span>
+        {/* Страна + ферма */}
+        {(countryLabel || (product as any).farm) && (
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {countryLabel && (
+              <span style={{
+                fontSize: 11, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
+                borderRadius: 4, padding: '2px 8px', fontWeight: 500,
+              }}>
+                {countryLabel}
+              </span>
+            )}
+            {(product as any).farm && (
+              <span style={{ fontSize: 11, color: 'var(--text-mid)', fontStyle: 'italic' }}>
+                {(product as any).farm}
+              </span>
+            )}
           </div>
         )}
 
@@ -346,6 +353,10 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
           {product.stems_per_pack && product.stems_per_pack > 0 && (
             <Row label="Стеблей в уп.">{product.stems_per_pack} шт</Row>
+          )}
+
+          {(product as any).weight_gram && (
+            <Row label="Вес пачки">{(product as any).weight_gram} г</Row>
           )}
 
           {isAuthed && (
