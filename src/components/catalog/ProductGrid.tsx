@@ -315,9 +315,6 @@ function GridCard({
             <span style={{ fontSize: 13, color: '#ccc', letterSpacing: '0.1em', userSelect: 'none' }}>●●● ₸</span>
           )}
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size} шт</span>
-          {product.stems_per_pack && product.stems_per_pack > 0 && (
-            <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{product.stems_per_pack} стебл.</span>
-          )}
           {(product as any).weight_gram && (
             <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{(product as any).weight_gram} г</span>
           )}
