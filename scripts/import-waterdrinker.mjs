@@ -1,13 +1,19 @@
 // import-waterdrinker.mjs
 // Импорт каталога Waterdrinker из JSONL в products
-// Запуск: node --env-file=.env.local scripts/import-waterdrinker.mjs [CategoryName]
-// Пример: node --env-file=.env.local scripts/import-waterdrinker.mjs Anthurium
+// Запуск: node --env-file=.env.local scripts/import-waterdrinker.mjs [CategoryName|ALL] [path/to/file.jsonl]
+// Примеры:
+//   node --env-file=.env.local scripts/import-waterdrinker.mjs ALL
+//   node --env-file=.env.local scripts/import-waterdrinker.mjs ALL "C:\path\to\waterdrinker_catalog_v2.jsonl"
 
 import fs from 'fs'
 import { createClient } from '@supabase/supabase-js'
 
-const JSONL_PATH = 'C:\\Users\\Владелец\\Desktop\\waterdrinker-scraper\\output\\waterdrinker_catalog.jsonl'
-const CATEGORY_FILTER = process.argv[2] || 'Anthurium'
+const DEFAULT_JSONL = 'C:\\Users\\Владелец\\Desktop\\waterdrinker-scraper\\output\\waterdrinker_catalog.jsonl'
+const JSONL_PATH    = process.argv[3] || DEFAULT_JSONL
+const CATEGORY_FILTER = process.argv[2] || 'ALL'
+
+// Категории, которые не импортируем
+const SKIP_CATEGORIES = new Set(['Bonsai'])
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -51,28 +57,61 @@ const DUTCH_COLOR = {
 }
 
 const SUBCAT_MAP = {
-  'Anthurium':                    'anthuriums',
-  'Orchids':                      'orchids',
-  'Kalanchoe':                    'flowering',
-  'Spathiphyllum':                'flowering',
-  'Hydrangea Indoor':             'hydrangeas',
-  'Bromelia':                     'flowering',
-  'Begonia':                      'flowering',
-  'Roses Indoor':                 'roses',
-  'Dracaena':                     'green',
-  'Hedera Indoor':                'green',
-  'Palms':                        'green',
-  'Calathea':                     'green',
-  'Large Leaved Plants':          'green',
-  'Polyscias / Pachira / Yucca':  'large',
-  'Flowering Houseplants Other':  'flowering',
-  'Succulents':                   'succulents',
-  'Bulbs':                        'flowering',
-  'Helleborus':                   'flowering',
-  'Climbingplants':               'green',
-  'Ficus':                        'green',
-  'Chrysant':                     'flowering',
-  'Trees':                        'large',
+  'Anthurium':                       'anthuriums',
+  'Orchids':                         'orchids',
+  'Kalanchoe':                       'kalanchoe',
+  'Spathiphyllum':                   'spathiphyllum',
+  'Hydrangea Indoor':                'hydrangeas_indoor',
+  'Bromelia':                        'bromeliads',
+  'Begonia':                         'begonias',
+  'Roses Indoor':                    'roses_indoor',
+  'Dracaena':                        'dracaena',
+  'Hedera Indoor':                   'hedera',
+  'Palms':                           'palms',
+  'Calathea':                        'calathea',
+  'Large Leaved Plants':             'large_leaved',
+  'Polyscias / Pachira / Yucca':     'polyscias',
+  'Flowering Houseplants Other':     'flowering',
+  'Succulents':                      'succulents',
+  'Bulbs':                           'bulbs_indoor',
+  'Helleborus':                      'helleborus',
+  'Climbingplants':                  'climbing_plants',
+  'Ficus':                           'ficus',
+  'Chrysant':                        'chrysanthemums_pot',
+  'Trees':                           'trees',
+  'Buxus':                           'buxus',
+  'Water plants and pond plants':    'aquatic',
+  'Rhododendron / Azalea Outdoor':   'rhododendrons',
+  'Carnivorous Plants':              'carnivorous',
+  'Beddingplants Other':             'bedding',
+  'Viola / Pansy':                   'viola',
+  'Herbs':                           'herbs',
+  // V2 — новые категории
+  'Hebe':                            'hebe',
+  'Lavender':                        'lavender',
+  'Roses Outdoor':                   'roses_outdoor',
+  'Calluna / Erica':                 'heather',
+  'Vegetable Plants':                'vegetables',
+  'Hedera Outdoor':                  'hedera_outdoor',
+  'Hydrangea Outdoor':               'hydrangeas_outdoor',
+  'Fruitplants':                     'fruit_plants',
+  'Grasses and Bamboo':              'ornamental_grasses',
+  'Perennial Plants Other':          'perennials',
+  'Azalea Indoor':                   'azalea_indoor',
+  'Cacti':                           'cacti',
+  'Ferns':                           'ferns',
+  'Zamioculcas':                     'zamioculcas',
+  'Green Houseplants Other':         'green',
+  'Cyclamen':                        'cyclamen',
+  'Poinsettia':                      'poinsettia',
+  'Hedging Plants':                  'hedging',
+  'Conifer':                         'conifers',
+  'Gaultheria':                      'gaultheria',
+  'Skimmia':                         'skimmia',
+  'Shrubs other':                    'outdoor',
+  'Fuchsia':                         'fuchsia',
+  'Geranium':                        'geranium',
+  'Patio Plants':                    'patio_plants',
 }
 
 // ── Утилиты ───────────────────────────────────────────────────────────────────
@@ -111,9 +150,19 @@ function parseCountry(val) {
 
 const raw = fs.readFileSync(JSONL_PATH, 'utf-8')
 const all = raw.split('\n').filter(Boolean).map(l => JSON.parse(l))
-const items = all.filter(r => r._category_name === CATEGORY_FILTER)
 
-console.log(`\n[Waterdrinker] Категория: ${CATEGORY_FILTER}, записей: ${items.length}\n`)
+const isAll = CATEGORY_FILTER === 'ALL'
+const items = isAll
+  ? all.filter(r => !SKIP_CATEGORIES.has(r._category_name))
+  : all.filter(r => r._category_name === CATEGORY_FILTER)
+
+if (isAll) {
+  const cats = [...new Set(items.map(r => r._category_name))]
+  console.log(`\n[Waterdrinker] Все категории (${cats.length}): ${cats.join(', ')}`)
+  console.log(`Всего записей: ${items.length}\n`)
+} else {
+  console.log(`\n[Waterdrinker] Категория: ${CATEGORY_FILTER}, записей: ${items.length}\n`)
+}
 
 let inserted = 0, updated = 0, errors = 0
 const today = new Date().toISOString().split('T')[0]
@@ -138,13 +187,14 @@ for (const item of items) {
     length_cm:           parseCm(heightRaw),
     country_iso:         parseCountry(countryRaw),
     colors:              color ? [color] : null,
-    image_url:           item.pictures?.[0] ?? null,
-    campaign_image_url:  item.pictures?.[1] ?? null,
+    image_url:           item.pictures?.[0]?.replace('w240xh240', 'Original') ?? null,
+    campaign_image_url:  item.pictures?.[1]?.replace('w240xh240', 'Original') ?? null,
     qty:                 item.stock ?? 0,
     pack_size:           1,
     price:               null,
     is_active:           (item.stock ?? 0) > 0,
     arrival_date:        today,
+    container_code:      item.packing?.code ?? null,
   }
 
   // Проверяем, есть ли уже в БД
@@ -165,8 +215,9 @@ for (const item of items) {
     const { error } = await supabase
       .from('products')
       .update({
-        qty:       product.qty,
-        is_active: product.is_active,
+        qty:            product.qty,
+        is_active:      product.is_active,
+        container_code: product.container_code,
         ...(!cur?.colors?.length && product.colors ? { colors: product.colors } : {}),
         ...(cur?.display_name ? {} : {
           image_url:          product.image_url,
