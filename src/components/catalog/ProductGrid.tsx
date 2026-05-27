@@ -318,14 +318,11 @@ function GridCard({
           {product.stems_per_pack && product.stems_per_pack > 0 && (
             <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{product.stems_per_pack} стебл.</span>
           )}
-          {(product as any).weight_gram && (
-            <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{(product as any).weight_gram} г</span>
-          )}
         </div>
 
         {/* stop propagation so stepper click doesn't open detail */}
         <div onClick={e => e.stopPropagation()}>
-          <Stepper qty={qty} available={available} packSize={product.pack_size || 5} onDec={onDec} onInc={onInc} />
+          <Stepper qty={qty} available={available} packSize={product.stems_per_pack || product.pack_size || 1} onDec={onDec} onInc={onInc} />
         </div>
       </div>
     </div>
@@ -411,7 +408,7 @@ function ListRow({
         ) : (
           <span style={{ fontSize: 12, color: '#ccc', userSelect: 'none' }}>●●● ₸</span>
         )}
-        <Stepper qty={qty} available={available} packSize={product.pack_size || 5} onDec={onDec} onInc={onInc} />
+        <Stepper qty={qty} available={available} packSize={product.stems_per_pack || product.pack_size || 1} onDec={onDec} onInc={onInc} />
       </div>
     </div>
   )
@@ -615,7 +612,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   )
   const handleInc = (product: Product, qty: number, available: number, price: number) =>
     requireAuth(() => {
-      const packSize = product.pack_size || 5
+      const packSize = product.stems_per_pack || product.pack_size || 1
       if (qty === 0) {
         add({ id: product.id, name: (product.display_name || product.variety_name || product.name) + (product.length_str ? ' ' + product.length_str : ''), price, available, category: product.category, image_url: product.image_url })
         update(product.id, packSize)
