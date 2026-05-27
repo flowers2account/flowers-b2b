@@ -356,7 +356,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           )}
 
           {(product as any).weight_gram && (
-            <Row label="Вес пачки">{(product as any).weight_gram} г</Row>
+            <Row label="Вес">{(product as any).weight_gram} г</Row>
           )}
 
           {isAuthed && (
