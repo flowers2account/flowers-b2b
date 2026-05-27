@@ -56,8 +56,9 @@ B2B платформа для оптовой торговли цветами. С
 | `colors` | text[] | Массив ключей цветов |
 | `image_url` | text | Основное фото (Supabase Storage: `product-images`) |
 | `campaign_image_url` | text | Второе фото для ховер-эффекта и генератора карточек |
-| `pack_size` | int | Кратность заказа |
-| `stems_per_pack` | int | Стеблей в упаковке |
+| `pack_size` | int | Кратность заказа (= `stems_per_pack` для OZ-товаров) |
+| `stems_per_pack` | int | Стеблей в упаковке (из `quantity_stems` OZ) |
+| `weight_gram` | int | Вес пачки в граммах (из OZ, ~270/1311 товаров) |
 | `price` | numeric | Цена за штуку |
 | `previous_price` | numeric | Предыдущая цена (заполняется импортом при снижении цены) |
 | `qty` | int | Остаток |
@@ -332,7 +333,8 @@ src/
 
 ## Roadmap
 
-- **Маппинг 1С → каталог** — связать имена из XLS с `products` от OZ/Waterdrinker (aliases, AI-матчинг или ручной UI)
+- **Маппинг 1С → каталог** — таблица `product_aliases(raw_name, product_id)`: XLS-импорт сначала ищет алиас, потом `products.name`; первичная привязка ручная через UI + опционально AI
+- **Переводы OZ-товаров** — display_name для OZ-карточек (English → Russian)
 - **Нормализация дублей** — слияние товаров с одинаковым сортом но разными `name`
 
 ## Локальная разработка
