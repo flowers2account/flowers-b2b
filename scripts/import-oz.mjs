@@ -181,7 +181,7 @@ for (const item of items) {
     image_url:          fixPhotoUrl(item.image_urls?.[0]),
     campaign_image_url: fixPhotoUrl(item.image_urls?.[1]),
     qty:                999,
-    pack_size:          item.quantity_stems ?? 10,
+    pack_size:          1,
     stems_per_pack:     item.quantity_stems ?? null,
     price:              999,
     is_active:          true,
