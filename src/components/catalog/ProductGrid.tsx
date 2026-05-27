@@ -275,10 +275,15 @@ function GridCard({
           )
         })()}
 
-        {/* Страна */}
-        {product.country_iso && (
-          <div style={{ marginTop: 2 }}>
-            <CountryBadge iso={product.country_iso} />
+        {/* Страна + ферма */}
+        {(product.country_iso || (product as any).farm) && (
+          <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            {product.country_iso && <CountryBadge iso={product.country_iso} />}
+            {(product as any).farm && (
+              <span style={{ fontSize: 10, color: 'var(--text-mid)', fontStyle: 'italic' }}>
+                {(product as any).farm}
+              </span>
+            )}
           </div>
         )}
 

@@ -54,6 +54,7 @@ export type Product = {
   arrival_date?: string | null
   is_new?: boolean
   tags?: string[] | null
+  farm?: string | null
   stock: Stock[] | Stock
 }
 
