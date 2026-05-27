@@ -188,6 +188,7 @@ for (const item of items) {
     is_active:          true,
     arrival_date:       today,
     farm:               item.producer ?? null,
+    supplier_ref:       item.id ?? null,
   }
 
   const { data: existing } = await supabase
@@ -209,6 +210,7 @@ for (const item of items) {
         stems_per_pack: product.stems_per_pack,
         ...(product.weight_gram ? { weight_gram: product.weight_gram } : {}),
         ...(product.variety_type ? { variety_type: product.variety_type } : {}),
+        ...(product.supplier_ref ? { supplier_ref: product.supplier_ref } : {}),
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
         ...(!existing.image_url && product.image_url ? {
           image_url:          product.image_url,
