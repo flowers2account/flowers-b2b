@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
-
-const admin = createAdminClient()
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const { category = 'cut', onlyAvailable = true, subcat = null, varietyType = null } = body
 
-  const { data: products } = await admin
+  const supabase = await createClient()
+  const { data: products } = await supabase
     .from('products')
     .select('id, colors, length_cm, country_iso, subcategory, variety_type, qty')
     .eq('is_active', true)
