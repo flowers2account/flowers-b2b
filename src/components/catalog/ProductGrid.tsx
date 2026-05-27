@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
@@ -182,11 +183,13 @@ function GridCard({
         onMouseLeave={() => setActivePhoto(0)}
       >
         {product.image_url ? (
-          <img
+          <Image
+            fill
             src={product.image_url}
             alt={displayName}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              objectFit: 'cover',
               opacity: showSecond ? 0 : 1,
               transition: 'opacity 0.3s ease',
             }}
@@ -201,11 +204,13 @@ function GridCard({
           </div>
         )}
         {hasSecondPhoto && (
-          <img
+          <Image
+            fill
             src={product.campaign_image_url!}
             alt={displayName}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              objectFit: 'cover',
               opacity: showSecond ? 1 : 0,
               transition: 'opacity 0.3s ease',
             }}
@@ -356,7 +361,7 @@ function ListRow({
       {/* Миниатюра */}
       <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-card)', background: 'var(--accent-light)', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
         {product.image_url
-          ? <img src={product.image_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? <Image src={product.image_url} alt={displayName} width={56} height={56} sizes="56px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, opacity: 0.5 }}>🌸</div>
         }
       </div>

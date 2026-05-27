@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useDetailStore } from '@/lib/detail-store'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
@@ -247,7 +248,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           onMouseLeave={images.length > 1 ? () => setPhotoIdx(0) : undefined}
         >
           {mainPhoto ? (
-            <img src={mainPhoto} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'var(--bg2)' }} />
+            <Image fill src={mainPhoto} alt={displayName} sizes="(max-width: 768px) 100vw, 50vw" priority style={{ objectFit: 'contain' }} />
           ) : (
             <div style={{
               width: '100%', height: '100%',
@@ -583,7 +584,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
                 {/* Row: thumbnail + name/price + total */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   {item.image_url ? (
-                    <img src={item.image_url} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                    <Image src={item.image_url} alt="" width={36} height={36} sizes="36px" style={{ objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
                   ) : (
                     <div style={{ width: 36, height: 36, borderRadius: 4, background: 'var(--accent-light)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
                       🌸
