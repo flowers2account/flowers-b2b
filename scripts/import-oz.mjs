@@ -129,15 +129,19 @@ let inserted = 0, updated = 0, errors = 0
 const today = new Date().toISOString().split('T')[0]
 
 for (const item of items) {
-  const subcategory = SUBCAT_MAP[item.category] ?? 'exotic'
-  const color       = parseColor(item.color_line)
+  const subcategory    = SUBCAT_MAP[item.category] ?? 'exotic'
+  const color          = parseColor(item.color_line)
+  const isEcuador      = item.category === 'Rosa Ecuador'
+  const isRosaGarden   = item.name?.startsWith('Rosa Garden') || item.name?.startsWith('Rosa Large') || item.name?.startsWith('Rosa Austin')
+  const isRosaSpray    = item.name?.startsWith('Rosa Spray')
 
   const product = {
     name:               item.name,
     category:           'cut',
     subcategory,
+    variety_type:       isEcuador ? 'single' : isRosaGarden ? 'decorative' : isRosaSpray ? 'spray' : null,
     length_cm:          item.height_cm ?? null,
-    country_iso:        'NL',
+    country_iso:        isEcuador ? 'EC' : 'NL',
     colors:             color ? [color] : null,
     image_url:          fixPhotoUrl(item.image_urls?.[0]),
     campaign_image_url: fixPhotoUrl(item.image_urls?.[1]),
@@ -159,10 +163,12 @@ for (const item of items) {
     const { error } = await supabase
       .from('products')
       .update({
-        qty:         product.qty,
-        is_active:   product.is_active,
-        subcategory: product.subcategory,
-        length_cm:   product.length_cm,
+        qty:          product.qty,
+        is_active:    product.is_active,
+        subcategory:  product.subcategory,
+        length_cm:    product.length_cm,
+        country_iso:  product.country_iso,
+        ...(product.variety_type ? { variety_type: product.variety_type } : {}),
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
         ...(!existing.image_url && product.image_url ? {
           image_url:          product.image_url,
