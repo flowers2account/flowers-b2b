@@ -39,6 +39,15 @@ const DUTCH_COLOR = {
   'terracotta':       'terracotta',
   'zwart':            'black',
   'roze-rood':        'pink',
+  'rood bruin':       'terracotta',
+  'rood wit':         'bicolor',
+  'zalmroze':         'peach',
+  'licht geel':       'yellow',
+  'pastel':           'cream',
+  'licht roze':       'pink',
+  'donker rood':      'burgundy',
+  'licht paars':      'lilac',
+  'licht blauw':      'blue',
 }
 
 const SUBCAT_MAP = {
@@ -112,7 +121,7 @@ const today = new Date().toISOString().split('T')[0]
 for (const item of items) {
   const potRaw    = getAttr(item.mainAttributes, 'S01')
   const heightRaw = getAttr(item.mainAttributes, 'S02')
-  const colorRaw  = getAttr(item.attributes,     'S50')
+  const colorRaw  = getAttr(item.attributes, 'S50') ?? getAttr(item.attributes, 'B01')
   const countryRaw= getAttr(item.attributes,     'S62')
 
   const color     = parseColor(colorRaw)
@@ -147,12 +156,19 @@ for (const item of items) {
 
   if (existing) {
     // UPDATE — только qty, is_active, не трогаем display_name и ручные правки
+    const { data: cur } = await supabase
+      .from('products')
+      .select('display_name, colors')
+      .eq('id', existing.id)
+      .single()
+
     const { error } = await supabase
       .from('products')
       .update({
         qty:       product.qty,
         is_active: product.is_active,
-        ...(existing.display_name ? {} : {
+        ...(!cur?.colors?.length && product.colors ? { colors: product.colors } : {}),
+        ...(cur?.display_name ? {} : {
           image_url:          product.image_url,
           campaign_image_url: product.campaign_image_url,
         }),
