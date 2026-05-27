@@ -187,13 +187,11 @@ Leaf eucalyptus → Эвкалипт
 Leaf leather fern → Ледерфёрн
 
 2. Нормализовать florist forms:
-Sp / Spr / spray / T (у хризантем) → ветковая
-Bl (у хризантем, OZ-сокращение) → кустовая
-Disb / disbud → одноголовая
-Sa / Santini → сантини
+T / Spray / Spr / sp → ветковая
+bl / Disb → одноголовая
+sa / Santini → сантини
 dbl / do → махровая
 or → восточная
-sp (у роз) → кустовая
 
 3. Сорта:
 - НЕ переводить по смыслу
@@ -406,6 +404,7 @@ export async function POST(request: NextRequest) {
     // ШАГ 7: Постобработка — добавляем «ёлочки» и нормализуем термины
     const finalFormatted = final
       .map(r => r.method === 'db_exact' ? r : { ...r, translated: addGuillemets(r.translated) })
+      .map(r => ({ ...r, translated: r.translated.replace(/кустовая/gi, 'ветковая') }))
 
     console.log('[Batch] Complete');
 
