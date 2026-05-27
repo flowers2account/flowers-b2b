@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from('products')
     .select(`
-      id, name, display_name, length_cm, category, subcategory, variety_type, pack_size, stems_per_pack,
+      id, name, display_name, length_cm, category, subcategory, variety_type, pack_size, stems_per_pack, weight_gram,
       colors, image_url, campaign_image_url, arrival_date, price, previous_price, qty, country_iso, tags, farm
     `)
     .eq('is_active', true)

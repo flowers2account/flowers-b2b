@@ -318,6 +318,9 @@ function GridCard({
           {product.stems_per_pack && product.stems_per_pack > 0 && (
             <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{product.stems_per_pack} стебл.</span>
           )}
+          {(product as any).weight_gram && (
+            <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{(product as any).weight_gram} г</span>
+          )}
         </div>
 
         {/* stop propagation so stepper click doesn't open detail */}

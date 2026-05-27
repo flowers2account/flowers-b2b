@@ -49,6 +49,7 @@ export type Product = {
   search_aliases?: string[] | null
   pack_size: number
   stems_per_pack?: number | null
+  weight_gram?: number | null
   image_url?: string | null
   previous_price?: number | null
   arrival_date?: string | null
