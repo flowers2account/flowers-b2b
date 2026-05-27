@@ -239,11 +239,34 @@ RLS **отключён** на таблицах: `clients`, `orders`, `order_item
 
 RLS **включён только** на: `profiles`
 
+## Импорт каталога поставщиков (OZ / Waterdrinker) — актуально с 27.05.2026
+
+Парсинг сайтов поставщиков → JSONL → скрипты импорта → `products`.  
+Цель: предзаполнить базу фотографиями, цветами, подкатегориями до прихода товара в 1С.
+
+| Скрипт | Поставщик | Категория | Запуск |
+|--------|-----------|-----------|--------|
+| `scripts/import-oz.mjs` | OZ Export | Срезка (`cut`) | `node --env-file=.env.local scripts/import-oz.mjs [Category\|ALL] [file.jsonl]` |
+| `scripts/import-waterdrinker.mjs` | Waterdrinker | Горшечные (`pot`) | `node --env-file=.env.local scripts/import-waterdrinker.mjs [Category\|ALL] [file.jsonl]` |
+
+JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
+
+**Ключевые правила UPDATE:**
+- `colors`, `image_url` — обновляются только если поле пустое
+- `display_name`, `price`, `length_cm` — не трогаются
+- `qty = 888` у OZ — плейсхолдер, реальный остаток приходит из XLS
+
+⚠️ **Маппинг 1С → каталог не реализован.** XLS-импорт ищет товар по `products.name`.  
+Если точного совпадения нет — создаётся дубль. Решение маппинга в плане.
+
+Подробности: `docs/CATALOG_IMPORT.md`
+
 ## База знаний проекта
 
 | Файл | Тема |
 |------|------|
-| `docs/IMPORT_SYSTEM.md` | Импорт XLS (может быть устаревшим — актуальна секция выше) |
+| `docs/CATALOG_IMPORT.md` | Импорт каталога поставщиков (OZ, Waterdrinker) — актуально |
+| `docs/IMPORT_SYSTEM.md` | Импорт XLS из 1С — ⚠️ устарело (описывает batches/stock до 25.05.2026) |
 | `docs/STOCK_MANAGEMENT.md` | Архитектура остатков |
 | `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
 | `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
@@ -308,7 +331,7 @@ src/
 
 ## Roadmap
 
-- **Импорт ОЗ Голландия** — автозаполнение color/farm/image_url из инвойса
+- **Маппинг 1С → каталог** — связать имена из XLS с `products` от OZ/Waterdrinker (aliases, AI-матчинг или ручной UI)
 - **Нормализация дублей** — слияние товаров с одинаковым сортом но разными `name`
 
 ## Локальная разработка
