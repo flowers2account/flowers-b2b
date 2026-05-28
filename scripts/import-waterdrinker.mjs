@@ -49,6 +49,12 @@ const DUTCH_COLOR = {
   'terracotta':    'terracotta',
   'zwart':         'black',
   'rood wit':      'bicolor',
+  'donkerpaars':   'purple',
+  'driekleurig':   'multicolor',
+  'diverse kleuren': 'multicolor',
+  'gemengde kleuren': 'multicolor',
+  'geel oranje':     'yellow_orange',
+  'tweekleurig':     'bicolor',
 }
 
 const SUBCAT_MAP = {
@@ -129,7 +135,7 @@ const GENUS_SUBCAT = {
 function parseColor(dutch) {
   if (!dutch) return null
   const c = dutch.toLowerCase().trim()
-  if (/gemengd|diverse|mix|meerdere/.test(c)) return 'multicolor'
+  if (/gemengd|diverse|mix|meerdere|driekleurig/.test(c)) return 'multicolor'
   return DUTCH_COLOR[c] ?? null
 }
 
@@ -143,6 +149,7 @@ function parseCountry(val) {
   if (v.includes('ethiopia'))  return 'ET'
   if (v.includes('israel'))    return 'IL'
   if (v.includes('china'))     return 'CN'
+  if (v.includes('denemarken') || v.includes('denmark')) return 'DK'
   return 'NL'
 }
 
@@ -200,6 +207,7 @@ for (const item of items) {
     pot_material:        item.pot_material ?? null,
     pot_form:            item.pot_form   ?? null,
     substrate:           item.substrate  ?? null,
+    variant:             item.variant    ?? null,
   }
 
   const { data: existing } = await supabase
@@ -227,6 +235,7 @@ for (const item of items) {
         pot_material:        product.pot_material,
         pot_form:            product.pot_form,
         substrate:           product.substrate,
+        variant:             product.variant,
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
         ...(!existing.image_url && product.image_url ? {
           image_url:          product.image_url,

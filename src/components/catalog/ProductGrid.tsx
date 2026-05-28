@@ -28,7 +28,7 @@ const ORIGIN_LABELS: Record<string, string> = {
 }
 const COUNTRY_LABELS: Record<string, string> = {
   EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль', DK: 'Дания',
 }
 
 function CountryBadge({ iso }: { iso: string }) {
@@ -255,6 +255,11 @@ function GridCard({
         {displayName !== product.name && (
           <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 1, lineHeight: 1.2 }}>
             {product.name}
+          </div>
+        )}
+        {(product as any).variant && (
+          <div style={{ fontSize: 10, color: 'var(--text-mid)', fontStyle: 'italic', lineHeight: 1.2 }}>
+            {(product as any).variant}
           </div>
         )}
 

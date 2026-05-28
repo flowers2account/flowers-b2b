@@ -31,7 +31,7 @@ const ORIGIN_MAP: Record<string, string> = {
 
 const COUNTRY_LABELS: Record<string, string> = {
   EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль', DK: 'Дания',
 }
 
 const SEASON_MAP: Record<string, string> = {
@@ -72,6 +72,7 @@ const POT_MATERIAL_RU: Record<string, string> = {
   hout: 'дерево',
   'gerecyclede pot': 'переработанный пластик',
   gerecycleerd: 'переработанный пластик',
+  '>80% Post Consumer Recyclaat (PCR)': 'переработанный пластик (PCR 80%)',
   klei: 'глина',
 }
 
@@ -87,6 +88,11 @@ const POT_FORM_RU: Record<string, string> = {
 const SUBSTRATE_RU: Record<string, string> = {
   potgrond: 'торфяной грунт',
   '100% veen vrij': 'без торфа',
+  '70% veen vrij': '70% без торфа',
+  '65% veen vrij': '65% без торфа',
+  '55% veen vrij': '55% без торфа',
+  '50% veen vrij': 'Экологичный субстрат (50% без торфа)',
+  overige: 'другой субстрат',
   hydro: 'гидрогрунт',
   steenwol: 'минвата',
   kokos: 'кокосовый субстрат',
@@ -332,8 +338,13 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           {displayName}
         </div>
         {displayName !== product.name && (
-          <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 2 }}>
             {product.name}
+          </div>
+        )}
+        {(product as any).variant && (
+          <div style={{ fontSize: 11, color: 'var(--text-mid)', fontStyle: 'italic', marginBottom: 4 }}>
+            {(product as any).variant}
           </div>
         )}
 
