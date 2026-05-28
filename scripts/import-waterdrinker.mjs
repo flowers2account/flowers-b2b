@@ -108,6 +108,22 @@ const SUBCAT_MAP = {
   'Patio Plants':                    'patio_plants',
 }
 
+// Фоллбэк для корневых категорий (по роду растения)
+const GENUS_SUBCAT = {
+  'Aloe':        'succulents',
+  'Agave':       'succulents',
+  'Adenium':     'succulents',
+  'Aeonium':     'succulents',
+  'Aechmea':     'bromeliads',
+  'Aglaonema':   'green',
+  'Alocasia':    'large_leaved',
+  'Adiantum':    'ferns',
+  'Aglaomorpha': 'ferns',
+  'Albuca':      'bulbs_indoor',
+  'Aliceara':    'orchids',
+  'Allium':      'bulbs_indoor',
+}
+
 // ── Утилиты ───────────────────────────────────────────────────────────────────
 
 function parseColor(dutch) {
@@ -155,7 +171,8 @@ for (const item of items) {
   const name    = item.name?.trim() ?? ''
   const skuName = item.pot_size ? `${name} ${item.pot_size}` : name
   const color   = parseColor(item.color)
-  const subcategory = SUBCAT_MAP[item.category_name] ?? 'flowering'
+  const genus   = item.name?.trim().split(/\s+/)[0] ?? ''
+  const subcategory = SUBCAT_MAP[item.category_name] ?? GENUS_SUBCAT[genus] ?? 'flowering'
 
   const product = {
     name:                skuName,
