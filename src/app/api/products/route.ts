@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
     .from('products')
     .select(`
       id, name, display_name, length_cm, category, subcategory, variety_type, pack_size, stems_per_pack, weight_gram,
-      colors, image_url, campaign_image_url, arrival_date, price, previous_price, qty, country_iso, tags, farm
+      colors, image_url, campaign_image_url, arrival_date, price, previous_price, qty, country_iso, tags, farm,
+      pot_diameter, container_code, quality_grade, min_plants_per_pot, min_flowers_per_pot,
+      pot_color, pot_material, pot_form, substrate
     `)
     .eq('is_active', true)
     .order('name')

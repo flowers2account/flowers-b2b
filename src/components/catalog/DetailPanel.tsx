@@ -49,6 +49,41 @@ const DURATION_MAP: Record<string, string> = {
   '7+':  '7+ дней',
 }
 
+const POT_COLOR_RU: Record<string, string> = {
+  wit: 'белый', zwart: 'чёрный', rood: 'красный', groen: 'зелёный',
+  geel: 'жёлтый', oranje: 'оранжевый', roze: 'розовый', paars: 'фиолетовый',
+  blauw: 'синий', bruin: 'коричневый', zilver: 'серебряный', grijs: 'серый',
+  terracotta: 'терракотовый', beige: 'бежевый', creme: 'кремовый',
+  naturel: 'натуральный', transparant: 'прозрачный', bordeaux: 'бордовый',
+}
+
+const POT_MATERIAL_RU: Record<string, string> = {
+  plastic: 'пластик',
+  terracotta: 'терракота',
+  keramiek: 'керамика',
+  'keramiek gedecoreerd': 'керамика (декор)',
+  metaal: 'металл',
+  bamboe: 'бамбук',
+  riet: 'ротанг',
+  jute: 'джут',
+  hout: 'дерево',
+}
+
+const POT_FORM_RU: Record<string, string> = {
+  sierpot: 'декоративный',
+  bloempot: 'стандартный',
+  hangpot: 'подвесной',
+  baliesbak: 'ящик',
+}
+
+const SUBSTRATE_RU: Record<string, string> = {
+  potgrond: 'торфяной грунт',
+  hydro: 'гидрогрунт',
+  steenwol: 'минвата',
+  kokos: 'кокосовый субстрат',
+  aarde: 'земля',
+}
+
 // ── primitives ───────────────────────────────────────────────────────────────
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -379,6 +414,25 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             <Row label="Сезон">{seasonLabel}</Row>
           )}
 
+
+          {product.category === 'pot' && (() => {
+            const p = product as any
+            const potColorVal = p.pot_color ? (POT_COLOR_RU[p.pot_color.toLowerCase()] ?? p.pot_color) : null
+            const matVal      = p.pot_material ? (POT_MATERIAL_RU[p.pot_material.toLowerCase()] ?? p.pot_material) : null
+            const formVal     = p.pot_form ? (POT_FORM_RU[p.pot_form.toLowerCase()] ?? p.pot_form) : null
+            const substrVal   = p.substrate ? (SUBSTRATE_RU[p.substrate.toLowerCase()] ?? p.substrate) : null
+            return (
+              <>
+                {p.quality_grade       && <Row label="Качество">{p.quality_grade}</Row>}
+                {p.min_plants_per_pot  && <Row label="Растений/горшок">{p.min_plants_per_pot} шт</Row>}
+                {p.min_flowers_per_pot && <Row label="Цветков/горшок">{p.min_flowers_per_pot} шт</Row>}
+                {potColorVal           && <Row label="Цвет горшка">{potColorVal}</Row>}
+                {matVal                && <Row label="Материал горшка">{matVal}</Row>}
+                {formVal               && <Row label="Тип горшка">{formVal}</Row>}
+                {substrVal             && <Row label="Субстрат">{substrVal}</Row>}
+              </>
+            )
+          })()}
 
           {product.description && (
             <div style={{ paddingTop: 10, fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.55 }}>

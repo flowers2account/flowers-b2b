@@ -1,18 +1,13 @@
-// import-waterdrinker.mjs
-// Импорт каталога Waterdrinker из JSONL в products
+// import-waterdrinker.mjs  (формат парсера v2)
 // Запуск: node --env-file=.env.local scripts/import-waterdrinker.mjs [CategoryName|ALL] [path/to/file.jsonl]
-// Примеры:
-//   node --env-file=.env.local scripts/import-waterdrinker.mjs ALL
-//   node --env-file=.env.local scripts/import-waterdrinker.mjs ALL "C:\path\to\waterdrinker_catalog_v2.jsonl"
 
 import fs from 'fs'
 import { createClient } from '@supabase/supabase-js'
 
-const DEFAULT_JSONL = 'C:\\Users\\Владелец\\Desktop\\waterdrinker-scraper\\output\\waterdrinker_catalog.jsonl'
-const JSONL_PATH    = process.argv[3] || DEFAULT_JSONL
+const DEFAULT_JSONL = 'C:\\Users\\Владелец\\Desktop\\waterdrinker-v2-parser\\output\\waterdrinker_catalog_v2.jsonl'
+const JSONL_PATH      = process.argv[3] || DEFAULT_JSONL
 const CATEGORY_FILTER = process.argv[2] || 'ALL'
 
-// Категории, которые не импортируем
 const SKIP_CATEGORIES = new Set(['Bonsai'])
 
 const supabase = createClient(
@@ -23,37 +18,37 @@ const supabase = createClient(
 // ── Маппинги ──────────────────────────────────────────────────────────────────
 
 const DUTCH_COLOR = {
-  'wit':              'white',
-  'creme':            'cream',
-  'geel':             'yellow',
-  'oranje':           'orange',
-  'zalm':             'peach',
-  'koraal':           'coral',
-  'rood':             'red',
-  'bordeaux':         'burgundy',
-  'roze':             'pink',
-  'felroze':          'hot_pink',
-  'lila':             'lilac',
-  'lavendel':         'lavender',
-  'paars':            'purple',
-  'blauw':            'blue',
-  'donkerblauw':      'navy',
-  'groen':            'green',
-  'lichtgroen':       'lime',
-  'zilver':           'silver',
-  'bruin':            'brown',
-  'terracotta':       'terracotta',
-  'zwart':            'black',
-  'roze-rood':        'pink',
-  'rood bruin':       'terracotta',
-  'rood wit':         'bicolor',
-  'zalmroze':         'peach',
-  'licht geel':       'yellow',
-  'pastel':           'cream',
-  'licht roze':       'pink',
-  'donker rood':      'burgundy',
-  'licht paars':      'lilac',
-  'licht blauw':      'blue',
+  'wit':           'white',
+  'creme':         'cream',
+  'pastel':        'cream',
+  'geel':          'yellow',
+  'licht geel':    'yellow',
+  'oranje':        'orange',
+  'zalm':          'peach',
+  'zalmroze':      'peach',
+  'koraal':        'coral',
+  'rood':          'red',
+  'bordeaux':      'burgundy',
+  'donker rood':   'burgundy',
+  'roze':          'pink',
+  'licht roze':    'light_pink',
+  'roze-rood':     'pink',
+  'felroze':       'hot_pink',
+  'lila':          'lilac',
+  'licht paars':   'lilac',
+  'lavendel':      'lavender',
+  'paars':         'purple',
+  'blauw':         'blue',
+  'licht blauw':   'blue',
+  'donkerblauw':   'navy',
+  'groen':         'green',
+  'lichtgroen':    'lime',
+  'zilver':        'silver',
+  'bruin':         'brown',
+  'rood bruin':    'terracotta',
+  'terracotta':    'terracotta',
+  'zwart':         'black',
+  'rood wit':      'bicolor',
 }
 
 const SUBCAT_MAP = {
@@ -86,9 +81,8 @@ const SUBCAT_MAP = {
   'Beddingplants Other':             'bedding',
   'Viola / Pansy':                   'viola',
   'Herbs':                           'herbs',
-  // V2 — новые категории
   'Hebe':                            'hebe',
-  'Lavender':                        'lavender',
+  'Lavender':                        'lavender_plant',
   'Roses Outdoor':                   'roses_outdoor',
   'Calluna / Erica':                 'heather',
   'Vegetable Plants':                'vegetables',
@@ -116,16 +110,6 @@ const SUBCAT_MAP = {
 
 // ── Утилиты ───────────────────────────────────────────────────────────────────
 
-function getAttr(attrs, code) {
-  return attrs?.find(a => a.code === code)?.value ?? null
-}
-
-function parseCm(val) {
-  if (!val) return null
-  const m = String(val).match(/(\d+(?:\.\d+)?)/)
-  return m ? parseFloat(m[1]) : null
-}
-
 function parseColor(dutch) {
   if (!dutch) return null
   const c = dutch.toLowerCase().trim()
@@ -136,7 +120,7 @@ function parseColor(dutch) {
 function parseCountry(val) {
   if (!val) return 'NL'
   const v = val.toLowerCase()
-  if (v.includes('netherlands') || v.includes('holland')) return 'NL'
+  if (v.includes('nederland') || v.includes('netherlands') || v.includes('holland')) return 'NL'
   if (v.includes('ecuador'))   return 'EC'
   if (v.includes('kenya'))     return 'KE'
   if (v.includes('colombia'))  return 'CO'
@@ -148,90 +132,97 @@ function parseCountry(val) {
 
 // ── Основной импорт ───────────────────────────────────────────────────────────
 
-const raw = fs.readFileSync(JSONL_PATH, 'utf-8')
-const all = raw.split('\n').filter(Boolean).map(l => JSON.parse(l))
-
+const raw  = fs.readFileSync(JSONL_PATH, 'utf-8').replace(/^﻿/, '')
+const all  = raw.split('\n').filter(Boolean).map(l => JSON.parse(l))
 const isAll = CATEGORY_FILTER === 'ALL'
+
 const items = isAll
-  ? all.filter(r => !SKIP_CATEGORIES.has(r._category_name))
-  : all.filter(r => r._category_name === CATEGORY_FILTER)
+  ? all.filter(r => !SKIP_CATEGORIES.has(r.category_name))
+  : all.filter(r => r.category_name === CATEGORY_FILTER)
 
 if (isAll) {
-  const cats = [...new Set(items.map(r => r._category_name))]
-  console.log(`\n[Waterdrinker] Все категории (${cats.length}): ${cats.join(', ')}`)
+  const cats = [...new Set(items.map(r => r.category_name))]
+  console.log(`\n[Waterdrinker v2] Все категории (${cats.length}): ${cats.join(', ')}`)
   console.log(`Всего записей: ${items.length}\n`)
 } else {
-  console.log(`\n[Waterdrinker] Категория: ${CATEGORY_FILTER}, записей: ${items.length}\n`)
+  console.log(`\n[Waterdrinker v2] Категория: ${CATEGORY_FILTER}, записей: ${items.length}\n`)
 }
 
 let inserted = 0, updated = 0, errors = 0
 const today = new Date().toISOString().split('T')[0]
 
 for (const item of items) {
-  const potRaw    = getAttr(item.mainAttributes, 'S01')
-  const heightRaw = getAttr(item.mainAttributes, 'S02')
-  const colorRaw  = getAttr(item.attributes, 'S50') ?? getAttr(item.attributes, 'B01')
-  const countryRaw= getAttr(item.attributes,     'S62')
-
-  const color     = parseColor(colorRaw)
-  const subcategory = SUBCAT_MAP[item._category_name] ?? 'flowering'
-
-  // Включаем размер горшка в name — разные горшки это разные SKU
-  const skuName = potRaw ? `${item.name} ${potRaw}` : item.name
+  const name    = item.name?.trim() ?? ''
+  const skuName = item.pot_size ? `${name} ${item.pot_size}` : name
+  const color   = parseColor(item.color)
+  const subcategory = SUBCAT_MAP[item.category_name] ?? 'flowering'
 
   const product = {
     name:                skuName,
     category:            'pot',
     subcategory,
-    pot_diameter:        parseCm(potRaw),
-    length_cm:           parseCm(heightRaw),
-    country_iso:         parseCountry(countryRaw),
+    pot_diameter:        item.pot_size   ?? null,
+    length_cm:           item.height     ?? null,
+    country_iso:         parseCountry(item.country),
     colors:              color ? [color] : null,
-    image_url:           item.pictures?.[0]?.replace('w240xh240', 'Original') ?? null,
-    campaign_image_url:  item.pictures?.[1]?.replace('w240xh240', 'Original') ?? null,
-    qty:                 item.stock ?? 0,
-    pack_size:           1,
+    image_url:           item.images?.[0] ?? null,
+    campaign_image_url:  item.images?.[1] ?? null,
+    qty:                 0,
+    pack_size:           item.stems      ?? 1,
+    stems_per_pack:      item.stems      ?? null,
     price:               null,
-    is_active:           (item.stock ?? 0) > 0,
+    is_active:           false,
     arrival_date:        today,
-    container_code:      item.packing?.code ?? null,
+    supplier_ref:        item.id ? String(item.id) : null,
+    farm:                item.supplier_info ?? null,
+    container_code:      item.packing_units ?? null,
+    quality_grade:       item.quality    ?? null,
+    min_plants_per_pot:  item.min_plants ?? null,
+    min_flowers_per_pot: item.min_flowers ?? null,
+    pot_color:           item.pot_color   ?? null,
+    pot_material:        item.pot_material ?? null,
+    pot_form:            item.pot_form   ?? null,
+    substrate:           item.substrate  ?? null,
   }
 
-  // Проверяем, есть ли уже в БД
   const { data: existing } = await supabase
     .from('products')
-    .select('id, display_name')
+    .select('id, colors, image_url')
     .eq('name', skuName)
     .maybeSingle()
 
   if (existing) {
-    // UPDATE — только qty, is_active, не трогаем display_name и ручные правки
-    const { data: cur } = await supabase
-      .from('products')
-      .select('display_name, colors')
-      .eq('id', existing.id)
-      .single()
-
     const { error } = await supabase
       .from('products')
       .update({
-        qty:            product.qty,
-        is_active:      product.is_active,
-        container_code: product.container_code,
-        ...(!cur?.colors?.length && product.colors ? { colors: product.colors } : {}),
-        ...(cur?.display_name ? {} : {
+        pot_diameter:        product.pot_diameter,
+        length_cm:           product.length_cm,
+        country_iso:         product.country_iso,
+        pack_size:           product.pack_size,
+        stems_per_pack:      product.stems_per_pack,
+        supplier_ref:        product.supplier_ref,
+        farm:                product.farm,
+        container_code:      product.container_code,
+        quality_grade:       product.quality_grade,
+        min_plants_per_pot:  product.min_plants_per_pot,
+        min_flowers_per_pot: product.min_flowers_per_pot,
+        pot_color:           product.pot_color,
+        pot_material:        product.pot_material,
+        pot_form:            product.pot_form,
+        substrate:           product.substrate,
+        ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
+        ...(!existing.image_url && product.image_url ? {
           image_url:          product.image_url,
           campaign_image_url: product.campaign_image_url,
-        }),
+        } : {}),
       })
       .eq('id', existing.id)
 
-    if (error) { console.error('UPDATE ERR:', item.name, error.message); errors++ }
+    if (error) { console.error('UPDATE ERR:', skuName, error.message); errors++ }
     else { process.stdout.write('u'); updated++ }
   } else {
-    // INSERT
     const { error } = await supabase.from('products').insert(product)
-    if (error) { console.error('\nINSERT ERR:', item.name, error.message); errors++ }
+    if (error) { console.error('\nINSERT ERR:', skuName, error.message); errors++ }
     else { process.stdout.write('.'); inserted++ }
   }
 }
