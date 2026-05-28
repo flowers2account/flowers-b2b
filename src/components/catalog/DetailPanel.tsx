@@ -53,12 +53,15 @@ const POT_COLOR_RU: Record<string, string> = {
   wit: 'белый', zwart: 'чёрный', rood: 'красный', groen: 'зелёный',
   geel: 'жёлтый', oranje: 'оранжевый', roze: 'розовый', paars: 'фиолетовый',
   blauw: 'синий', bruin: 'коричневый', zilver: 'серебряный', grijs: 'серый',
-  terracotta: 'терракотовый', beige: 'бежевый', creme: 'кремовый',
-  naturel: 'натуральный', transparant: 'прозрачный', bordeaux: 'бордовый',
+  antraciet: 'антрацит', terracotta: 'терракотовый', beige: 'бежевый',
+  creme: 'кремовый', naturel: 'натуральный', transparant: 'прозрачный',
+  bordeaux: 'бордовый', lichtgrijs: 'светло-серый', donkergroen: 'тёмно-зелёный',
+  mosgroen: 'мшисто-зелёный', taupe: 'тауп', ecru: 'экрю',
 }
 
 const POT_MATERIAL_RU: Record<string, string> = {
   plastic: 'пластик',
+  kunststof: 'пластик',
   terracotta: 'терракота',
   keramiek: 'керамика',
   'keramiek gedecoreerd': 'керамика (декор)',
@@ -67,21 +70,28 @@ const POT_MATERIAL_RU: Record<string, string> = {
   riet: 'ротанг',
   jute: 'джут',
   hout: 'дерево',
+  'gerecyclede pot': 'переработанный пластик',
+  gerecycleerd: 'переработанный пластик',
+  klei: 'глина',
 }
 
 const POT_FORM_RU: Record<string, string> = {
   sierpot: 'декоративный',
   bloempot: 'стандартный',
+  kweekpot: 'технический',
   hangpot: 'подвесной',
   baliesbak: 'ящик',
+  schaal: 'чаша',
 }
 
 const SUBSTRATE_RU: Record<string, string> = {
   potgrond: 'торфяной грунт',
+  '100% veen vrij': 'без торфа',
   hydro: 'гидрогрунт',
   steenwol: 'минвата',
   kokos: 'кокосовый субстрат',
   aarde: 'земля',
+  lava: 'лавовый грунт',
 }
 
 // ── primitives ───────────────────────────────────────────────────────────────
