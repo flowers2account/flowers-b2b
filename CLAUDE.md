@@ -48,7 +48,7 @@ B2B платформа для оптовой торговли цветами. С
 | `variety_id` | int | FK → varieties |
 | `category` | text | `cut` / `pot` |
 | `subcategory` | text | roses, chrysanthemums, lilies и т.д. |
-| `variety_type` | text | single / spray / pompom |
+| `variety_type` | text | single / spray / pompom / santini (для хризантем: single=Bl, spray=Sp, santini=Sa) |
 | `length_cm` | int | Длина стебля (редактируется вручную, импорт не перезаписывает) |
 | `pot_diameter` | float | Диаметр горшка |
 | `country_iso` | text | ISO код страны (CN/EC/KE/NL/…) |

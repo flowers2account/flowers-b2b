@@ -160,9 +160,9 @@ WHERE subcategory = 'roses' AND display_name = name AND qty = 999;
 | OZ-префикс | Тип | Перевод |
 |-----------|-----|---------|
 | `Chrys Sp` | Spray | «Хризантема ветковая» |
-| `Chrys Bl` | Branch/Block | «Хризантема ветковая» (стандарт) |
+| `Chrys Bl` | Blooms (disbud, single-head, ping pong) | «Хризантема одноголовая» |
 | `Chrys Sa` | Santini | «Хризантема сантини» |
-| `Chrys T` | Top (одноголовая) | «Хризантема одноголовая» |
+| `Chrys T` | Top | «Хризантема одноголовая» |
 
 ### Правило «Микс»
 
