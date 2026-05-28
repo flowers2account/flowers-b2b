@@ -73,6 +73,8 @@ const POT_MATERIAL_RU: Record<string, string> = {
   'gerecyclede pot': 'переработанный пластик',
   gerecycleerd: 'переработанный пластик',
   '>80% Post Consumer Recyclaat (PCR)': 'переработанный пластик (PCR 80%)',
+  recyclebaar: 'перерабатываемый',
+  kokosvezel: 'кокосовое волокно',
   klei: 'глина',
 }
 
@@ -90,6 +92,7 @@ const SUBSTRATE_RU: Record<string, string> = {
   '100% veen vrij': 'без торфа',
   '70% veen vrij': '70% без торфа',
   '65% veen vrij': '65% без торфа',
+  '60% veen vrij': '60% без торфа',
   '55% veen vrij': '55% без торфа',
   '50% veen vrij': 'Экологичный субстрат (50% без торфа)',
   overige: 'другой субстрат',

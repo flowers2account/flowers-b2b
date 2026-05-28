@@ -55,6 +55,8 @@ const DUTCH_COLOR = {
   'gemengde kleuren': 'multicolor',
   'geel oranje':     'yellow_orange',
   'tweekleurig':     'bicolor',
+  'roze wit':        'bicolor',
+  'abrikoos':        'peach',
 }
 
 const SUBCAT_MAP = {
