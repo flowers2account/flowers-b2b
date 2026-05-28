@@ -1,6 +1,6 @@
 # Импорт каталога поставщиков
 
-**Обновлено:** 27.05.2026  
+**Обновлено:** 28.05.2026  
 **Статус:** Актуально
 
 ---
@@ -16,7 +16,7 @@
 
 **Что НЕ приходит из парсинга:**
 - Реальная цена (`price = null` у Waterdrinker, `999` у OZ — плейсхолдер)
-- Реальный остаток (`qty = 999` у OZ — плейсхолдер; у Waterdrinker берётся из `item.stock`)
+- Реальный остаток (`qty = 999` у OZ — плейсхолдер; у Waterdrinker `qty = 0`, `is_active = false` — до прихода из 1С)
 
 Цены и остатки приходят из **1С через XLS-импорт** (отдельный процесс).
 
@@ -27,7 +27,7 @@
 | Скрипт | Поставщик | Категория товаров | JSONL по умолчанию |
 |--------|-----------|-------------------|--------------------|
 | `scripts/import-oz.mjs` | OZ Export | Срезка (`cut`) | `waterdrinker-scraper/output/oz_export_cut_flowers.jsonl` |
-| `scripts/import-waterdrinker.mjs` | Waterdrinker | Горшечные (`pot`) | `waterdrinker-scraper/output/waterdrinker_catalog_v2.jsonl` |
+| `scripts/import-waterdrinker.mjs` | Waterdrinker | Горшечные (`pot`) | `waterdrinker-v2-parser/output/waterdrinker_catalog_v2.jsonl` |
 
 ### Запуск
 
@@ -80,32 +80,55 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs ALL "C:\path\to\file.
 
 ### Waterdrinker v2 (`waterdrinker_catalog_v2.jsonl`)
 
+Новый формат парсера (с 28.05.2026). Прямые поля вместо `mainAttributes`/`attributes`.
+
 ```json
 {
-  "id": 3835233,
-  "name": "Anthurium   ...",
-  "description": "Magnificum",
-  "stock": 25,
-  "packing": { "code": "206" },
-  "mainAttributes": [
-    { "code": "S01", "value": "12 cm" },
-    { "code": "S02", "value": "35 cm" }
-  ],
-  "attributes": [
-    { "code": "S50", "value": "diverse kleuren" },
-    { "code": "S62", "value": "Netherlands" },
-    { "code": "L11", "value": "6" }
-  ],
-  "pictures": ["https://waterdrinker.blob.core.windows.net/media/w240xh240/...jpg"],
-  "_category_name": "Anthurium"
+  "id": "3835233",
+  "name": "Anthurium  'Karma White'",
+  "category_id": "170101",
+  "category_name": "Anthurium",
+  "pot_size": 12,
+  "height": 40,
+  "color": "wit",
+  "stems": 1,
+  "quality": "A1",
+  "country": "Nederland",
+  "packing_units": 6,
+  "min_plants": 2,
+  "min_flowers": 4,
+  "substrate": "potgrond",
+  "pot_color": "wit",
+  "pot_material": "keramiek gedecoreerd",
+  "pot_form": "sierpot",
+  "supplier_info": null,
+  "images": ["https://waterdrinker.blob.core.windows.net/media/Original/...jpg"]
 }
 ```
 
-- `id` (числовой) → `supplier_ref` ⚠️ пока не реализовано в скрипте
-- `name` содержит мусор — реальный сорт в `description`
-- Атрибуты: `S01` = диаметр горшка, `S02` = высота, `S50` / `B01` = цвет (нидерландский), `S62` = страна, `L11` = стеблей в пачке (`pack_size`) ⚠️ пока не читается скриптом
-- Фото: `w240xh240` → `Original` для полного разрешения
-- `qty = item.stock`, `price = null`
+| Поле парсера | Поле products | Примечание |
+|---|---|---|
+| `id` | `supplier_ref` | строка |
+| `name` | `name` (SKU) | чистое название сорта |
+| `category_name` | `subcategory` (через SUBCAT_MAP) | |
+| `pot_size` | `pot_diameter` | число, см |
+| `height` | `length_cm` | число, см |
+| `color` | `colors` | нидерл. → palette key |
+| `stems` | `stems_per_pack`, `pack_size` | |
+| `country` | `country_iso` | "Nederland" → "NL" |
+| `images[0/1]` | `image_url` / `campaign_image_url` | полное разрешение (Original) |
+| `supplier_info` | `farm` | ферма-производитель |
+| `packing_units` | `container_code` | единиц в упаковке |
+| `quality` | `quality_grade` | "A1", "A2" |
+| `min_plants` | `min_plants_per_pot` | |
+| `min_flowers` | `min_flowers_per_pot` | |
+| `pot_color` | `pot_color` | нидерл. цвет горшка |
+| `pot_material` | `pot_material` | материал горшка |
+| `pot_form` | `pot_form` | тип горшка |
+| `substrate` | `substrate` | субстрат |
+
+**Ключ SKU:** `"${item.name.trim()} ${item.pot_size}"` — один сорт в разных горшках это разные позиции.  
+**qty = 0, is_active = false** — активируются после XLS-импорта из 1С.
 
 ---
 
@@ -122,10 +145,14 @@ node --env-file=.env.local scripts/import-waterdrinker.mjs ALL "C:\path\to\file.
 **INSERT** (новый товар):  
 Устанавливается всё: `name`, `category`, `subcategory`, `length_cm`, `country_iso`, `colors`, `image_url`, `campaign_image_url`, `farm`, `pack_size`, `stems_per_pack`, `weight_gram`, `supplier_ref`, `qty = 999`, `price = 999`, `arrival_date = today`.
 
-### Waterdrinker — ключ: `"${item.name} ${pot_size}"` (SKU включает горшок)
+### Waterdrinker — ключ: `"${item.name} ${item.pot_size}"`
 
-**UPDATE**: `qty`, `is_active`, `container_code` + если пустое: `colors`, `image_url`  
-**INSERT**: полный набор полей
+**UPDATE** (товар найден):
+- Всегда: `pot_diameter`, `length_cm`, `country_iso`, `pack_size`, `stems_per_pack`, `supplier_ref`, `farm`, `container_code`, `quality_grade`, `min_plants_per_pot`, `min_flowers_per_pot`, `pot_color`, `pot_material`, `pot_form`, `substrate`
+- Только если пустое: `colors`, `image_url` + `campaign_image_url`
+- НЕ трогается: `qty`, `price`, `is_active`, `display_name` (данные из 1С)
+
+**INSERT** (новый товар): полный набор полей, `qty = 0`, `price = null`, `is_active = false`
 
 ---
 
@@ -261,18 +288,18 @@ WHERE subcategory = 'roses' AND display_name = name AND qty = 999;
 
 ---
 
-## Известные проблемы Waterdrinker v2 (требуют доработки скрипта)
+## Особенности парсера Waterdrinker v2
 
-- `name` в JSONL содержит мусор ("Anthurium   ...") — сорт в `description`
-- `L11` (стеблей в пачке) не читается → `pack_size` всегда `1`
-- `supplier_ref` (`item.id`) не сохраняется
-- Дефолтный путь в скрипте указывает на v1 (`waterdrinker_catalog.jsonl`)
+- `category_name` берётся из URL — может быть на русском ("Комнатные цветы") для корневых страниц. Таких записей немного (~69), они попадают в дефолтную подкатегорию `'flowering'`.
+- Некоторые URL картинок без расширения `.jpg` — это нормально, Supabase Storage отдаёт их корректно.
+- `supplier_info` (ферма) заполнен редко — у большинства `null`.
+- `packing_units` = число упаковок в коробе (логистика); `packaging_material` — тип упаковки (нидерл., не переводится).
 
 ---
 
 ## Дальнейший план: маппинг 1С → каталог
 
-`supplier_ref` сохраняется для OZ-товаров — UUID из OZ Export.  
+`supplier_ref` сохраняется для OZ и Waterdrinker — UUID/ID из источника.  
 В будущем: при получении прайса с OZ для предзаказов джойнить по `supplier_ref`.
 
 Для маппинга 1С ↔ каталог (разные названия):
