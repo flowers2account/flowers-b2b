@@ -207,7 +207,7 @@ for (const item of items) {
     pot_material:        item.pot_material ?? null,
     pot_form:            item.pot_form   ?? null,
     substrate:           item.substrate  ?? null,
-    variant:             item.variant    ?? null,
+    variant:             (item.variant && item.variant.length <= 60) ? item.variant : null,
   }
 
   const { data: existing } = await supabase

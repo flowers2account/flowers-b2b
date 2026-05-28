@@ -96,6 +96,7 @@ const SUBSTRATE_RU: Record<string, string> = {
   hydro: 'гидрогрунт',
   steenwol: 'минвата',
   kokos: 'кокосовый субстрат',
+  kokosmengsel: 'кокосовый микс',
   aarde: 'земля',
   lava: 'лавовый грунт',
 }
