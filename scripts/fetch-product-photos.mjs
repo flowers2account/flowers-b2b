@@ -176,8 +176,8 @@ function buildQuery(product) {
   const genus = subcatEn.split(' ')[0]
 
   if (cultivar) {
-    // Именованный сорт: "Anthurium Karma White" — Google понимает русскую транслитерацию
-    return `${genus} ${cultivar} plant`
+    // Именованный сорт + цвет: "Anthurium Блэк Лав black plant"
+    return [genus, cultivar, colorEn, 'plant'].filter(Boolean).join(' ')
   }
 
   // Без сорта — латинское название + цвет
@@ -212,9 +212,18 @@ async function searchImages(query) {
   return data.images ?? []
 }
 
-function pickBest(items, n) {
+function pickBest(items, n, colorEn) {
   return items
-    .map(item => ({ item, score: scoreImage(item) }))
+    .map(item => {
+      let score = scoreImage(item)
+      if (score < 0) return { item, score }
+      // Бонус если заголовок/URL содержит ключевое слово цвета
+      if (colorEn && colorEn !== 'multicolor') {
+        const text = `${item.title ?? ''} ${item.imageUrl ?? ''}`.toLowerCase()
+        if (text.includes(colorEn.toLowerCase().split(' ')[0])) score += 25
+      }
+      return { item, score }
+    })
     .filter(x => x.score >= 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, n)
@@ -252,8 +261,9 @@ for (const product of limited) {
   process.stdout.write(`[${product.id}] ${label} → `)
 
   try {
-    const items  = await searchImages(query)
-    const images = pickBest(items, IMAGES_PER_PRODUCT)
+    const colorEn = product.colors?.[0] ? (COLOR_EN[product.colors[0]] ?? '') : ''
+    const items   = await searchImages(query)
+    const images  = pickBest(items, IMAGES_PER_PRODUCT, colorEn)
 
     if (images.length === 0) {
       process.stdout.write(`нет подходящих (запрос: "${query}")\n`)
