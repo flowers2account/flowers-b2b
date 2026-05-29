@@ -341,7 +341,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         }}>
           {displayName}
         </div>
-        {displayName !== product.name && (
+        {displayName !== product.name && !/^\d+$/.test(product.name) && (
           <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 2 }}>
             {product.name}
           </div>

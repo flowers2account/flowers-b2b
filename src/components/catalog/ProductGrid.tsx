@@ -252,7 +252,7 @@ function GridCard({
         }}>
           {displayName}
         </div>
-        {displayName !== product.name && (
+        {displayName !== product.name && !/^\d+$/.test(product.name) && (
           <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 1, lineHeight: 1.2 }}>
             {product.name}
           </div>
