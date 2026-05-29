@@ -229,8 +229,12 @@ for (const item of items) {
   const genus   = item.name?.trim().split(/\s+/)[0] ?? ''
   const subcategory = SUBCAT_MAP[item.category_name] ?? GENUS_SUBCAT[genus] ?? 'flowering'
 
+  // Use supplier_ref (item.id) as DB name key for uniqueness; display_name holds human-readable name
+  const dbName = item.id ? String(item.id) : skuName
+
   const product = {
-    name:                skuName,
+    name:                dbName,
+    display_name:        skuName,
     category:            ACCESSORIES_SUBCATS.has(subcategory) ? 'accessories' : 'pot',
     subcategory,
     pot_diameter:        item.pot_size   ?? null,
@@ -259,11 +263,20 @@ for (const item of items) {
     source:              'waterdrinker',
   }
 
-  const { data: existing } = await supabase
-    .from('products')
-    .select('id, colors, image_url')
-    .eq('name', skuName)
-    .maybeSingle()
+  // Dedup: prefer supplier_ref (unique per WD product); fallback to name for legacy imports
+  let existing = null
+  if (item.id) {
+    const { data } = await supabase.from('products').select('id, colors, image_url').eq('supplier_ref', String(item.id)).maybeSingle()
+    existing = data
+    if (!existing) {
+      // Legacy fallback: find by name only if the record has no supplier_ref yet
+      const { data: byName } = await supabase.from('products').select('id, colors, image_url, supplier_ref').eq('name', skuName).maybeSingle()
+      if (byName && !byName.supplier_ref) existing = byName
+    }
+  } else {
+    const { data } = await supabase.from('products').select('id, colors, image_url').eq('name', skuName).maybeSingle()
+    existing = data
+  }
 
   if (existing) {
     const { error } = await supabase

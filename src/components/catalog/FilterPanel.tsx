@@ -113,7 +113,7 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
     { label: 'Садовые растения', isGroup: true as const, items: [
       { label: 'Многолетние', isGroup: true as const, items: [
         { label: 'Морозник',            key: 'helleborus'         },
-        { label: 'Лаванда',             key: 'lavender'           },
+        { label: 'Лаванда',             key: 'lavender_plant'     },
         { label: 'Декоративные травы',  key: 'ornamental_grasses' },
         { label: 'Водные растения',     key: 'aquatic'            },
         { label: 'Многолетние прочие',  key: 'perennials'         },
