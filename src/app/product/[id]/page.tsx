@@ -234,38 +234,76 @@ export default function ProductPage() {
         <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.06)', marginBottom: 16 }}>
 
           {/* Gallery */}
-          <div
-            style={{ position: 'relative', background: '#f5f0f2', cursor: images.length > 1 ? 'pointer' : 'default' }}
-            onClick={() => images.length > 1 && setPhotoIdx(i => (i + 1) % images.length)}
-          >
-            {mainPhoto ? (
-              <img
-                src={mainPhoto}
-                alt={displayName}
-                style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }}
-              />
-            ) : (
-              <div style={{ width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 80, opacity: 0.2 }}>
-                🌸
-              </div>
-            )}
+          {images.length === 0 ? (
+            <div style={{ padding: '32px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64, opacity: 0.15, background: '#f5f0f2' }}>
+              🌸
+            </div>
+          ) : (
+            <div style={{ position: 'relative', background: '#f5f0f2', padding: '12px 0' }}>
+              {/* Стрелка влево */}
+              {photoIdx > 0 && (
+                <button
+                  onClick={() => setPhotoIdx(i => i - 1)}
+                  style={{
+                    position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)',
+                    zIndex: 2, width: 32, height: 32, borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.9)', border: '1px solid #e8d0d8',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 1px 6px rgba(0,0,0,0.12)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a1c2e" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+              )}
 
-            {images.length > 1 && (
-              <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
-                {images.map((_, i) => (
+              {/* Полоса фото */}
+              <div style={{ display: 'flex', gap: 8, paddingLeft: 44, paddingRight: 44, overflowX: 'hidden' }}>
+                {images.slice(photoIdx, photoIdx + 4).map((url, i) => (
                   <div
-                    key={i}
-                    onClick={e => { e.stopPropagation(); setPhotoIdx(i) }}
+                    key={url}
+                    onClick={() => setPhotoIdx(photoIdx + i)}
                     style={{
-                      width: i === photoIdx ? 20 : 7, height: 7, borderRadius: 4,
-                      background: '#fff', opacity: i === photoIdx ? 1 : 0.5,
-                      transition: 'width 0.2s, opacity 0.2s', cursor: 'pointer',
+                      flex: '1 1 0', minWidth: 0, aspectRatio: '1',
+                      background: '#fff', borderRadius: 10, overflow: 'hidden',
+                      cursor: 'pointer',
+                      outline: photoIdx + i === photoIdx && i === 0 ? '2px solid #7a1c2e' : 'none',
+                      outlineOffset: 2,
                     }}
-                  />
+                  >
+                    <img
+                      src={url}
+                      alt={`${displayName} ${photoIdx + i + 1}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    />
+                  </div>
                 ))}
               </div>
-            )}
-          </div>
+
+              {/* Стрелка вправо */}
+              {photoIdx + 4 < images.length && (
+                <button
+                  onClick={() => setPhotoIdx(i => i + 1)}
+                  style={{
+                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                    zIndex: 2, width: 32, height: 32, borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.9)', border: '1px solid #e8d0d8',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 1px 6px rgba(0,0,0,0.12)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a1c2e" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+              )}
+
+              {/* Счётчик */}
+              {images.length > 4 && (
+                <div style={{ textAlign: 'center', fontSize: 11, color: '#aaa', marginTop: 6 }}>
+                  {photoIdx + 1}–{Math.min(photoIdx + 4, images.length)} из {images.length}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Info */}
           <div style={{ padding: '20px 20px 24px' }}>
