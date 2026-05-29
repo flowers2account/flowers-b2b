@@ -333,14 +333,22 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
       <div style={{ padding: '12px 12px 16px 12px', display: 'flex', flexDirection: 'column' }}>
 
         {/* Name */}
-        <div style={{
-          fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400,
-          lineHeight: 1.35, color: 'var(--text)', marginBottom: 2,
-          overflow: 'hidden', display: '-webkit-box',
-          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-        }}>
+        <a
+          href={`/product/${product.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400,
+            lineHeight: 1.35, color: 'var(--text)', marginBottom: 2,
+            overflow: 'hidden', display: '-webkit-box',
+            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            textDecoration: 'none',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+        >
           {displayName}
-        </div>
+        </a>
         {displayName !== product.name && !/^\d+$/.test(product.name) && (
           <div style={{ fontSize: 11, color: 'var(--text-mid)', marginBottom: 2 }}>
             {product.name}
