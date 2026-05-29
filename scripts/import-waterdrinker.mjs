@@ -223,11 +223,23 @@ let inserted = 0, updated = 0, errors = 0
 const today = new Date().toISOString().split('T')[0]
 
 for (const item of items) {
+  // Skip placeholder/garbage entries from Waterdrinker
+  if (item.variant && item.variant.startsWith('Введите здесь')) { process.stdout.write('s'); continue }
+
   const name    = item.name?.trim() ?? ''
   const skuName = item.pot_size ? `${name} ${item.pot_size}` : name
   const color   = parseColor(item.color)
   const genus   = item.name?.trim().split(/\s+/)[0] ?? ''
-  const subcategory = SUBCAT_MAP[item.category_name] ?? GENUS_SUBCAT[genus] ?? 'flowering'
+  let subcategory = SUBCAT_MAP[item.category_name] ?? GENUS_SUBCAT[genus] ?? 'flowering'
+
+  // Override subcategory by variant type (e.g. POT/MUG inside Вазы category)
+  if (item.variant) {
+    const vt = item.variant.toUpperCase()
+    if (/\bPOT\b|\bMUG\b/.test(vt))  subcategory = 'pots_accessories'
+    else if (/\bBASKET\b/.test(vt))   subcategory = 'baskets'
+    else if (/\bLANTERN\b/.test(vt))  subcategory = 'lanterns'
+    else if (/\bVASE\b/.test(vt))     subcategory = 'vases'
+  }
 
   // Use supplier_ref (item.id) as DB name key for uniqueness; display_name holds human-readable name
   const dbName = item.id ? String(item.id) : skuName
