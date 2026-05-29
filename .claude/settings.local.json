@@ -33,7 +33,23 @@
       "Bash(pip show *)",
       "PowerShell(py *)",
       "mcp__claude_ai_Vercel__list_projects",
-      "mcp__claude_ai_Vercel__list_teams"
+      "mcp__claude_ai_Vercel__list_teams",
+      "Bash(powershell -command \"\\(Get-Content waterdrinker_catalog.jsonl | Measure-Object -Line\\).Lines\")",
+      "Bash(python3 *)",
+      "Bash(Get-Process node *)",
+      "Bash(Select-Object Id, CPU, WS)",
+      "PowerShell(Get-Process *)",
+      "Bash(Select-String *)",
+      "Bash(tasklist)",
+      "Bash(tasklist *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/translations/batch -H 'Content-Type: application/json' -d '{\"products\":[\"Alstro Carline\",\"Alstro Dancing Queen\",\"Alstro Estee\",\"Alstro Nadya\",\"Alstro Rome\",\"Alstroemeria Annabelle\",\"Alstroemeria Aurora\",\"Alstroemeria Avianna\",\"Alstroemeria Bali\",\"Alstroemeria Bikini\",\"Alstroemeria Bubblicious\",\"Alstroemeria Carline\",\"Alstroemeria Casanova\",\"Alstroemeria Dancing Queen\",\"Alstroemeria Elegance\",\"Alstroemeria Estee\",\"Alstroemeria Fl Charmelia Apricot\",\"Alstroemeria Fl Charmelia Blanca\",\"Alstroemeria Fl Charmelia Pink\",\"Alstroemeria Fl Charmelia Purplex\",\"Alstroemeria Fl Charmelia White\",\"Alstroemeria Fl Coral\",\"Alstroemeria Fl Jade\",\"Alstroemeria Fl Lolea\",\"Alstroemeria Fl Mix Florinca Rich\",\"Alstroemeria Fl Noa\",\"Alstroemeria Fl Pink Paradiso\",\"Alstroemeria Fl Pinot\"]}')",
+      "Bash(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\waterdrinker-v2-parser\\\\output\\\\category_170207+.jsonl\")",
+      "Bash(ConvertFrom-Json)",
+      "Bash(Select-Object name, pot_size, variant)",
+      "Bash(Sort-Object name *)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\waterdrinker-v2-parser\\\\output\\\\category_170207+.jsonl\" | ForEach-Object { $_ | ConvertFrom-Json } | Select-Object name, pot_size, variant | Sort-Object name | Format-Table -AutoSize)"
     ]
   }
 }
