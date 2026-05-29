@@ -94,7 +94,10 @@ async function run() {
 
   if (error) { console.error('DB error:', error.message); process.exit(1) }
 
-  const untranslated = products.filter(p => p.display_name === p.name)
+  // Legacy: display_name === name (old import); new: display_name has no Cyrillic (Dutch/English raw)
+  const untranslated = products.filter(p =>
+    p.display_name === p.name || !/[а-яёА-ЯЁ]/.test(p.display_name ?? '')
+  )
   console.log(`Всего аксессуаров: ${products.length}, нужно перевести: ${untranslated.length}\n`)
   if (untranslated.length === 0) { console.log('Все переведены!'); return }
 
