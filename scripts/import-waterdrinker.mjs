@@ -278,7 +278,7 @@ for (const item of items) {
   // Dedup: prefer supplier_ref (unique per WD product); fallback to name for legacy imports
   let existing = null
   if (item.id) {
-    const { data } = await supabase.from('products').select('id, colors, image_url').eq('supplier_ref', String(item.id)).maybeSingle()
+    const { data } = await supabase.from('products').select('id, colors, image_url, subcategory').eq('supplier_ref', String(item.id)).maybeSingle()
     existing = data
     if (!existing) {
       // Legacy fallback: find by name only if the record has no supplier_ref yet
@@ -314,7 +314,8 @@ for (const item of items) {
         variant:             product.variant,
         source:              'waterdrinker',
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
-        ...(!existing.image_url && product.image_url ? {
+        // Force-update photo when subcategory changes (product moved from another category)
+        ...(((!existing.image_url || existing.subcategory !== product.subcategory) && product.image_url) ? {
           image_url:          product.image_url,
           campaign_image_url: product.campaign_image_url,
         } : {}),
