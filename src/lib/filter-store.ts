@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type FilterCategory = 'all' | 'cut' | 'pot' | 'accessories'
 
@@ -49,7 +50,9 @@ type FilterStore = {
 const tog = (arr: string[], v: string) =>
   arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
 
-export const useFilters = create<FilterStore>()((set, get) => ({
+export const useFilters = create<FilterStore>()(
+  persist(
+    (set, get) => ({
   category: 'cut',
   subcat: '',
   varietyType: '',
@@ -100,4 +103,24 @@ export const useFilters = create<FilterStore>()((set, get) => ({
       set({ facets })
     }
   },
-}))
+}),
+{
+  name: 'catalog-filters',
+  storage: createJSONStorage(() => sessionStorage),
+  partialize: (s) => ({
+    category:      s.category,
+    subcat:        s.subcat,
+    varietyType:   s.varietyType,
+    search:        s.search,
+    onlyAvailable: s.onlyAvailable,
+    onlyDiscount:  s.onlyDiscount,
+    colors:        s.colors,
+    lengths:       s.lengths,
+    origins:       s.origins,
+    potSizes:      s.potSizes,
+    tags:          s.tags,
+    seasons:       s.seasons,
+  }),
+}
+  )
+)
