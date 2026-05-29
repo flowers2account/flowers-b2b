@@ -282,6 +282,8 @@ for (const item of items) {
     const { error } = await supabase
       .from('products')
       .update({
+        category:            product.category,
+        subcategory:         product.subcategory,
         pot_diameter:        product.pot_diameter,
         length_cm:           product.length_cm,
         country_iso:         product.country_iso,
