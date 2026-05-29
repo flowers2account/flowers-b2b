@@ -150,13 +150,17 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
         { label: 'Клумбовые прочие',    key: 'bedding'            },
       ]},
     ]},
+    { label: 'Композиции',              key: 'compositions'       },
   ],
-  supply: [
-    { label: 'Упаковка',               key: 'packaging'   },
-    { label: 'Горшки и кашпо',         key: 'pots'        },
-    { label: 'Грунты и субстраты',     key: 'soil'        },
-    { label: 'Удобрения и уход',       key: 'fertilizers' },
-    { label: 'Инструмент и материалы', key: 'tools'       },
+  accessories: [
+    { label: 'Общая коллекция',        key: 'general_collection' },
+    { label: 'Горшки и кашпо',         key: 'pots_accessories'   },
+    { label: 'Вазы',                   key: 'vases'              },
+    { label: 'Корзины',                key: 'baskets'            },
+    { label: 'Фонари',                 key: 'lanterns'           },
+    { label: 'Аксессуары для дома',    key: 'home_accessories'   },
+    { label: 'Флористика',             key: 'floristry_items'    },
+    { label: 'Искусственные цветы',    key: 'artificial_flowers' },
   ],
 }
 

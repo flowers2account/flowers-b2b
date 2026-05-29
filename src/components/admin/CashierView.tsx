@@ -112,7 +112,7 @@ export default function CashierView() {
     { id: 'all',    label: 'Все',          count: allProducts.length },
     { id: 'cut',    label: '🌸 Срезанные', count: allProducts.filter(p => p.category === 'cut').length },
     { id: 'pot',    label: '🪴 Горшечные', count: allProducts.filter(p => p.category === 'pot').length },
-    { id: 'supply', label: '📦 Расходка',  count: allProducts.filter(p => p.category === 'supply').length },
+    { id: 'accessories', label: '📦 Расходка',  count: allProducts.filter(p => p.category === 'accessories').length },
   ].filter(c => c.count > 0 || c.id === 'all')
 
   const filteredClients = clients.filter(c =>

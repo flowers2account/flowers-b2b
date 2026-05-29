@@ -165,7 +165,7 @@ const today = new Date().toISOString().split('T')[0]
 
 for (const item of items) {
   const subcategory    = SUBCAT_MAP[item.category] ?? 'exotic'
-  const color          = parseColor(item.color_line)
+  const color          = parseColor(item.color ?? item.color_line)
   const isEcuador      = item.category === 'Rosa Ecuador'
   const isRosaGarden   = item.name?.startsWith('Rosa Garden') || item.name?.startsWith('Rosa Large') || item.name?.startsWith('Rosa Austin')
   const isRosaSpray    = item.name?.startsWith('Rosa Spray')
@@ -178,8 +178,8 @@ for (const item of items) {
     length_cm:          item.height_cm ?? null,
     country_iso:        isEcuador ? 'EC' : 'NL',
     colors:             color ? [color] : null,
-    image_url:          fixPhotoUrl(item.image_urls?.[0]),
-    campaign_image_url: fixPhotoUrl(item.image_urls?.[1]),
+    image_url:          fixPhotoUrl((item.images ?? item.image_urls)?.[0]),
+    campaign_image_url: fixPhotoUrl((item.images ?? item.image_urls)?.[1]),
     qty:                999,
     pack_size:          item.quantity_stems ?? 1,
     stems_per_pack:     item.quantity_stems ?? null,
@@ -189,6 +189,7 @@ for (const item of items) {
     arrival_date:       today,
     farm:               item.producer ?? null,
     supplier_ref:       item.id ?? null,
+    source:             'oz_export',
   }
 
   const { data: existing } = await supabase
@@ -211,6 +212,7 @@ for (const item of items) {
         ...(product.weight_gram ? { weight_gram: product.weight_gram } : {}),
         ...(product.variety_type ? { variety_type: product.variety_type } : {}),
         ...(product.supplier_ref ? { supplier_ref: product.supplier_ref } : {}),
+        source: 'oz_export',
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
         ...(!existing.image_url && product.image_url ? {
           image_url:          product.image_url,

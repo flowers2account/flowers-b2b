@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type FilterCategory = 'all' | 'cut' | 'pot' | 'supply'
+export type FilterCategory = 'all' | 'cut' | 'pot' | 'accessories'
 
 export type StockLevel = '' | 'low' | 'high'
 
@@ -83,7 +83,7 @@ export const useFilters = create<FilterStore>()((set, get) => ({
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
-    category: 'cut', subcat: '', varietyType: '',
+    category: 'cut' as FilterCategory, subcat: '', varietyType: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', colors: [], lengths: [], origins: [], potSizes: [], tags: [],
     seasons: [], facets: null,

@@ -104,6 +104,7 @@ const SUBCAT_MAP = {
   'Ferns':                           'ferns',
   'Zamioculcas':                     'zamioculcas',
   'Green Houseplants Other':         'green',
+  'Green Houseplants Other?Products=1': 'green',
   'Cyclamen':                        'cyclamen',
   'Poinsettia':                      'poinsettia',
   'Hedging Plants':                  'hedging',
@@ -114,7 +115,52 @@ const SUBCAT_MAP = {
   'Fuchsia':                         'fuchsia',
   'Geranium':                        'geranium',
   'Patio Plants':                    'patio_plants',
+  // Русские названия категорий (серия 180xxx)
+  'Лаванда':                         'lavender_plant',
+  'Декоративные Травы И Бамбук':     'ornamental_grasses',
+  'Многолетники Разные':             'perennials',
+  'Фруктовые Растения':              'fruit_plants',
+  'Пряные Травы':                    'herbs',
+  'Деревья':                         'trees',
+  'Буксус':                          'buxus',
+  'Кониферены':                      'conifers',
+  'Хедера':                          'hedera_outdoor',
+  'Гортензия Уличная':               'hydrangeas_outdoor',
+  'Вьющиеся Растения':               'climbing_plants',
+  'Вьющиеся Растения?Products=1':    'climbing_plants',
+  'Роза':                            'roses_outdoor',
+  'Роза?Products=1':                 'roses_outdoor',
+  'Кустарники Разные':               'outdoor',
+  'Кустарники Разные?Products=1':    'outdoor',
+  'Фуксия':                          'fuchsia',
+  'Растения Для Садовых Кадок':      'patio_plants',
+  'Растения Для Клумб Разные':       'bedding',
+  // Расходники (серия 240xxx и др.)
+  'Общая Коллекция':                 'general_collection',
+  'Общая Коллекция?Products=1':      'general_collection',
+  'Горшки':                          'pots_accessories',
+  'Горшки?Products=1':               'pots_accessories',
+  'Искусственные Цветы':             'artificial_flowers',
+  'Искусственные Цветы?Products=1':  'artificial_flowers',
+  'Предметы Флористики':             'floristry_items',
+  'Предметы Флористики?Products=1':  'floristry_items',
+  'Вазы':                            'vases',
+  'Вазы?Products=1':                 'vases',
+  'Корзины':                         'baskets',
+  'Корзины?Products=1':              'baskets',
+  'Фонари':                          'lanterns',
+  'Фонари?Products=1':               'lanterns',
+  'Аксессуары Для Дома':             'home_accessories',
+  'Аксессуары Для Дома?Products=1':  'home_accessories',
+  'Композиции':                      'compositions',
+  'Композиции?Products=1':           'compositions',
 }
+
+// Субкатегории расходников → category: 'accessories'
+const ACCESSORIES_SUBCATS = new Set([
+  'general_collection', 'pots_accessories', 'artificial_flowers',
+  'floristry_items', 'vases', 'baskets', 'lanterns', 'home_accessories',
+])
 
 // Фоллбэк для корневых категорий (по роду растения)
 const GENUS_SUBCAT = {
@@ -185,7 +231,7 @@ for (const item of items) {
 
   const product = {
     name:                skuName,
-    category:            'pot',
+    category:            ACCESSORIES_SUBCATS.has(subcategory) ? 'accessories' : 'pot',
     subcategory,
     pot_diameter:        item.pot_size   ?? null,
     length_cm:           item.height     ?? null,
@@ -210,6 +256,7 @@ for (const item of items) {
     pot_form:            item.pot_form   ?? null,
     substrate:           item.substrate  ?? null,
     variant:             (item.variant && item.variant.length <= 60) ? item.variant : null,
+    source:              'waterdrinker',
   }
 
   const { data: existing } = await supabase
@@ -238,6 +285,7 @@ for (const item of items) {
         pot_form:            product.pot_form,
         substrate:           product.substrate,
         variant:             product.variant,
+        source:              'waterdrinker',
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
         ...(!existing.image_url && product.image_url ? {
           image_url:          product.image_url,
