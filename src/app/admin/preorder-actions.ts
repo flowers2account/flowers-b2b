@@ -1,6 +1,8 @@
 'use server'
 
+import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { normalizePhone } from '@/lib/phone'
 
 function generateToken(): string {
   const arr = new Uint8Array(24)
@@ -154,4 +156,115 @@ export async function getAccessRequests(
 
   if (error) return { rows: [], error: error.message }
   return { rows: (data ?? []) as AccessRow[] }
+}
+
+// ── Preorder checkout (client-facing, called from /preorder/[id] room) ────────
+
+export async function checkoutPreorder(params: {
+  campaign_id: number
+  items: Array<{ campaign_item_id: number; qty: number }>
+}): Promise<{ order_id?: number; total?: number; error?: string }> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get(`preorder_token_${params.campaign_id}`)?.value
+  if (!token) return { error: 'Нет доступа: токен не найден' }
+
+  const supabase = createAdminClient()
+
+  // Validate token → get guest phone/name
+  const { data: access } = await supabase
+    .from('campaign_access')
+    .select('guest_phone, guest_name')
+    .eq('campaign_id', params.campaign_id)
+    .eq('access_token', token)
+    .eq('status', 'approved')
+    .maybeSingle()
+
+  if (!access) return { error: 'Доступ не найден или отозван' }
+
+  const normalizedPhone = normalizePhone(access.guest_phone)
+
+  // Look up Supabase Auth UUID by phone (profiles.id = auth UID — cabinet queries by this)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('phone', normalizedPhone)
+    .maybeSingle()
+
+  const clientId: string | null = profile?.id ?? null
+
+  // Get item prices and limits from DB (never trust client-supplied prices)
+  const itemIds = params.items.map(i => i.campaign_item_id)
+  const { data: dbItems, error: itemsErr } = await supabase
+    .from('campaign_items')
+    .select('id, price, oz_available_stems, pack_size, min_qty')
+    .in('id', itemIds)
+    .eq('campaign_id', params.campaign_id)
+    .eq('is_active', true)
+
+  if (itemsErr || !dbItems?.length) return { error: 'Позиции не найдены' }
+
+  // Validate quantities
+  for (const req of params.items) {
+    const db = dbItems.find(i => i.id === req.campaign_item_id)
+    if (!db) return { error: `Позиция ${req.campaign_item_id} не найдена в кампании` }
+    const min = db.min_qty ?? db.pack_size ?? 1
+    if (req.qty < min) return { error: `Минимальное количество: ${min} стеблей` }
+    if (db.pack_size && req.qty % db.pack_size !== 0) {
+      return { error: `Кратность нарушена: шаг ${db.pack_size} стеблей` }
+    }
+    if (db.oz_available_stems !== null && req.qty > db.oz_available_stems) {
+      return { error: `Превышен лимит партии (доступно ${db.oz_available_stems} стеблей)` }
+    }
+  }
+
+  // Calculate total from DB prices
+  const total = params.items.reduce((sum, req) => {
+    const db = dbItems.find(i => i.id === req.campaign_item_id)!
+    return sum + req.qty * db.price
+  }, 0)
+
+  // Create campaign_order
+  const { data: order, error: orderErr } = await supabase
+    .from('campaign_orders')
+    .insert({
+      campaign_id:  params.campaign_id,
+      client_id:    clientId,
+      guest_phone:  clientId ? null : access.guest_phone,
+      guest_name:   access.guest_name,
+      status:       'pending',
+      total,
+    })
+    .select('id')
+    .single()
+
+  if (orderErr || !order) return { error: 'Ошибка создания заказа: ' + (orderErr?.message ?? '') }
+
+  // Insert order items
+  const { error: itemsInsertErr } = await supabase.from('campaign_order_items').insert(
+    params.items.map(req => ({
+      campaign_order_id: order.id,
+      campaign_item_id:  req.campaign_item_id,
+      qty:               req.qty,
+      price:             dbItems.find(i => i.id === req.campaign_item_id)!.price,
+    }))
+  )
+
+  if (itemsInsertErr) return { error: 'Ошибка записи позиций: ' + itemsInsertErr.message }
+
+  // Telegram notification (non-fatal)
+  try {
+    const tgMsg = [
+      `🌸 Предзаказ #${order.id} — акция #${params.campaign_id}`,
+      `📞 ${access.guest_phone}${access.guest_name ? ' / ' + access.guest_name : ''}`,
+      `💰 Итого: ${total.toLocaleString('ru-RU')} ₸`,
+      `📦 Позиций: ${params.items.length}`,
+    ].join('\n')
+    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: tgMsg }),
+    })
+  } catch { /* non-fatal */ }
+
+  return { order_id: order.id, total }
 }

@@ -375,6 +375,22 @@ draft → ингест линий в campaign_staging → менеджер пр�
 3. Менеджер нажимает «Впустить» → токен записывается в `campaign_access`
 4. Следующий poll → `{ status: approved, access_token }` → cookie + загрузка витрины через RPC
 
+### Корзина и оформление предзаказа (31.05.2026)
+
+**Корзина** — React `useState`, в памяти, без localStorage. Поля: `campaign_item_id, label, price, qty, pack_size, available`. Шаг = `pack_size`, мин = `min_qty`, макс = `oz_available_stems`. Sticky bar внизу витрины показывает сумму и кнопку «Оформить».
+
+**Checkout flow** (`checkoutPreorder` Server Action, `src/app/admin/preorder-actions.ts`):
+1. Читает `preorder_token_{campaign_id}` из cookie (cookies() из next/headers, не от клиента)
+2. Валидирует токен через `campaign_access` → получает `guest_phone`, `guest_name`
+3. Матч к `profiles` по `normalizePhone(phone)` → `profiles.id` = Supabase Auth UUID = `client_id` в campaign_orders (чтобы кабинет нашёл по `user.id`)
+4. Не найден → гость: `client_id=null`, `guest_phone` + `guest_name`
+5. Цены и лимиты берёт из `campaign_items` на сервере (не из тела запроса)
+6. Проверяет кратность (`pack_size`) и лимит партии (`oz_available_stems`)
+7. Создаёт `campaign_orders` + `campaign_order_items`; **без reservations**
+8. Telegram-уведомление
+
+**Кабинет** (`/cabinet`): секция «Мои предзаказы» уже реализована. Грузит `/api/campaigns/orders?client_id=user.id` (user.id = Supabase Auth UUID). Показывает: название акции, статус, позиции (название, qty, сумма), итого ₸, метку «переведён в заказ #N» если `converted_to_order_id` заполнен.
+
 ### Pricing layer (БД-миграция `oz_preorder_pricing_layer`, применена 31.05.2026)
 
 - `products.oz_product_code text UNIQUE`

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-// GET /api/campaigns/orders?client_id=... - все предзаказы клиента
+// GET /api/campaigns/orders?client_id=<auth_uid> — все предзаказы клиента
 export async function GET(request: NextRequest) {
   const client_id = request.nextUrl.searchParams.get('client_id');
 
@@ -18,9 +18,18 @@ export async function GET(request: NextRequest) {
       status,
       total,
       created_at,
+      converted_to_order_id,
       campaign_id,
       campaigns(title, delivery_date, type),
-      campaign_order_items(id)
+      campaign_order_items(
+        id,
+        qty,
+        price,
+        campaign_items(
+          oz_delivery_date,
+          products(name, display_name)
+        )
+      )
     `)
     .eq('client_id', client_id)
     .order('created_at', { ascending: false });
@@ -31,14 +40,24 @@ export async function GET(request: NextRequest) {
   }
 
   const orders = (data ?? []).map((row: any) => ({
-    id: row.id,
-    campaign_id: row.campaign_id,
-    campaign_title: row.campaigns?.title ?? null,
-    campaign_type: row.campaigns?.type ?? null,
-    delivery_date: row.campaigns?.delivery_date ?? null,
-    status: row.status,
-    total: row.total,
-    items_count: (row.campaign_order_items as any[]).length,
+    id:                   row.id,
+    campaign_id:          row.campaign_id,
+    campaign_title:       row.campaigns?.title ?? null,
+    campaign_type:        row.campaigns?.type ?? null,
+    delivery_date:        row.campaigns?.delivery_date ?? null,
+    status:               row.status,
+    total:                row.total,
+    converted_to_order_id: row.converted_to_order_id ?? null,
+    items_count:          (row.campaign_order_items as any[]).length,
+    items: (row.campaign_order_items as any[]).map((oi: any) => ({
+      id:            oi.id,
+      qty:           oi.qty,
+      price:         oi.price,
+      name:          oi.campaign_items?.products?.display_name
+                       ?? oi.campaign_items?.products?.name
+                       ?? '—',
+      delivery_date: oi.campaign_items?.oz_delivery_date ?? null,
+    })),
     created_at: row.created_at,
   }));
 

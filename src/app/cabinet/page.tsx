@@ -7,6 +7,14 @@ import ChangePinModal from '@/components/cabinet/ChangePinModal'
 import EditProfileModal from '@/components/cabinet/EditProfileModal'
 import { createClient } from '@/lib/supabase/client'
 
+type CampaignOrderItem = {
+  id: number
+  qty: number
+  price: number
+  name: string
+  delivery_date: string | null
+}
+
 type CampaignOrder = {
   id: number
   campaign_id: number
@@ -16,6 +24,8 @@ type CampaignOrder = {
   status: string
   total: number
   items_count: number
+  converted_to_order_id: number | null
+  items: CampaignOrderItem[]
 }
 
 const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
@@ -187,7 +197,9 @@ export default function CabinetPage() {
         fetch(`/api/campaigns/orders?client_id=${user.id}`)
           .then(r => r.json())
           .then(data => {
-            const list: CampaignOrder[] = data.orders ?? []
+            const list: CampaignOrder[] = (data.orders ?? []).map((o: any) => ({
+                  ...o, items: o.items ?? [], converted_to_order_id: o.converted_to_order_id ?? null,
+                }))
             list.sort((a, b) => {
               if (a.status === 'pending' && b.status !== 'pending') return -1
               if (b.status === 'pending' && a.status !== 'pending') return 1
@@ -284,18 +296,29 @@ export default function CabinetPage() {
                       <p className="text-sm text-gray-500 mb-2">Поставка: {delivery}</p>
                     )}
 
+                    {/* Позиции */}
+                    {co.items.length > 0 && (
+                      <div className="space-y-1 mb-2">
+                        {co.items.map(item => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span className="text-gray-700 truncate flex-1 mr-2">{item.name}</span>
+                            <span className="text-gray-500 shrink-0">
+                              {item.qty} шт · {(item.qty * item.price).toLocaleString()} ₸
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {co.converted_to_order_id && (
+                      <p className="text-xs text-green-700 bg-green-50 rounded px-2 py-1 mb-2">
+                        ✅ Переведён в заказ #{co.converted_to_order_id}
+                      </p>
+                    )}
+
                     <div className="flex items-center justify-between pt-2 border-t">
                       <span className="text-sm text-gray-500">{co.items_count} поз.</span>
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold text-sm">{co.total.toLocaleString()} ₸</span>
-                        <Link
-                          href={`/campaigns/${co.campaign_id}`}
-                          className="text-xs px-3 py-1 rounded-lg font-medium no-underline"
-                          style={{ backgroundColor: '#f5f0f3', color: '#7a1c2e' }}
-                        >
-                          Открыть
-                        </Link>
-                      </div>
+                      <span className="font-semibold text-sm">{co.total.toLocaleString()} ₸</span>
                     </div>
                   </div>
                 )
