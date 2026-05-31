@@ -190,6 +190,23 @@ export async function getAccessRequests(
   return { rows: (data ?? []) as AccessRow[] }
 }
 
+// ── Bulk status change via SECURITY DEFINER RPC ──────────���───────────────────
+
+export async function bulkPreorderStatus(params: {
+  campaign_id: number
+  from: string
+  to: string
+}): Promise<{ updated?: number; error?: string }> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase.rpc('admin_bulk_preorder_status', {
+    p_campaign_id: params.campaign_id,
+    p_from:        params.from,
+    p_to:          params.to,
+  })
+  if (error) return { error: error.message }
+  return { updated: (data as number) ?? 0 }
+}
+
 // ── Update preorder status via SECURITY DEFINER RPC ──────────────────────────
 
 export async function updatePreorderStatus(params: {

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
 import {
   updatePreorderStatus,
+  bulkPreorderStatus,
   getPreorders,
   type PreorderOrder,
 } from '@/app/admin/preorder-actions'
@@ -86,6 +87,8 @@ export default function PreordersPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [statusError, setStatusError] = useState<{ id: number; msg: string } | null>(null)
+  const [bulkUpdating, setBulkUpdating] = useState(false)
+  const [bulkMsg, setBulkMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
   // Filters
   const [datePreset, setDatePreset] = useState<DatePreset>('')
@@ -155,6 +158,12 @@ export default function PreordersPage() {
 
   const hasFilters = datePreset !== '' || selectedStatuses.length > 0 || selectedCampaign !== ''
 
+  // Bulk action counts — from all orders of selected campaign (ignore status filter)
+  const campaignOrders = selectedCampaign !== '' ? orders.filter(o => o.campaign_id === selectedCampaign) : []
+  const confirmedCount  = campaignOrders.filter(o => o.status === 'confirmed').length
+  const inTransitCount  = campaignOrders.filter(o => o.status === 'in_transit').length
+  const selectedTitle   = campaigns.find(c => c.id === selectedCampaign)?.title ?? `Акция #${selectedCampaign}`
+
   function toggleStatus(s: string) {
     setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   }
@@ -162,6 +171,21 @@ export default function PreordersPage() {
   function resetFilters() {
     setDatePreset(''); setCustomFrom(''); setCustomTo('')
     setSelectedStatuses([]); setSelectedCampaign('')
+  }
+
+  async function handleBulkStatus(from: string, to: string, count: number) {
+    const toLabel = STATUS_LABELS[to] ?? to
+    if (!window.confirm(`Перевести ${count} заказов акции «${selectedTitle}» в статус «${toLabel}»?`)) return
+    setBulkUpdating(true)
+    setBulkMsg(null)
+    const { updated, error } = await bulkPreorderStatus({ campaign_id: selectedCampaign as number, from, to })
+    setBulkUpdating(false)
+    if (error) {
+      setBulkMsg({ text: `Ошибка: ${error}`, ok: false })
+    } else {
+      setBulkMsg({ text: `Обновлено ${updated} заказов`, ok: true })
+      await loadOrders()
+    }
   }
 
   async function handleStatusChange(orderId: number, newStatus: string) {
@@ -248,7 +272,7 @@ export default function PreordersPage() {
         </div>
 
         {/* Campaign */}
-        {campaigns.length > 1 && (
+        {campaigns.length >= 1 && (
           <div className="flex flex-wrap gap-1.5 items-center">
             <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Акция</span>
             <select
@@ -277,6 +301,39 @@ export default function PreordersPage() {
           )}
         </div>
       </div>
+
+      {/* Bulk action bar — shown when a campaign is selected and has actionable orders */}
+      {selectedCampaign !== '' && (confirmedCount > 0 || inTransitCount > 0) && (
+        <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-blue-700 shrink-0">Вся партия:</span>
+          {confirmedCount > 0 && (
+            <button
+              onClick={() => handleBulkStatus('confirmed', 'in_transit', confirmedCount)}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 text-sm font-medium rounded text-white disabled:opacity-50 transition-opacity"
+              style={{ background: '#2563eb' }}
+            >
+              🚚 В пути ({confirmedCount})
+            </button>
+          )}
+          {inTransitCount > 0 && (
+            <button
+              onClick={() => handleBulkStatus('in_transit', 'arrived', inTransitCount)}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 text-sm font-medium rounded text-white disabled:opacity-50 transition-opacity"
+              style={{ background: '#0f766e' }}
+            >
+              📦 На складе ({inTransitCount})
+            </button>
+          )}
+          {bulkUpdating && <span className="text-xs text-blue-600">Обновляем…</span>}
+          {bulkMsg && (
+            <span className={`text-xs font-medium ${bulkMsg.ok ? 'text-green-700' : 'text-red-600'}`}>
+              {bulkMsg.ok ? '✓' : '⚠'} {bulkMsg.text}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Load error */}
       {loadError && (

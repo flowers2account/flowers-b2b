@@ -384,7 +384,13 @@ pending → confirmed → in_transit → arrived → assembling → assembled �
 
 `in_transit` и `arrived` — новые значения enum, добавлены для предзаказов. Обычные `orders` эти статусы не используют.
 
-**Смена статуса** — через Server Action `updatePreorderStatus` (обновляет `status` + `updated_at`). Никаких открытых write-роутов.
+**Смена статуса** — через Server Action `updatePreorderStatus` → RPC `admin_set_preorder_status`. Никаких открытых write-роутов.
+
+**Массовая смена статуса** (31.05.2026) — два логистических перехода делаются разом для всех заказов кампании:
+- `confirmed → in_transit` («Вся партия → В пути»)
+- `in_transit → arrived` («Вся партия → На складе»)
+
+Кнопки появляются в `/admin/preorders` когда выбрана конкретная акция в фильтре и есть заказы в соответствующем статусе. RPC `admin_bulk_preorder_status(p_campaign_id, p_from, p_to)` — SECURITY DEFINER, белый список переходов на уровне БД. Server Action `bulkPreorderStatus({ campaign_id, from, to })` → возвращает число обновлённых. Остальные стадии (confirmed-подтверждение, assembling, delivered) — только индивидуально.
 
 **«Перевести в заказ»** (Заход 2, не реализован) — disabled-кнопка при статусе `arrived`. Логика перевода требует складской обвязки.
 
@@ -394,10 +400,11 @@ pending → confirmed → in_transit → arrived → assembling → assembled �
 |---|---|
 | `launchCampaign(params)` | Заморозка стейджинга → campaign_items, публикует кампанию |
 | `admitRequest({ campaign_id, access_id, action })` | Впускает или отклоняет заявку (approve/deny) |
-| `getAccessRequests(campaign_id)` | Читает campaign_access через createAdminClient (обходит RLS) |
-| `updatePreorderStatus({ order_id, status })` | Меняет статус campaign_orders + updated_at |
+| `getAccessRequests(campaign_id)` | Читает campaign_access через createServerClient (сессионный клиент) |
+| `updatePreorderStatus({ order_id, status })` | → RPC `admin_set_preorder_status` |
+| `bulkPreorderStatus({ campaign_id, from, to })` | → RPC `admin_bulk_preorder_status`; только confirmed→in_transit и in_transit→arrived |
 
-Все Server Actions используют `createAdminClient()` (service role) — секрет не попадает в браузерный бандл.
+**Паттерн доступа к БД**: admin-функции чтения/записи используют SECURITY DEFINER RPC через `createServerClient()` (anon-ключ). Это обходит RLS без service role key, который ненадёжен в Vercel serverless. Паттерн идентичен `get_preorder_room`. ⚠ Tech-debt: RPCs открыты для anon-роли, защита только клиентским гардом /admin — нужен auth-аудит перед запуском.
 
 ### Вход в комнату (поток токена)
 1. Клиент вводит код + телефон → `POST /join` → `status=pending` в БД
