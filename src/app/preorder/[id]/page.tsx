@@ -189,13 +189,14 @@ function PreorderFilters({
 // ── Card stepper (center grid) ─────────────────────────────────────────────
 
 function PreorderCard({
-  item, qty, onSetQty, onClick, isSelected,
+  item, qty, onSetQty, onClick, isSelected, onCartOpen,
 }: {
   item: RoomItem
   qty: number
   onSetQty: (n: number) => void
   onClick: () => void
   isSelected: boolean
+  onCartOpen: () => void
 }) {
   const inCart = qty > 0
   const max = item.oz_available_stems
@@ -307,7 +308,7 @@ function PreorderCard({
             {qty}
           </span>
           <button
-            onClick={e => { e.stopPropagation(); onSetQty(qty === 0 ? min : qty + item.pack_size) }}
+            onClick={e => { e.stopPropagation(); onSetQty(qty === 0 ? min : qty + item.pack_size); onCartOpen() }}
             disabled={!canInc}
             style={{
               width: 32, height: 28, border: 'none',
@@ -887,6 +888,7 @@ export default function PreorderRoomPage() {
               setSelectedItem(item)
               setRightPanel('detail')
             }}
+            onCartOpen={() => setRightPanel('cart')}
           />
         ))}
       </div>
@@ -950,8 +952,35 @@ export default function PreorderRoomPage() {
         <main style={{ overflowY: 'auto', background: '#fafafa' }}>
           {centerContent}
         </main>
-        <aside style={{ overflowY: 'auto', background: '#fff', borderLeft: '1px solid var(--border)' }}>
-          {rightContent}
+        <aside style={{ display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1px solid var(--border)', overflow: 'hidden' }}>
+          {cartCount > 0 && (
+            <button
+              onClick={() => setRightPanel('cart')}
+              style={{
+                flexShrink: 0, width: '100%',
+                padding: '9px 14px',
+                background: 'var(--accent-light)',
+                borderTop: 'none', borderRight: 'none', borderLeft: 'none',
+                borderBottom: '1px solid var(--accent-mid)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+                {cartCount} поз.
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
+                {cartTotal.toLocaleString('ru-RU')} ₸
+              </span>
+            </button>
+          )}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {rightContent}
+          </div>
         </aside>
       </div>
     )
