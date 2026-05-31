@@ -223,6 +223,7 @@ B2B платформа для оптовой торговли цветами. С
 | `/api/my-orders` | GET | Заказы текущего клиента |
 | `/api/import-xls` | POST | Импорт товаров из Excel; возвращает `importedIds[]` и `category` |
 | `/api/import-xls/finalize` | POST | Категориальная деактивация после всех файлов батча |
+| `/api/import-oz-preorder` | POST | Upsert карточек OZ предзаказа; ключ — `oz_product_code` |
 | `/api/reserve` | POST | Создать резервирование |
 | `/api/cron/cleanup` | GET | Cron: удаляет истекшие резервирования (защита CRON_SECRET) |
 
@@ -239,6 +240,66 @@ B2B платформа для оптовой торговли цветами. С
 RLS **отключён** на таблицах: `clients`, `orders`, `order_items`, `reservations`, `products`, `varieties`, `inventory_ledger`
 
 RLS **включён только** на: `profiles`
+
+## OZ Export — предзаказы (source='oz_preorder') — актуально с 31.05.2026
+
+Конвейер предзаказов: менеджер копирует ссылки с сайта OZ → Python-парсер перехватывает XHR `stockLines/availability` → POST в `/api/import-oz-preorder` → карточки в `products`.
+
+### Ключ дедупликации: `oz_product_code`
+
+32-символьный UUID товара из OZ. Уникальный индекс `products_oz_product_code_uniq` (NULLS DISTINCT — спот-товары с `oz_product_code=NULL` не конфликтуют).
+
+### Роут `/api/import-oz-preorder` (POST)
+
+Принимает JSON:
+```json
+{
+  "source": "oz_preorder",
+  "items": [
+    {
+      "oz_product_code": "7416DE50033E53D302D9C8F4AEC8156A",
+      "name": "Rosa ec queens crown",
+      "image_url": "https://img.ozexport.nl/...jpg",
+      "category": "cut",
+      "order_multiple_stems": 25,
+      "packaging_unit_stems": 125,
+      "vbn_unit_code": "996"
+    }
+  ]
+}
+```
+
+Маппинг в `products`:
+| поле JSON | колонка |
+|---|---|
+| `oz_product_code` | `oz_product_code` (ON CONFLICT ключ) |
+| `name` | `name` |
+| `image_url` | `image_url` (только если пустое) |
+| `category` | `category` |
+| `order_multiple_stems` | `pack_size` |
+| `packaging_unit_stems` | `stems_per_pack` |
+| `vbn_unit_code` | `container_code` |
+| — | `source='oz_preorder'`, `is_active=false`, `qty=0` (только INSERT) |
+
+**INSERT** → `is_active=false`, `qty=0` — не попадает в спот-витрину; видим только через `campaign_items`.  
+**UPDATE** → обновляет name, image_url (если пусто), pack_size, stems_per_pack, container_code. Цену/qty/is_active не трогает.
+
+Возвращает: `{ created, updated, errors, errorLog[] }`
+
+### Pricing layer (БД-миграция `oz_preorder_pricing_layer`, применена 31.05.2026)
+
+- `products.oz_product_code text UNIQUE`
+- `campaign_items` доп. колонки: `oz_line_id`, `oz_stock_type`, `oz_delivery_date`, `oz_available_stems`, `oz_purchase_eur`, `markup_percent`, `eur_kzt_rate`
+- `app_settings` ключи: `preorder_markup_percent='35'`, `preorder_eur_kzt_rate='525'`, `preorder_round_to='1'`
+- Функция `calc_preorder_price_kzt(purchase_eur, markup_pct, rate, round_to)` → ₸/стебель
+
+### Phase 2 (не реализовано)
+
+Серверный экшен «старт акции»: читает `app_settings`, вызывает `calc_preorder_price_kzt`, записывает строки в `campaign_items` (один товар = несколько партий с разными `oz_line_id` и датами).
+
+⚠️ Старый статичный OZ-каталог (`source='oz_export'`, 156 карточек срезки) **удалён 31.05.2026**. Трек `source='oz_export'` больше не используется. Новый трек — `source='oz_preorder'`.
+
+---
 
 ## Импорт каталога поставщиков (OZ / Waterdrinker) — актуально с 27.05.2026
 
