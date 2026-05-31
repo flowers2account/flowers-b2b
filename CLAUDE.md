@@ -368,6 +368,25 @@ draft → ингест линий в campaign_staging → менеджер пр�
 | `/preorder/[id]` | page | Витрина комнаты: вход по коду или отображение позиций через RPC |
 | `/admin/campaigns/[id]/staging` | page | Стейджинг: галки + preview цен + кнопка «Запустить» |
 | `/admin/campaigns/[id]/requests` | page | Очередь заявок: список campaign_access, кнопки «Впустить»/«Отклонить» |
+| `/admin/preorders` | page | Все предзаказы (campaign_orders): фильтры, раскрытие позиций, смена статуса |
+
+### Раздел «Предзаказы» (`/admin/preorders`, 31.05.2026)
+
+Источник: `campaign_orders` + `campaign_order_items` → `campaign_items` → `products`.
+
+**Цепочка статусов** (enum `order_status`, общий с `orders`):
+```
+pending → confirmed → in_transit → arrived → assembling → assembled → delivered
+                                                                         ↑
+                                                               cancelled (из любого этапа)
+```
+Русские подписи: Оформлен / Подтверждён / В пути / На складе / Собирается / Собран / Выдан / Отменён.
+
+`in_transit` и `arrived` — новые значения enum, добавлены для предзаказов. Обычные `orders` эти статусы не используют.
+
+**Смена статуса** — через Server Action `updatePreorderStatus` (обновляет `status` + `updated_at`). Никаких открытых write-роутов.
+
+**«Перевести в заказ»** (Заход 2, не реализован) — disabled-кнопка при статусе `arrived`. Логика перевода требует складской обвязки.
 
 ### Server Actions (src/app/admin/preorder-actions.ts)
 
@@ -376,6 +395,7 @@ draft → ингест линий в campaign_staging → менеджер пр�
 | `launchCampaign(params)` | Заморозка стейджинга → campaign_items, публикует кампанию |
 | `admitRequest({ campaign_id, access_id, action })` | Впускает или отклоняет заявку (approve/deny) |
 | `getAccessRequests(campaign_id)` | Читает campaign_access через createAdminClient (обходит RLS) |
+| `updatePreorderStatus({ order_id, status })` | Меняет статус campaign_orders + updated_at |
 
 Все Server Actions используют `createAdminClient()` (service role) — секрет не попадает в браузерный бандл.
 
