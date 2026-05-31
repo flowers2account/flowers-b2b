@@ -362,13 +362,15 @@ export async function getPreorders(): Promise<{ orders: PreorderOrder[]; error?:
 // ── Assembly: mark item actuals, set status=assembled ────────────────────────
 
 export async function assemblePreorder(params: {
-  order_id: number
-  items: Array<{ id: number; qty_actual: number; is_removed: boolean }>
+  order_id:  number
+  items:     Array<{ id: number; qty_actual: number; is_removed: boolean }>
+  photo_url?: string
 }): Promise<{ total?: number; error?: string }> {
   const supabase = await createServerClient()
   const { data, error } = await supabase.rpc('admin_assemble_preorder', {
-    p_order_id: params.order_id,
-    p_items:    params.items,
+    p_order_id:  params.order_id,
+    p_items:     params.items,
+    p_photo_url: params.photo_url ?? null,
   })
   if (error) return { error: error.message }
   return { total: data as number }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import type { PreorderItem } from '@/app/admin/preorder-actions'
 import { assemblePreorder } from '@/app/admin/preorder-actions'
 
@@ -11,13 +12,14 @@ interface Props {
   onSaved: () => void
 }
 
-interface ItemState {
-  id: number
-  campaign_item_id: number
-  qty_actual: number
-  is_removed: boolean
-  price: number
-  label: string
+interface RowState {
+  id:          number
+  label:       string
+  qty_ordered: number
+  qty_actual:  number
+  is_removed:  boolean
+  price:       number
+  checked:     boolean
 }
 
 function itemLabel(item: PreorderItem): string {
@@ -26,139 +28,235 @@ function itemLabel(item: PreorderItem): string {
 }
 
 export default function PreorderAssemblyModal({ orderId, items, onClose, onSaved }: Props) {
-  const [rows, setRows] = useState<ItemState[]>(
+  const supabase = createClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [rows, setRows] = useState<RowState[]>(() =>
     items.map(item => ({
-      id:               item.id,
-      campaign_item_id: item.campaign_item_id,
-      qty_actual:       item.qty_actual ?? item.qty_ordered,
-      is_removed:       item.is_removed,
-      price:            item.price,
-      label:            itemLabel(item),
+      id:          item.id,
+      label:       itemLabel(item),
+      qty_ordered: item.qty_ordered,
+      qty_actual:  item.qty_actual ?? item.qty_ordered,
+      is_removed:  item.is_removed,
+      price:       item.price,
+      checked:     !item.is_removed && item.qty_actual !== null,
     }))
   )
-  const [saving, setSaving] = useState(false)
-  const [error, setError]   = useState('')
+  const [photoFile, setPhotoFile]       = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [saving, setSaving]             = useState(false)
+  const [uploadError, setUploadError]   = useState<string | null>(null)
 
-  function setQty(id: number, val: number) {
+  const activeRows    = rows.filter(r => !r.is_removed)
+  const checkedCount  = activeRows.filter(r => r.checked).length
+  const allChecked    = activeRows.length > 0 && checkedCount === activeRows.length
+  const canSave       = allChecked && !!photoFile && !saving
+
+  const hasChanges = rows.some(r => r.is_removed || r.qty_actual !== r.qty_ordered)
+  const newTotal   = rows.filter(r => !r.is_removed).reduce((s, r) => s + r.qty_actual * r.price, 0)
+
+  function toggleChecked(id: number) {
+    setRows(r => r.map(row => row.id === id ? { ...row, checked: !row.checked } : row))
+  }
+
+  function setQtyActual(id: number, val: number) {
     setRows(r => r.map(row => row.id === id ? { ...row, qty_actual: Math.max(0, val) } : row))
   }
 
   function toggleRemoved(id: number) {
-    setRows(r => r.map(row => row.id === id ? { ...row, is_removed: !row.is_removed } : row))
+    setRows(r => r.map(row =>
+      row.id === id ? { ...row, is_removed: !row.is_removed, checked: row.is_removed ? row.checked : false } : row
+    ))
   }
 
-  const newTotal = rows
-    .filter(r => !r.is_removed)
-    .reduce((s, r) => s + r.qty_actual * r.price, 0)
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    setUploadError(null)
+  }
+
+  function removePhoto() {
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function uploadPhoto(file: File): Promise<string | null> {
+    const ext = file.type === 'image/png' ? 'png' : 'jpg'
+    const path = `preorders/${orderId}/assembly_${Date.now()}.${ext}`
+    const { error } = await supabase.storage
+      .from('order-photos')
+      .upload(path, file, { contentType: file.type, upsert: true })
+    if (error) return null
+    const { data } = supabase.storage.from('order-photos').getPublicUrl(path)
+    return data.publicUrl
+  }
 
   async function handleSave() {
+    if (!canSave) return
     setSaving(true)
-    setError('')
-    const { error: err } = await assemblePreorder({
-      order_id: orderId,
-      items: rows.map(r => ({ id: r.id, qty_actual: r.qty_actual, is_removed: r.is_removed })),
+    setUploadError(null)
+
+    const photoUrl = await uploadPhoto(photoFile!)
+    if (!photoUrl) {
+      setUploadError('Не удалось загрузить фото. Попробуйте ещё раз.')
+      setSaving(false)
+      return
+    }
+
+    const { error } = await assemblePreorder({
+      order_id:  orderId,
+      items:     rows.map(r => ({ id: r.id, qty_actual: r.qty_actual, is_removed: r.is_removed })),
+      photo_url: photoUrl,
     })
-    setSaving(false)
-    if (err) { setError(err); return }
+
+    if (error) {
+      setUploadError(`Ошибка сохранения: ${error}`)
+      setSaving(false)
+      return
+    }
+
     onSaved()
   }
 
-  const activeCount = rows.filter(r => !r.is_removed).length
+  const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto"
-      onClick={e => e.target === e.currentTarget && onClose()}
-    >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg my-8">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-800">Сборка предзаказа #{orderId}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-xl leading-none"
-          >×</button>
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <h2 className="font-semibold text-gray-800">Сборка предзаказа #{orderId}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
 
-        {/* Items */}
-        <div className="divide-y divide-gray-100">
-          {rows.map(row => {
-            const orig = items.find(i => i.id === row.id)!
-            return (
-              <div key={row.id} className={`px-6 py-3 flex items-center gap-3 ${row.is_removed ? 'opacity-40' : ''}`}>
-                <button
-                  onClick={() => toggleRemoved(row.id)}
-                  title={row.is_removed ? 'Восстановить' : 'Убрать позицию'}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                    row.is_removed
-                      ? 'border-red-400 bg-red-50 text-red-500'
-                      : 'border-gray-300 hover:border-red-400'
-                  }`}
-                >
-                  {row.is_removed ? '×' : ''}
-                </button>
+        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-4">
 
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-800 truncate">{row.label}</div>
-                  <div className="text-xs text-gray-400">
-                    Заказано: {orig.qty_ordered} шт. · {row.price.toLocaleString('ru-RU')} ₸/шт.
-                  </div>
-                </div>
-
+          {/* Items */}
+          <div className="space-y-1">
+            {rows.map(row => (
+              <div
+                key={row.id}
+                className={`flex items-center gap-3 py-2.5 border-b last:border-0 ${row.is_removed ? 'opacity-40' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={row.checked}
+                  disabled={row.is_removed}
+                  onChange={() => toggleChecked(row.id)}
+                  className="w-4 h-4 accent-green-600 shrink-0 cursor-pointer"
+                />
+                <span className={`flex-1 text-sm min-w-0 ${row.is_removed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                  {row.label}
+                </span>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => setQty(row.id, row.qty_actual - 1)}
-                    disabled={row.is_removed || row.qty_actual <= 0}
-                    className="w-7 h-7 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 text-sm"
-                  >−</button>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">из {row.qty_ordered}</span>
                   <input
                     type="number"
-                    min={0}
                     value={row.qty_actual}
                     disabled={row.is_removed}
-                    onChange={e => setQty(row.id, parseInt(e.target.value) || 0)}
-                    className="w-14 text-center text-sm border border-gray-200 rounded py-1 disabled:bg-gray-50 disabled:text-gray-400"
+                    min={0}
+                    onChange={e => setQtyActual(row.id, parseInt(e.target.value) || 0)}
+                    className="w-16 text-center border rounded px-1 py-0.5 text-sm disabled:bg-gray-50"
                   />
-                  <button
-                    onClick={() => setQty(row.id, row.qty_actual + 1)}
-                    disabled={row.is_removed}
-                    className="w-7 h-7 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 text-sm"
-                  >+</button>
                 </div>
+                <button
+                  onClick={() => toggleRemoved(row.id)}
+                  className={`text-xs px-2 py-1 rounded shrink-0 transition-colors ${
+                    row.is_removed
+                      ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      : 'bg-red-50 text-red-600 hover:bg-red-100'
+                  }`}
+                >
+                  {row.is_removed ? 'Вернуть' : 'Удалить'}
+                </button>
               </div>
-            )
-          })}
-        </div>
-
-        {/* Summary */}
-        <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 text-sm text-gray-600">
-          Позиций: <span className="font-semibold text-gray-800">{activeCount}</span>
-          {' · '}Итого: <span className="font-semibold text-[#7a1c2e]">{newTotal.toLocaleString('ru-RU')} ₸</span>
-        </div>
-
-        {error && (
-          <div className="mx-6 mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-            {error}
+            ))}
           </div>
-        )}
+
+          {/* Changes summary */}
+          {hasChanges && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+              <p className="font-medium text-amber-800 mb-1.5">Изменения</p>
+              {rows.filter(r => r.is_removed).map(r => (
+                <p key={r.id} className="text-amber-700">• {r.label}: позиция снята</p>
+              ))}
+              {rows.filter(r => !r.is_removed && r.qty_actual !== r.qty_ordered).map(r => (
+                <p key={r.id} className="text-amber-700">
+                  • {r.label}: заказано {r.qty_ordered}, выдаётся {r.qty_actual}
+                </p>
+              ))}
+              <p className="font-semibold text-amber-800 mt-2 pt-2 border-t border-amber-200">
+                Новая сумма: {fmt(newTotal)}
+              </p>
+            </div>
+          )}
+
+          {/* Photo */}
+          <div className="border rounded-lg p-3">
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Фото сборки <span className="text-red-500">*</span>
+            </p>
+            {photoPreview ? (
+              <div className="flex items-start gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photoPreview}
+                  alt="Фото сборки"
+                  style={{ width: 200, height: 150, objectFit: 'cover' }}
+                  className="rounded border"
+                />
+                <button
+                  onClick={removePhoto}
+                  className="text-xs text-red-500 hover:text-red-700 hover:underline mt-1"
+                >
+                  Удалить фото
+                </button>
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors w-fit">
+                <span className="text-lg">📷</span>
+                <span className="text-sm text-gray-600">Сфотографировать</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+              </label>
+            )}
+            {uploadError && (
+              <p className="text-xs text-red-600 mt-2">{uploadError}</p>
+            )}
+          </div>
+        </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40"
-          >
-            Отмена
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 text-sm bg-[#7a1c2e] text-white rounded-lg hover:bg-[#621624] disabled:opacity-40"
-          >
-            {saving ? 'Сохранение...' : 'Завершить сборку'}
-          </button>
+        <div className="px-5 py-4 border-t flex items-center justify-between gap-3">
+          <span className="text-sm text-gray-500">
+            Собрано <span className="font-semibold">{checkedCount}</span> из <span className="font-semibold">{activeRows.length}</span>
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-40"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!canSave}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? 'Загрузка...' : 'Завершить сборку'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
