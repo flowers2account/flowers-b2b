@@ -933,22 +933,6 @@ export default function PreorderRoomPage() {
       return 0
     })
 
-  // Group by category, preserving sort order within each group
-  const groupedEntries = (() => {
-    const map = new Map<string, RoomItem[]>()
-    for (const item of filtered) {
-      const cat = guessCategory(item.name)
-      if (!map.has(cat)) map.set(cat, [])
-      map.get(cat)!.push(item)
-    }
-    // Sort groups: alphabetically by label, 'other' last
-    return Array.from(map.entries()).sort(([a], [b]) => {
-      if (a === 'other') return 1
-      if (b === 'other') return -1
-      return (CAT_LABELS[a] ?? a).localeCompare(CAT_LABELS[b] ?? b, 'ru')
-    })
-  })()
-
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const cartCount = cart.length
   const activeFilterCount = selectedTypes.length + (priceSort !== '' ? 1 : 0) +
@@ -1062,35 +1046,19 @@ export default function PreorderRoomPage() {
           </span>
         </div>
       </div>
-      {groupedEntries.map(([cat, catItems]) => (
-        <div key={cat} style={{ marginBottom: 24 }}>
-          {groupedEntries.length > 1 && (
-            <div style={{
-              fontSize: 13, fontWeight: 700, color: 'var(--text)',
-              padding: '0 0 8px', borderBottom: '1px solid var(--border)',
-              marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 6,
-            }}>
-              {CAT_LABELS[cat] ?? cat}
-              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-mid)' }}>
-                {catItems.length}
-              </span>
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-            {catItems.map(item => (
-              <PreorderCard
-                key={item.id}
-                item={item}
-                qty={getQty(item.id)}
-                onSetQty={n => setQty(item, n)}
-                isSelected={selectedItem?.id === item.id}
-                onClick={() => { setSelectedItem(item); setRightPanel('detail') }}
-                onCartOpen={() => setRightPanel('cart')}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+        {filtered.map(item => (
+          <PreorderCard
+            key={item.id}
+            item={item}
+            qty={getQty(item.id)}
+            onSetQty={n => setQty(item, n)}
+            isSelected={selectedItem?.id === item.id}
+            onClick={() => { setSelectedItem(item); setRightPanel('detail') }}
+            onCartOpen={() => setRightPanel('cart')}
+          />
+        ))}
+      </div>
     </div>
   )
 
