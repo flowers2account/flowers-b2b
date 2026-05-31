@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import type { CampaignWithStats, CampaignStatus } from '@/types/campaigns'
 import CreateCampaignModal from './CreateCampaignModal'
 import CampaignSummaryModal from './CampaignSummaryModal'
@@ -196,13 +197,26 @@ export default function CampaignsPanel() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       <button
                         onClick={() => handleEdit(c.id)}
                         className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
                       >
                         Ред.
                       </button>
+                      {c.status === 'draft' && (
+                        <Link
+                          href={`/admin/campaigns/${c.id}/staging`}
+                          className="px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded"
+                        >
+                          Стейджинг
+                        </Link>
+                      )}
+                      {c.status === 'published' && c.access_code && (
+                        <span className="px-2 py-1 text-xs bg-green-50 text-green-700 rounded font-mono tracking-wider">
+                          {c.access_code}
+                        </span>
+                      )}
                       <button
                         onClick={() => handleSummary(c.id)}
                         className="px-2 py-1 text-xs text-[#7a1c2e] hover:bg-red-50 rounded"

@@ -121,6 +121,9 @@ export interface CreateCampaignOrderRequest {
 export interface CampaignWithStats extends Campaign {
   stats: CampaignStats;
   items_count: number;
+  access_code?: string | null;
+  markup_percent?: number | null;
+  eur_kzt_rate?: number | null;
 }
 
 export interface CampaignDetailResponse {

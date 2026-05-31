@@ -22,6 +22,9 @@ export async function GET(request: NextRequest) {
         delivery_date,
         status,
         allowed_price_groups,
+        access_code,
+        markup_percent,
+        eur_kzt_rate,
         created_at,
         updated_at
       `);
