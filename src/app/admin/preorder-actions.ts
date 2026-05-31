@@ -320,12 +320,13 @@ export async function checkoutPreorder(params: {
 
   if (orderErr || !order) return { error: 'Ошибка создания заказа: ' + (orderErr?.message ?? '') }
 
-  // Insert order items
+  // Insert order items — qty and qty_ordered are both set to the same value at checkout
   const { error: itemsInsertErr } = await supabase.from('campaign_order_items').insert(
     params.items.map(req => ({
       campaign_order_id: order.id,
       campaign_item_id:  req.campaign_item_id,
       qty:               req.qty,
+      qty_ordered:       req.qty,
       price:             dbItems.find(i => i.id === req.campaign_item_id)!.price,
     }))
   )
