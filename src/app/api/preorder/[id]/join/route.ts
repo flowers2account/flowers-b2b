@@ -28,15 +28,15 @@ export async function POST(
   if (campaign.status !== 'published') return NextResponse.json({ error: 'Акция не активна' }, { status: 403 })
   if (campaign.access_code !== code) return NextResponse.json({ error: 'Неверный код' }, { status: 403 })
 
-  // Upsert access request
+  // INSERT without .select() — no RETURNING, no SELECT RLS check needed for anon
+  // Duplicate phone (23505) is silently ignored: client polls /status to see existing state
   const { error } = await supabase
     .from('campaign_access')
-    .upsert(
-      { campaign_id, guest_phone: phone, guest_name: name ?? null, status: 'pending' },
-      { onConflict: 'campaign_id,guest_phone', ignoreDuplicates: false }
-    )
+    .insert({ campaign_id, guest_phone: phone, guest_name: name ?? null, status: 'pending' })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error && error.code !== '23505') {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json({ status: 'pending', message: 'Ожидайте подтверждения от менеджера' })
 }
