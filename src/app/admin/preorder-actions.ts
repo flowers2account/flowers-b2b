@@ -19,7 +19,12 @@ export interface PreorderItem {
   campaign_items: {
     oz_delivery_date: string | null
     oz_stock_type: string | null
-    products: { name: string; display_name: string | null } | null
+    products: {
+      name: string
+      display_name: string | null
+      colors: string[] | null
+      subcategory: string | null
+    } | null
   } | null
 }
 

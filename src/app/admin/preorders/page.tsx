@@ -11,6 +11,7 @@ import {
 } from '@/app/admin/preorder-actions'
 import PreorderAssemblyModal from '@/components/admin/PreorderAssemblyModal'
 import PreorderEditModal from '@/components/admin/PreorderEditModal'
+import { COLORS } from '@/lib/colors'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,16 @@ const NEXT_STATUSES: Record<string, string[]> = {
 }
 
 const ALL_STATUSES = ['pending', 'confirmed', 'in_transit', 'arrived', 'assembling', 'assembled', 'delivered', 'cancelled']
+
+const SUBCATEGORY_LABELS: Record<string, string> = {
+  roses: 'Розы', chrysanthemums: 'Хризантемы', lilies: 'Лилии',
+  orchids: 'Орхидеи', anthuriums: 'Антуриумы', proteas: 'Протеи',
+  peonies: 'Пионы', tulips: 'Тюльпаны', ranunculus: 'Ранункулюсы',
+  anemones: 'Анемоны', lisianthus: 'Лизиантусы', hydrangeas: 'Гортензии',
+  carnations: 'Гвоздики', gerberas: 'Герберы', irises: 'Ирисы',
+  sunflowers: 'Подсолнухи', alstroemeria: 'Альстромерии',
+  gypsophila: 'Гипсофила', freesia: 'Фрезия', statice: 'Статице',
+}
 
 const NEXT_LABELS: Record<string, string> = {
   confirmed:  '✅ Подтвердить',
@@ -100,6 +111,8 @@ export default function PreordersPage() {
   const [customTo, setCustomTo] = useState('')
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedCampaign, setSelectedCampaign] = useState<number | ''>('')
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [selectedSubcats, setSelectedSubcats] = useState<string[]>([])
 
   // Auth guard
   if (role && role !== 'admin' && role !== 'manager') {
@@ -126,6 +139,25 @@ export default function PreordersPage() {
       }
     }
     return Array.from(seen.entries()).map(([id, title]) => ({ id, title }))
+  }, [orders])
+
+  // Unique colors and subcategories present in the loaded orders
+  const availableColors = useMemo(() => {
+    const keys = new Set<string>()
+    for (const o of orders)
+      for (const item of o.campaign_order_items)
+        for (const c of (item.campaign_items?.products?.colors ?? []))
+          keys.add(c)
+    return COLORS.filter(c => keys.has(c.key))
+  }, [orders])
+
+  const availableSubcats = useMemo(() => {
+    const keys = new Set<string>()
+    for (const o of orders)
+      for (const item of o.campaign_order_items)
+        if (item.campaign_items?.products?.subcategory)
+          keys.add(item.campaign_items.products.subcategory)
+    return Array.from(keys).sort()
   }, [orders])
 
   // Filtered list
@@ -157,10 +189,28 @@ export default function PreordersPage() {
       result = result.filter(o => o.campaign_id === selectedCampaign)
     }
 
-    return result
-  }, [orders, datePreset, customFrom, customTo, selectedStatuses, selectedCampaign])
+    if (selectedColors.length > 0) {
+      result = result.filter(o =>
+        o.campaign_order_items.some(item =>
+          (item.campaign_items?.products?.colors ?? []).some(c => selectedColors.includes(c))
+        )
+      )
+    }
 
-  const hasFilters = datePreset !== '' || selectedStatuses.length > 0 || selectedCampaign !== ''
+    if (selectedSubcats.length > 0) {
+      result = result.filter(o =>
+        o.campaign_order_items.some(item => {
+          const sub = item.campaign_items?.products?.subcategory
+          return sub && selectedSubcats.includes(sub)
+        })
+      )
+    }
+
+    return result
+  }, [orders, datePreset, customFrom, customTo, selectedStatuses, selectedCampaign, selectedColors, selectedSubcats])
+
+  const hasFilters = datePreset !== '' || selectedStatuses.length > 0 || selectedCampaign !== '' ||
+    selectedColors.length > 0 || selectedSubcats.length > 0
 
   // Bulk action counts — from all orders of selected campaign (ignore status filter)
   const campaignOrders = selectedCampaign !== '' ? orders.filter(o => o.campaign_id === selectedCampaign) : []
@@ -175,6 +225,7 @@ export default function PreordersPage() {
   function resetFilters() {
     setDatePreset(''); setCustomFrom(''); setCustomTo('')
     setSelectedStatuses([]); setSelectedCampaign('')
+    setSelectedColors([]); setSelectedSubcats([])
   }
 
   async function handleBulkStatus(from: string, to: string, count: number) {
@@ -289,6 +340,63 @@ export default function PreordersPage() {
                 <option key={c.id} value={c.id}>{c.title}</option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* Subcategory */}
+        {availableSubcats.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Категория</span>
+            {availableSubcats.map(sub => {
+              const active = selectedSubcats.includes(sub)
+              return (
+                <button
+                  key={sub}
+                  onClick={() => setSelectedSubcats(prev =>
+                    prev.includes(sub) ? prev.filter(x => x !== sub) : [...prev, sub]
+                  )}
+                  className="px-2.5 py-1 text-xs font-medium rounded-full border transition-all"
+                  style={{
+                    background:  active ? '#8B3A5A' : '#fff',
+                    color:       active ? '#fff' : '#555',
+                    borderColor: active ? '#8B3A5A' : '#e5e7eb',
+                  }}
+                >
+                  {SUBCATEGORY_LABELS[sub] ?? sub}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Colors */}
+        {availableColors.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Цвет</span>
+            {availableColors.map(c => {
+              const active = selectedColors.includes(c.key)
+              const colorDef = c as Record<string, string>
+              const bg = colorDef.gradient ?? colorDef.bg
+              const borderColor = colorDef.border ?? 'transparent'
+              return (
+                <button
+                  key={c.key}
+                  title={c.label}
+                  onClick={() => setSelectedColors(prev =>
+                    prev.includes(c.key) ? prev.filter(x => x !== c.key) : [...prev, c.key]
+                  )}
+                  style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    border: `2px solid ${borderColor}`,
+                    background: bg,
+                    outline: active ? '2px solid #8B3A5A' : 'none',
+                    outlineOffset: 2,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                />
+              )
+            })}
           </div>
         )}
 
