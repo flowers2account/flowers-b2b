@@ -160,12 +160,12 @@ export async function POST(req: NextRequest) {
       created++
     }
 
-    // Insert staging rows if campaign_id provided
+    // Upsert staging rows — idempotent on (campaign_id, oz_product_code, oz_line_id, oz_stock_type, oz_delivery_date)
     if (campaignId && item.lines?.length) {
       for (const line of item.lines) {
         const { error } = await supabase
           .from('campaign_staging')
-          .insert({
+          .upsert({
             campaign_id:          campaignId,
             product_id:           productId,
             oz_product_code:      item.oz_product_code,
@@ -181,6 +181,8 @@ export async function POST(req: NextRequest) {
             image_url:            item.image_url ?? null,
             vbn_unit_code:        item.vbn_unit_code ?? null,
             is_selected:          true,
+          }, {
+            onConflict: 'campaign_id,oz_product_code,oz_line_id,oz_stock_type,oz_delivery_date',
           })
 
         if (error) {
