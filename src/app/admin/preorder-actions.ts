@@ -3,6 +3,37 @@
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
+import type { CampaignSummaryRow } from '@/types/campaigns'
+
+// ── Exported types shared with admin pages ────────────────────────────────────
+
+export interface PreorderItem {
+  id: number
+  qty: number
+  price: number
+  campaign_items: {
+    oz_delivery_date: string | null
+    oz_stock_type: string | null
+    products: { name: string; display_name: string | null } | null
+  } | null
+}
+
+export interface PreorderOrder {
+  id: number
+  campaign_id: number
+  client_id: string | null
+  guest_phone: string | null
+  guest_name: string | null
+  status: string
+  total: number
+  notes: string | null
+  created_at: string
+  updated_at: string | null
+  converted_to_order_id: number | null
+  campaigns: { title: string; delivery_date: string | null } | null
+  clients: { name: string | null; company_name: string | null; phone: string | null } | null
+  campaign_order_items: PreorderItem[]
+}
 
 function generateToken(): string {
   const arr = new Uint8Array(24)
@@ -282,4 +313,43 @@ export async function checkoutPreorder(params: {
   } catch { /* non-fatal */ }
 
   return { order_id: order.id, total }
+}
+
+// ── Read all campaign_orders via service role (bypasses RLS) ──────────────────
+
+export async function getPreorders(): Promise<{ orders: PreorderOrder[]; error?: string }> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('campaign_orders')
+    .select(`
+      id, campaign_id, client_id, guest_phone, guest_name,
+      status, total, notes, created_at, updated_at, converted_to_order_id,
+      campaigns:campaign_id(title, delivery_date),
+      clients:client_id(name, company_name, phone),
+      campaign_order_items(
+        id, qty, price,
+        campaign_items:campaign_item_id(
+          oz_delivery_date, oz_stock_type,
+          products:product_id(name, display_name)
+        )
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  if (error) return { orders: [], error: error.message }
+  return { orders: (data as unknown as PreorderOrder[]) ?? [] }
+}
+
+// ── Read campaign_summary VIEW via service role ───────────────────────────────
+
+export async function getCampaignSummary(
+  campaign_id: number
+): Promise<{ summary: CampaignSummaryRow[]; error?: string }> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('campaign_summary')
+    .select('*')
+    .eq('campaign_id', campaign_id)
+  if (error) return { summary: [], error: error.message }
+  return { summary: (data ?? []) as CampaignSummaryRow[] }
 }

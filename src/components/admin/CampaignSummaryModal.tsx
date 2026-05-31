@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { CampaignSummaryRow } from '@/types/campaigns'
+import { getCampaignSummary } from '@/app/admin/preorder-actions'
 
 interface Props {
   campaignId: number
@@ -15,14 +16,10 @@ export default function CampaignSummaryModal({ campaignId, onClose }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
   useEffect(() => {
-    fetch(`/api/campaigns/${campaignId}/summary`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          setError(data.error)
-        } else {
-          setRows(data.summary ?? [])
-        }
+    getCampaignSummary(campaignId)
+      .then(({ summary, error: err }) => {
+        if (err) setError(err)
+        else setRows(summary)
       })
       .catch(() => setError('Ошибка загрузки сводки'))
       .finally(() => setLoading(false))

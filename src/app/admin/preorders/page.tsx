@@ -2,39 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/auth-store'
-import { updatePreorderStatus } from '@/app/admin/preorder-actions'
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface PreorderItem {
-  id: number
-  qty: number
-  price: number
-  campaign_items: {
-    oz_delivery_date: string | null
-    oz_stock_type: string | null
-    products: { name: string; display_name: string | null } | null
-  } | null
-}
-
-interface PreorderOrder {
-  id: number
-  campaign_id: number
-  client_id: string | null
-  guest_phone: string | null
-  guest_name: string | null
-  status: string
-  total: number
-  notes: string | null
-  created_at: string
-  updated_at: string | null
-  converted_to_order_id: number | null
-  campaigns: { title: string; delivery_date: string | null } | null
-  clients: { name: string | null; company_name: string | null; phone: string | null } | null
-  campaign_order_items: PreorderItem[]
-}
+import {
+  updatePreorderStatus,
+  getPreorders,
+  type PreorderOrder,
+} from '@/app/admin/preorder-actions'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +79,6 @@ function fmtDateTime(iso: string) {
 
 export default function PreordersPage() {
   const { role } = useAuthStore()
-  const supabase = createClient()
 
   const [orders, setOrders] = useState<PreorderOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -128,26 +100,9 @@ export default function PreordersPage() {
 
   async function loadOrders() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('campaign_orders')
-      .select(`
-        id, campaign_id, client_id, guest_phone, guest_name,
-        status, total, notes, created_at, updated_at, converted_to_order_id,
-        campaigns:campaign_id(title, delivery_date),
-        clients:client_id(name, company_name, phone),
-        campaign_order_items(
-          id, qty, price,
-          campaign_items:campaign_item_id(
-            oz_delivery_date, oz_stock_type,
-            products:product_id(name, display_name)
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(500)
-
+    const { orders: data, error } = await getPreorders()
     if (error) console.error('Preorders load error:', error)
-    setOrders((data as unknown as PreorderOrder[]) ?? [])
+    setOrders(data)
     setLoading(false)
   }
 
