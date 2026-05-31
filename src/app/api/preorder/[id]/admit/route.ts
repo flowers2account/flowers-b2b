@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 
 function generateToken(): string {
   const arr = new Uint8Array(24)
@@ -23,6 +22,7 @@ export async function POST(
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
   if (!profile || !['admin', 'manager'].includes(profile.role)) {
@@ -46,7 +46,7 @@ export async function POST(
     return NextResponse.json({ status: 'denied' })
   }
 
-  // approve — generate token
+  // approve — generate token, save to DB only (client polls /status to get it)
   const access_token = generateToken()
   const { error } = await supabase
     .from('campaign_access')
@@ -56,5 +56,5 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ status: 'approved', access_token })
+  return NextResponse.json({ status: 'approved' })
 }

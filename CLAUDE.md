@@ -340,19 +340,29 @@ draft → ингест линий в campaign_staging → менеджер пр�
 **Новые колонки `campaigns`**: `access_code text` (6 символов, генерится при публикации),
 `markup_percent`, `eur_kzt_rate` (снимок настроек на момент запуска).
 
+### Безопасность доступа (security fix 31.05.2026)
+
+- **`campaign_items` SELECT** — закрыт для anon/public. Политика `campaign_items_select_admin` — только admin/manager.
+- **`get_preorder_room(p_campaign_id, p_token)`** — SECURITY DEFINER RPC, единственный публичный путь к позициям. Проверяет `access_token` в `campaign_access`. Доступен anon/authenticated.
+- **`campaign_access`** — RLS включён, политика `campaign_access_admin_all` — только admin/manager. Клиентские операции через серверные роуты.
+- **`get_preorder_access_status(p_campaign_id, p_phone)`** — SECURITY DEFINER, читает статус+токен конкретного телефона без раскрытия чужих данных.
+
 ### Роуты
 
 | Роут | Метод | Описание |
 |---|---|---|
 | `/api/preorder/launch` | POST | Заморозка: staging → campaign_items, публикация, генерация access_code |
 | `/api/preorder/[id]/join` | POST | Клиент: `{ code, phone, name }` → pending в campaign_access |
-| `/api/preorder/[id]/admit` | POST | Менеджер: `{ access_id, action: approve\|deny }` → выдать токен |
-| `/preorder/[id]` | page | Витрина комнаты: вход по коду или отображение позиций |
+| `/api/preorder/[id]/admit` | POST | Менеджер: `{ access_id, action: approve\|deny }` → токен в БД |
+| `/api/preorder/[id]/status` | GET | Клиент: `?phone=...` → `{ status, access_token? }` (polling) |
+| `/preorder/[id]` | page | Витрина комнаты: вход по коду или отображение позиций через RPC |
+| `/admin/campaigns/[id]/staging` | page | Стейджинг: галки + preview цен + кнопка «Запустить» |
 
-### Вход в комнату (`/preorder/[id]`)
-1. Если в cookie `preorder_token_{id}` есть валидный `access_token` из `campaign_access` → показать витрину
-2. Иначе → форма «код + телефон + имя» → `POST /join` → статус pending
-3. Менеджер в админке одобряет → токен в ответе → клиент получает уведомление (WhatsApp, Phase 2)
+### Вход в комнату (поток токена)
+1. Клиент вводит код + телефон → `POST /join` → `status=pending` в БД
+2. Страница опрашивает `GET /status?phone=...` каждые 5 сек
+3. Менеджер нажимает «Впустить» → токен записывается в `campaign_access`
+4. Следующий poll → `{ status: approved, access_token }` → cookie + загрузка витрины через RPC
 
 ### Pricing layer (БД-миграция `oz_preorder_pricing_layer`, применена 31.05.2026)
 
