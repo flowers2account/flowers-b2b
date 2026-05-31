@@ -61,6 +61,44 @@ const STOCK_LABELS: Record<string, string> = {
   STOCK: 'Наличие', VMP: 'VMP', PROMOTION: 'Акция',
 }
 
+const CAT_LABELS: Record<string, string> = {
+  roses: 'Розы', chrysanthemums: 'Хризантемы', alstroemeria: 'Альстромерии',
+  tulips: 'Тюльпаны', ranunculus: 'Ранункулюсы', anemones: 'Анемоны',
+  lisianthus: 'Лизиантусы', hydrangeas: 'Гортензии', carnations: 'Гвоздики',
+  gerberas: 'Герберы', lilies: 'Лилии', peonies: 'Пионы',
+  orchids: 'Орхидеи', anthuriums: 'Антуриумы', proteas: 'Протеи',
+  sunflowers: 'Подсолнухи', irises: 'Ирисы', freesia: 'Фрезия',
+  gypsophila: 'Гипсофила', statice: 'Статице', other: 'Прочее',
+}
+
+const CATEGORY_MAP: [RegExp, string][] = [
+  [/\bro[sz][ae]\b|^rosa /i,        'roses'],
+  [/chrysanth|^chrys\b/i,           'chrysanthemums'],
+  [/alstroe?meria/i,                'alstroemeria'],
+  [/tulip/i,                        'tulips'],
+  [/ranunculus/i,                   'ranunculus'],
+  [/anemone/i,                      'anemones'],
+  [/lisianthus|eustoma/i,           'lisianthus'],
+  [/hydrangea|hortensia/i,          'hydrangeas'],
+  [/carnation|dianthus/i,           'carnations'],
+  [/gerbera/i,                      'gerberas'],
+  [/\blil(y|ium)\b|lilium/i,        'lilies'],
+  [/peony|paeonia/i,                'peonies'],
+  [/orchid|phalaenopsis|cymbidium/i,'orchids'],
+  [/anthurium/i,                    'anthuriums'],
+  [/protea|leucodendron/i,          'proteas'],
+  [/sunflower|helianthus/i,         'sunflowers'],
+  [/\biris\b/i,                     'irises'],
+  [/freesia/i,                      'freesia'],
+  [/gypsophila/i,                   'gypsophila'],
+  [/statice|limonium/i,             'statice'],
+]
+
+function guessCategory(name: string): string {
+  for (const [re, cat] of CATEGORY_MAP) if (re.test(name)) return cat
+  return 'other'
+}
+
 // ── InfoRow primitive (shared by detail panel) ─────────────────────────────
 
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -82,29 +120,49 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 function PreorderFilters({
   items, selectedTypes, setSelectedTypes,
   priceSort, setPriceSort,
+  selectedColors, setSelectedColors,
+  selectedCats, setSelectedCats,
 }: {
-  selectedTypes: string[]; setSelectedTypes: (t: string[]) => void
-  priceSort: '' | 'asc' | 'desc'; setPriceSort: (s: '' | 'asc' | 'desc') => void
   items: RoomItem[]
-  selectedDates: string[]; setSelectedDates: (d: string[]) => void
+  selectedTypes: string[];    setSelectedTypes: (t: string[]) => void
+  priceSort: '' | 'asc' | 'desc'; setPriceSort: (s: '' | 'asc' | 'desc') => void
+  selectedColors: string[];   setSelectedColors: (c: string[]) => void
+  selectedCats: string[];     setSelectedCats: (c: string[]) => void
+  selectedDates: string[];    setSelectedDates: (d: string[]) => void
 }) {
-  const types = Array.from(
-    new Set(items.map(i => i.oz_stock_type).filter(Boolean) as string[])
-  )
-  const activeCount = selectedTypes.length + (priceSort !== '' ? 1 : 0)
+  const types = Array.from(new Set(items.map(i => i.oz_stock_type).filter(Boolean) as string[]))
 
-  function toggleType(t: string) {
-    setSelectedTypes(selectedTypes.includes(t)
-      ? selectedTypes.filter(x => x !== t)
-      : [...selectedTypes, t])
+  const availColors = COLORS.filter(c => {
+    const keys = new Set(items.flatMap(i => i.colors ?? []))
+    return keys.has(c.key)
+  })
+
+  const availCats = Array.from(new Set(items.map(i => guessCategory(i.name)))).sort((a, b) => {
+    if (a === 'other') return 1
+    if (b === 'other') return -1
+    return (CAT_LABELS[a] ?? a).localeCompare(CAT_LABELS[b] ?? b, 'ru')
+  })
+
+  const activeCount = selectedTypes.length + (priceSort !== '' ? 1 : 0) +
+    selectedColors.length + selectedCats.length
+
+  function toggle<T>(arr: T[], val: T, set: (v: T[]) => void) {
+    set(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val])
   }
+
+  const sectionLabel = (text: string) => (
+    <div style={{
+      padding: '0 12px 6px', fontSize: 11, fontWeight: 600,
+      color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.05em',
+    }}>{text}</div>
+  )
 
   return (
     <div style={{ padding: '12px 0' }}>
       {activeCount > 0 && (
         <div style={{ padding: '0 12px 10px' }}>
           <button
-            onClick={() => { setSelectedTypes([]); setPriceSort('') }}
+            onClick={() => { setSelectedTypes([]); setPriceSort(''); setSelectedColors([]); setSelectedCats([]) }}
             style={{
               fontSize: 11, color: 'var(--accent)', background: 'var(--accent-light)',
               border: '1px solid var(--accent)', borderRadius: 12, padding: '2px 10px',
@@ -116,37 +174,77 @@ function PreorderFilters({
         </div>
       )}
 
-      {types.length > 0 && (
+      {/* Categories */}
+      {availCats.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{
-            padding: '0 12px 6px', fontSize: 11, fontWeight: 600,
-            color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.05em',
-          }}>
-            Тип склада
-          </div>
-          {types.map(t => (
-            <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer' }}>
+          {sectionLabel('Категория')}
+          {availCats.map(cat => (
+            <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
-                checked={selectedTypes.includes(t)}
-                onChange={() => toggleType(t)}
+                checked={selectedCats.includes(cat)}
+                onChange={() => toggle(selectedCats, cat, setSelectedCats)}
                 style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
               />
               <span style={{ fontSize: 12, color: 'var(--text)' }}>
-                {STOCK_LABELS[t] ?? t}
+                {CAT_LABELS[cat] ?? cat}
               </span>
             </label>
           ))}
         </div>
       )}
 
-      <div style={{ marginBottom: 16 }}>
-        <div style={{
-          padding: '0 12px 6px', fontSize: 11, fontWeight: 600,
-          color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.05em',
-        }}>
-          Цена за стебель
+      {/* Colors */}
+      {availColors.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {sectionLabel('Цвет')}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '2px 12px' }}>
+            {availColors.map(c => {
+              const cd = c as Record<string, string>
+              const bg = cd.gradient ?? cd.bg
+              const borderColor = cd.border ?? 'transparent'
+              const active = selectedColors.includes(c.key)
+              return (
+                <button
+                  key={c.key}
+                  title={c.label}
+                  onClick={() => toggle(selectedColors, c.key, setSelectedColors)}
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%',
+                    border: `2px solid ${borderColor}`,
+                    background: bg,
+                    outline: active ? '2px solid var(--accent)' : 'none',
+                    outlineOffset: 2,
+                    cursor: 'pointer', flexShrink: 0, padding: 0,
+                  }}
+                />
+              )
+            })}
+          </div>
         </div>
+      )}
+
+      {/* Stock type */}
+      {types.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {sectionLabel('Тип склада')}
+          {types.map(t => (
+            <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={selectedTypes.includes(t)}
+                onChange={() => toggle(selectedTypes, t, setSelectedTypes)}
+                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
+              />
+              <span style={{ fontSize: 12, color: 'var(--text)' }}>{STOCK_LABELS[t] ?? t}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {/* Price sort */}
+      <div style={{ marginBottom: 16 }}>
+        {sectionLabel('Цена за стебель')}
         {(['', 'asc', 'desc'] as const).map(v => (
           <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer' }}>
             <input
@@ -727,6 +825,8 @@ export default function PreorderRoomPage() {
 
   const [selectedDates, setSelectedDates] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [selectedCats, setSelectedCats] = useState<string[]>([])
   const [priceSort, setPriceSort] = useState<'' | 'asc' | 'desc'>('')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
 
@@ -821,20 +921,38 @@ export default function PreorderRoomPage() {
     if (item) setQty(item, newQty)
   }
 
-  // ── filtered items ────────────────────────────────────────────────────────
+  // ── filtered + grouped items ──────────────────────────────────────────────
 
   const filtered = items
-
     .filter(i => selectedTypes.length === 0 || (i.oz_stock_type !== null && selectedTypes.includes(i.oz_stock_type)))
+    .filter(i => selectedColors.length === 0 || (i.colors ?? []).some(c => selectedColors.includes(c)))
+    .filter(i => selectedCats.length === 0 || selectedCats.includes(guessCategory(i.name)))
     .sort((a, b) => {
       if (priceSort === 'asc') return a.price - b.price
       if (priceSort === 'desc') return b.price - a.price
       return 0
     })
 
+  // Group by category, preserving sort order within each group
+  const groupedEntries = (() => {
+    const map = new Map<string, RoomItem[]>()
+    for (const item of filtered) {
+      const cat = guessCategory(item.name)
+      if (!map.has(cat)) map.set(cat, [])
+      map.get(cat)!.push(item)
+    }
+    // Sort groups: alphabetically by label, 'other' last
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      if (a === 'other') return 1
+      if (b === 'other') return -1
+      return (CAT_LABELS[a] ?? a).localeCompare(CAT_LABELS[b] ?? b, 'ru')
+    })
+  })()
+
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const cartCount = cart.length
-  const activeFilterCount = selectedTypes.length + (priceSort !== '' ? 1 : 0)
+  const activeFilterCount = selectedTypes.length + (priceSort !== '' ? 1 : 0) +
+    selectedColors.length + selectedCats.length
 
   // ── simple phases ─────────────────────────────────────────────────────────
 
@@ -914,9 +1032,11 @@ export default function PreorderRoomPage() {
   const leftContent = (
     <PreorderFilters
       items={items}
-      selectedDates={selectedDates} setSelectedDates={setSelectedDates}
-      selectedTypes={selectedTypes} setSelectedTypes={setSelectedTypes}
-      priceSort={priceSort} setPriceSort={setPriceSort}
+      selectedDates={selectedDates}    setSelectedDates={setSelectedDates}
+      selectedTypes={selectedTypes}    setSelectedTypes={setSelectedTypes}
+      selectedColors={selectedColors}  setSelectedColors={setSelectedColors}
+      selectedCats={selectedCats}      setSelectedCats={setSelectedCats}
+      priceSort={priceSort}            setPriceSort={setPriceSort}
     />
   )
 
@@ -942,26 +1062,35 @@ export default function PreorderRoomPage() {
           </span>
         </div>
       </div>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-        gap: 12,
-      }}>
-        {filtered.map(item => (
-          <PreorderCard
-            key={item.id}
-            item={item}
-            qty={getQty(item.id)}
-            onSetQty={n => setQty(item, n)}
-            isSelected={selectedItem?.id === item.id}
-            onClick={() => {
-              setSelectedItem(item)
-              setRightPanel('detail')
-            }}
-            onCartOpen={() => setRightPanel('cart')}
-          />
-        ))}
-      </div>
+      {groupedEntries.map(([cat, catItems]) => (
+        <div key={cat} style={{ marginBottom: 24 }}>
+          {groupedEntries.length > 1 && (
+            <div style={{
+              fontSize: 13, fontWeight: 700, color: 'var(--text)',
+              padding: '0 0 8px', borderBottom: '1px solid var(--border)',
+              marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 6,
+            }}>
+              {CAT_LABELS[cat] ?? cat}
+              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-mid)' }}>
+                {catItems.length}
+              </span>
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+            {catItems.map(item => (
+              <PreorderCard
+                key={item.id}
+                item={item}
+                qty={getQty(item.id)}
+                onSetQty={n => setQty(item, n)}
+                isSelected={selectedItem?.id === item.id}
+                onClick={() => { setSelectedItem(item); setRightPanel('detail') }}
+                onCartOpen={() => setRightPanel('cart')}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 
