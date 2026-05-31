@@ -1,0 +1,473 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/lib/auth-store'
+import { updatePreorderStatus } from '@/app/admin/preorder-actions'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface PreorderItem {
+  id: number
+  qty: number
+  price: number
+  campaign_items: {
+    oz_delivery_date: string | null
+    oz_stock_type: string | null
+    products: { name: string; display_name: string | null } | null
+  } | null
+}
+
+interface PreorderOrder {
+  id: number
+  campaign_id: number
+  client_id: string | null
+  guest_phone: string | null
+  guest_name: string | null
+  status: string
+  total: number
+  notes: string | null
+  created_at: string
+  updated_at: string | null
+  converted_to_order_id: number | null
+  campaigns: { title: string; delivery_date: string | null } | null
+  clients: { name: string | null; company_name: string | null; phone: string | null } | null
+  campaign_order_items: PreorderItem[]
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const STATUS_LABELS: Record<string, string> = {
+  pending:    'Оформлен',
+  confirmed:  'Подтверждён',
+  in_transit: 'В пути',
+  arrived:    'На складе',
+  assembling: 'Собирается',
+  assembled:  'Собран',
+  delivered:  'Выдан',
+  cancelled:  'Отменён',
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  pending:    'bg-yellow-100 text-yellow-800',
+  confirmed:  'bg-green-100 text-green-800',
+  in_transit: 'bg-blue-100 text-blue-800',
+  arrived:    'bg-teal-100 text-teal-800',
+  assembling: 'bg-orange-100 text-orange-800',
+  assembled:  'bg-purple-100 text-purple-800',
+  delivered:  'bg-gray-100 text-gray-600',
+  cancelled:  'bg-red-100 text-red-700',
+}
+
+// next possible statuses from each state
+const NEXT_STATUSES: Record<string, string[]> = {
+  pending:    ['confirmed'],
+  confirmed:  ['in_transit'],
+  in_transit: ['arrived'],
+  arrived:    ['assembling'],
+  assembling: ['assembled'],
+  assembled:  ['delivered'],
+  delivered:  [],
+  cancelled:  [],
+}
+
+const ALL_STATUSES = ['pending', 'confirmed', 'in_transit', 'arrived', 'assembling', 'assembled', 'delivered', 'cancelled']
+
+const NEXT_LABELS: Record<string, string> = {
+  confirmed:  '✅ Подтвердить',
+  in_transit: '🚚 Отправить в путь',
+  arrived:    '📦 Прибыл на склад',
+  assembling: '🔧 Начать сборку',
+  assembled:  '✅ Сборка готова',
+  delivered:  '🎉 Выдан',
+}
+
+type DatePreset = '' | 'today' | 'yesterday' | 'last7' | 'last30' | 'custom'
+
+const DATE_PRESETS: { id: DatePreset; label: string }[] = [
+  { id: 'today',     label: 'Сегодня' },
+  { id: 'yesterday', label: 'Вчера'   },
+  { id: 'last7',     label: '7 дней'  },
+  { id: 'last30',    label: '30 дней' },
+  { id: 'custom',    label: 'Период'  },
+]
+
+function fmtDate(iso: string | null) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('ru-RU', { timeZone: 'Asia/Oral', day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function fmtDateTime(iso: string) {
+  return new Date(iso).toLocaleString('ru-RU', { timeZone: 'Asia/Oral', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function PreordersPage() {
+  const { role } = useAuthStore()
+  const supabase = createClient()
+
+  const [orders, setOrders] = useState<PreorderOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [updatingId, setUpdatingId] = useState<number | null>(null)
+  const [statusError, setStatusError] = useState<{ id: number; msg: string } | null>(null)
+
+  // Filters
+  const [datePreset, setDatePreset] = useState<DatePreset>('')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+  const [selectedCampaign, setSelectedCampaign] = useState<number | ''>('')
+
+  // Auth guard
+  if (role && role !== 'admin' && role !== 'manager') {
+    return <div className="p-8 text-sm text-gray-400">Нет доступа</div>
+  }
+
+  async function loadOrders() {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('campaign_orders')
+      .select(`
+        id, campaign_id, client_id, guest_phone, guest_name,
+        status, total, notes, created_at, updated_at, converted_to_order_id,
+        campaigns:campaign_id(title, delivery_date),
+        clients:client_id(name, company_name, phone),
+        campaign_order_items(
+          id, qty, price,
+          campaign_items:campaign_item_id(
+            oz_delivery_date, oz_stock_type,
+            products:product_id(name, display_name)
+          )
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(500)
+
+    if (error) console.error('Preorders load error:', error)
+    setOrders((data as unknown as PreorderOrder[]) ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { loadOrders() }, [])
+
+  // Unique campaigns for filter dropdown
+  const campaigns = useMemo(() => {
+    const seen = new Map<number, string>()
+    for (const o of orders) {
+      if (!seen.has(o.campaign_id)) {
+        seen.set(o.campaign_id, o.campaigns?.title ?? `Акция #${o.campaign_id}`)
+      }
+    }
+    return Array.from(seen.entries()).map(([id, title]) => ({ id, title }))
+  }, [orders])
+
+  // Filtered list
+  const filtered = useMemo(() => {
+    let result = orders
+
+    if (datePreset) {
+      const now = new Date()
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      let fromDate: Date | null = null
+      let toDate: Date | null = null
+      if (datePreset === 'today')     { fromDate = todayStart }
+      if (datePreset === 'yesterday') { fromDate = new Date(todayStart.getTime() - 86_400_000); toDate = todayStart }
+      if (datePreset === 'last7')     { fromDate = new Date(todayStart.getTime() - 6 * 86_400_000) }
+      if (datePreset === 'last30')    { fromDate = new Date(todayStart.getTime() - 29 * 86_400_000) }
+      if (datePreset === 'custom') {
+        if (customFrom) fromDate = new Date(customFrom)
+        if (customTo)   toDate   = new Date(customTo + 'T23:59:59')
+      }
+      if (fromDate) result = result.filter(o => new Date(o.created_at) >= fromDate!)
+      if (toDate)   result = result.filter(o => new Date(o.created_at) <= toDate!)
+    }
+
+    if (selectedStatuses.length > 0) {
+      result = result.filter(o => selectedStatuses.includes(o.status))
+    }
+
+    if (selectedCampaign !== '') {
+      result = result.filter(o => o.campaign_id === selectedCampaign)
+    }
+
+    return result
+  }, [orders, datePreset, customFrom, customTo, selectedStatuses, selectedCampaign])
+
+  const hasFilters = datePreset !== '' || selectedStatuses.length > 0 || selectedCampaign !== ''
+
+  function toggleStatus(s: string) {
+    setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
+
+  function resetFilters() {
+    setDatePreset(''); setCustomFrom(''); setCustomTo('')
+    setSelectedStatuses([]); setSelectedCampaign('')
+  }
+
+  async function handleStatusChange(orderId: number, newStatus: string) {
+    if (updatingId === orderId) return
+    setUpdatingId(orderId)
+    setStatusError(null)
+    const result = await updatePreorderStatus({ order_id: orderId, status: newStatus })
+    setUpdatingId(null)
+    if (result.error) {
+      setStatusError({ id: orderId, msg: result.error })
+      return
+    }
+    await loadOrders()
+  }
+
+  function clientLabel(o: PreorderOrder) {
+    const name    = o.clients?.name    ?? o.guest_name    ?? null
+    const company = o.clients?.company_name               ?? null
+    const phone   = o.clients?.phone   ?? o.guest_phone   ?? null
+    const isGuest = !o.client_id
+    const display = company && name ? `${company} / ${name}` : company || name
+    return { display, phone, isGuest }
+  }
+
+  if (loading) return (
+    <div className="max-w-[1200px] mx-auto px-4 py-6 text-sm text-gray-400">Загрузка…</div>
+  )
+
+  return (
+    <div className="max-w-[1200px] mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-5">
+        <Link href="/admin" className="text-sm text-gray-400 hover:text-gray-600">← Админка</Link>
+        <h1 className="text-xl font-bold text-gray-800">Предзаказы</h1>
+        <span className="text-sm text-gray-400">({filtered.length})</span>
+      </div>
+
+      {/* Filter bar */}
+      <div className="space-y-3 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 mb-5">
+        {/* Date */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Период</span>
+          {DATE_PRESETS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setDatePreset(prev => prev === p.id ? '' : p.id)}
+              className="px-2.5 py-1 text-xs font-medium rounded-full border transition-all"
+              style={{
+                background:  datePreset === p.id ? '#8B3A5A' : '#fff',
+                color:       datePreset === p.id ? '#fff' : '#555',
+                borderColor: datePreset === p.id ? '#8B3A5A' : '#e5e7eb',
+              }}
+            >{p.label}</button>
+          ))}
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-1.5 mt-1 w-full pl-[72px]">
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="border rounded px-2 py-1 text-xs" />
+              <span className="text-gray-400 text-xs">—</span>
+              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} className="border rounded px-2 py-1 text-xs" />
+            </div>
+          )}
+        </div>
+
+        {/* Status */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Статус</span>
+          {ALL_STATUSES.map(s => {
+            const active = selectedStatuses.includes(s)
+            return (
+              <button
+                key={s}
+                onClick={() => toggleStatus(s)}
+                className="px-2.5 py-1 text-xs font-medium rounded-full border transition-all"
+                style={{
+                  background:  active ? '#8B3A5A' : '#fff',
+                  color:       active ? '#fff' : '#555',
+                  borderColor: active ? '#8B3A5A' : '#e5e7eb',
+                }}
+              >
+                {STATUS_LABELS[s] ?? s}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Campaign */}
+        {campaigns.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-14 shrink-0">Акция</span>
+            <select
+              value={selectedCampaign}
+              onChange={e => setSelectedCampaign(e.target.value === '' ? '' : parseInt(e.target.value))}
+              className="border rounded px-2 py-1 text-xs bg-white"
+            >
+              <option value="">Все акции</option>
+              {campaigns.map(c => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Counter + reset */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">
+            Показано <span className="font-semibold text-gray-700">{filtered.length}</span> из{' '}
+            <span className="font-semibold text-gray-700">{orders.length}</span>
+          </span>
+          {hasFilters && (
+            <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600">
+              Сбросить
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* List */}
+      {filtered.length === 0 ? (
+        <div className="text-sm text-gray-400 py-8 text-center">
+          {orders.length === 0 ? 'Предзаказов пока нет' : 'Нет предзаказов по выбранным фильтрам'}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(order => {
+            const { display, phone, isGuest } = clientLabel(order)
+            const isExpanded = expandedId === order.id
+            const nextStatuses = NEXT_STATUSES[order.status] ?? []
+            const canCancel = !['delivered', 'cancelled'].includes(order.status)
+
+            return (
+              <div key={order.id} className="border rounded-lg bg-white shadow-sm overflow-hidden">
+                {/* Row header */}
+                <div
+                  className="flex items-start gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                >
+                  {/* Left: id + meta */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-gray-800">#{order.id}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {STATUS_LABELS[order.status] ?? order.status}
+                      </span>
+                      <span className="text-xs text-gray-400">{fmtDateTime(order.created_at)}</span>
+                      {order.converted_to_order_id && (
+                        <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                          → Заказ #{order.converted_to_order_id}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Campaign */}
+                    <div className="text-xs text-gray-600">
+                      <span className="font-medium" style={{ color: '#8B3A5A' }}>
+                        {order.campaigns?.title ?? `Акция #${order.campaign_id}`}
+                      </span>
+                      {order.campaigns?.delivery_date && (
+                        <span className="text-gray-400 ml-1.5">· Поставка: {fmtDate(order.campaigns.delivery_date)}</span>
+                      )}
+                    </div>
+
+                    {/* Client */}
+                    <div className="text-xs text-gray-600 flex items-center gap-2">
+                      {display && <span>👤 {display}</span>}
+                      {phone && <span>📞 {phone}</span>}
+                      {isGuest && <span className="bg-gray-100 text-gray-500 rounded px-1.5 py-0.5 text-[10px]">гость</span>}
+                    </div>
+                  </div>
+
+                  {/* Right: total + expand */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm font-bold text-gray-800">
+                      {order.total.toLocaleString('ru-RU')} ₸
+                    </span>
+                    <span className="text-gray-300 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="border-t bg-gray-50 px-4 py-3 space-y-3">
+                    {/* Items table */}
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-xs text-gray-400 border-b">
+                          <th className="text-left py-1">Товар</th>
+                          <th className="text-center py-1 w-20">Срезка</th>
+                          <th className="text-center py-1 w-16">Склад</th>
+                          <th className="text-center py-1 w-16">Стеблей</th>
+                          <th className="text-right py-1 w-24">₸/стебель</th>
+                          <th className="text-right py-1 w-24">Сумма</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {order.campaign_order_items.map(item => {
+                          const ci = item.campaign_items
+                          const name = ci?.products?.display_name ?? ci?.products?.name ?? `Позиция #${item.id}`
+                          return (
+                            <tr key={item.id} className="border-b last:border-0 text-xs">
+                              <td className="py-1.5 font-medium">{name}</td>
+                              <td className="py-1.5 text-center text-gray-500">{ci?.oz_delivery_date ? fmtDate(ci.oz_delivery_date) : '—'}</td>
+                              <td className="py-1.5 text-center text-gray-500">{ci?.oz_stock_type ?? '—'}</td>
+                              <td className="py-1.5 text-center">{item.qty}</td>
+                              <td className="py-1.5 text-right text-gray-600">{item.price.toLocaleString('ru-RU')}</td>
+                              <td className="py-1.5 text-right font-semibold">{(item.qty * item.price).toLocaleString('ru-RU')} ₸</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+
+                    {order.notes && (
+                      <div className="text-xs text-gray-500 bg-white border rounded p-2">{order.notes}</div>
+                    )}
+
+                    {/* Status actions */}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {nextStatuses.map(s => (
+                        <button
+                          key={s}
+                          onClick={() => handleStatusChange(order.id, s)}
+                          disabled={updatingId === order.id}
+                          className="px-3 py-1.5 text-sm rounded text-white font-medium disabled:opacity-50 transition-opacity"
+                          style={{ background: '#8B3A5A' }}
+                        >
+                          {updatingId === order.id ? 'Сохраняем…' : (NEXT_LABELS[s] ?? STATUS_LABELS[s])}
+                        </button>
+                      ))}
+
+                      {canCancel && (
+                        <button
+                          onClick={() => handleStatusChange(order.id, 'cancelled')}
+                          disabled={updatingId === order.id}
+                          className="px-3 py-1.5 text-sm rounded bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50"
+                        >
+                          ❌ Отменить
+                        </button>
+                      )}
+
+                      {/* Placeholder for phase 2 */}
+                      {order.status === 'arrived' && !order.converted_to_order_id && (
+                        <button
+                          disabled
+                          title="Будет в следующей версии"
+                          className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed ml-auto"
+                        >
+                          Перевести в заказ (скоро)
+                        </button>
+                      )}
+                    </div>
+
+                    {statusError?.id === order.id && (
+                      <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                        ⚠️ {statusError.msg}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

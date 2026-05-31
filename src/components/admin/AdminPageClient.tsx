@@ -111,6 +111,12 @@ export default function AdminPageClient() {
           📅 Кампании
         </Link>
         <Link
+          href="/admin/preorders"
+          className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+        >
+          🌸 Предзаказы
+        </Link>
+        <Link
           href="/admin/translations/bulk"
           className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
         >

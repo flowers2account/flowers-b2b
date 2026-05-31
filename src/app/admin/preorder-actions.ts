@@ -158,6 +158,21 @@ export async function getAccessRequests(
   return { rows: (data ?? []) as AccessRow[] }
 }
 
+// ── Update preorder status (admin/manager, Server Action) ────────────────────
+
+export async function updatePreorderStatus(params: {
+  order_id: number
+  status: string
+}): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('campaign_orders')
+    .update({ status: params.status, updated_at: new Date().toISOString() })
+    .eq('id', params.order_id)
+  if (error) return { error: error.message }
+  return {}
+}
+
 // ── Preorder checkout (client-facing, called from /preorder/[id] room) ────────
 
 export async function checkoutPreorder(params: {
