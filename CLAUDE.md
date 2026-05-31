@@ -392,7 +392,36 @@ pending → confirmed → in_transit → arrived → assembling → assembled �
 
 Кнопки появляются в `/admin/preorders` когда выбрана конкретная акция в фильтре и есть заказы в соответствующем статусе. RPC `admin_bulk_preorder_status(p_campaign_id, p_from, p_to)` — SECURITY DEFINER, белый список переходов на уровне БД. Server Action `bulkPreorderStatus({ campaign_id, from, to })` → возвращает число обновлённых. Остальные стадии (confirmed-подтверждение, assembling, delivered) — только индивидуально.
 
-**«Перевести в заказ»** (Заход 2, не реализован) — disabled-кнопка при статусе `arrived`. Логика перевода требует складской обвязки.
+### Сборка / корректировка / выдача предзаказов (31.05.2026)
+
+Все операции работают ТОЛЬКО с `campaign_order_items` / `campaign_orders`. Склад (`products`, FIFO) **не трогается**.
+
+**Поля `campaign_order_items` (добавлены миграцией `campaign_order_items_assembly_fields`):**
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `qty_ordered` | int NOT NULL | Что заказал/отредактировал менеджер (исходный и после корректировки) |
+| `qty_actual` | int NULL | Что фактически собрано (заполняется при сборке) |
+| `is_removed` | bool DEFAULT false | Позиция убрана из заказа |
+
+**Сборка** (`arrived`/`assembling` → `assembled`):
+- Кнопка «📋 Собрать» при `arrived`, «📋 Завершить сборку» при `assembling` → `PreorderAssemblyModal`
+- Модалка: каждая позиция — кнопка убрать + поле qty_actual (предзаполнен qty_ordered)
+- Сохранение → RPC `admin_assemble_preorder(p_order_id, p_items jsonb)` → обновляет qty_actual/is_removed, пересчитывает total, ставит `assembled`
+- Server Action `assemblePreorder({ order_id, items: [{id, qty_actual, is_removed}] })`
+
+**Корректировка** (любой нетерминальный статус):
+- Кнопка «✏️ Корректировка» → `PreorderEditModal`
+- Модалка: изменить qty_ordered, убрать позицию, добавить из campaign_items акции
+- Добавление позиций: дропдаун через `getCampaignItemsForOrder(campaign_id)` → RPC `admin_get_campaign_items(p_campaign_id)` — только is_active=true
+- Цена добавленной позиции — строго из `campaign_items.price` (на сервере), не от клиента
+- Комментарий → аппендится в `campaign_orders.notes`
+- Сохранение → RPC `admin_save_preorder_edits(p_order_id, p_updates, p_new_items, p_note)` → пересчитывает total
+- Server Action `savePreorderEdits({ order_id, updates, new_items, note? })`
+
+**Выдача** (`assembled` → `delivered`): обычная смена статуса через `updatePreorderStatus`.
+
+**Таблица позиций** в развёрнутом заказе: is_removed-позиции зачёркнуты + opacity 40%. При статусах assembled/delivered показывается qty_actual вместо qty_ordered.
 
 ### Server Actions (src/app/admin/preorder-actions.ts)
 
@@ -403,6 +432,9 @@ pending → confirmed → in_transit → arrived → assembling → assembled �
 | `getAccessRequests(campaign_id)` | Читает campaign_access через createServerClient (сессионный клиент) |
 | `updatePreorderStatus({ order_id, status })` | → RPC `admin_set_preorder_status` |
 | `bulkPreorderStatus({ campaign_id, from, to })` | → RPC `admin_bulk_preorder_status`; только confirmed→in_transit и in_transit→arrived |
+| `assemblePreorder({ order_id, items })` | → RPC `admin_assemble_preorder`; ставит assembled, пересчитывает total |
+| `savePreorderEdits({ order_id, updates, new_items, note? })` | → RPC `admin_save_preorder_edits`; корректировка, пересчёт total |
+| `getCampaignItemsForOrder(campaign_id)` | → RPC `admin_get_campaign_items`; позиции акции для дропдауна |
 
 **Паттерн доступа к БД**: admin-функции чтения/записи используют SECURITY DEFINER RPC через `createServerClient()` (anon-ключ). Это обходит RLS без service role key, который ненадёжен в Vercel serverless. Паттерн идентичен `get_preorder_room`. ⚠ Tech-debt: RPCs открыты для anon-роли, защита только клиентским гардом /admin — нужен auth-аудит перед запуском.
 

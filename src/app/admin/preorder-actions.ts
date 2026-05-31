@@ -10,13 +10,30 @@ import type { CampaignSummaryRow } from '@/types/campaigns'
 
 export interface PreorderItem {
   id: number
+  campaign_item_id: number
   qty: number
+  qty_ordered: number
+  qty_actual: number | null
+  is_removed: boolean
   price: number
   campaign_items: {
     oz_delivery_date: string | null
     oz_stock_type: string | null
     products: { name: string; display_name: string | null } | null
   } | null
+}
+
+export interface CampaignItemOption {
+  id: number
+  product_id: number | null
+  price: number
+  pack_size: number | null
+  min_qty: number | null
+  oz_available_stems: number | null
+  oz_delivery_date: string | null
+  oz_stock_type: string | null
+  name: string | null
+  display_name: string | null
 }
 
 export interface PreorderOrder {
@@ -340,6 +357,53 @@ export async function getPreorders(): Promise<{ orders: PreorderOrder[]; error?:
   const { data, error } = await supabase.rpc('get_admin_preorders')
   if (error) return { orders: [], error: error.message }
   return { orders: (data as PreorderOrder[]) ?? [] }
+}
+
+// ── Assembly: mark item actuals, set status=assembled ────────────────────────
+
+export async function assemblePreorder(params: {
+  order_id: number
+  items: Array<{ id: number; qty_actual: number; is_removed: boolean }>
+}): Promise<{ total?: number; error?: string }> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase.rpc('admin_assemble_preorder', {
+    p_order_id: params.order_id,
+    p_items:    params.items,
+  })
+  if (error) return { error: error.message }
+  return { total: data as number }
+}
+
+// ── Correction: edit quantities, add/remove items, append note ────────────────
+
+export async function savePreorderEdits(params: {
+  order_id:  number
+  updates:   Array<{ id: number; qty_ordered: number; is_removed: boolean }>
+  new_items: Array<{ campaign_item_id: number; qty: number }>
+  note?:     string
+}): Promise<{ total?: number; error?: string }> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase.rpc('admin_save_preorder_edits', {
+    p_order_id:  params.order_id,
+    p_updates:   params.updates,
+    p_new_items: params.new_items,
+    p_note:      params.note ?? null,
+  })
+  if (error) return { error: error.message }
+  return { total: data as number }
+}
+
+// ── Get campaign items for add-item dropdown ──────────────────────────────────
+
+export async function getCampaignItemsForOrder(
+  campaign_id: number
+): Promise<{ items: CampaignItemOption[]; error?: string }> {
+  const supabase = await createServerClient()
+  const { data, error } = await supabase.rpc('admin_get_campaign_items', {
+    p_campaign_id: campaign_id,
+  })
+  if (error) return { items: [], error: error.message }
+  return { items: (data as CampaignItemOption[]) ?? [] }
 }
 
 // ── Read campaign summary via SECURITY DEFINER RPC ───────────────────────────

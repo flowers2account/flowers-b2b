@@ -9,6 +9,8 @@ import {
   getPreorders,
   type PreorderOrder,
 } from '@/app/admin/preorder-actions'
+import PreorderAssemblyModal from '@/components/admin/PreorderAssemblyModal'
+import PreorderEditModal from '@/components/admin/PreorderEditModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -89,6 +91,8 @@ export default function PreordersPage() {
   const [statusError, setStatusError] = useState<{ id: number; msg: string } | null>(null)
   const [bulkUpdating, setBulkUpdating] = useState(false)
   const [bulkMsg, setBulkMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [assemblyOrder, setAssemblyOrder] = useState<PreorderOrder | null>(null)
+  const [editingOrder, setEditingOrder] = useState<PreorderOrder | null>(null)
 
   // Filters
   const [datePreset, setDatePreset] = useState<DatePreset>('')
@@ -423,14 +427,24 @@ export default function PreordersPage() {
                         {order.campaign_order_items.map(item => {
                           const ci = item.campaign_items
                           const name = ci?.products?.display_name ?? ci?.products?.name ?? `Позиция #${item.id}`
+                          const isAssembled = ['assembled', 'delivered'].includes(order.status)
+                          const displayQty = isAssembled
+                            ? (item.qty_actual ?? item.qty_ordered)
+                            : item.qty_ordered
                           return (
-                            <tr key={item.id} className="border-b last:border-0 text-xs">
-                              <td className="py-1.5 font-medium">{name}</td>
+                            <tr key={item.id} className={`border-b last:border-0 text-xs ${item.is_removed ? 'opacity-40' : ''}`}>
+                              <td className={`py-1.5 font-medium ${item.is_removed ? 'line-through' : ''}`}>{name}</td>
                               <td className="py-1.5 text-center text-gray-500">{ci?.oz_delivery_date ? fmtDate(ci.oz_delivery_date) : '—'}</td>
                               <td className="py-1.5 text-center text-gray-500">{ci?.oz_stock_type ?? '—'}</td>
-                              <td className="py-1.5 text-center">{item.qty}</td>
+                              <td className="py-1.5 text-center">
+                                {item.is_removed ? <span className="text-red-400">—</span> : displayQty}
+                              </td>
                               <td className="py-1.5 text-right text-gray-600">{item.price.toLocaleString('ru-RU')}</td>
-                              <td className="py-1.5 text-right font-semibold">{(item.qty * item.price).toLocaleString('ru-RU')} ₸</td>
+                              <td className="py-1.5 text-right font-semibold">
+                                {item.is_removed
+                                  ? <span className="text-gray-400">—</span>
+                                  : `${(displayQty * item.price).toLocaleString('ru-RU')} ₸`}
+                              </td>
                             </tr>
                           )
                         })}
@@ -443,17 +457,54 @@ export default function PreordersPage() {
 
                     {/* Status actions */}
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {nextStatuses.map(s => (
+                      {nextStatuses.map(s => {
+                        // Override assembling→assembled to open assembly modal
+                        if (s === 'assembled') {
+                          return (
+                            <button
+                              key={s}
+                              onClick={() => { setAssemblyOrder(order); setExpandedId(null) }}
+                              disabled={updatingId === order.id}
+                              className="px-3 py-1.5 text-sm rounded text-white font-medium disabled:opacity-50 transition-opacity"
+                              style={{ background: '#8B3A5A' }}
+                            >
+                              📋 Завершить сборку
+                            </button>
+                          )
+                        }
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => handleStatusChange(order.id, s)}
+                            disabled={updatingId === order.id}
+                            className="px-3 py-1.5 text-sm rounded text-white font-medium disabled:opacity-50 transition-opacity"
+                            style={{ background: '#8B3A5A' }}
+                          >
+                            {updatingId === order.id ? 'Сохраняем…' : (NEXT_LABELS[s] ?? STATUS_LABELS[s])}
+                          </button>
+                        )
+                      })}
+
+                      {/* Assembly shortcut available from arrived status */}
+                      {order.status === 'arrived' && (
                         <button
-                          key={s}
-                          onClick={() => handleStatusChange(order.id, s)}
-                          disabled={updatingId === order.id}
-                          className="px-3 py-1.5 text-sm rounded text-white font-medium disabled:opacity-50 transition-opacity"
-                          style={{ background: '#8B3A5A' }}
+                          onClick={() => { setAssemblyOrder(order); setExpandedId(null) }}
+                          className="px-3 py-1.5 text-sm rounded border font-medium transition-colors"
+                          style={{ borderColor: '#8B3A5A', color: '#8B3A5A' }}
                         >
-                          {updatingId === order.id ? 'Сохраняем…' : (NEXT_LABELS[s] ?? STATUS_LABELS[s])}
+                          📋 Собрать
                         </button>
-                      ))}
+                      )}
+
+                      {/* Correction available for non-terminal statuses */}
+                      {!['delivered', 'cancelled'].includes(order.status) && (
+                        <button
+                          onClick={() => { setEditingOrder(order); setExpandedId(null) }}
+                          className="px-3 py-1.5 text-sm rounded border border-gray-300 text-gray-600 hover:bg-gray-100 font-medium"
+                        >
+                          ✏️ Корректировка
+                        </button>
+                      )}
 
                       {canCancel && (
                         <button
@@ -462,17 +513,6 @@ export default function PreordersPage() {
                           className="px-3 py-1.5 text-sm rounded bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50"
                         >
                           ❌ Отменить
-                        </button>
-                      )}
-
-                      {/* Placeholder for phase 2 */}
-                      {order.status === 'arrived' && !order.converted_to_order_id && (
-                        <button
-                          disabled
-                          title="Будет в следующей версии"
-                          className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed ml-auto"
-                        >
-                          Перевести в заказ (скоро)
                         </button>
                       )}
                     </div>
@@ -488,6 +528,27 @@ export default function PreordersPage() {
             )
           })}
         </div>
+      )}
+
+      {/* Assembly modal */}
+      {assemblyOrder && (
+        <PreorderAssemblyModal
+          orderId={assemblyOrder.id}
+          items={assemblyOrder.campaign_order_items}
+          onClose={() => setAssemblyOrder(null)}
+          onSaved={() => { setAssemblyOrder(null); loadOrders() }}
+        />
+      )}
+
+      {/* Edit / correction modal */}
+      {editingOrder && (
+        <PreorderEditModal
+          orderId={editingOrder.id}
+          campaignId={editingOrder.campaign_id}
+          items={editingOrder.campaign_order_items}
+          onClose={() => setEditingOrder(null)}
+          onSaved={() => { setEditingOrder(null); loadOrders() }}
+        />
       )}
     </div>
   )
