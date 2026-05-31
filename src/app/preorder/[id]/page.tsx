@@ -67,29 +67,18 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 // ── Left panel: Filters ────────────────────────────────────────────────────
 
 function PreorderFilters({
-  items, selectedDates, setSelectedDates,
-  selectedTypes, setSelectedTypes,
+  items, selectedTypes, setSelectedTypes,
   priceSort, setPriceSort,
 }: {
-  items: RoomItem[]
-  selectedDates: string[]; setSelectedDates: (d: string[]) => void
   selectedTypes: string[]; setSelectedTypes: (t: string[]) => void
   priceSort: '' | 'asc' | 'desc'; setPriceSort: (s: '' | 'asc' | 'desc') => void
+  items: RoomItem[]
+  selectedDates: string[]; setSelectedDates: (d: string[]) => void
 }) {
-  const dates = Array.from(
-    new Set(items.map(i => i.oz_delivery_date).filter(Boolean) as string[])
-  ).sort()
   const types = Array.from(
     new Set(items.map(i => i.oz_stock_type).filter(Boolean) as string[])
   )
-
-  const activeCount = selectedDates.length + selectedTypes.length + (priceSort !== '' ? 1 : 0)
-
-  function toggleDate(d: string) {
-    setSelectedDates(selectedDates.includes(d)
-      ? selectedDates.filter(x => x !== d)
-      : [...selectedDates, d])
-  }
+  const activeCount = selectedTypes.length + (priceSort !== '' ? 1 : 0)
 
   function toggleType(t: string) {
     setSelectedTypes(selectedTypes.includes(t)
@@ -102,7 +91,7 @@ function PreorderFilters({
       {activeCount > 0 && (
         <div style={{ padding: '0 12px 10px' }}>
           <button
-            onClick={() => { setSelectedDates([]); setSelectedTypes([]); setPriceSort('') }}
+            onClick={() => { setSelectedTypes([]); setPriceSort('') }}
             style={{
               fontSize: 11, color: 'var(--accent)', background: 'var(--accent-light)',
               border: '1px solid var(--accent)', borderRadius: 12, padding: '2px 10px',
@@ -111,28 +100,6 @@ function PreorderFilters({
           >
             Сбросить ({activeCount})
           </button>
-        </div>
-      )}
-
-      {dates.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{
-            padding: '0 12px 6px', fontSize: 11, fontWeight: 600,
-            color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.05em',
-          }}>
-            Дата поставки
-          </div>
-          {dates.map(d => (
-            <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={selectedDates.includes(d)}
-                onChange={() => toggleDate(d)}
-                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
-              />
-              <span style={{ fontSize: 12, color: 'var(--text)' }}>{fmtDate(d)}</span>
-            </label>
-          ))}
         </div>
       )}
 
@@ -254,24 +221,16 @@ function PreorderCard({
           {item.display_name ?? item.name}
         </div>
 
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
-          {item.oz_delivery_date && (
-            <span style={{
-              fontSize: 10, color: '#5B7BA0',
-              background: 'rgba(91,123,160,0.1)', borderRadius: 4, padding: '1px 6px',
-            }}>
-              {fmtDate(item.oz_delivery_date)}
-            </span>
-          )}
-          {item.oz_stock_type && (
+        {item.oz_stock_type && (
+          <div style={{ marginBottom: 6 }}>
             <span style={{
               fontSize: 10, color: 'var(--text-mid)',
               background: 'var(--bg2)', borderRadius: 4, padding: '1px 6px',
             }}>
               {STOCK_LABELS[item.oz_stock_type] ?? item.oz_stock_type}
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginBottom: 2 }}>
           {item.price.toLocaleString('ru-RU')} ₸/стебель
@@ -386,7 +345,7 @@ function PreorderDetailView({
 
         <div style={{ marginBottom: 12 }}>
           {item.oz_delivery_date && (
-            <InfoRow label="Поставка">{fmtDate(item.oz_delivery_date)!}</InfoRow>
+            <InfoRow label="Срезка">{fmtDate(item.oz_delivery_date)!}</InfoRow>
           )}
           {item.oz_stock_type && (
             <InfoRow label="Склад">{STOCK_LABELS[item.oz_stock_type] ?? item.oz_stock_type}</InfoRow>
@@ -654,6 +613,7 @@ export default function PreorderRoomPage() {
   const [phase, setPhase] = useState<Phase>('checking')
   const [items, setItems] = useState<RoomItem[]>([])
   const [title, setTitle] = useState('')
+  const [deliveryDate, setDeliveryDate] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [phone, setPhone] = useState('')
   const [guestName, setName] = useState('')
@@ -688,8 +648,9 @@ export default function PreorderRoomPage() {
       .rpc('get_preorder_room', { p_campaign_id: parseInt(id), p_token: token })
     if (!rows?.length) { setPhase('join'); return }
     const { data: campaign } = await supabase
-      .from('campaigns').select('title').eq('id', parseInt(id)).single()
+      .from('campaigns').select('title, delivery_date').eq('id', parseInt(id)).single()
     setTitle(campaign?.title ?? 'Предзаказ')
+    setDeliveryDate((campaign as any)?.delivery_date ?? null)
     setItems(rows as RoomItem[])
     setPhase('room')
   }
@@ -765,7 +726,7 @@ export default function PreorderRoomPage() {
   // ── filtered items ────────────────────────────────────────────────────────
 
   const filtered = items
-    .filter(i => selectedDates.length === 0 || (i.oz_delivery_date !== null && selectedDates.includes(i.oz_delivery_date)))
+
     .filter(i => selectedTypes.length === 0 || (i.oz_stock_type !== null && selectedTypes.includes(i.oz_stock_type)))
     .sort((a, b) => {
       if (priceSort === 'asc') return a.price - b.price
@@ -775,7 +736,7 @@ export default function PreorderRoomPage() {
 
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const cartCount = cart.length
-  const activeFilterCount = selectedDates.length + selectedTypes.length + (priceSort !== '' ? 1 : 0)
+  const activeFilterCount = selectedTypes.length + (priceSort !== '' ? 1 : 0)
 
   // ── simple phases ─────────────────────────────────────────────────────────
 
@@ -864,13 +825,24 @@ export default function PreorderRoomPage() {
   const centerContent = (
     <div style={{ padding: '16px 16px 24px' }}>
       <div style={{ marginBottom: 12 }}>
-        <h1 style={{ fontSize: 18, fontFamily: 'var(--font-playfair)', fontWeight: 400, marginBottom: 2 }}>
+        <h1 style={{ fontSize: 18, fontFamily: 'var(--font-playfair)', fontWeight: 400, marginBottom: 4 }}>
           {title}
         </h1>
-        <p style={{ fontSize: 12, color: 'var(--text-mid)' }}>
-          Закрытая витрина · {filtered.length} позиций
-          {filtered.length !== items.length && ` (из ${items.length})`}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {deliveryDate && (
+            <span style={{
+              fontSize: 12, fontWeight: 600, color: 'var(--accent)',
+              background: 'var(--accent-light)', borderRadius: 6,
+              padding: '2px 10px', border: '1px solid var(--accent-mid)',
+            }}>
+              Поставка: {fmtDate(deliveryDate)}
+            </span>
+          )}
+          <span style={{ fontSize: 12, color: 'var(--text-mid)' }}>
+            {filtered.length} позиций
+            {filtered.length !== items.length && ` (из ${items.length})`}
+          </span>
+        </div>
       </div>
       <div style={{
         display: 'grid',
