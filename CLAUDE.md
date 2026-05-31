@@ -286,6 +286,12 @@ RLS **включён только** на: `profiles`
 
 Возвращает: `{ created, updated, errors, errorLog[] }`
 
+**Авторизация (двойная):**
+- Скриптовый путь (парсер): заголовок `x-import-secret: <OZ_IMPORT_SECRET>` — сессия не нужна
+- Браузерный путь (будущая AdminUI): сессия admin/manager через Supabase Auth
+
+`OZ_IMPORT_SECRET` — env-переменная на Vercel, в репо не хранится.
+
 ### Pricing layer (БД-миграция `oz_preorder_pricing_layer`, применена 31.05.2026)
 
 - `products.oz_product_code text UNIQUE`

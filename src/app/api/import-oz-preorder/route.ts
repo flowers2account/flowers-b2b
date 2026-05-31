@@ -21,18 +21,25 @@ interface OzPreorderPayload {
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
-  // Role check: admin or manager only
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Auth: script path (x-import-secret) OR browser session (admin/manager)
+  const importSecret = process.env.OZ_IMPORT_SECRET
+  const headerSecret = req.headers.get('x-import-secret')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  if (importSecret && headerSecret === importSecret) {
+    // Trusted script path — bypass session check
+  } else {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!profile || !['admin', 'manager'].includes(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || !['admin', 'manager'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
   }
 
   let body: OzPreorderPayload
