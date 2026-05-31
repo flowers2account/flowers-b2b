@@ -148,16 +148,31 @@ const raw   = fs.readFileSync(JSONL_PATH, 'utf-8').replace(/^﻿/, '')
 const all   = raw.split('\n').filter(Boolean).map(l => JSON.parse(l))
 const isAll = CATEGORY_FILTER === 'ALL'
 
-const items = isAll
+const rawItems = isAll
   ? all.filter(r => !SKIP_CATEGORIES.has(r.category))
   : all.filter(r => r.category === CATEGORY_FILTER)
+
+// Дедупликация по lower(name): одно имя = одна запись в импорте.
+// JSONL содержит несколько строк на одно имя (разные производители) —
+// берём ту у которой лучшее quality_grade (AA > A1 > null).
+const QUALITY_RANK = { 'AA': 2, 'A1': 1 }
+const deduped = new Map()
+for (const r of rawItems) {
+  const key = r.name?.toLowerCase()
+  if (!key) continue
+  const prev = deduped.get(key)
+  if (!prev || (QUALITY_RANK[r.quality] ?? 0) > (QUALITY_RANK[prev.quality] ?? 0)) {
+    deduped.set(key, r)
+  }
+}
+const items = [...deduped.values()]
 
 if (isAll) {
   const cats = [...new Set(items.map(r => r.category))]
   console.log(`\n[OZ Export] Все категории (${cats.length}): ${cats.join(', ')}`)
-  console.log(`Всего записей: ${items.length}\n`)
+  console.log(`Всего записей: ${rawItems.length} → после дедупликации: ${items.length}\n`)
 } else {
-  console.log(`\n[OZ Export] Категория: ${CATEGORY_FILTER}, записей: ${items.length}\n`)
+  console.log(`\n[OZ Export] Категория: ${CATEGORY_FILTER}, записей: ${rawItems.length} → после дедупликации: ${items.length}\n`)
 }
 
 let inserted = 0, updated = 0, errors = 0
@@ -184,6 +199,7 @@ for (const item of items) {
     pack_size:          item.quantity_stems ?? 1,
     stems_per_pack:     item.quantity_stems ?? null,
     weight_gram:        item.weight_gram ?? null,
+    quality_grade:      item.quality ?? null,
     price:              999,
     is_active:          true,
     arrival_date:       today,
@@ -192,11 +208,15 @@ for (const item of items) {
     source:             'oz_export',
   }
 
-  const { data: existing } = await supabase
+  // Case-insensitive search: new parser outputs lowercase names, DB may have CamelCase.
+  // .limit(1) instead of .maybeSingle() — maybeSingle() errors when multiple rows match
+  // (can happen if a previous broken import created duplicate names in the DB).
+  const { data: rows } = await supabase
     .from('products')
-    .select('id, display_name, colors, image_url')
-    .eq('name', item.name)
-    .maybeSingle()
+    .select('id, display_name, colors, image_url, campaign_image_url')
+    .ilike('name', item.name)
+    .limit(1)
+  const existing = rows?.[0] ?? null
 
   if (existing) {
     const { error } = await supabase
@@ -205,19 +225,23 @@ for (const item of items) {
         qty:            product.qty,
         is_active:      product.is_active,
         subcategory:    product.subcategory,
-        length_cm:      product.length_cm,
         country_iso:    product.country_iso,
+        // pack / stems — always update from new parser (was incorrectly 1 before)
         pack_size:      product.pack_size,
         stems_per_pack: product.stems_per_pack,
-        ...(product.weight_gram ? { weight_gram: product.weight_gram } : {}),
-        ...(product.variety_type ? { variety_type: product.variety_type } : {}),
-        ...(product.supplier_ref ? { supplier_ref: product.supplier_ref } : {}),
+        // weight & quality — always take fresh data from OZ
+        ...(product.weight_gram   ? { weight_gram:   product.weight_gram }   : {}),
+        ...(product.quality_grade ? { quality_grade: product.quality_grade } : {}),
+        ...(product.variety_type  ? { variety_type:  product.variety_type }  : {}),
+        ...(product.supplier_ref  ? { supplier_ref:  product.supplier_ref }  : {}),
         source: 'oz_export',
+        // colors — only if empty
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
-        ...(!existing.image_url && product.image_url ? {
-          image_url:          product.image_url,
-          campaign_image_url: product.campaign_image_url,
-        } : {}),
+        // image_url — only if empty
+        ...(!existing.image_url && product.image_url ? { image_url: product.image_url } : {}),
+        // campaign_image_url — update if null (VBN catalogue photo as hover image)
+        ...(!existing.campaign_image_url && product.campaign_image_url
+          ? { campaign_image_url: product.campaign_image_url } : {}),
       })
       .eq('id', existing.id)
 
