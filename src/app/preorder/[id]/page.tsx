@@ -130,18 +130,29 @@ function PreorderFilters({
   selectedCats: string[];     setSelectedCats: (c: string[]) => void
   selectedDates: string[];    setSelectedDates: (d: string[]) => void
 }) {
-  const types = Array.from(new Set(items.map(i => i.oz_stock_type).filter(Boolean) as string[]))
+  // ── Cross-filter counts (smart: apply all OTHER dimensions, count for THIS option) ──
 
-  const availColors = COLORS.filter(c => {
-    const keys = new Set(items.flatMap(i => i.colors ?? []))
-    return keys.has(c.key)
-  })
+  function matchesBase(i: RoomItem, exceptDim: 'cat' | 'color' | 'type') {
+    const catOk  = exceptDim === 'cat'   || selectedCats.length === 0   || selectedCats.includes(guessCategory(i.name))
+    const colOk  = exceptDim === 'color' || selectedColors.length === 0 || (i.colors ?? []).some(c => selectedColors.includes(c))
+    const typOk  = exceptDim === 'type'  || selectedTypes.length === 0  || selectedTypes.includes(i.oz_stock_type ?? '')
+    return catOk && colOk && typOk
+  }
+
+  function countCat(cat: string)    { return items.filter(i => matchesBase(i, 'cat')   && guessCategory(i.name) === cat).length }
+  function countColor(color: string){ return items.filter(i => matchesBase(i, 'color') && (i.colors ?? []).includes(color)).length }
+  function countType(t: string)     { return items.filter(i => matchesBase(i, 'type')  && i.oz_stock_type === t).length }
+
+  const allColorKeys = new Set(items.flatMap(i => i.colors ?? []))
+  const availColors = COLORS.filter(c => allColorKeys.has(c.key))
 
   const availCats = Array.from(new Set(items.map(i => guessCategory(i.name)))).sort((a, b) => {
     if (a === 'other') return 1
     if (b === 'other') return -1
     return (CAT_LABELS[a] ?? a).localeCompare(CAT_LABELS[b] ?? b, 'ru')
   })
+
+  const types = Array.from(new Set(items.map(i => i.oz_stock_type).filter(Boolean) as string[]))
 
   const activeCount = selectedTypes.length + (priceSort !== '' ? 1 : 0) +
     selectedColors.length + selectedCats.length
@@ -155,6 +166,14 @@ function PreorderFilters({
       padding: '0 12px 6px', fontSize: 11, fontWeight: 600,
       color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.05em',
     }}>{text}</div>
+  )
+
+  const badge = (n: number) => (
+    <span style={{
+      fontSize: 10, color: 'var(--text-mid)',
+      background: '#f0f0f0', borderRadius: 8,
+      padding: '0 5px', lineHeight: '16px', flexShrink: 0,
+    }}>{n}</span>
   )
 
   return (
@@ -178,19 +197,33 @@ function PreorderFilters({
       {availCats.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           {sectionLabel('Категория')}
-          {availCats.map(cat => (
-            <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={selectedCats.includes(cat)}
-                onChange={() => toggle(selectedCats, cat, setSelectedCats)}
-                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
-              />
-              <span style={{ fontSize: 12, color: 'var(--text)' }}>
-                {CAT_LABELS[cat] ?? cat}
-              </span>
-            </label>
-          ))}
+          {availCats.map(cat => {
+            const count   = countCat(cat)
+            const active  = selectedCats.includes(cat)
+            const dimmed  = count === 0 && !active
+            return (
+              <label
+                key={cat}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '4px 12px', cursor: dimmed ? 'default' : 'pointer',
+                  opacity: dimmed ? 0.3 : 1,
+                  pointerEvents: dimmed ? 'none' : 'auto',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => toggle(selectedCats, cat, setSelectedCats)}
+                  style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text)', flex: 1 }}>
+                  {CAT_LABELS[cat] ?? cat}
+                </span>
+                {badge(count)}
+              </label>
+            )
+          })}
         </div>
       )}
 
@@ -200,22 +233,25 @@ function PreorderFilters({
           {sectionLabel('Цвет')}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '2px 12px' }}>
             {availColors.map(c => {
-              const cd = c as Record<string, string>
-              const bg = cd.gradient ?? cd.bg
-              const borderColor = cd.border ?? 'transparent'
+              const count  = countColor(c.key)
               const active = selectedColors.includes(c.key)
+              const dimmed = count === 0 && !active
+              const cd = c as Record<string, string>
               return (
                 <button
                   key={c.key}
-                  title={c.label}
+                  title={`${c.label} (${count})`}
                   onClick={() => toggle(selectedColors, c.key, setSelectedColors)}
                   style={{
-                    width: 20, height: 20, borderRadius: '50%',
-                    border: `2px solid ${borderColor}`,
-                    background: bg,
+                    width: 20, height: 20, borderRadius: '50%', padding: 0,
+                    border: `2px solid ${cd.border ?? 'transparent'}`,
+                    background: cd.gradient ?? cd.bg,
                     outline: active ? '2px solid var(--accent)' : 'none',
                     outlineOffset: 2,
-                    cursor: 'pointer', flexShrink: 0, padding: 0,
+                    cursor: dimmed ? 'default' : 'pointer',
+                    opacity: dimmed ? 0.25 : 1,
+                    pointerEvents: dimmed ? 'none' : 'auto',
+                    flexShrink: 0,
                   }}
                 />
               )
@@ -228,17 +264,30 @@ function PreorderFilters({
       {types.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           {sectionLabel('Тип склада')}
-          {types.map(t => (
-            <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={selectedTypes.includes(t)}
-                onChange={() => toggle(selectedTypes, t, setSelectedTypes)}
-                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
-              />
-              <span style={{ fontSize: 12, color: 'var(--text)' }}>{STOCK_LABELS[t] ?? t}</span>
-            </label>
-          ))}
+          {types.map(t => {
+            const count  = countType(t)
+            const active = selectedTypes.includes(t)
+            const dimmed = count === 0 && !active
+            return (
+              <label
+                key={t}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '4px 12px', cursor: dimmed ? 'default' : 'pointer',
+                  opacity: dimmed ? 0.3 : 1, pointerEvents: dimmed ? 'none' : 'auto',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => toggle(selectedTypes, t, setSelectedTypes)}
+                  style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text)', flex: 1 }}>{STOCK_LABELS[t] ?? t}</span>
+                {badge(count)}
+              </label>
+            )
+          })}
         </div>
       )}
 
