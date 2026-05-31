@@ -8,6 +8,16 @@ function generateAccessCode(): string {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
+interface StagingRow {
+  product_id: number | null
+  oz_line_id: string | null
+  oz_stock_type: string | null
+  oz_delivery_date: string | null
+  available_stems: number | null
+  order_multiple_stems: number | null
+  purchase_eur: number | null
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
@@ -29,7 +39,9 @@ export async function POST(req: NextRequest) {
     .select('key, value')
     .in('key', ['preorder_markup_percent', 'preorder_eur_kzt_rate', 'preorder_round_to'])
 
-  const settingsMap = Object.fromEntries((settings ?? []).map(s => [s.key, s.value]))
+  const settingsMap = Object.fromEntries(
+    ((settings ?? []) as { key: string; value: string }[]).map(s => [s.key, s.value])
+  )
   const markup  = markup_percent  ?? parseFloat(settingsMap.preorder_markup_percent ?? '35')
   const rate    = eur_kzt_rate    ?? parseFloat(settingsMap.preorder_eur_kzt_rate   ?? '525')
   const roundTo = round_to        ?? parseFloat(settingsMap.preorder_round_to       ?? '1')
@@ -45,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (!stagingRows?.length) return NextResponse.json({ error: 'Нет выбранных строк в стейджинге' }, { status: 400 })
 
   // Build campaign_items from selected staging rows
-  const items = stagingRows.map((row, i) => ({
+  const items = (stagingRows as StagingRow[]).map((row, i) => ({
     campaign_id:        campaign_id,
     product_id:         row.product_id,
     pack_size:          row.order_multiple_stems ?? 1,

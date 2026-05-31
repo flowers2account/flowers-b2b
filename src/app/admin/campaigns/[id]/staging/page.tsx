@@ -74,7 +74,9 @@ export default function StagingPage() {
       .from('app_settings').select('key,value')
       .in('key', ['preorder_markup_percent', 'preorder_eur_kzt_rate', 'preorder_round_to'])
     if (!data) return
-    const m = Object.fromEntries(data.map(s => [s.key, parseFloat(s.value)]))
+    const m = Object.fromEntries(
+      (data as { key: string; value: string }[]).map(s => [s.key, parseFloat(s.value)])
+    )
     const s = {
       markup_percent: m.preorder_markup_percent ?? 35,
       eur_kzt_rate:   m.preorder_eur_kzt_rate   ?? 525,
