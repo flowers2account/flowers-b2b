@@ -19,9 +19,14 @@ export async function POST(
   const campaign_id = parseInt(id)
   if (isNaN(campaign_id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
+  const secret = req.headers.get('x-admin-secret')
+  if (!secret || secret !== process.env.ADMIN_ACTION_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = await createClient()
 
-  const { access_id, action, userId } = await req.json()
+  const { access_id, action } = await req.json()
   if (!access_id || !['approve', 'deny'].includes(action)) {
     return NextResponse.json({ error: 'access_id и action (approve|deny) обязательны' }, { status: 400 })
   }
@@ -31,7 +36,7 @@ export async function POST(
   if (action === 'deny') {
     const { error } = await supabase
       .from('campaign_access')
-      .update({ status: 'denied', decided_at: now, decided_by: userId ?? null })
+      .update({ status: 'denied', decided_at: now, decided_by: null })
       .eq('id', access_id)
       .eq('campaign_id', campaign_id)
 
@@ -43,7 +48,7 @@ export async function POST(
   const access_token = generateToken()
   const { error } = await supabase
     .from('campaign_access')
-    .update({ status: 'approved', access_token, decided_at: now, decided_by: userId ?? null })
+    .update({ status: 'approved', access_token, decided_at: now, decided_by: null })
     .eq('id', access_id)
     .eq('campaign_id', campaign_id)
 

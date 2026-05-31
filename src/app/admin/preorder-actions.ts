@@ -1,7 +1,12 @@
-export const dynamic = 'force-dynamic'
+'use server'
 
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+function generateToken(): string {
+  const arr = new Uint8Array(24)
+  crypto.getRandomValues(arr)
+  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
+}
 
 function generateAccessCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -18,18 +23,15 @@ interface StagingRow {
   purchase_eur: number | null
 }
 
-export async function POST(req: NextRequest) {
-  const secret = req.headers.get('x-admin-secret')
-  if (!secret || secret !== process.env.ADMIN_ACTION_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export async function launchCampaign(params: {
+  campaign_id: number
+  markup_percent: number
+  eur_kzt_rate: number
+  round_to: number
+}): Promise<{ inserted?: number; errors?: number; errorLog?: string[]; access_code?: string; error?: string }> {
+  const supabase = createAdminClient()
+  const { campaign_id, markup_percent, eur_kzt_rate, round_to } = params
 
-  const supabase = await createClient()
-
-  const { campaign_id, markup_percent, eur_kzt_rate, round_to } = await req.json()
-  if (!campaign_id) return NextResponse.json({ error: 'campaign_id required' }, { status: 400 })
-
-  // Read defaults from app_settings if not provided
   const { data: settings } = await supabase
     .from('app_settings')
     .select('key, value')
@@ -42,19 +44,17 @@ export async function POST(req: NextRequest) {
   const rate    = eur_kzt_rate    ?? parseFloat(settingsMap.preorder_eur_kzt_rate   ?? '525')
   const roundTo = round_to        ?? parseFloat(settingsMap.preorder_round_to       ?? '1')
 
-  // Get selected staging rows
   const { data: stagingRows, error: stagingErr } = await supabase
     .from('campaign_staging')
     .select('*')
     .eq('campaign_id', campaign_id)
     .eq('is_selected', true)
 
-  if (stagingErr) return NextResponse.json({ error: stagingErr.message }, { status: 500 })
-  if (!stagingRows?.length) return NextResponse.json({ error: 'Нет выбранных строк в стейджинге' }, { status: 400 })
+  if (stagingErr) return { error: stagingErr.message }
+  if (!stagingRows?.length) return { error: 'Нет выбранных строк в стейджинге' }
 
-  // Build campaign_items from selected staging rows
   const items = (stagingRows as StagingRow[]).map((row, i) => ({
-    campaign_id:        campaign_id,
+    campaign_id,
     product_id:         row.product_id,
     pack_size:          row.order_multiple_stems ?? 1,
     min_qty:            row.order_multiple_stems ?? 1,
@@ -67,10 +67,8 @@ export async function POST(req: NextRequest) {
     oz_purchase_eur:    row.purchase_eur,
     markup_percent:     markup,
     eur_kzt_rate:       rate,
-    // price = calc_preorder_price_kzt called via SQL below
   }))
 
-  // Insert campaign_items + calculate prices via DB function
   let inserted = 0
   const errorLog: string[] = []
 
@@ -80,13 +78,12 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    const { data: priceRow } = await supabase
-      .rpc('calc_preorder_price_kzt', {
-        purchase_eur: item.oz_purchase_eur,
-        markup_pct:   item.markup_percent,
-        rate:         item.eur_kzt_rate,
-        round_to:     roundTo,
-      })
+    const { data: priceRow } = await supabase.rpc('calc_preorder_price_kzt', {
+      purchase_eur: item.oz_purchase_eur,
+      markup_pct:   markup,
+      rate:         rate,
+      round_to:     roundTo,
+    })
 
     const { error } = await supabase
       .from('campaign_items')
@@ -96,17 +93,41 @@ export async function POST(req: NextRequest) {
     else inserted++
   }
 
-  // Publish campaign + freeze markup/rate + generate access_code
   const access_code = generateAccessCode()
   await supabase
     .from('campaigns')
-    .update({
-      status:         'published',
-      markup_percent: markup,
-      eur_kzt_rate:   rate,
-      access_code,
-    })
+    .update({ status: 'published', markup_percent: markup, eur_kzt_rate: rate, access_code })
     .eq('id', campaign_id)
 
-  return NextResponse.json({ inserted, errors: errorLog.length, errorLog, access_code })
+  return { inserted, errors: errorLog.length, errorLog, access_code }
+}
+
+export async function admitAccess(params: {
+  access_id: number
+  campaign_id: number
+  action: 'approve' | 'deny'
+}): Promise<{ status?: string; error?: string }> {
+  const supabase = createAdminClient()
+  const { access_id, campaign_id, action } = params
+  const now = new Date().toISOString()
+
+  if (action === 'deny') {
+    const { error } = await supabase
+      .from('campaign_access')
+      .update({ status: 'denied', decided_at: now, decided_by: null })
+      .eq('id', access_id)
+      .eq('campaign_id', campaign_id)
+    if (error) return { error: error.message }
+    return { status: 'denied' }
+  }
+
+  const access_token = generateToken()
+  const { error } = await supabase
+    .from('campaign_access')
+    .update({ status: 'approved', access_token, decided_at: now, decided_by: null })
+    .eq('id', access_id)
+    .eq('campaign_id', campaign_id)
+
+  if (error) return { error: error.message }
+  return { status: 'approved' }
 }

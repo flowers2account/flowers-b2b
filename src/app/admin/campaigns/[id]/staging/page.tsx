@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { launchCampaign } from '@/app/admin/preorder-actions'
 
 interface StagingRow {
   id: number
@@ -92,15 +93,20 @@ export default function StagingPage() {
 
   async function handleLaunch() {
     setLaunching(true); setError('')
-    const res = await fetch('/api/preorder/launch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaign_id: parseInt(id), markup_percent: markup, eur_kzt_rate: rate, round_to: settings.round_to }),
-    })
-    const data = await res.json()
-    if (!res.ok) { setError(data.error ?? 'Ошибка запуска'); setLaunching(false); return }
-    setResult(data)
-    setLaunching(false)
+    try {
+      const data = await launchCampaign({
+        campaign_id: parseInt(id),
+        markup_percent: markup,
+        eur_kzt_rate: rate,
+        round_to: settings.round_to,
+      })
+      if (data.error) { setError(data.error); return }
+      setResult(data)
+    } catch {
+      setError('Ошибка запуска')
+    } finally {
+      setLaunching(false)
+    }
   }
 
   const selectedCount = rows.filter(r => r.is_selected).length
