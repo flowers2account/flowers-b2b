@@ -280,55 +280,44 @@ function PreorderCard({
           {max !== null && ` · доступно ${max}`}
         </div>
 
-        {inCart ? (
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              display: 'flex', alignItems: 'center',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-btn)', overflow: 'hidden',
-            }}
-          >
-            <button
-              onClick={() => onSetQty(qty - item.pack_size)}
-              style={{
-                width: 32, height: 28, border: 'none',
-                background: 'var(--bg2)', color: 'var(--accent)',
-                fontSize: 15, fontWeight: 700, cursor: 'pointer',
-              }}
-            >−</button>
-            <span style={{
-              flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
-              borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
-              lineHeight: '28px',
-            }}>
-              {qty}
-            </span>
-            <button
-              onClick={e => { e.stopPropagation(); if (canInc) onSetQty(qty + item.pack_size) }}
-              disabled={!canInc}
-              style={{
-                width: 32, height: 28, border: 'none',
-                background: canInc ? 'var(--bg2)' : '#f0f0f0',
-                color: 'var(--accent)', fontSize: 15, fontWeight: 700,
-                cursor: canInc ? 'pointer' : 'default',
-                opacity: canInc ? 1 : 0.35,
-              }}
-            >+</button>
-          </div>
-        ) : (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            display: 'flex', alignItems: 'center',
+            border: `1px solid ${inCart ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: 'var(--radius-btn)', overflow: 'hidden',
+            transition: 'border-color 0.15s',
+          }}
+        >
           <button
-            onClick={e => { e.stopPropagation(); onSetQty(min) }}
+            onClick={() => inCart && onSetQty(qty - item.pack_size)}
             style={{
-              width: '100%', padding: '6px 0',
-              background: 'var(--accent)', color: '#fff',
-              border: 'none', borderRadius: 'var(--radius-btn)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              width: 32, height: 28, border: 'none',
+              background: 'var(--bg2)', color: 'var(--accent)',
+              fontSize: 15, fontWeight: 700,
+              cursor: inCart ? 'pointer' : 'default',
+              opacity: inCart ? 1 : 0.25,
             }}
-          >
-            В корзину
-          </button>
-        )}
+          >−</button>
+          <span style={{
+            flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
+            borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
+            lineHeight: '28px', color: inCart ? 'var(--accent)' : 'var(--text-mid)',
+          }}>
+            {qty}
+          </span>
+          <button
+            onClick={e => { e.stopPropagation(); onSetQty(qty === 0 ? min : qty + item.pack_size) }}
+            disabled={!canInc}
+            style={{
+              width: 32, height: 28, border: 'none',
+              background: canInc ? 'var(--accent)' : '#f0f0f0',
+              color: '#fff', fontSize: 15, fontWeight: 700,
+              cursor: canInc ? 'pointer' : 'default',
+              opacity: canInc ? 1 : 0.35,
+            }}
+          >+</button>
+        </div>
       </div>
     </div>
   )
