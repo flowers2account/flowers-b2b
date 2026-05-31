@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/phone'
 import type { CampaignSummaryRow } from '@/types/campaigns'
 
@@ -140,7 +141,7 @@ export async function admitRequest(params: {
   campaign_id: number
   action: 'approve' | 'deny'
 }): Promise<{ status?: string; error?: string }> {
-  const supabase = createAdminClient()
+  const supabase = await createServerClient()
   const { access_id, campaign_id, action } = params
   const now = new Date().toISOString()
 
@@ -177,7 +178,7 @@ export interface AccessRow {
 export async function getAccessRequests(
   campaign_id: number
 ): Promise<{ rows: AccessRow[]; error?: string }> {
-  const supabase = createAdminClient()
+  const supabase = await createServerClient()
   const { data, error } = await supabase
     .from('campaign_access')
     .select('id, guest_phone, guest_name, status, requested_at, decided_at')
@@ -195,7 +196,7 @@ export async function updatePreorderStatus(params: {
   order_id: number
   status: string
 }): Promise<{ error?: string }> {
-  const supabase = createAdminClient()
+  const supabase = await createServerClient()
   const { error } = await supabase
     .from('campaign_orders')
     .update({ status: params.status, updated_at: new Date().toISOString() })
@@ -315,10 +316,10 @@ export async function checkoutPreorder(params: {
   return { order_id: order.id, total }
 }
 
-// ── Read all campaign_orders via service role (bypasses RLS) ──────────────────
+// ── Read all campaign_orders via session client (admin RLS passes) ────────────
 
 export async function getPreorders(): Promise<{ orders: PreorderOrder[]; error?: string }> {
-  const supabase = createAdminClient()
+  const supabase = await createServerClient()
   const { data, error } = await supabase
     .from('campaign_orders')
     .select(`
@@ -340,16 +341,81 @@ export async function getPreorders(): Promise<{ orders: PreorderOrder[]; error?:
   return { orders: (data as unknown as PreorderOrder[]) ?? [] }
 }
 
-// ── Read campaign_summary VIEW via service role ───────────────────────────────
+// ── Compute campaign summary from campaign_order_items (no view in DB) ─────────
 
 export async function getCampaignSummary(
   campaign_id: number
 ): Promise<{ summary: CampaignSummaryRow[]; error?: string }> {
-  const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from('campaign_summary')
-    .select('*')
+  const supabase = await createServerClient()
+
+  // Step 1: active items for this campaign with product info
+  const { data: items, error: e1 } = await supabase
+    .from('campaign_items')
+    .select('id, price, pack_size, product_id, products:product_id(name, display_name)')
     .eq('campaign_id', campaign_id)
-  if (error) return { summary: [], error: error.message }
-  return { summary: (data ?? []) as CampaignSummaryRow[] }
+    .eq('is_active', true)
+  if (e1) return { summary: [], error: e1.message }
+  if (!items?.length) return { summary: [] }
+
+  type CIRow = { id: number; price: number; pack_size: number; product_id: number; products: { name: string; display_name: string | null } | null }
+  type OIRow = {
+    campaign_item_id: number
+    qty: number
+    campaign_orders: {
+      client_id: string | null
+      guest_name: string | null
+      guest_phone: string | null
+      clients: { name: string | null; company_name: string | null } | null
+    } | null
+  }
+
+  // Step 2: order items for those campaign items with order + client info
+  const itemIds = (items as unknown as CIRow[]).map(i => i.id)
+  const { data: orderItems, error: e2 } = await supabase
+    .from('campaign_order_items')
+    .select(`
+      campaign_item_id, qty,
+      campaign_orders:campaign_order_id(
+        client_id, guest_name, guest_phone,
+        clients:client_id(name, company_name)
+      )
+    `)
+    .in('campaign_item_id', itemIds)
+  if (e2) return { summary: [], error: e2.message }
+
+  // Aggregate per campaign_item
+  const rowMap = new Map<number, CampaignSummaryRow>()
+  for (const ci of (items as unknown as CIRow[])) {
+    const p = ci.products
+    rowMap.set(ci.id, {
+      campaign_item_id: ci.id,
+      product_id:       ci.product_id,
+      product_name:     p?.display_name ?? p?.name ?? '',
+      variety_name:     null,
+      length_str:       null,
+      price:            ci.price,
+      pack_size:        ci.pack_size,
+      total_qty_ordered: 0,
+      total_orders:     0,
+      orders_breakdown: [],
+    })
+  }
+
+  for (const oi of ((orderItems ?? []) as unknown as OIRow[])) {
+    const row = rowMap.get(oi.campaign_item_id)
+    if (!row) continue
+    row.total_qty_ordered += oi.qty
+    row.total_orders++
+    const co = oi.campaign_orders
+    const cl = co?.clients
+    row.orders_breakdown.push({
+      client_id:   co?.client_id ?? null,
+      client_name: cl?.company_name ?? cl?.name ?? co?.guest_name ?? co?.guest_phone ?? 'Гость',
+      qty:         oi.qty,
+    })
+  }
+
+  return {
+    summary: Array.from(rowMap.values()).filter(r => r.total_orders > 0),
+  }
 }

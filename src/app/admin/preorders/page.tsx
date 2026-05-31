@@ -82,6 +82,7 @@ export default function PreordersPage() {
 
   const [orders, setOrders] = useState<PreorderOrder[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [statusError, setStatusError] = useState<{ id: number; msg: string } | null>(null)
@@ -100,8 +101,9 @@ export default function PreordersPage() {
 
   async function loadOrders() {
     setLoading(true)
+    setLoadError(null)
     const { orders: data, error } = await getPreorders()
-    if (error) console.error('Preorders load error:', error)
+    if (error) setLoadError(error)
     setOrders(data)
     setLoading(false)
   }
@@ -275,6 +277,13 @@ export default function PreordersPage() {
           )}
         </div>
       </div>
+
+      {/* Load error */}
+      {loadError && (
+        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          ⚠️ Ошибка загрузки: {loadError}
+        </div>
+      )}
 
       {/* List */}
       {filtered.length === 0 ? (
