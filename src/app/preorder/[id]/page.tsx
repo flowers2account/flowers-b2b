@@ -6,6 +6,12 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { checkoutPreorder } from '@/app/admin/preorder-actions'
 import { useIsMobile } from '@/lib/use-mobile'
+import { COLORS } from '@/lib/colors'
+
+const COUNTRY_LABELS: Record<string, string> = {
+  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
+  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль', DK: 'Дания',
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +27,13 @@ interface RoomItem {
   name: string
   display_name: string | null
   image_url: string | null
+  length_cm: number | null
+  colors: string[] | null
+  country_iso: string | null
+  farm: string | null
+  stems_per_pack: number | null
+  weight_gram: number | null
+  quality_grade: string | null
 }
 
 interface CartItem {
@@ -222,7 +235,7 @@ function PreorderCard({
         </div>
 
         {item.oz_stock_type && (
-          <div style={{ marginBottom: 6 }}>
+          <div style={{ marginBottom: 4 }}>
             <span style={{
               fontSize: 10, color: 'var(--text-mid)',
               background: 'var(--bg2)', borderRadius: 4, padding: '1px 6px',
@@ -232,8 +245,29 @@ function PreorderCard({
           </div>
         )}
 
+        {/* Цвета + длина */}
+        {((item.colors?.length ?? 0) > 0 || item.length_cm) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
+            {item.colors?.map(c => {
+              const col = COLORS.find(x => x.key === c)
+              return (
+                <div key={c} title={col?.label ?? c} style={{
+                  width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                  background: col ? (('gradient' in col ? col.gradient : col.bg) as string) : '#ccc',
+                  border: '1px solid rgba(0,0,0,0.1)',
+                }} />
+              )
+            })}
+            {item.length_cm && (
+              <span style={{ fontSize: 10, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 1 }}>
+                <span style={{ fontSize: 12 }}>&#8597;</span>{item.length_cm}&#x441;&#x43C;
+              </span>
+            )}
+          </div>
+        )}
+
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginBottom: 2 }}>
-          {item.price.toLocaleString('ru-RU')} ₸/стебель
+          {item.price.toLocaleString('ru-RU')} &#x20B8;/&#x441;&#x442;&#x435;&#x431;&#x435;&#x43B;&#x44C;
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-mid)', marginBottom: 8 }}>
           кратность {item.pack_size}
@@ -343,6 +377,34 @@ function PreorderDetailView({
           {item.display_name ?? item.name}
         </div>
 
+        {/* Длина */}
+        {item.length_cm && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'baseline', gap: 3 }}>
+              <span style={{ fontSize: 14 }}>↕</span>{item.length_cm}см
+            </span>
+          </div>
+        )}
+
+        {/* Страна + ферма */}
+        {(item.country_iso || item.farm) && (
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {item.country_iso && (
+              <span style={{
+                fontSize: 11, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
+                borderRadius: 4, padding: '2px 8px', fontWeight: 500,
+              }}>
+                {COUNTRY_LABELS[item.country_iso] ?? item.country_iso}
+              </span>
+            )}
+            {item.farm && (
+              <span style={{ fontSize: 11, color: 'var(--text-mid)', fontStyle: 'italic' }}>
+                {item.farm}
+              </span>
+            )}
+          </div>
+        )}
+
         <div style={{ marginBottom: 12 }}>
           {item.oz_delivery_date && (
             <InfoRow label="Срезка">{fmtDate(item.oz_delivery_date)!}</InfoRow>
@@ -350,7 +412,34 @@ function PreorderDetailView({
           {item.oz_stock_type && (
             <InfoRow label="Склад">{STOCK_LABELS[item.oz_stock_type] ?? item.oz_stock_type}</InfoRow>
           )}
+
+          {/* Цвет */}
+          {(item.colors?.length ?? 0) > 0 && (
+            <InfoRow label="Цвет">
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                {item.colors!.map(c => {
+                  const col = COLORS.find(x => x.key === c)
+                  return (
+                    <span key={c} title={col?.label ?? c} style={{
+                      width: 14, height: 14, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
+                      background: col ? (('gradient' in col ? col.gradient : col.bg) as string) : '#ccc',
+                      border: '1px solid rgba(0,0,0,0.15)',
+                    }} />
+                  )
+                })}
+                {item.colors!.length === 1 && (
+                  <span>{COLORS.find(x => x.key === item.colors![0])?.label ?? item.colors![0]}</span>
+                )}
+              </span>
+            </InfoRow>
+          )}
+
           <InfoRow label="Кратность">{item.pack_size} стеблей</InfoRow>
+
+          {item.stems_per_pack && item.stems_per_pack > 0 && (
+            <InfoRow label="Стеблей в уп.">{item.stems_per_pack} шт</InfoRow>
+          )}
+
           {max !== null && (
             <InfoRow label="Доступно">
               <span style={{
@@ -361,6 +450,15 @@ function PreorderDetailView({
               </span>
             </InfoRow>
           )}
+
+          {item.weight_gram && (
+            <InfoRow label="Вес">{item.weight_gram} г</InfoRow>
+          )}
+
+          {item.quality_grade && (
+            <InfoRow label="Качество">{item.quality_grade}</InfoRow>
+          )}
+
           <InfoRow label="Цена">
             <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
               {item.price.toLocaleString('ru-RU')} ₸/стебель
