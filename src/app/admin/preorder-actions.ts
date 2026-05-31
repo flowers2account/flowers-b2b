@@ -53,12 +53,6 @@ export interface PreorderOrder {
   campaign_order_items: PreorderItem[]
 }
 
-function generateToken(): string {
-  const arr = new Uint8Array(24)
-  crypto.getRandomValues(arr)
-  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
-}
-
 function generateAccessCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
@@ -159,28 +153,13 @@ export async function admitRequest(params: {
   action: 'approve' | 'deny'
 }): Promise<{ status?: string; error?: string }> {
   const supabase = await createServerClient()
-  const { access_id, campaign_id, action } = params
-  const now = new Date().toISOString()
-
-  if (action === 'deny') {
-    const { error } = await supabase
-      .from('campaign_access')
-      .update({ status: 'denied', decided_at: now, decided_by: null })
-      .eq('id', access_id)
-      .eq('campaign_id', campaign_id)
-    if (error) return { error: error.message }
-    return { status: 'denied' }
-  }
-
-  const access_token = generateToken()
-  const { error } = await supabase
-    .from('campaign_access')
-    .update({ status: 'approved', access_token, decided_at: now, decided_by: null })
-    .eq('id', access_id)
-    .eq('campaign_id', campaign_id)
-
+  const { data, error } = await supabase.rpc('admin_admit_request', {
+    p_access_id:   params.access_id,
+    p_campaign_id: params.campaign_id,
+    p_action:      params.action,
+  })
   if (error) return { error: error.message }
-  return { status: 'approved' }
+  return { status: data as string }
 }
 
 export interface AccessRow {
@@ -196,13 +175,9 @@ export async function getAccessRequests(
   campaign_id: number
 ): Promise<{ rows: AccessRow[]; error?: string }> {
   const supabase = await createServerClient()
-  const { data, error } = await supabase
-    .from('campaign_access')
-    .select('id, guest_phone, guest_name, status, requested_at, decided_at')
-    .eq('campaign_id', campaign_id)
-    .order('status', { ascending: false })   // pending first: p > d > a alphabetically
-    .order('requested_at', { ascending: false })
-
+  const { data, error } = await supabase.rpc('get_campaign_access_requests', {
+    p_campaign_id: campaign_id,
+  })
   if (error) return { rows: [], error: error.message }
   return { rows: (data ?? []) as AccessRow[] }
 }
