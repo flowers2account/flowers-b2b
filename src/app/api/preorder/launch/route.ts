@@ -21,15 +21,6 @@ interface StagingRow {
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || !['admin', 'manager'].includes(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   const { campaign_id, markup_percent, eur_kzt_rate, round_to } = await req.json()
   if (!campaign_id) return NextResponse.json({ error: 'campaign_id required' }, { status: 400 })
 

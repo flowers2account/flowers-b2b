@@ -9,7 +9,8 @@ function generateToken(): string {
   return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// POST { access_id, action: 'approve'|'deny' } — менеджер впускает/отклоняет
+// POST { access_id, action: 'approve'|'deny', userId? }
+// Admin/manager action — client-side auth guard on /admin pages is the gate.
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,16 +21,7 @@ export async function POST(
 
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || !['admin', 'manager'].includes(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const { access_id, action } = await req.json()
+  const { access_id, action, userId } = await req.json()
   if (!access_id || !['approve', 'deny'].includes(action)) {
     return NextResponse.json({ error: 'access_id и action (approve|deny) обязательны' }, { status: 400 })
   }
@@ -37,20 +29,21 @@ export async function POST(
   const now = new Date().toISOString()
 
   if (action === 'deny') {
-    await supabase
+    const { error } = await supabase
       .from('campaign_access')
-      .update({ status: 'denied', decided_at: now, decided_by: user.id })
+      .update({ status: 'denied', decided_at: now, decided_by: userId ?? null })
       .eq('id', access_id)
       .eq('campaign_id', campaign_id)
 
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ status: 'denied' })
   }
 
-  // approve — generate token, save to DB only (client polls /status to get it)
+  // approve — generate token, save to DB; client polls /status to get it
   const access_token = generateToken()
   const { error } = await supabase
     .from('campaign_access')
-    .update({ status: 'approved', access_token, decided_at: now, decided_by: user.id })
+    .update({ status: 'approved', access_token, decided_at: now, decided_by: userId ?? null })
     .eq('id', access_id)
     .eq('campaign_id', campaign_id)
 
