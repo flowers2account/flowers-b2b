@@ -192,9 +192,9 @@ export default function CabinetPage() {
         .then(data => setOrders(data.orders ?? [])),
     ]
 
-    if (user?.id) {
+    if (phone) {
       fetches.push(
-        fetch(`/api/campaigns/orders?client_id=${user.id}`)
+        fetch(`/api/campaigns/orders?phone=${encodeURIComponent(phone)}`)
           .then(r => r.json())
           .then(data => {
             const list: CampaignOrder[] = (data.orders ?? []).map((o: any) => ({

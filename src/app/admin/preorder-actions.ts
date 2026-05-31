@@ -183,14 +183,14 @@ export async function checkoutPreorder(params: {
 
   const normalizedPhone = normalizePhone(access.guest_phone)
 
-  // Look up Supabase Auth UUID by phone (profiles.id = auth UID — cabinet queries by this)
-  const { data: profile } = await supabase
-    .from('profiles')
+  // Match to clients by normalised phone — same FK used by orders and reservations
+  const { data: clientRow } = await supabase
+    .from('clients')
     .select('id')
     .eq('phone', normalizedPhone)
     .maybeSingle()
 
-  const clientId: string | null = profile?.id ?? null
+  const clientId: string | null = clientRow?.id ?? null
 
   // Get item prices and limits from DB (never trust client-supplied prices)
   const itemIds = params.items.map(i => i.campaign_item_id)
