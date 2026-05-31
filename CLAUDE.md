@@ -223,7 +223,10 @@ B2B платформа для оптовой торговли цветами. С
 | `/api/my-orders` | GET | Заказы текущего клиента |
 | `/api/import-xls` | POST | Импорт товаров из Excel; возвращает `importedIds[]` и `category` |
 | `/api/import-xls/finalize` | POST | Категориальная деактивация после всех файлов батча |
-| `/api/import-oz-preorder` | POST | Upsert карточек OZ предзаказа; ключ — `oz_product_code` |
+| `/api/import-oz-preorder` | POST | Upsert карточек OZ предзаказа + staging; ключ — `oz_product_code` |
+| `/api/preorder/launch` | POST | Заморозка: staging → campaign_items, публикация акции |
+| `/api/preorder/[id]/join` | POST | Запрос доступа в комнату по коду |
+| `/api/preorder/[id]/admit` | POST | Одобрение/отклонение запроса (admin/manager) |
 | `/api/reserve` | POST | Создать резервирование |
 | `/api/cron/cleanup` | GET | Cron: удаляет истекшие резервирования (защита CRON_SECRET) |
 
@@ -291,6 +294,65 @@ RLS **включён только** на: `profiles`
 - Браузерный путь (будущая AdminUI): сессия admin/manager через Supabase Auth
 
 `OZ_IMPORT_SECRET` — env-переменная на Vercel, в репо не хранится.
+
+**Расширенный контракт (с campaign_id и lines[]):**
+```json
+{
+  "source": "oz_preorder",
+  "campaign_id": 12,
+  "items": [{
+    "oz_product_code": "7416DE...",
+    "name": "Rosa ec queens crown",
+    "order_multiple_stems": 25,
+    "packaging_unit_stems": 125,
+    "lines": [
+      { "oz_line_id": "31033487015_36", "stock_type": "STOCK",
+        "delivery_date": "2026-06-01", "available_stems": 225, "purchase_eur": 0.77 }
+    ]
+  }]
+}
+```
+Если `campaign_id` задан — каждая строка `lines[]` пишется в `campaign_staging`.
+Если `campaign_id` не задан — только upsert карточки (обратная совместимость).
+
+Возвращает: `{ created, updated, staging_rows, errors, errorLog[] }`
+
+---
+
+## Закрытая комната предзаказов — актуально с 31.05.2026
+
+### Жизненный цикл акции
+```
+draft → ингест линий в campaign_staging → менеджер проверяет/выбирает
+      → POST /api/preorder/launch (заморозка цен в campaign_items) → published
+      → клиент стучится по коду → менеджер впускает → предзаказы → closed
+```
+
+### Новые таблицы (миграция preorder_room_staging_access)
+
+**`campaign_staging`** — черновик линий до заморозки. Менеджер снимает/ставит `is_selected`,
+видит preview цены. При запуске акции — `is_selected=true` строки идут в `campaign_items`.
+
+**`campaign_access`** — доступ к комнате по Zoom-модели:
+- `status`: `pending` → `approved` | `denied`
+- `access_token`: выдаётся при впуске, кладётся в cookie браузера
+
+**Новые колонки `campaigns`**: `access_code text` (6 символов, генерится при публикации),
+`markup_percent`, `eur_kzt_rate` (снимок настроек на момент запуска).
+
+### Роуты
+
+| Роут | Метод | Описание |
+|---|---|---|
+| `/api/preorder/launch` | POST | Заморозка: staging → campaign_items, публикация, генерация access_code |
+| `/api/preorder/[id]/join` | POST | Клиент: `{ code, phone, name }` → pending в campaign_access |
+| `/api/preorder/[id]/admit` | POST | Менеджер: `{ access_id, action: approve\|deny }` → выдать токен |
+| `/preorder/[id]` | page | Витрина комнаты: вход по коду или отображение позиций |
+
+### Вход в комнату (`/preorder/[id]`)
+1. Если в cookie `preorder_token_{id}` есть валидный `access_token` из `campaign_access` → показать витрину
+2. Иначе → форма «код + телефон + имя» → `POST /join` → статус pending
+3. Менеджер в админке одобряет → токен в ответе → клиент получает уведомление (WhatsApp, Phase 2)
 
 ### Pricing layer (БД-миграция `oz_preorder_pricing_layer`, применена 31.05.2026)
 

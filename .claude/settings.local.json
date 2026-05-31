@@ -49,7 +49,16 @@
       "Bash(Select-Object name, pot_size, variant)",
       "Bash(Sort-Object name *)",
       "Bash(Format-Table -AutoSize)",
-      "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\waterdrinker-v2-parser\\\\output\\\\category_170207+.jsonl\" | ForEach-Object { $_ | ConvertFrom-Json } | Select-Object name, pot_size, variant | Sort-Object name | Format-Table -AutoSize)"
+      "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\waterdrinker-v2-parser\\\\output\\\\category_170207+.jsonl\" | ForEach-Object { $_ | ConvertFrom-Json } | Select-Object name, pot_size, variant | Sort-Object name | Format-Table -AutoSize)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Read(//c/Users/Владелец/Downloads/переводы/**)",
+      "Bash(powershell -command \"Expand-Archive -Path 'Цветы уральска сайт-handoff.zip' -DestinationPath 'handoff-extract' -Force\")",
+      "Bash(powershell -command \"Expand-Archive -Path 'C:\\\\Users\\\\Владелец\\\\Downloads\\\\переводы\\\\Цветы уральска сайт-handoff.zip' -DestinationPath 'C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\design-extract\\\\handoff-zip' -Force; Get-ChildItem 'C:\\\\Users\\\\Владелец\\\\flowers-b2b\\\\design-extract\\\\handoff-zip' -Recurse | Select-Object FullName\")",
+      "Bash(npx next *)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\oz-parser-new\\\\output\\\\Antirrhinum.jsonl\" -TotalCount 2 | ForEach-Object { $_ | ConvertFrom-Json | Select-Object name, image_urls, color | ConvertTo-Json -Compress })",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\oz-parser-new\\\\output\\\\Astilbe.jsonl\" -TotalCount 2 | ForEach-Object { $_ | ConvertFrom-Json | Select-Object name, image_urls, color | ConvertTo-Json -Compress })",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\oz-parser-new\\\\output\\\\Alstroemeria.jsonl\" -TotalCount 2 | ForEach-Object { $_ | ConvertFrom-Json | Select-Object name, @{n='img_count';e={$_.image_urls.Count}} | ConvertTo-Json -Compress })",
+      "Bash(openssl rand *)"
     ]
   }
 }

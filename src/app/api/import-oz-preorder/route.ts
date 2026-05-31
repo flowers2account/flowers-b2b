@@ -3,6 +3,15 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+interface OzLine {
+  oz_line_id: string
+  stock_type?: string
+  delivery_date?: string
+  available_stems?: number | null
+  purchase_eur?: number | null
+  currency?: string | null
+}
+
 interface OzPreorderItem {
   oz_product_code: string
   name: string
@@ -11,10 +20,12 @@ interface OzPreorderItem {
   order_multiple_stems?: number | null
   packaging_unit_stems?: number | null
   vbn_unit_code?: string | null
+  lines?: OzLine[]
 }
 
 interface OzPreorderPayload {
   source: 'oz_preorder'
+  campaign_id?: number | null
   items: OzPreorderItem[]
 }
 
@@ -53,8 +64,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'items array is required' }, { status: 400 })
   }
 
+  const campaignId = body.campaign_id ?? null
   let created = 0
   let updated = 0
+  let staging_rows = 0
   const errorLog: string[] = []
 
   for (const item of body.items) {
@@ -65,15 +78,16 @@ export async function POST(req: NextRequest) {
 
     const category = item.category === 'pot' ? 'pot' : 'cut'
 
-    // Check if product exists by oz_product_code
+    // Upsert product card by oz_product_code
     const { data: existing } = await supabase
       .from('products')
       .select('id, image_url')
       .eq('oz_product_code', item.oz_product_code)
       .maybeSingle()
 
+    let productId: number | null = null
+
     if (existing) {
-      // UPDATE: refresh catalog data, never touch price/qty/is_active
       const { error } = await supabase
         .from('products')
         .update({
@@ -81,19 +95,18 @@ export async function POST(req: NextRequest) {
           pack_size:      item.order_multiple_stems ?? undefined,
           stems_per_pack: item.packaging_unit_stems ?? undefined,
           container_code: item.vbn_unit_code ?? undefined,
-          // image_url — only if currently empty
           ...(!existing.image_url && item.image_url ? { image_url: item.image_url } : {}),
         })
         .eq('id', existing.id)
 
       if (error) {
         errorLog.push(`${item.name} [${item.oz_product_code}]: ${error.message}`)
-      } else {
-        updated++
+        continue
       }
+      productId = existing.id
+      updated++
     } else {
-      // INSERT: inactive placeholder, qty=0; visible only through campaign_items
-      const { error } = await supabase
+      const { data: newProduct, error } = await supabase
         .from('products')
         .insert({
           oz_product_code: item.oz_product_code,
@@ -108,14 +121,48 @@ export async function POST(req: NextRequest) {
           container_code:  item.vbn_unit_code ?? null,
           image_url:       item.image_url ?? null,
         })
+        .select('id')
+        .single()
 
-      if (error) {
-        errorLog.push(`${item.name} [${item.oz_product_code}]: ${error.message}`)
-      } else {
-        created++
+      if (error || !newProduct) {
+        errorLog.push(`${item.name} [${item.oz_product_code}]: ${error?.message}`)
+        continue
+      }
+      productId = newProduct.id
+      created++
+    }
+
+    // Insert staging rows if campaign_id provided
+    if (campaignId && item.lines?.length) {
+      for (const line of item.lines) {
+        const { error } = await supabase
+          .from('campaign_staging')
+          .insert({
+            campaign_id:          campaignId,
+            product_id:           productId,
+            oz_product_code:      item.oz_product_code,
+            oz_line_id:           line.oz_line_id,
+            oz_stock_type:        line.stock_type ?? null,
+            oz_delivery_date:     line.delivery_date ?? null,
+            available_stems:      line.available_stems ?? null,
+            order_multiple_stems: item.order_multiple_stems ?? null,
+            packaging_unit_stems: item.packaging_unit_stems ?? null,
+            purchase_eur:         line.purchase_eur ?? null,
+            currency:             line.currency ?? null,
+            name:                 item.name,
+            image_url:            item.image_url ?? null,
+            vbn_unit_code:        item.vbn_unit_code ?? null,
+            is_selected:          true,
+          })
+
+        if (error) {
+          errorLog.push(`staging ${line.oz_line_id}: ${error.message}`)
+        } else {
+          staging_rows++
+        }
       }
     }
   }
 
-  return NextResponse.json({ created, updated, errors: errorLog.length, errorLog })
+  return NextResponse.json({ created, updated, staging_rows, errors: errorLog.length, errorLog })
 }
