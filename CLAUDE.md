@@ -353,10 +353,21 @@ draft → ингест линий в campaign_staging → менеджер пр�
 |---|---|---|
 | `/api/preorder/launch` | POST | Заморозка: staging → campaign_items, публикация, генерация access_code |
 | `/api/preorder/[id]/join` | POST | Клиент: `{ code, phone, name }` → pending в campaign_access |
-| `/api/preorder/[id]/admit` | POST | Менеджер: `{ access_id, action: approve\|deny }` → токен в БД |
+| `/api/preorder/[id]/admit` | POST | Менеджер: `{ access_id, action: approve\|deny }` → токен в БД (закрыт x-admin-secret) |
 | `/api/preorder/[id]/status` | GET | Клиент: `?phone=...` → `{ status, access_token? }` (polling) |
 | `/preorder/[id]` | page | Витрина комнаты: вход по коду или отображение позиций через RPC |
 | `/admin/campaigns/[id]/staging` | page | Стейджинг: галки + preview цен + кнопка «Запустить» |
+| `/admin/campaigns/[id]/requests` | page | Очередь заявок: список campaign_access, кнопки «Впустить»/«Отклонить» |
+
+### Server Actions (src/app/admin/preorder-actions.ts)
+
+| Функция | Описание |
+|---|---|
+| `launchCampaign(params)` | Заморозка стейджинга → campaign_items, публикует кампанию |
+| `admitRequest({ campaign_id, access_id, action })` | Впускает или отклоняет заявку (approve/deny) |
+| `getAccessRequests(campaign_id)` | Читает campaign_access через createAdminClient (обходит RLS) |
+
+Все Server Actions используют `createAdminClient()` (service role) — секрет не попадает в браузерный бандл.
 
 ### Вход в комнату (поток токена)
 1. Клиент вводит код + телефон → `POST /join` → `status=pending` в БД

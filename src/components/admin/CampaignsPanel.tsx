@@ -212,6 +212,14 @@ export default function CampaignsPanel() {
                           Стейджинг
                         </Link>
                       )}
+                      {c.status === 'published' && (
+                        <Link
+                          href={`/admin/campaigns/${c.id}/requests`}
+                          className="px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded"
+                        >
+                          Заявки
+                        </Link>
+                      )}
                       {c.status === 'published' && c.access_code && (
                         <span className="px-2 py-1 text-xs bg-green-50 text-green-700 rounded font-mono tracking-wider">
                           {c.access_code}

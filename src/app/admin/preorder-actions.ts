@@ -102,7 +102,7 @@ export async function launchCampaign(params: {
   return { inserted, errors: errorLog.length, errorLog, access_code }
 }
 
-export async function admitAccess(params: {
+export async function admitRequest(params: {
   access_id: number
   campaign_id: number
   action: 'approve' | 'deny'
@@ -130,4 +130,28 @@ export async function admitAccess(params: {
 
   if (error) return { error: error.message }
   return { status: 'approved' }
+}
+
+export interface AccessRow {
+  id: number
+  guest_phone: string
+  guest_name: string | null
+  status: 'pending' | 'approved' | 'denied'
+  requested_at: string
+  decided_at: string | null
+}
+
+export async function getAccessRequests(
+  campaign_id: number
+): Promise<{ rows: AccessRow[]; error?: string }> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('campaign_access')
+    .select('id, guest_phone, guest_name, status, requested_at, decided_at')
+    .eq('campaign_id', campaign_id)
+    .order('status', { ascending: false })   // pending first: p > d > a alphabetically
+    .order('requested_at', { ascending: false })
+
+  if (error) return { rows: [], error: error.message }
+  return { rows: (data ?? []) as AccessRow[] }
 }
