@@ -21,6 +21,15 @@ interface OzPreorderItem {
   packaging_unit_stems?: number | null
   vbn_unit_code?: string | null
   lines?: OzLine[]
+  // enrichment fields — all optional, null = keep existing
+  length_cm?:     number | null
+  colors?:        string[] | null
+  country_iso?:   string | null
+  farm?:          string | null
+  stems_per_pack?: number | null
+  container_code?: string | null
+  weight_gram?:   number | null
+  quality_grade?: string | null
 }
 
 interface OzPreorderPayload {
@@ -88,15 +97,28 @@ export async function POST(req: NextRequest) {
     let productId: number | null = null
 
     if (existing) {
+      // Build update payload — only include fields with non-null incoming values.
+      // image_url is only filled in if the existing row has none (preserve manual photos).
+      const patch: Record<string, unknown> = { name: item.name }
+      if (item.order_multiple_stems != null) patch.pack_size      = item.order_multiple_stems
+      // stems_per_pack: accept both payload aliases
+      const spp = item.stems_per_pack ?? item.packaging_unit_stems
+      if (spp != null) patch.stems_per_pack = spp
+      // container_code: accept both payload aliases
+      const cc = item.container_code ?? item.vbn_unit_code
+      if (cc != null) patch.container_code = cc
+      if (!existing.image_url && item.image_url) patch.image_url = item.image_url
+      // enrichment fields
+      if (item.length_cm   != null) patch.length_cm   = item.length_cm
+      if (item.colors      != null) patch.colors       = item.colors
+      if (item.country_iso != null) patch.country_iso  = item.country_iso
+      if (item.farm        != null) patch.farm         = item.farm
+      if (item.weight_gram != null) patch.weight_gram  = item.weight_gram
+      if (item.quality_grade != null) patch.quality_grade = item.quality_grade
+
       const { error } = await supabase
         .from('products')
-        .update({
-          name:           item.name,
-          pack_size:      item.order_multiple_stems ?? undefined,
-          stems_per_pack: item.packaging_unit_stems ?? undefined,
-          container_code: item.vbn_unit_code ?? undefined,
-          ...(!existing.image_url && item.image_url ? { image_url: item.image_url } : {}),
-        })
+        .update(patch)
         .eq('id', existing.id)
 
       if (error) {
@@ -117,9 +139,15 @@ export async function POST(req: NextRequest) {
           qty:             0,
           price:           0,
           pack_size:       item.order_multiple_stems ?? 1,
-          stems_per_pack:  item.packaging_unit_stems ?? null,
-          container_code:  item.vbn_unit_code ?? null,
+          stems_per_pack:  item.stems_per_pack ?? item.packaging_unit_stems ?? null,
+          container_code:  item.container_code ?? item.vbn_unit_code ?? null,
           image_url:       item.image_url ?? null,
+          length_cm:       item.length_cm ?? null,
+          colors:          item.colors ?? null,
+          country_iso:     item.country_iso ?? null,
+          farm:            item.farm ?? null,
+          weight_gram:     item.weight_gram ?? null,
+          quality_grade:   item.quality_grade ?? null,
         })
         .select('id')
         .single()
