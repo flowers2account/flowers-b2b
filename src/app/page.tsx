@@ -15,6 +15,7 @@ export default async function HomePage() {
     .gt('qty', 0)
     .order('name')
     .order('length_cm')
+    .limit(5000)
 
   const today = new Date().toISOString().split('T')[0]
   const list = (data ?? []).map((p: any) => ({

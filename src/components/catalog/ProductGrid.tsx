@@ -488,7 +488,6 @@ function matchesSearch(p: Product, query: string): boolean {
 // ── main component ───────────────────────────────────────────────────────────
 
 export default function ProductGrid({ products: initialProducts }: { products: Product[] }) {
-  console.log('[ProductGrid] initialProducts:', initialProducts.length, 'roses:', initialProducts.filter(p => p.subcategory === 'roses').length)
   const [products, setProducts] = useState(initialProducts)
   const [showAuth, setShowAuth] = useState(false)
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
@@ -524,10 +523,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     const supabase = createClient()
     const ch = supabase.channel('stock-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stock' }, async () => {
-        console.log('[stock-sub] FIRED — fetching /api/products')
         const res = await fetch('/api/products')
         const data = await res.json()
-        console.log('[stock-sub] got', data?.length, 'products, roses:', data?.filter((p: any) => p.subcategory === 'roses').length)
         if (data) setProducts(data)
       })
       .subscribe()
@@ -545,8 +542,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   // Filter
   const filtered = useMemo(() => {
-    console.log('[filter] state:', JSON.stringify({ category, subcat, varietyType, colors: colors.length, lengths, origins, farms, tags, seasons, stockLevel }))
-    console.log('[filter] products total:', products.length, 'with roses:', products.filter(p => p.subcategory === 'roses').length)
     let list = products.filter(p => {
       const available = getAvailable(p.stock)
       const price = getPrice(p.stock)

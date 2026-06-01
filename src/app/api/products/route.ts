@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
     query = query.gt('qty', 0)
   }
 
+  query = query.limit(5000)
+
   if (searchQuery) {
     const { data: expandedTerms } = await supabase
       .rpc('expand_search_query', { search_text: searchQuery })
