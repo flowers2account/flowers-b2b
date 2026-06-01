@@ -111,6 +111,7 @@ export const useFilters = create<FilterStore>()(
 }),
 {
   name: 'catalog-filters',
+  version: 2,
   storage: createJSONStorage(() => sessionStorage),
   partialize: (s) => ({
     category:      s.category,

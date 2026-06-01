@@ -27,6 +27,12 @@ const ORIGIN_LABELS: Record<string, string> = {
   ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
   china: 'Китай', colombia: 'Колумбия', local: 'Местный',
 }
+const ORIGIN_WORD_TO_ISO: Record<string, string> = {
+  ecuador: 'EC', kenya: 'KE', holland: 'NL', china: 'CN',
+  russia: 'RU', colombia: 'CO', ethiopia: 'ET', israel: 'IL',
+  belgium: 'BE', denmark: 'DK', italy: 'IT', germany: 'DE',
+  france: 'FR', turkey: 'TR',
+}
 function CountryBadge({ iso }: { iso: string }) {
   return (
     <span style={{
@@ -557,7 +563,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       }
       if (origins.length > 0) {
         const src = (p as any).country_iso ?? ''
-        if (!src || !origins.includes(src)) return false
+        const normalizedOrigins = origins.map(o => ORIGIN_WORD_TO_ISO[o.toLowerCase()] ?? o)
+        if (!src || !normalizedOrigins.includes(src)) return false
       }
       if (farms.length > 0) {
         const f = (p as any).farm ?? ''
