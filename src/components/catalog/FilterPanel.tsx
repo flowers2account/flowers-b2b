@@ -207,7 +207,7 @@ const SEASONS = [
 const DEFAULT_OPEN = {
   available: true,
   subcat: true,
-  length: false, origin: false,
+  length: false, origin: false, farm: false,
   season: false, tags: false, potSize: false,
 }
 
@@ -551,10 +551,10 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
     category, subcat, varietyType,
-    colors, lengths, origins, potSizes, tags,
+    colors, lengths, origins, farms, potSizes, tags,
     seasons, stockLevel, onlyAvailable, facets,
     setStockLevel, setSubcat, setVarietyType,
-    toggleColor, toggleLength, toggleOrigin, togglePotSize, toggleTag,
+    toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleTag,
     toggleSeason, reset, loadFacets,
   } = useFilters()
 
@@ -572,13 +572,14 @@ export default function FilterPanel({ products }: { products: Product[] }) {
       const next = { ...prev }
       if (lengths.length > 0)     next.length    = true
       if (origins.length > 0)     next.origin    = true
+      if (farms.length > 0)       next.farm      = true
       if (seasons.length > 0)     next.season    = true
       if (tags.length > 0)        next.tags      = true
       if (potSizes.length > 0)    next.potSize   = true
       if (subcat)                 next.subcat    = true
       return next
     })
-  }, [lengths, origins, seasons, tags, potSizes, subcat])
+  }, [lengths, origins, farms, seasons, tags, potSizes, subcat])
 
   const tog = (key: keyof typeof DEFAULT_OPEN) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -710,6 +711,44 @@ export default function FilterPanel({ products }: { products: Product[] }) {
                 )
               })}
             </CollapsibleGroup>
+
+            {facets && Object.keys(facets.farmCounts ?? {}).length > 0 && (
+              <CollapsibleGroup
+                label="Производитель"
+                open={openGroups.farm}
+                onToggle={() => tog('farm')}
+                activeCount={farms.length}
+              >
+                {Object.entries(facets.farmCounts)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([name, count]) => {
+                    const dimmed = (count ?? 0) === 0 && !farms.includes(name)
+                    return (
+                      <label
+                        key={name}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '5px 8px', fontSize: 12,
+                          borderRadius: 'var(--radius-btn)',
+                          cursor: dimmed ? 'default' : 'pointer',
+                          opacity: dimmed ? 0.25 : 1,
+                          transition: 'opacity 0.2s',
+                        }}
+                      >
+                        <input
+                          type="checkbox" checked={farms.includes(name)}
+                          onChange={() => !dimmed && toggleFarm(name)}
+                          disabled={dimmed}
+                          style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: dimmed ? 'default' : 'pointer' }}
+                        />
+                        <span style={{ flex: 1 }}>{name}</span>
+                        <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{count}</span>
+                      </label>
+                    )
+                  })
+                }
+              </CollapsibleGroup>
+            )}
 
             <CollapsibleGroup
               label="Сезон"

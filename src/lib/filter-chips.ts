@@ -49,6 +49,7 @@ export const ORIGIN_LABELS: Record<string, string> = {
   // ISO-коды (из country_iso в products)
   CN: 'Китай', NL: 'Голландия', EC: 'Эквадор', KE: 'Кения',
   CO: 'Колумбия', ET: 'Эфиопия', IL: 'Израиль', RU: 'Россия',
+  BE: 'Бельгия', DK: 'Дания', IT: 'Италия', DE: 'Германия', FR: 'Франция',
   TR: 'Турция', ZA: 'ЮАР', TZ: 'Танзания', UG: 'Уганда',
 }
 const TAG_LABELS: Record<string, string> = {
@@ -62,10 +63,10 @@ const POT_SIZE_LABELS: Record<string, string> = {
 
 export function useFilterChips(): Chip[] {
   const {
-    subcat, varietyType, stockLevel, colors, lengths, origins,
+    subcat, varietyType, stockLevel, colors, lengths, origins, farms,
     potSizes, tags, seasons,
     setSubcat, setVarietyType, setStockLevel,
-    toggleColor, toggleLength, toggleOrigin, togglePotSize,
+    toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize,
     toggleTag, toggleSeason,
   } = useFilters()
 
@@ -81,9 +82,10 @@ export function useFilterChips(): Chip[] {
     colors.forEach(c => result.push({ label: COLOR_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
     lengths.forEach(l => result.push({ label: `${l} см`, onRemove: () => toggleLength(l) }))
     origins.forEach(o => result.push({ label: ORIGIN_LABELS[o] ?? o, onRemove: () => toggleOrigin(o) }))
+    farms.forEach(f => result.push({ label: f, onRemove: () => toggleFarm(f) }))
     potSizes.forEach(ps => result.push({ label: POT_SIZE_LABELS[ps] ?? ps, onRemove: () => togglePotSize(ps) }))
     tags.forEach(t => result.push({ label: TAG_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
     seasons.forEach(s => result.push({ label: SEASON_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
     return result
-  }, [subcat, varietyType, stockLevel, colors, lengths, origins, potSizes, tags, seasons])
+  }, [subcat, varietyType, stockLevel, colors, lengths, origins, farms, potSizes, tags, seasons])
 }

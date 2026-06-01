@@ -9,7 +9,7 @@ import { useProductsStore } from '@/lib/products-store'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
 import { COLORS } from '@/lib/colors'
-
+import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 
 const FLORAL_ROLE_MAP: Record<string, { label: string; icon: string }> = {
   focal:   { label: 'Фокусный',    icon: '🌹' },
@@ -27,11 +27,6 @@ const ORIGIN_MAP: Record<string, string> = {
   china:    'Китай',
   colombia: 'Колумбия',
   local:    'Местный',
-}
-
-const COUNTRY_LABELS: Record<string, string> = {
-  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль', DK: 'Дания',
 }
 
 const SEASON_MAP: Record<string, string> = {
@@ -212,7 +207,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
   const displayName = product.display_name || product.variety_name || product.name
   const countryLabel = product.country_iso
-    ? (COUNTRY_LABELS[product.country_iso] ?? product.country_iso)
+    ? `${countryFlag(product.country_iso)} ${COUNTRY_LABELS[product.country_iso] ?? product.country_iso}`
     : product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null
   type Dim = { type: 'length' | 'diam'; val: string }
   const dims: Dim[] = product.category === 'pot'

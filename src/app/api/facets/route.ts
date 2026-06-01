@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: products } = await supabase
     .from('products')
-    .select('id, colors, length_cm, country_iso, subcategory, variety_type, qty')
+    .select('id, colors, length_cm, country_iso, subcategory, variety_type, qty, farm')
     .eq('is_active', true)
     .eq('category', category)
 
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     subcategory: string | null
     variety_type: string | null
     qty: number
+    farm: string | null
   }
 
   // All available products in category
@@ -60,6 +61,11 @@ export async function POST(req: NextRequest) {
     if (p.country_iso) originCounts[p.country_iso] = (originCounts[p.country_iso] || 0) + 1
   })
 
+  const farmCounts: Record<string, number> = {}
+  detailBase.forEach(p => {
+    if (p.farm) farmCounts[p.farm] = (farmCounts[p.farm] || 0) + 1
+  })
+
   return NextResponse.json({
     subcatCounts,
     vtCounts,
@@ -67,5 +73,6 @@ export async function POST(req: NextRequest) {
     lengthCounts,
     originCounts,
     seasonCounts: {},
+    farmCounts,
   })
 }

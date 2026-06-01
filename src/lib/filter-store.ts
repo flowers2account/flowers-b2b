@@ -12,6 +12,7 @@ export type Facets = {
   lengthCounts: Record<number, number>
   originCounts: Record<string, number>
   seasonCounts: Record<string, number>
+  farmCounts: Record<string, number>
 }
 
 type FilterStore = {
@@ -25,6 +26,7 @@ type FilterStore = {
   colors: string[]
   lengths: number[]
   origins: string[]
+  farms: string[]
   potSizes: string[]
   tags: string[]
   seasons: string[]
@@ -40,6 +42,7 @@ type FilterStore = {
   toggleColor: (v: string) => void
   toggleLength: (v: number) => void
   toggleOrigin: (v: string) => void
+  toggleFarm: (v: string) => void
   togglePotSize: (v: string) => void
   toggleTag: (v: string) => void
   toggleSeason: (v: string) => void
@@ -63,6 +66,7 @@ export const useFilters = create<FilterStore>()(
   colors: [],
   lengths: [],
   origins: [],
+  farms: [],
   potSizes: [],
   tags: [],
   seasons: [],
@@ -70,7 +74,7 @@ export const useFilters = create<FilterStore>()(
 
   setCategory: (category) => set({
     category, subcat: '', varietyType: '',
-    colors: [], lengths: [], origins: [], potSizes: [], tags: [],
+    colors: [], lengths: [], origins: [], farms: [], potSizes: [], tags: [],
     seasons: [],
   }),
   setSubcat:        (subcat) => set({ subcat, varietyType: '' }),
@@ -82,13 +86,14 @@ export const useFilters = create<FilterStore>()(
   toggleColor:      (v) => set(s => ({ colors:      tog(s.colors,      v) })),
   toggleLength:     (v) => set(s => ({ lengths:     s.lengths.includes(v) ? s.lengths.filter(l => l !== v) : [...s.lengths, v] })),
   toggleOrigin:     (v) => set(s => ({ origins:     tog(s.origins,     v) })),
+  toggleFarm:       (v) => set(s => ({ farms:       tog(s.farms,       v) })),
   togglePotSize:    (v) => set(s => ({ potSizes:    tog(s.potSizes,    v) })),
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
     category: 'cut' as FilterCategory, subcat: '', varietyType: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
-    search: '', colors: [], lengths: [], origins: [], potSizes: [], tags: [],
+    search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], tags: [],
     seasons: [], facets: null,
   }),
   loadFacets: async () => {
@@ -117,6 +122,7 @@ export const useFilters = create<FilterStore>()(
     colors:        s.colors,
     lengths:       s.lengths,
     origins:       s.origins,
+    farms:         s.farms,
     potSizes:      s.potSizes,
     tags:          s.tags,
     seasons:       s.seasons,

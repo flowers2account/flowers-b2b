@@ -1,88 +1,56 @@
 'use client'
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
 
 export default function ImportXLS({ onImported }: { onImported: () => void }) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [results, setResults] = useState<{
-    name: string
-    success: number
-    errors: number
-    zeroed?: number
-    ai_enriched?: number
-    ai_cached?: number
-    ai_failed?: number
-    varieties_species_filled?: number
+    name: string; matched: number; unmatched: number; total: number; importId?: number
   }[]>([])
+  const [lastImportId, setLastImportId] = useState<number | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const user = useAuthStore(s => s.user)
+  const userId = useAuthStore(s => s.user?.id)
 
   async function handleUpload() {
     if (!files.length) return
-    const confirmed = confirm(
-      `Загрузка файлов обнулит ВСЕ текущие остатки категории перед записью новых данных.\n\nФайлы: ${files.map(f => f.name).join(', ')}\n\nПродолжить?`
-    )
-    if (!confirmed) return
     setLoading(true)
     setResults([])
+    setLastImportId(null)
 
-    const allImportedIds: number[] = []
-    const importedCategories = new Set<string>()
+    // One shared importId for all files in this batch
+    const importId = Date.now()
+    setLastImportId(importId)
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
+    for (const file of files) {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('isFirst', String(i === 0))
-      if (user?.id) formData.append('userId', user.id)
+      formData.append('importId', String(importId))
+      if (userId) formData.append('userId', userId)
 
       try {
         const res = await fetch('/api/import-xls', { method: 'POST', body: formData })
         const data = await res.json()
-        if (data.importedIds) allImportedIds.push(...data.importedIds)
-        if (data.category) importedCategories.add(data.category)
         setResults(prev => [...prev, {
           name: file.name,
-          success: data.success ?? 0,
-          errors: data.errors ?? 0,
-          ai_enriched: data.ai_enriched,
-          ai_cached: data.ai_cached,
-          ai_failed: data.ai_failed,
-          varieties_species_filled: data.varieties_species_filled,
+          matched: data.matched ?? 0,
+          unmatched: data.unmatched ?? 0,
+          total: data.total ?? 0,
+          importId: data.importId,
         }])
-      } catch (e) {
-        setResults(prev => [...prev, { name: file.name, success: 0, errors: 1 }])
+      } catch {
+        setResults(prev => [...prev, { name: file.name, matched: 0, unmatched: 0, total: 0 }])
       }
     }
 
-    // Деактивируем товары, отсутствующие в импорте, по каждой категории
-    if (importedCategories.size > 0) {
-      try {
-        const res = await fetch('/api/import-xls/finalize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            keepIds: allImportedIds,
-            categories: Array.from(importedCategories),
-          }),
-        })
-        const data = await res.json()
-        if (data.zeroed) {
-          setResults(prev => [...prev, {
-            name: '— деактивация',
-            success: 0,
-            errors: 0,
-            zeroed: data.zeroed,
-          }])
-        }
-      } catch {}
-    }
-
     setLoading(false)
-    onImported()
   }
+
+  const totalUnmatched = results.reduce((s, r) => s + r.unmatched, 0)
+  const totalMatched   = results.reduce((s, r) => s + r.matched,   0)
 
   return (
     <div className="space-y-3">
@@ -95,46 +63,60 @@ export default function ImportXLS({ onImported }: { onImported: () => void }) {
             accept=".xls,.xlsx"
             multiple
             className="hidden"
-            onChange={e => setFiles(Array.from(e.target.files ?? []))}
+            onChange={e => { setFiles(Array.from(e.target.files ?? [])); setResults([]); setLastImportId(null) }}
           />
         </label>
         {files.length > 0 && (
           <span className="text-sm text-gray-500">{files.map(f => f.name).join(', ')}</span>
         )}
-        <Button onClick={handleUpload} disabled={!files.length || loading} size="sm">
+        <Button onClick={handleUpload} disabled={!files.length || loading || results.length > 0} size="sm">
           {loading ? (
             <span className="flex items-center gap-2">
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
               </svg>
-              Загрузка...
+              Загрузка…
             </span>
           ) : 'Загрузить'}
         </Button>
       </div>
-      <p className="text-xs text-gray-400">Можно выбрать несколько файлов сразу. Zeroed применяется после последнего файла категории.</p>
+
+      <p className="text-xs text-gray-400">
+        Файл разбирается в буфер. На следующем шаге привяжите незнакомые позиции и нажмите «Применить».
+      </p>
+
       {results.length > 0 && (
-        <div className="text-sm space-y-1">
+        <div className="space-y-1">
           {results.map((r, i) => (
-            <div key={i} className="text-xs space-y-0.5">
-              <div className="flex gap-3">
-                <span className="text-gray-500 truncate max-w-[200px]">{r.name}</span>
-                <span className="text-green-700">+{r.success}</span>
-                {r.errors > 0 && <span className="text-red-600">err:{r.errors}</span>}
-                {r.zeroed ? <span className="text-orange-500">обнулено:{r.zeroed}</span> : null}
-              </div>
-              {((r.ai_enriched ?? 0) > 0 || (r.ai_cached ?? 0) > 0) && (
-                <div className="text-blue-600 pl-1">
-                  AI: +{r.ai_enriched ?? 0} новых, {r.ai_cached ?? 0} из кэша
-                  {(r.varieties_species_filled ?? 0) > 0 && `, виды: ${r.varieties_species_filled}`}
-                </div>
-              )}
-              {(r.ai_failed ?? 0) > 0 && (
-                <div className="text-amber-600 pl-1">AI не справился: {r.ai_failed}</div>
-              )}
+            <div key={i} className="text-xs flex gap-3 items-center">
+              <span className="text-gray-500 truncate max-w-[200px]">{r.name}</span>
+              <span className="text-green-700">✓ {r.matched}</span>
+              {r.unmatched > 0
+                ? <span className="text-red-600">⚠ {r.unmatched} не найдено</span>
+                : <span className="text-gray-400">все найдены</span>
+              }
+              <span className="text-gray-400">/ {r.total}</span>
             </div>
           ))}
+
+          {lastImportId && (
+            <div className="pt-2">
+              <button
+                onClick={() => router.push(`/admin/import/${lastImportId}/mapping`)}
+                style={{
+                  padding: '8px 18px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                  background: totalUnmatched > 0 ? '#7a1c2e' : '#16a34a',
+                  color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                {totalUnmatched > 0
+                  ? `→ Привязать ${totalUnmatched} строк и применить`
+                  : `→ Применить ${totalMatched} строк`
+                }
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

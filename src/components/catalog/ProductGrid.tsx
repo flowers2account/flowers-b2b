@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import { COLORS } from '@/lib/colors'
+import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 
 const ROLE_ICONS: Record<string, string> = {
   focal: '🌹', mass: '🌸', line: '🌿',
@@ -26,18 +27,13 @@ const ORIGIN_LABELS: Record<string, string> = {
   ecuador: 'Эквадор', kenya: 'Кения', holland: 'Голландия',
   china: 'Китай', colombia: 'Колумбия', local: 'Местный',
 }
-const COUNTRY_LABELS: Record<string, string> = {
-  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль', DK: 'Дания',
-}
-
 function CountryBadge({ iso }: { iso: string }) {
   return (
     <span style={{
       fontSize: 10, color: '#5B7BA0', background: 'rgba(91,123,160,0.1)',
       borderRadius: 4, padding: '1px 6px', fontWeight: 500,
     }}>
-      {COUNTRY_LABELS[iso] ?? iso}
+      {countryFlag(iso)} {COUNTRY_LABELS[iso] ?? iso}
     </span>
   )
 }
@@ -499,7 +495,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const isMobile = useIsMobile()
   const {
     category, subcat, varietyType, colors, onlyDiscount, stockLevel, search,
-    lengths, origins, potSizes, tags, seasons,
+    lengths, origins, farms, potSizes, tags, seasons,
     setSearch, reset,
   } = useFilters()
 
@@ -562,6 +558,10 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (origins.length > 0) {
         const src = (p as any).country_iso ?? ''
         if (!src || !origins.includes(src)) return false
+      }
+      if (farms.length > 0) {
+        const f = (p as any).farm ?? ''
+        if (!f || !farms.includes(f)) return false
       }
       // Размер горшка (pot)
       if (potSizes.length > 0) {
