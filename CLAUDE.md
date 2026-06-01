@@ -207,6 +207,12 @@ B2B платформа для оптовой торговли цветами. С
 - **Решение**: Используется `createClient()` (client role) + RLS политики
 - **Статус**: Постоянное ограничение архитектуры Vercel
 
+⚠️ **PostgREST `max_rows` = 1000 — жёсткий лимит**
+- `.limit(N)` где N > 1000 возвращает ошибку → `data=null` → пустой каталог
+- **Решение**: пагинация через `.range(from, from+PAGE-1)` в цикле (PAGE=900)
+- Реализовано в `src/app/page.tsx` → `fetchAllProducts()`: 2 запроса по 900 строк покрывают текущие 1725 товаров
+- При росте каталога цикл автоматически добавит третий запрос
+
 ⚠️ **`stock_available` view не содержит `price`**
 - Не использовать для получения цен — брать напрямую из `products.price`
 
@@ -516,8 +522,9 @@ src/
 │   ├── api/
 │   │   ├── import-xls/route.ts          # Импорт XLS — основная логика
 │   │   ├── import-xls/finalize/route.ts # Деактивация после батча (категориальная)
-│   │   ├── products/route.ts            # Каталог (включает previous_price, campaign_image_url)
+│   │   ├── products/route.ts            # Каталог (включает previous_price, campaign_image_url); limit(5000) — только для API-пути
 │   │   └── admin/products/route.ts      # Админ-таблица
+│   ├── page.tsx                         # SSR каталог; force-dynamic + fetchAllProducts() (пагинация .range() по 900 строк)
 │   ├── admin/
 │   │   ├── page.tsx              # Открывается на вкладке "Остатки"
 │   │   └── generate-cards/       # Генератор карточек для WhatsApp
@@ -560,6 +567,10 @@ src/
 
 ### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
 - **Решение**: `createClient()` (client role) + RLS
+
+### 🔴 PostgREST max_rows=1000 — нельзя делать `.limit(>1000)`
+- Возвращает ошибку, `data=null`, каталог пустой
+- **Решение**: `fetchAllProducts()` в `src/app/page.tsx` — цикл `.range()` по 900 строк
 
 ### 🟡 Realtime обновления каталога не работают
 - Пользователь должен перезагрузить страницу
