@@ -140,47 +140,31 @@ function getVarietyType(name) {
   return 'single'
 }
 
-const GRADE_RANK = { AA: 2, A1: 1 }
-
-const raw = readFileSync(JSONL_PATH, 'utf8')
+// Each line in JSONL is a unique SKU (unique oz_product_code per length/farm combo)
+const items = readFileSync(JSONL_PATH, 'utf8')
   .split('\n').filter(Boolean).map(l => JSON.parse(l))
 
-// Deduplicate by name: prefer AA, then longest stem
-const byName = new Map()
-for (const item of raw) {
-  const key = item.name.toLowerCase().trim()
-  const existing = byName.get(key)
-  if (!existing) {
-    byName.set(key, item)
-    continue
-  }
-  const newRank = GRADE_RANK[item.quality_grade] ?? 0
-  const oldRank = GRADE_RANK[existing.quality_grade] ?? 0
-  if (newRank > oldRank) { byName.set(key, item); continue }
-  if (newRank === oldRank && (item.length_cm ?? 0) > (existing.length_cm ?? 0)) {
-    byName.set(key, item)
-  }
-}
-
-const items = [...byName.values()]
-console.log(`Total records: ${raw.length} → Unique cultivars: ${items.length}`)
+console.log(`Total records: ${items.length}`)
 
 let created = 0, updated = 0, errors = 0
 
 for (const item of items) {
+  if (!item.oz_product_code) { console.error(`SKIP (no oz_product_code): ${item.name}`); errors++; continue }
+
   const nameKey = item.name.toLowerCase().trim()
   const cultivar = DISPLAY_NAMES[nameKey] ?? null
   const variety_type = getVarietyType(item.name)
   const prefix = variety_type === 'spray' ? 'Роза ветковая' : 'Роза однг'
-  const display_name = cultivar ? `${prefix} ${cultivar}` : null
+  const display_name = cultivar ? `${prefix} ${cultivar}` : `${prefix} ${item.name}`
   const photo = fixPhotoUrl(item.image_url)
   const farm = item.farm?.trim() || null
   const colors = normalizeColors(item.colors)
 
+  // Lookup by oz_product_code (unique SKU key)
   const { data: existing, error: fetchErr } = await supabase
     .from('products')
-    .select('id, name, display_name, image_url, country_iso, colors, farm, oz_product_code')
-    .eq('name', item.name)
+    .select('id, display_name, image_url, country_iso, colors, farm')
+    .eq('oz_product_code', item.oz_product_code)
     .maybeSingle()
 
   if (fetchErr) {
@@ -190,35 +174,35 @@ for (const item of items) {
   }
 
   if (existing) {
-    const displayNameIsRaw = !existing.display_name || existing.display_name === existing.name
+    const displayIsRaw = !existing.display_name || !existing.display_name.startsWith('Роза')
     const { error: updErr } = await supabase
       .from('products')
       .update({
-        oz_product_code: item.oz_product_code,
+        name: item.name,
         pack_size: item.pack_size,
         stems_per_pack: item.stems_per_pack,
+        length_cm: item.length_cm ?? null,
         variety_type,
         source: 'oz_catalog',
         is_active: true,
         qty: 999,
         price: 999,
-        ...((!existing.image_url && photo)             ? { image_url: photo }       : {}),
-        ...((!existing.country_iso && item.country_iso)? { country_iso: item.country_iso } : {}),
-        ...((!existing.farm && farm)                   ? { farm }                   : {}),
-        ...(((!existing.colors || existing.colors.length === 0) && colors.length)
-          ? { colors } : {}),
-        ...((displayNameIsRaw && display_name)         ? { display_name }           : {}),
+        ...((!existing.image_url && photo)              ? { image_url: photo }        : {}),
+        ...((!existing.country_iso && item.country_iso) ? { country_iso: item.country_iso } : {}),
+        ...((!existing.farm && farm)                    ? { farm }                    : {}),
+        ...(((!existing.colors?.length) && colors.length) ? { colors }               : {}),
+        ...(displayIsRaw                                ? { display_name }            : {}),
       })
       .eq('id', existing.id)
 
     if (updErr) { console.error(`UPDATE ERROR ${item.name}:`, updErr.message); errors++ }
-    else { console.log(`  ✓ updated  ${item.name}${display_name ? ' → ' + display_name : ''}`); updated++ }
+    else { updated++ }
   } else {
     const { error: insErr } = await supabase
       .from('products')
       .insert({
         name: item.name,
-        display_name: display_name ?? `${prefix} ${item.name}`,
+        display_name,
         oz_product_code: item.oz_product_code,
         category: 'cut',
         subcategory: 'roses',
@@ -236,8 +220,8 @@ for (const item of items) {
         is_active: true,
       })
 
-    if (insErr) { console.error(`INSERT ERROR ${item.name}:`, insErr.message); errors++ }
-    else { console.log(`  + inserted ${item.name}${display_name ? ' → ' + display_name : ''}`); created++ }
+    if (insErr) { console.error(`INSERT ERROR ${item.name} ${item.length_cm}cm:`, insErr.message); errors++ }
+    else { created++ }
   }
 }
 
