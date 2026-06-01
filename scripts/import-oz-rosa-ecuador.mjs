@@ -15,52 +15,118 @@ const JSONL_PATH = process.argv[2] || 'C:/Users/Владелец/Desktop/oz-pars
 
 // Cultivar name (lowercase) → Russian display_name
 const DISPLAY_NAMES = {
-  'rosa ec aloha':               'Алоха',
-  'rosa ec amnesia':             'Амнезия',
-  'rosa ec angelkiss':           'Ангел Кисс',
-  'rosa ec atomic':              'Атомик',
-  'rosa ec barista':             'Бариста',
-  'rosa ec be sweet':            'Би Свит',
-  'rosa ec black baccara':       'Блэк Баккара',
-  'rosa ec blush':               'Блаш',
-  'rosa ec brighton':            'Брайтон',
-  'rosa ec buttercup':           'Баттеркап',
-  'rosa ec cabaret':             'Кабаре',
-  'rosa ec candlelight':         'Кэндлайт',
-  'rosa ec candy xpression':     'Кэнди Икспрешн',
-  'rosa ec carpe diem':          'Карпе Дием',
-  'rosa ec cherry brandy':       'Черри Бренди',
-  'rosa ec cherry-o!':           'Черри-О',
-  'rosa ec christa':             'Криста',
-  'rosa ec coffee break':        'Кофе Брэйк',
-  'rosa ec cool water':          'Кул Вотер',
-  'rosa ec country soul':        'Кантри Соул',
-  'rosa ec deep purple':         'Дип Пёрпл',
-  'rosa ec esperance':           'Эсперанс',
-  'rosa ec explorer':            'Эксплорер',
-  'rosa ec fiesta':              'Фиеста',
-  'rosa ec free spirit':         'Фри Спирит',
-  'rosa ec garden fancy dreams': 'Гарден Фэнси Дримс',
-  'rosa ec kahala':              'Кахала',
-  'rosa ec mix in box':          'Микс ин Бокс',
-  'rosa ec mondial':             'Мондиаль',
-  'rosa ec orange crush':        'Оранж Краш',
-  'rosa ec paint light blue':    'Пэйнт Лайт Блю',
-  'rosa ec paint magic rainbow': 'Пэйнт Мэджик Рэйнбоу',
-  'rosa ec paint moonlight':     'Пэйнт Мунлайт',
-  'rosa ec paint purple white':  'Пэйнт Пёрпл Уайт',
-  'rosa ec paint velvet cloud pink': 'Пэйнт Вельвет Клауд Пинк',
-  'rosa ec paloma':              'Палома',
-  'rosa ec pink floyd':          'Пинк Флойд',
-  'rosa ec pink mondial':        'Пинк Мондиаль',
-  'rosa ec playa blanca':        'Плайя Бланка',
-  'rosa ec princess miyuki':     'Принцесс Мийюки',
-  'rosa ec spray mix in box':    'Спрей Микс ин Бокс',
-  'rosa ec sweetnesse':          'Свитнесс',
-  'rosa ec tibeth':              'Тибет',
-  'rosa ec twilight':            'Твайлайт',
-  'rosa ec vendela':             'Вендела',
-  'rosa garden antonia':         'Антония',
+  'rosa ec aloha':                    'Алоха',
+  'rosa ec amnesia':                  'Амнезия',
+  'rosa ec angelkiss':                'Ангел Кисс',
+  'rosa ec atomic':                   'Атомик',
+  'rosa ec barista':                  'Бариста',
+  'rosa ec be sweet':                 'Би Свит',
+  'rosa ec black baccara':            'Блэк Баккара',
+  'rosa ec blush':                    'Блаш',
+  'rosa ec brighton':                 'Брайтон',
+  'rosa ec buttercup':                'Баттеркап',
+  'rosa ec cabaret':                  'Кабаре',
+  'rosa ec candlelight':              'Кэндлайт',
+  'rosa ec candy xpression':          'Кэнди Икспрешн',
+  'rosa ec carpe diem':               'Карпе Дием',
+  'rosa ec cherry brandy':            'Черри Бренди',
+  'rosa ec cherry-o!':                'Черри-О',
+  'rosa ec christa':                  'Криста',
+  'rosa ec coffee break':             'Кофе Брэйк',
+  'rosa ec cool water':               'Кул Вотер',
+  'rosa ec coral reef':               'Корал Риф',
+  'rosa ec cotton xpression':         'Коттон Икспрешн',
+  'rosa ec country home':             'Кантри Хоум',
+  'rosa ec country soul':             'Кантри Соул',
+  'rosa ec deep purple':              'Дип Пёрпл',
+  'rosa ec esperance':                'Эсперанс',
+  'rosa ec exotix berry':             'Экзотик Берри',
+  'rosa ec explorer':                 'Эксплорер',
+  'rosa ec faith':                    'Фейт',
+  'rosa ec felicity':                 'Фелисити',
+  'rosa ec fiesta':                   'Фиеста',
+  'rosa ec free spirit':              'Фри Спирит',
+  'rosa ec freedom':                  'Фридом',
+  'rosa ec frutetto':                 'Фруттето',
+  'rosa ec garden fancy dreams':      'Гарден Фэнси Дримс',
+  'rosa ec garden melon xpression':   'Гарден Мелон Икспрешн',
+  'rosa ec garden phoenix':           'Гарден Феникс',
+  'rosa ec garden vicky gardens':     'Гарден Вики Гарденс',
+  'rosa ec green romance':            'Грин Романс',
+  'rosa ec hermosa':                  'Хермоза',
+  'rosa ec high & magic':             'Хай энд Мэджик',
+  'rosa ec iguana':                   'Игуана',
+  'rosa ec kahala':                   'Кахала',
+  'rosa ec lemonade':                 'Лемонэйд',
+  'rosa ec lola':                     'Лола',
+  'rosa ec luciano':                  'Лучано',
+  'rosa ec mamma mia':                'Мамма Миа',
+  'rosa ec mandala':                  'Мандала',
+  'rosa ec menta':                    'Ментa',
+  'rosa ec mix':                      'Микс',
+  'rosa ec mix in box':               'Микс ин Бокс',
+  'rosa ec mix rainbow (mixbunch)':   'Микс Рэйнбоу',
+  'rosa ec moab':                     'Моаб',
+  'rosa ec mondial':                  'Мондиаль',
+  'rosa ec news flash':               'Ньюс Флэш',
+  'rosa ec nina':                     'Нина',
+  'rosa ec ocean song':               'Оушен Сонг',
+  'rosa ec orange crush':             'Оранж Краш',
+  'rosa ec paint blue':               'Пэйнт Блю',
+  'rosa ec paint light blue':         'Пэйнт Лайт Блю',
+  'rosa ec paint magic rainbow':      'Пэйнт Мэджик Рэйнбоу',
+  'rosa ec paint moonlight':          'Пэйнт Мунлайт',
+  'rosa ec paint purple white':       'Пэйнт Пёрпл Уайт',
+  'rosa ec paint velvet cloud pink':  'Пэйнт Вельвет Клауд Пинк',
+  'rosa ec paloma':                   'Палома',
+  'rosa ec pink floyd':               'Пинк Флойд',
+  'rosa ec pink mondial':             'Пинк Мондиаль',
+  'rosa ec pink xpression':           'Пинк Икспрешн',
+  'rosa ec playa blanca':             'Плайя Бланка',
+  'rosa ec princess crown':           'Принцесс Краун',
+  'rosa ec princess miyuki':          'Принцесс Мийюки',
+  'rosa ec purple moon':              'Пёрпл Мун',
+  'rosa ec queens crown':             'Квинс Краун',
+  'rosa ec quicksand':                'Квиксэнд',
+  'rosa ec rosita vendela':           'Росита Вендела',
+  'rosa ec sahara':                   'Сахара',
+  'rosa ec silantoi':                 'Силантои',
+  'rosa ec spray mix in box':         'Спрей Микс ин Бокс',
+  'rosa ec sweetnesse':               'Свитнесс',
+  'rosa ec the pearl':                'Зе Пёрл',
+  'rosa ec tiara':                    'Тиара',
+  'rosa ec tibeth':                   'Тибет',
+  'rosa ec tiffany':                  'Тиффани',
+  'rosa ec toffee':                   'Тоффи',
+  'rosa ec topaz':                    'Топаз',
+  'rosa ec tutti frutti':             'Тутти Фрутти',
+  'rosa ec twilight':                 'Твайлайт',
+  'rosa ec tycoon':                   'Тайкун',
+  'rosa ec vendela':                  'Вендела',
+  'rosa ec vi pink':                  'Ви Пинк',
+  'rosa ec vicky gardens':            'Вики Гарденс',
+  'rosa garden antonia':              'Антония',
+  'rosa garden mayra white':          'Майра Уайт',
+}
+
+// Normalize OZ color keys → palette keys
+const COLOR_MAP = {
+  'orange_light':  'light_orange',
+  'orange_yellow': 'yellow_orange',
+  'yellow-orange': 'yellow_orange',
+  'orange-red':    'orange_red',
+  'pink_light':    'pink_light',   // exists in palette
+  'pink_white':    'pink_white',   // exists in palette
+  'red_white':     'bicolor_red_white',
+  'white_red':     'bicolor_red_white',
+  'white_green':   'bicolor_white_green',
+  'red_dark':      'red_dark',     // exists in palette
+}
+
+function normalizeColors(colors) {
+  return (colors ?? [])
+    .map(c => COLOR_MAP[c] ?? c)
+    .filter(c => c !== 'unknown')
 }
 
 function fixPhotoUrl(url) {
@@ -103,10 +169,13 @@ let created = 0, updated = 0, errors = 0
 
 for (const item of items) {
   const nameKey = item.name.toLowerCase().trim()
-  const display_name = DISPLAY_NAMES[nameKey] ?? null
+  const cultivar = DISPLAY_NAMES[nameKey] ?? null
   const variety_type = getVarietyType(item.name)
+  const prefix = variety_type === 'spray' ? 'Роза ветковая' : 'Роза однг'
+  const display_name = cultivar ? `${prefix} ${cultivar}` : null
   const photo = fixPhotoUrl(item.image_url)
   const farm = item.farm?.trim() || null
+  const colors = normalizeColors(item.colors)
 
   const { data: existing, error: fetchErr } = await supabase
     .from('products')
@@ -136,8 +205,8 @@ for (const item of items) {
         ...((!existing.image_url && photo)             ? { image_url: photo }       : {}),
         ...((!existing.country_iso && item.country_iso)? { country_iso: item.country_iso } : {}),
         ...((!existing.farm && farm)                   ? { farm }                   : {}),
-        ...(((!existing.colors || existing.colors.length === 0) && item.colors?.length)
-          ? { colors: item.colors } : {}),
+        ...(((!existing.colors || existing.colors.length === 0) && colors.length)
+          ? { colors } : {}),
         ...((displayNameIsRaw && display_name)         ? { display_name }           : {}),
       })
       .eq('id', existing.id)
@@ -149,7 +218,7 @@ for (const item of items) {
       .from('products')
       .insert({
         name: item.name,
-        display_name: display_name ?? item.name,
+        display_name: display_name ?? `${prefix} ${item.name}`,
         oz_product_code: item.oz_product_code,
         category: 'cut',
         subcategory: 'roses',
@@ -158,7 +227,7 @@ for (const item of items) {
         length_cm: item.length_cm ?? null,
         pack_size: item.pack_size,
         stems_per_pack: item.stems_per_pack,
-        colors: item.colors ?? [],
+        colors,
         country_iso: item.country_iso ?? 'EC',
         farm,
         image_url: photo,
