@@ -612,7 +612,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     }
 
     return list
-  }, [products, category, subcat, varietyType, colors, onlyDiscount, stockLevel, search, lengths, origins, potSizes, tags, seasons, sort])
+  }, [products, category, subcat, varietyType, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])
