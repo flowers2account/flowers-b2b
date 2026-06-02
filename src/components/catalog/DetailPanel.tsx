@@ -462,12 +462,25 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             )
           })()}
 
-          {product.description && (
-            <div style={{ paddingTop: 10, fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.55 }}>
+        </div>
+
+        {/* Description */}
+        {product.description && (
+          <div style={{
+            marginBottom: 12,
+            padding: '8px 10px',
+            background: 'var(--bg2)',
+            borderRadius: 'var(--radius-btn)',
+            borderLeft: '2px solid var(--accent-mid)',
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+              Характеристики
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
               {product.description}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Stepper + Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
