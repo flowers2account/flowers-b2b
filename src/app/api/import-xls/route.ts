@@ -92,7 +92,7 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot' | 'accessories
     if (/горшок|горш|кашпо|фонтан|вазон/.test(n))                                                  return { subcategory: 'pots',       variety_type: null }
     if (/грунт|удобрен|торф|перлит|субстрат|компост|вермикул/.test(n))                             return { subcategory: 'soil',       variety_type: null }
     if (/газон|укрывной|агрополотно|мульч|геотекстил/.test(n))                                     return { subcategory: 'lawns',      variety_type: null }
-    if (/сад|огород|дача|рассад|семен/.test(n))                                                     return { subcategory: 'garden',     variety_type: null }
+    if (/садов|огород|дача|дачн|рассад|семен/.test(n))                                              return { subcategory: 'garden',     variety_type: null }
     if (/искусствен/.test(n))                                                                       return { subcategory: 'artificial', variety_type: null }
     if (/игрушк/.test(n))                                                                           return { subcategory: 'toys',       variety_type: null }
   }
