@@ -608,10 +608,21 @@ export default function ProductPage() {
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
-                <Link href="/" style={{ fontSize: 13, color: C.accent, textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 4 }}>
+                <button
+                  onClick={() => {
+                    try {
+                      const raw = sessionStorage.getItem('catalog-filters')
+                      const stored = raw ? JSON.parse(raw) : { state: {}, version: 2 }
+                      stored.state = { ...stored.state, category: product!.category, subcat: product!.subcategory ?? '', varietyType: '' }
+                      sessionStorage.setItem('catalog-filters', JSON.stringify(stored))
+                    } catch {}
+                    router.push('/')
+                  }}
+                  style={{ fontSize: 13, color: C.accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 4, fontFamily: 'inherit', padding: 0 }}
+                >
                   Все товары
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-                </Link>
+                </button>
               </div>
             </div>
             <style>{`#related-scroll::-webkit-scrollbar{display:none}`}</style>
