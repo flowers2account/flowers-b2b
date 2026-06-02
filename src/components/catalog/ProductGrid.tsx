@@ -495,14 +495,27 @@ const SMART_SUGGESTIONS: SuggestionDef[] = [
   { keywords: ['хит', 'популяр', 'бестселл'], label: '🔥 Хит продаж', type: 'tag', value: 'hit' },
   { keywords: ['акция', 'скидк', 'уценк', 'дешев'], label: '🏷 Акция', type: 'tag', value: 'sale' },
   { keywords: ['новинк', 'новый', 'новое', 'новые'], label: '🆕 Новинка', type: 'tag', value: 'new' },
-  // Accessories subcategories
-  { keywords: ['упаков', 'упак', 'лент', 'пленк', 'плёнк', 'флорист', 'сетк', 'бумаг', 'органз'], label: 'Упаковка', type: 'subcat', value: 'packaging' },
-  { keywords: ['горшок', 'горш', 'кашпо', 'вазон', 'фонтан'], label: 'Горшки и кашпо', type: 'subcat', value: 'pots' },
+  // Accessories — Упаковка флористическая
+  { keywords: ['плёнк', 'пленк', 'стрет', 'флорист'], label: 'Плёнка', type: 'subcat', value: 'film' },
+  { keywords: ['бумаг', 'крафт', 'тишью', 'органз', 'лент'], label: 'Бумага', type: 'subcat', value: 'paper' },
+  { keywords: ['пакет', 'сетк', 'мешоч', 'упаков', 'упак'], label: 'Пакеты', type: 'subcat', value: 'film_bags' },
+  // Accessories — Горшки, кашпо и фонтаны
+  { keywords: ['горшок', 'горш', 'вазон'], label: 'Горшки', type: 'subcat', value: 'pots' },
+  { keywords: ['кашпо', 'кашп'], label: 'Кашпо', type: 'subcat', value: 'kashpo' },
+  { keywords: ['фонтан'], label: 'Фонтаны', type: 'subcat', value: 'fountains' },
+  { keywords: ['ваза', 'вазы', 'ваз'], label: 'Вазы', type: 'subcat', value: 'vases' },
+  { keywords: ['декор', 'сувен', 'фигурк'], label: 'Декор и сувениры', type: 'subcat', value: 'decor' },
+  // Accessories — Грунт и удобрения
   { keywords: ['грунт', 'субстрат', 'торф', 'перлит', 'компост', 'дренаж', 'кокос'], label: 'Грунты', type: 'subcat', value: 'soil' },
   { keywords: ['удобрен', 'удобр', 'фертик', 'подкорм', 'стимул', 'инсектицид', 'фунгицид'], label: 'Удобрения', type: 'subcat', value: 'fertilizers' },
-  { keywords: ['газон', 'укрывн', 'агро', 'мульч', 'геотекст'], label: 'Газон/укрывной', type: 'subcat', value: 'lawns' },
-  { keywords: ['сад', 'огород', 'рассад', 'семен', 'дача'], label: 'Сад и огород', type: 'subcat', value: 'garden' },
-  { keywords: ['искусств'], label: 'Искусственные', type: 'subcat', value: 'artificial' },
+  // Accessories — Газоны и укрывной материал
+  { keywords: ['укрывн', 'агротекст', 'спанбонд', 'геотекст', 'агро'], label: 'Укрывной материал', type: 'subcat', value: 'cover_fabric' },
+  { keywords: ['мульч', 'теплиц'], label: 'Плёнка укрывная', type: 'subcat', value: 'cover_film' },
+  { keywords: ['газон', 'искусств газ'], label: 'Искусственный газон', type: 'subcat', value: 'artificial_grass' },
+  { keywords: ['семена', 'трав смес', 'газон сем'], label: 'Семена газона', type: 'subcat', value: 'grass_seed' },
+  // Accessories — прочее
+  { keywords: ['сад', 'огород', 'рассад', 'дача'], label: 'Сад и огород', type: 'subcat', value: 'garden' },
+  { keywords: ['искусств'], label: 'Искусственные растения', type: 'subcat', value: 'artificial' },
   { keywords: ['игрушк', 'мягк', 'медвед', 'кукл'], label: 'Игрушки', type: 'subcat', value: 'toys' },
   // Cut flower subcategories (for when cut is re-enabled)
   { keywords: ['роза', 'розы', 'роз', 'rosa', 'rose'], label: '🌹 Розы', type: 'subcat', value: 'roses' },

@@ -153,16 +153,31 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
     { label: 'Композиции',              key: 'compositions'       },
   ],
   accessories: [
-    { label: 'Упаковка флористическая',    key: 'packaging'  },
-    { label: 'Горшки, кашпо и фонтаны',   key: 'pots'       },
-    { label: 'Грунты и удобрения', isGroup: true as const, items: [
-      { label: 'Грунты и субстраты', key: 'soil'        },
-      { label: 'Удобрения',          key: 'fertilizers' },
+    { label: 'Упаковка флористическая', isGroup: true as const, items: [
+      { label: 'Плёнка',  key: 'film'      },
+      { label: 'Бумага',  key: 'paper'     },
+      { label: 'Пакеты',  key: 'film_bags' },
     ]},
-    { label: 'Газоны и укрывной материал', key: 'lawns'      },
-    { label: 'Сад и огород',               key: 'garden'     },
-    { label: 'Искусственные растения',     key: 'artificial' },
-    { label: 'Игрушки',                    key: 'toys'       },
+    { label: 'Горшки, кашпо и фонтаны', isGroup: true as const, items: [
+      { label: 'Горшки',           key: 'pots'      },
+      { label: 'Кашпо',            key: 'kashpo'    },
+      { label: 'Фонтаны',          key: 'fountains' },
+      { label: 'Вазы',             key: 'vases'     },
+      { label: 'Декор и сувениры', key: 'decor'     },
+    ]},
+    { label: 'Грунт и удобрения', isGroup: true as const, items: [
+      { label: 'Грунты',    key: 'soil'        },
+      { label: 'Удобрения', key: 'fertilizers' },
+    ]},
+    { label: 'Газоны и укрывной материал', isGroup: true as const, items: [
+      { label: 'Укрывной материал',   key: 'cover_fabric'    },
+      { label: 'Плёнка укрывная',     key: 'cover_film'      },
+      { label: 'Искусственный газон', key: 'artificial_grass' },
+      { label: 'Семена газона',       key: 'grass_seed'      },
+    ]},
+    { label: 'Сад и огород',           key: 'garden'    },
+    { label: 'Искусственные растения', key: 'artificial' },
+    { label: 'Игрушки',                key: 'toys'      },
   ],
 }
 

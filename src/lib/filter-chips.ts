@@ -18,8 +18,13 @@ const SUBCAT_LABELS: Record<string, string> = {
   // pot
   green: 'Зелёные', flowering: 'Цветущие', succulents: 'Суккуленты',
   outdoor: 'Уличные', large: 'Крупномеры',
-  packaging: 'Упаковка', pots: 'Горшки', soil: 'Грунты',
-  fertilizers: 'Удобрения', tools: 'Инструмент',
+  // accessories
+  film: 'Плёнка', paper: 'Бумага', film_bags: 'Пакеты',
+  pots: 'Горшки', kashpo: 'Кашпо', fountains: 'Фонтаны', vases: 'Вазы', decor: 'Декор и сувениры',
+  soil: 'Грунты', fertilizers: 'Удобрения',
+  cover_fabric: 'Укрывной материал', cover_film: 'Плёнка укрывная',
+  artificial_grass: 'Искусственный газон', grass_seed: 'Семена газона',
+  garden: 'Сад и огород', artificial: 'Искусственные растения', toys: 'Игрушки',
 }
 const VARIETY_TYPE_LABELS: Record<string, string> = {
   single: 'Одноголовые', spray: 'Кустовые', pompom: 'Помпонные',
@@ -63,9 +68,9 @@ const POT_SIZE_LABELS: Record<string, string> = {
 
 export function useFilterChips(): Chip[] {
   const {
-    subcat, varietyType, stockLevel, colors, lengths, origins, farms,
+    subcat, varietyType, colors, lengths, origins, farms,
     potSizes, tags, seasons,
-    setSubcat, setVarietyType, setStockLevel,
+    setSubcat, setVarietyType,
     toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize,
     toggleTag, toggleSeason,
   } = useFilters()
@@ -77,8 +82,6 @@ export function useFilterChips(): Chip[] {
       if (varietyType) parts.push(VARIETY_TYPE_LABELS[varietyType] ?? varietyType)
       result.push({ label: parts.join(' · '), onRemove: () => { setSubcat(''); setVarietyType('') } })
     }
-    if (stockLevel === 'low')  result.push({ label: '🔴 Мало (< 50)', onRemove: () => setStockLevel('') })
-    if (stockLevel === 'high') result.push({ label: '🟢 Много (≥ 50)', onRemove: () => setStockLevel('') })
     colors.forEach(c => result.push({ label: COLOR_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
     lengths.forEach(l => result.push({ label: `${l} см`, onRemove: () => toggleLength(l) }))
     origins.forEach(o => result.push({ label: ORIGIN_LABELS[o] ?? o, onRemove: () => toggleOrigin(o) }))
@@ -87,5 +90,5 @@ export function useFilterChips(): Chip[] {
     tags.forEach(t => result.push({ label: TAG_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
     seasons.forEach(s => result.push({ label: SEASON_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
     return result
-  }, [subcat, varietyType, stockLevel, colors, lengths, origins, farms, potSizes, tags, seasons])
+  }, [subcat, varietyType, colors, lengths, origins, farms, potSizes, tags, seasons])
 }
