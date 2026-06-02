@@ -118,16 +118,52 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const [tab, setTab] = useState<'description' | 'specs' | 'care'>('description')
-  const [related, setRelated] = useState<RelatedProduct[]>([])
-  const relatedRef = useRef<HTMLDivElement>(null)
+  const [related,    setRelated]    = useState<RelatedProduct[]>([])
+  const [relLoading, setRelLoading] = useState(false)
   const [relCanLeft,  setRelCanLeft]  = useState(false)
   const [relCanRight, setRelCanRight] = useState(true)
+  const relatedRef    = useRef<HTMLDivElement>(null)
+  const relOffsetRef  = useRef(0)
+  const relLoadingRef = useRef(false)
+  const relHasMoreRef = useRef(true)
+  const REL_PAGE = 8
 
-  function onRelatedScroll() {
+  function updateRelArrows() {
     const el = relatedRef.current
     if (!el) return
     setRelCanLeft(el.scrollLeft > 8)
-    setRelCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 8)
+    setRelCanRight(relHasMoreRef.current || el.scrollLeft < el.scrollWidth - el.clientWidth - 8)
+  }
+  async function loadMoreRelated() {
+    if (!product?.subcategory || relLoadingRef.current || !relHasMoreRef.current) return
+    relLoadingRef.current = true
+    setRelLoading(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('products')
+      .select('id, name, display_name, price, qty, image_url, pot_diameter, length_cm, colors, country_iso')
+      .eq('subcategory', product.subcategory)
+      .eq('is_active', true)
+      .neq('id', productId)
+      .gt('qty', 0)
+      .order('id')
+      .range(relOffsetRef.current, relOffsetRef.current + REL_PAGE - 1)
+    if (data && data.length > 0) {
+      setRelated(prev => [...prev, ...(data as RelatedProduct[])])
+      relOffsetRef.current += data.length
+      if (data.length < REL_PAGE) { relHasMoreRef.current = false; updateRelArrows() }
+    } else {
+      relHasMoreRef.current = false
+      updateRelArrows()
+    }
+    relLoadingRef.current = false
+    setRelLoading(false)
+  }
+  function onRelatedScroll() {
+    updateRelArrows()
+    const el = relatedRef.current
+    if (!el) return
+    if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 300) loadMoreRelated()
   }
   function scrollRelated(dir: 'left' | 'right') {
     relatedRef.current?.scrollBy({ left: dir === 'right' ? 460 : -460, behavior: 'smooth' })
@@ -137,6 +173,8 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (!productId) { router.replace('/'); return }
+    setRelated([]); relOffsetRef.current = 0; relLoadingRef.current = false; relHasMoreRef.current = true
+    setRelCanLeft(false); setRelCanRight(true)
     const supabase = createClient()
     supabase
       .from('products')
@@ -162,8 +200,13 @@ export default function ProductPage() {
             .eq('is_active', true)
             .neq('id', productId)
             .gt('qty', 0)
-            .limit(8)
-            .then(({ data: rel }: { data: any }) => setRelated(rel || []))
+            .range(0, REL_PAGE - 1)
+            .then(({ data: rel }: { data: any }) => {
+              const items = (rel || []) as RelatedProduct[]
+              setRelated(items)
+              relOffsetRef.current = items.length
+              if (items.length < REL_PAGE) relHasMoreRef.current = false
+            })
         }
       })
   }, [productId])
@@ -609,6 +652,11 @@ export default function ProductPage() {
                   </Link>
                 )
               })}
+              {relLoading && (
+                <div style={{ flexShrink: 0, width: isMobile ? 160 : 210, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bgCard, border: `1px solid ${C.borderSoft}`, borderRadius: 12 }}>
+                  <div className="animate-spin" style={{ width: 24, height: 24, borderRadius: '50%', borderWidth: 2, borderStyle: 'solid', borderColor: C.borderSoft, borderTopColor: C.accent }} />
+                </div>
+              )}
             </div>
           </div>
         )}
