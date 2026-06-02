@@ -311,7 +311,15 @@ export default function ProductPage() {
         {/* ── breadcrumbs ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, fontSize: 12, color: C.ink3, flexWrap: 'wrap' }}>
           <button
-            onClick={() => window.history.length > 1 ? router.back() : router.push('/')}
+            onClick={() => {
+              try {
+                const raw = sessionStorage.getItem('catalog-filters')
+                const stored = raw ? JSON.parse(raw) : { state: {}, version: 2 }
+                stored.state = { ...stored.state, category: product.category, subcat: product.subcategory ?? '', varietyType: '' }
+                sessionStorage.setItem('catalog-filters', JSON.stringify(stored))
+              } catch {}
+              router.push('/')
+            }}
             style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.accent, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', marginRight: 2 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
