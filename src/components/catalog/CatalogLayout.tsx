@@ -7,6 +7,7 @@ import { useFilters } from '@/lib/filter-store'
 import { useCart } from '@/lib/cart-store'
 import { useProductsStore } from '@/lib/products-store'
 import { useFilterChips } from '@/lib/filter-chips'
+import { useSheetBack } from '@/lib/use-sheet-back'
 
 // header L1(58px) + L2(46px) = 104px
 const HEADER_H = 104
@@ -113,6 +114,9 @@ export default function CatalogLayout({
   useEffect(() => {
     if (panel !== 'empty') setIsFilterOpen(false)
   }, [panel])
+
+  useSheetBack(isDetailOpen, () => setPanel('empty'))
+  useSheetBack(isMobile && isFilterOpen, () => setIsFilterOpen(false))
 
   // desktop layout
   if (!isMobile) {
