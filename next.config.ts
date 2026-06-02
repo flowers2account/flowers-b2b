@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'img.ozexport.nl',
       },
+      {
+        protocol: 'https',
+        hostname: '*.tildacdn.pro',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.tildacdn.com',
+      },
     ],
   },
 };
