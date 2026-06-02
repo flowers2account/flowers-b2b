@@ -99,6 +99,11 @@ const SUBSTRATE_RU: Record<string, string> = {
   lava: 'лавовый грунт',
 }
 
+const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
+function unitFor(subcategory?: string | null) {
+  return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
+}
+
 // ── primitives ───────────────────────────────────────────────────────────────
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -386,14 +391,14 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           <Row label="Цена">
             {(isAuthed || product.category === 'accessories') ? (
               <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                {price.toLocaleString('ru-RU')} ₸/шт
+                {price.toLocaleString('ru-RU')} ₸/{unitFor(product.subcategory)}
               </span>
             ) : (
               <span style={{ color: '#ccc', letterSpacing: '0.12em', userSelect: 'none' }}>●●● ₸</span>
             )}
           </Row>
 
-          <Row label="Кратность">{packSize} шт</Row>
+          <Row label="Кратность">{packSize} {unitFor(product.subcategory)}</Row>
 
           {product.stems_per_pack && product.stems_per_pack > 0 && (
             <Row label="Стеблей в уп.">{product.stems_per_pack} шт</Row>
@@ -405,7 +410,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
           {isAuthed && (
             <Row label="Остаток">
-              <span style={{ color: availColor, fontWeight: 700 }}>{available} шт</span>
+              <span style={{ color: availColor, fontWeight: 700 }}>{available} {unitFor(product.subcategory)}</span>
             </Row>
           )}
 
