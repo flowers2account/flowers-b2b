@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
@@ -496,7 +496,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
-  const { setProduct, flashCart } = useDetailStore()
+  const { setProduct, flashCart, panel, productId, product: detailProduct, restoreProduct } = useDetailStore()
   const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
   const isMobile = useIsMobile()
   const {
@@ -507,6 +507,17 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   // Sync products to global store so DetailPanel can look up by id
   useEffect(() => { syncProducts(products) }, [products])
+
+  // Restore product detail / cart panel after page refresh
+  const panelRestored = useRef(false)
+  useEffect(() => {
+    if (panelRestored.current || !productId) return
+    panelRestored.current = true
+    if (panel === 'detail' && !detailProduct) {
+      const p = initialProducts.find(x => x.id === productId)
+      if (p) restoreProduct(p)
+    }
+  }, [panel, productId, detailProduct])
 
   // Persist view mode
   useEffect(() => {

@@ -3,6 +3,16 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type FilterCategory = 'all' | 'cut' | 'pot' | 'accessories'
 
+function getPersistedCategory(): FilterCategory {
+  if (typeof window === 'undefined') return 'cut'
+  try {
+    const raw = sessionStorage.getItem('catalog-filters')
+    const val = raw ? JSON.parse(raw)?.state?.category : null
+    if (val === 'all' || val === 'cut' || val === 'pot' || val === 'accessories') return val
+  } catch {}
+  return 'cut'
+}
+
 export type StockLevel = '' | 'low' | 'high'
 
 export type Facets = {
@@ -57,7 +67,7 @@ const tog = (arr: string[], v: string) =>
 export const useFilters = create<FilterStore>()(
   persist(
     (set, get) => ({
-  category: 'cut',
+  category: getPersistedCategory(),
   subcat: '',
   varietyType: '',
   onlyAvailable: true,
