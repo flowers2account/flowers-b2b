@@ -261,31 +261,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', overflowY: 'auto' }}>
-
-      {/* Close bar */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        background: '#fff', borderBottom: '1px solid var(--border)',
-        padding: '8px 12px', flexShrink: 0,
-      }}>
-        <button
-          onClick={onClose}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-mid)', fontSize: 12, fontFamily: 'inherit',
-            padding: '4px 6px', borderRadius: 'var(--radius-btn)',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg2)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-          К каталогу
-        </button>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* Gallery */}
       <div style={{ flexShrink: 0, padding: '12px 12px 0' }}>
@@ -464,6 +440,55 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
         </div>
 
+        {/* Stepper + Cart — одна строка, над описанием */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Stepper qty={qty} available={available} packSize={packSize} onDec={handleDec} onInc={handleInc} />
+            {inCart && isAuthed ? (
+              <button
+                onClick={onGoToCart}
+                style={{
+                  flex: 1, height: 36,
+                  background: 'var(--accent)', color: '#fff',
+                  border: 'none', borderRadius: 'var(--radius-btn)',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                В корзину → {cartTotal.toLocaleString('ru-RU')} ₸
+              </button>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={available === 0}
+                style={{
+                  flex: 1, height: 36,
+                  background: available === 0 ? 'var(--bg2)' : 'var(--accent)',
+                  color: available === 0 ? 'var(--text-mid)' : '#fff',
+                  border: 'none', borderRadius: 'var(--radius-btn)',
+                  fontSize: 12, fontWeight: 600,
+                  cursor: available === 0 ? 'default' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {available === 0 ? 'Нет в наличии' : '+ В корзину'}
+              </button>
+            )}
+          </div>
+          {!inCart && cartCount > 0 && isAuthed && (
+            <button
+              onClick={onGoToCart}
+              style={{
+                width: '100%', marginTop: 6, padding: '7px 0',
+                background: 'none', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-btn)', fontSize: 12,
+                cursor: 'pointer', color: 'var(--text-mid)', fontFamily: 'inherit',
+              }}
+            >
+              🛒 Корзина ({cartCount}) · {cartSum.toLocaleString('ru-RU')} ₸ →
+            </button>
+          )}
+        </div>
+
         {/* Description */}
         {product.description && (
           <div style={{
@@ -481,72 +506,6 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             </div>
           </div>
         )}
-
-        {/* Stepper + Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Stepper qty={qty} available={available} packSize={packSize} onDec={handleDec} onInc={handleInc} />
-            {inCart && isAuthed && (
-              <span style={{ fontSize: 11, color: 'var(--text-mid)' }}>
-                = {cartTotal.toLocaleString('ru-RU')} ₸
-              </span>
-            )}
-          </div>
-
-          {inCart && isAuthed ? (
-            <>
-              <div style={{
-                padding: '6px 10px',
-                background: 'var(--accent-light)', borderRadius: 'var(--radius-btn)',
-                fontSize: 11, color: 'var(--accent)', fontWeight: 600, textAlign: 'center',
-              }}>
-                В корзине · {cartTotal.toLocaleString('ru-RU')} ₸
-              </div>
-              <button
-                onClick={onGoToCart}
-                style={{
-                  width: '100%', height: 36,
-                  background: 'var(--accent)', color: '#fff', border: 'none',
-                  borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                Перейти в корзину →
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={handleAddToCart}
-                disabled={available === 0}
-                style={{
-                  width: '100%', height: 36,
-                  background: available === 0 ? 'var(--bg2)' : 'var(--accent)',
-                  color: available === 0 ? 'var(--text-mid)' : '#fff',
-                  border: 'none', borderRadius: 'var(--radius-btn)',
-                  fontSize: 13, fontWeight: 600,
-                  cursor: available === 0 ? 'default' : 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {available === 0 ? 'Нет в наличии' : 'Добавить в корзину'}
-              </button>
-              {cartCount > 0 && (
-                <button
-                  onClick={onGoToCart}
-                  style={{
-                    width: '100%', padding: '7px 0',
-                    background: 'none', border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-btn)', fontSize: 12,
-                    cursor: 'pointer', color: 'var(--text-mid)', fontFamily: 'inherit',
-                  }}
-                >
-                  🛒 Корзина ({cartCount}) · {cartSum.toLocaleString('ru-RU')} ₸ →
-                </button>
-              )}
-            </>
-          )}
-        </div>
       </div>
 
       {showAuth && (

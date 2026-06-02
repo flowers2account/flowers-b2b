@@ -204,8 +204,25 @@ export default function CatalogLayout({
         overflow: 'hidden',
       }}>
         <DragHandle />
-        <div style={{ borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <BackBtn onClick={() => setPanel('empty')} />
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          background: 'var(--accent-light)', borderBottom: '1px solid var(--accent-mid)',
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={() => setPanel('empty')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--accent)', fontSize: 14, fontFamily: 'inherit',
+              fontWeight: 700, padding: '11px 14px',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+            К каталогу
+          </button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {right}
@@ -223,9 +240,9 @@ export default function CatalogLayout({
           onClick={() => setIsFilterOpen(true)}
           style={{
             flex: 1,
-            background: 'var(--accent-light)', color: 'var(--accent)',
-            border: '0.5px solid var(--accent-mid)', borderRadius: 6,
-            padding: '10px', fontSize: 13, fontWeight: 500,
+            background: 'var(--accent)', color: '#fff',
+            border: 'none', borderRadius: 6,
+            padding: '10px', fontSize: 13, fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             cursor: 'pointer', fontFamily: 'inherit',
           }}
