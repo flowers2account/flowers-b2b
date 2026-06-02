@@ -7,11 +7,7 @@ import { useCart } from '@/lib/cart-store'
 import Link from 'next/link'
 import { COLORS } from '@/lib/colors'
 import { useIsMobile } from '@/lib/use-mobile'
-
-const COUNTRY_LABELS: Record<string, string> = {
-  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль', DK: 'Дания',
-}
+import { COUNTRY_LABELS } from '@/lib/countries'
 
 const SUBCAT_RU: Record<string, string> = {
   anthuriums: 'Антуриумы', orchids: 'Орхидеи', kalanchoe: 'Каланхоэ',
@@ -274,10 +270,10 @@ export default function ProductPage() {
         </div>
 
         {/* ── main 2-col ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 28, alignItems: 'flex-start' }}>
+        <div className="lg:grid lg:grid-cols-2 lg:gap-7 lg:items-start">
 
           {/* GALLERY */}
-          <div style={{ display: 'grid', gridTemplateColumns: images.length > 1 ? '74px 1fr' : '1fr', gap: 12, position: isMobile ? 'static' : 'sticky', top: 120 }}>
+          <div className="mb-7 lg:mb-0 lg:sticky lg:top-[120px]" style={{ display: 'grid', gridTemplateColumns: images.length > 1 ? '74px 1fr' : '1fr', gap: 12 }}>
             {/* thumbs */}
             {images.length > 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -320,6 +316,9 @@ export default function ProductPage() {
               </div>
             )}
           </div>
+
+          {/* RIGHT COLUMN: INFO + TABS */}
+          <div>
 
           {/* INFO */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -431,7 +430,6 @@ export default function ProductPage() {
               </Link>
             )}
           </div>
-        </div>
 
         {/* ── TABS ── */}
         <div style={{ marginTop: 28, background: C.bgCard, border: `1px solid ${C.borderSoft}`, borderRadius: 12, boxShadow: sh, overflow: 'hidden' }}>
@@ -529,6 +527,8 @@ export default function ProductPage() {
             </div>
           )}
         </div>
+          </div>{/* end right column */}
+        </div>{/* end main 2-col */}
 
         {/* ── RELATED ── */}
         {related.length > 0 && (
