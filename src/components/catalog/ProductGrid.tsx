@@ -54,6 +54,11 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'stock', label: 'По наличию' },
 ]
 
+const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
+function unitFor(subcategory?: string | null) {
+  return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
+}
+
 // ── card tag badge ──────────────────────────────────────────────────────────
 
 function TagBadge({ type }: { type: 'hit' | 'sale' | 'new' }) {
@@ -76,7 +81,7 @@ function TagBadge({ type }: { type: 'hit' | 'sale' | 'new' }) {
 
 // ── qty badge on photo ──────────────────────────────────────────────────────
 
-function QtyBadge({ qty }: { qty: number }) {
+function QtyBadge({ qty, unit = 'шт' }: { qty: number; unit?: string }) {
   const isLow = qty > 0 && qty <= 30
   return (
     <span style={{
@@ -86,7 +91,7 @@ function QtyBadge({ qty }: { qty: number }) {
       padding: '3px 7px', borderRadius: 'var(--radius-btn)',
       backdropFilter: 'blur(4px)',
     }}>
-      {qty === 0 ? 'Нет' : `${qty} шт`}
+      {qty === 0 ? 'Нет' : `${qty} ${unit}`}
     </span>
   )
 }
@@ -239,7 +244,7 @@ function GridCard({
             ))}
           </div>
         )}
-        <QtyBadge qty={available} />
+        <QtyBadge qty={available} unit={unitFor(product.subcategory)} />
         {/* Теги */}
         <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           {hasDiscount && <TagBadge type="sale" />}
@@ -330,7 +335,7 @@ function GridCard({
           ) : (
             <span style={{ fontSize: 13, color: '#ccc', letterSpacing: '0.1em', userSelect: 'none' }}>●●● ₸</span>
           )}
-          <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size} шт</span>
+          <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size} {unitFor(product.subcategory)}</span>
         </div>
 
         {/* stop propagation so stepper click doesn't open detail */}
@@ -402,7 +407,7 @@ function ListRow({
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>
-            {available === 0 ? 'Нет в наличии' : `${available} шт`}
+            {available === 0 ? 'Нет в наличии' : `${available} ${unitFor(product.subcategory)}`}
           </span>
           {product.country_iso && <CountryBadge iso={product.country_iso} />}
           {hasDiscount && <TagBadge type="sale" />}

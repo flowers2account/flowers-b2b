@@ -62,6 +62,11 @@ const SUBSTRATE_RU: Record<string, string> = {
   hydro: 'гидрогрунт', steenwol: 'минвата', kokos: 'кокосовый субстрат', lava: 'лавовый грунт',
 }
 
+const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
+function unitFor(subcategory?: string | null) {
+  return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
+}
+
 type ProductData = {
   id: number; name: string; display_name: string | null; category: string
   subcategory: string | null; variety_type: string | null; length_cm: number | null
@@ -286,6 +291,7 @@ export default function ProductPage() {
   const careItems = product.care_instructions ? parseCare(product.care_instructions) : []
   const packPrice = product.price * product.pack_size
   const packCount = product.pack_size > 1 ? Math.floor(product.qty / product.pack_size) : product.qty
+  const unit = unitFor(product.subcategory)
   const hasLatin = /[a-zA-Z]/.test(product.name) && product.name !== displayName
   const latinLine = [hasLatin ? product.name : null, product.variant].filter(Boolean).join(' · ')
 
@@ -297,7 +303,7 @@ export default function ProductPage() {
     { label: 'Страна', value: countryLabel },
     { label: 'Поставщик', value: product.farm },
     { label: 'Качество', value: product.quality_grade },
-    { label: 'Кратность заказа', value: product.pack_size > 1 ? `${product.pack_size} шт` : null },
+    { label: 'Кратность заказа', value: product.pack_size > 1 ? `${product.pack_size} ${unit}` : null },
     { label: 'Стеблей в упаковке', value: product.stems_per_pack ? `${product.stems_per_pack} шт` : null },
     { label: 'Вес упаковки', value: product.weight_gram ? `${product.weight_gram} г` : null },
     { label: 'Растений в горшке', value: product.min_plants_per_pot ? `${product.min_plants_per_pot} шт` : null },
@@ -313,7 +319,7 @@ export default function ProductPage() {
     product.length_cm ? { l: product.category === 'cut' ? 'Длина' : 'Высота', v: `${product.length_cm} см` } : null,
     product.pot_diameter ? { l: 'Горшок', v: `Ø ${product.pot_diameter} см` } : null,
     product.min_plants_per_pot ? { l: 'В горшке', v: `${product.min_plants_per_pot} раст.` } : null,
-    !product.min_plants_per_pot && product.pack_size > 1 ? { l: 'Упаковка', v: `${product.pack_size} шт` } : null,
+    !product.min_plants_per_pot && product.pack_size > 1 ? { l: 'Упаковка', v: `${product.pack_size} ${unit}` } : null,
     product.stems_per_pack ? { l: 'Стеблей', v: `${product.stems_per_pack} шт` } : null,
     product.weight_gram ? { l: 'Вес', v: `${product.weight_gram} г` } : null,
   ].filter(Boolean) as { l: string; v: string }[]
@@ -385,7 +391,7 @@ export default function ProductPage() {
               {/* qty badge */}
               <span style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(26,26,31,0.78)', color: '#fff', fontSize: 12, fontWeight: 600, padding: '5px 11px', borderRadius: 999, backdropFilter: 'blur(8px)', display: 'inline-flex', alignItems: 'center', gap: 6, zIndex: 2 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, flexShrink: 0 }} />
-                {product.qty} шт
+                {product.qty} {unit}
               </span>
               {/* like button — top-right of photo */}
               <button
@@ -442,13 +448,13 @@ export default function ProductPage() {
                   <span style={{ fontSize: 38, fontWeight: 700, color: C.accent, letterSpacing: '-0.02em', lineHeight: 1 }}>
                     {product.price.toLocaleString('ru-RU')} ₸
                   </span>
-                  <span style={{ fontSize: 14, color: C.ink3 }}>/ шт</span>
+                  <span style={{ fontSize: 14, color: C.ink3 }}>/ {unit}</span>
                   {hasDiscount && <span style={{ fontSize: 16, color: C.ink4, textDecoration: 'line-through', marginLeft: 4 }}>{product.previous_price!.toLocaleString('ru-RU')} ₸</span>}
                 </div>
                 {product.pack_size > 1 && (
                   <div style={{ marginLeft: 'auto', textAlign: 'right', paddingLeft: 16, borderLeft: `1px solid ${C.borderSoft}` }}>
                     <div style={{ fontSize: 18, fontWeight: 600, color: C.ink, letterSpacing: '-0.01em' }}>{packPrice.toLocaleString('ru-RU')} ₸</div>
-                    <div style={{ fontSize: 11, color: C.ink3, marginTop: 2 }}>за упаковку · {product.pack_size} шт</div>
+                    <div style={{ fontSize: 11, color: C.ink3, marginTop: 2 }}>за упаковку · {product.pack_size} {unit}</div>
                   </div>
                 )}
               </div>
@@ -456,7 +462,7 @@ export default function ProductPage() {
               {/* availability */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 13, color: C.fern, fontWeight: 500 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.fern, flexShrink: 0 }} />
-                В наличии: {product.qty} шт{product.pack_size > 1 ? ` · ~${packCount} упак.` : ''}
+                В наличии: {product.qty} {unit}{product.pack_size > 1 ? ` · ~${packCount} упак.` : ''}
               </div>
 
               {/* stepper + cart */}
@@ -467,7 +473,7 @@ export default function ProductPage() {
                       style={{ width: 48, height: 56, border: 'none', background: C.bgCard, color: C.accent, fontSize: 22, fontWeight: 600, cursor: quantity <= product.pack_size ? 'default' : 'pointer', opacity: quantity <= product.pack_size ? 0.35 : 1 }}>−</button>
                     <div style={{ width: 72, textAlign: 'center', borderLeft: `1px solid ${C.border}`, borderRight: `1px solid ${C.border}`, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                       <span style={{ fontSize: 18, fontWeight: 700, color: C.ink, lineHeight: 1 }}>{quantity}</span>
-                      <span style={{ fontSize: 10, color: C.ink3, marginTop: 3 }}>шт</span>
+                      <span style={{ fontSize: 10, color: C.ink3, marginTop: 3 }}>{unit}</span>
                     </div>
                     <button onClick={() => setQuantity(q => Math.min(product.qty, q + product.pack_size))} disabled={quantity + product.pack_size > product.qty}
                       style={{ width: 48, height: 56, border: 'none', background: C.bgCard, color: C.accent, fontSize: 22, fontWeight: 600, cursor: quantity + product.pack_size > product.qty ? 'default' : 'pointer', opacity: quantity + product.pack_size > product.qty ? 0.35 : 1 }}>+</button>
@@ -522,7 +528,7 @@ export default function ProductPage() {
             {product.pack_size > 1 && (
               <div style={{ marginTop: 14, display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', background: C.fernLight, borderRadius: 8, fontSize: 12, color: C.fernDeep, lineHeight: 1.5 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.fern} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                <span><strong>Кратность упаковки {product.pack_size} шт.</strong> При добавлении в корзину количество округляется до целой упаковки.</span>
+                <span><strong>Кратность упаковки {product.pack_size} {unit}.</strong> При добавлении в корзину количество округляется до целой упаковки.</span>
               </div>
             )}
 
