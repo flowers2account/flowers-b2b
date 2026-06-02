@@ -80,6 +80,12 @@ export default function AdminPageClient() {
         >
           🛒 Заказы
         </button>
+        <button
+          onClick={() => setTab('clients')}
+          className={`px-4 py-2 text-sm rounded-t font-medium ${tab === 'clients' ? 'bg-white border border-b-white -mb-px text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          👥 Клиенты
+        </button>
         <Link
           href="/admin/campaigns"
           className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
