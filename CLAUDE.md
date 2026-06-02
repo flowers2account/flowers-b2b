@@ -162,6 +162,7 @@ B2B платформа для оптовой торговли цветами. С
 
 - `countryFromText(filename)` → ISO код (EC/KE/NL/CN/CO/IL/ET/EG)
 - Наличие «горшок»/«горш» в имени → `category = 'pot'`, иначе `cut`
+- ⬜ **Планируется**: «сопут»/«упаков»/«расход» в имени → `category = 'accessories'`; AI-обогащение для аксессуаров отключается (не нужно)
 
 ### Несколько одинаковых строк в одном XLS
 
@@ -514,29 +515,65 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 | `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
 | `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
 
+## Навигация по категориям (актуально с 02.06.2026)
+
+Шапка сайта двухуровневая:
+
+- **L1 (белая, 58px)** — логотип + горизонтально скролируемые 9 категорий страниц + кнопка входа/профиль.  
+  Активная категория: цвет `--accent` + нижняя рамка 2px. Не реализованные — серый span, не кликабельны.
+- **L2 (бордовая, 46px)** — pill-переключатели Срезанные / Горшечные / Расходники (Zustand `category` фильтра) + корзина.
+
+### Маппинг категорий → страницы
+
+| Категория | Страница | Статус |
+|-----------|----------|--------|
+| Срезанные цветы | `/` | ✅ реализовано |
+| Комнатные растения | `/pot` | ✅ реализовано |
+| Грунты и удобрения | — | ⬜ заглушка |
+| Газоны и укрывной материал | — | ⬜ заглушка |
+| Упаковка флористическая | — | ⬜ заглушка |
+| Сад, огород | — | ⬜ заглушка |
+| Игрушки | — | ⬜ заглушка |
+| Искусственные растения | — | ⬜ заглушка |
+| Горшки, кашпо и фонтаны | — | ⬜ заглушка |
+
+`/pot/page.tsx` — такой же SSR-каталог как `/`, + `PotCategoryInit` клиентский компонент устанавливает `category='pot'` в Zustand при маунте.
+
+---
+
 ## Важные файлы и папки
 
 ```
 src/
 ├── app/
 │   ├── api/
-│   │   ├── import-xls/route.ts          # Импорт XLS — основная логика
-│   │   ├── import-xls/finalize/route.ts # Деактивация после батча (категориальная)
-│   │   ├── products/route.ts            # Каталог (включает previous_price, campaign_image_url); limit(5000) — только для API-пути
-│   │   └── admin/products/route.ts      # Админ-таблица
-│   ├── page.tsx                         # SSR каталог; force-dynamic + fetchAllProducts() (пагинация .range() по 900 строк)
+│   │   ├── import-xls/route.ts           # XLS парсинг → stock_import_rows (staging)
+│   │   ├── import-xls/apply/route.ts     # Применение совпавших строк → products
+│   │   ├── import-xls/finalize/route.ts  # Деактивация отсутствующих в батче
+│   │   ├── import-xls/match/route.ts     # Ручная привязка строки к продукту
+│   │   ├── import-xls/rows/route.ts      # Получение строк импорта по importId
+│   │   ├── import-xls/search/route.ts    # Поиск продуктов для ручного матчинга
+│   │   ├── import-xls/create-product/route.ts # Создание нового продукта из строки
+│   │   ├── facets/route.ts               # Фасеты фильтра (пагинация PAGE=900, как в page.tsx)
+│   │   ├── products/route.ts             # Каталог (previous_price, campaign_image_url)
+│   │   └── admin/products/route.ts       # Админ-таблица
+│   ├── page.tsx                          # SSR срезка; fetchAllProducts() (.range() по 900)
+│   ├── pot/
+│   │   └── page.tsx                      # SSR горшечные; идентичен page.tsx + PotCategoryInit
 │   ├── admin/
-│   │   ├── page.tsx              # Открывается на вкладке "Остатки"
+│   │   ├── page.tsx              # Остатки (default) + Заказы; остальные табы скрыты
 │   │   └── generate-cards/       # Генератор карточек для WhatsApp
 │   └── product/[id]/             # Страница товара (клиентская)
 ├── components/
 │   ├── admin/
-│   │   ├── AdminPageClient.tsx   # Табы: Остатки (default), Заказы, Клиенты...
-│   │   ├── AdminTable.tsx        # Таблица остатков + загрузка фото
+│   │   ├── AdminPageClient.tsx   # Табы: Остатки / Заказы (Клиенты/Сотрудники/Списания скрыты)
+│   │   ├── AdminTable.tsx        # Таблица остатков; кнопки-фильтры Срез/Горшок/Расходка под поиском
 │   │   ├── ProductEditModal.tsx  # Редактирование товара
 │   │   └── ImportXLS.tsx         # Загрузка XLS файлов
 │   └── catalog/
-│       └── ProductGrid.tsx       # GridCard с ховер-эффектом 2-го фото; показывает флаг страны + ферму курсивом
+│       ├── Header.tsx            # L1: лого + 9-кат. nav; L2: filter pills + корзина
+│       ├── PotCategoryInit.tsx   # Клиентский: setCategory('pot') при маунте
+│       └── ProductGrid.tsx       # GridCard с ховер-эффектом 2-го фото; флаг страны + ферма
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts     # Singleton Supabase client (браузер)
@@ -570,7 +607,7 @@ src/
 
 ### 🔴 PostgREST max_rows=1000 — нельзя делать `.limit(>1000)`
 - Возвращает ошибку, `data=null`, каталог пустой
-- **Решение**: `fetchAllProducts()` в `src/app/page.tsx` — цикл `.range()` по 900 строк
+- **Решение**: цикл `.range()` по 900 строк применён везде: `page.tsx` → `fetchAllProducts()`, `/api/facets/route.ts` (иначе фасеты занижались через ~2 сек после гидратации)
 
 ### 🟡 Realtime обновления каталога не работают
 - Пользователь должен перезагрузить страницу
