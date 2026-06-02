@@ -54,7 +54,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'stock', label: 'По наличию' },
 ]
 
-const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
+const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'artificial_grass'])
 function unitFor(subcategory?: string | null) {
   return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
 }
