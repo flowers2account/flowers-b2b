@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/cart-store'
@@ -119,6 +119,19 @@ export default function ProductPage() {
   const [added, setAdded] = useState(false)
   const [tab, setTab] = useState<'description' | 'specs' | 'care'>('description')
   const [related, setRelated] = useState<RelatedProduct[]>([])
+  const relatedRef = useRef<HTMLDivElement>(null)
+  const [relCanLeft,  setRelCanLeft]  = useState(false)
+  const [relCanRight, setRelCanRight] = useState(true)
+
+  function onRelatedScroll() {
+    const el = relatedRef.current
+    if (!el) return
+    setRelCanLeft(el.scrollLeft > 8)
+    setRelCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 8)
+  }
+  function scrollRelated(dir: 'left' | 'right') {
+    relatedRef.current?.scrollBy({ left: dir === 'right' ? 460 : -460, behavior: 'smooth' })
+  }
 
   const productId = Number(params.id)
 
@@ -149,7 +162,7 @@ export default function ProductPage() {
             .eq('is_active', true)
             .neq('id', productId)
             .gt('qty', 0)
-            .limit(4)
+            .limit(8)
             .then(({ data: rel }: { data: any }) => setRelated(rel || []))
         }
       })
@@ -533,24 +546,46 @@ export default function ProductPage() {
         {/* ── RELATED ── */}
         {related.length > 0 && (
           <div style={{ marginTop: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <h3 style={{ fontFamily: 'var(--font-playfair)', fontSize: 22, fontWeight: 400, color: C.ink, letterSpacing: '-0.01em', margin: 0 }}>
                 Похожие в «{subcategoryLabel ?? categoryLabel}»
               </h3>
-              <Link href="/" style={{ fontSize: 13, color: C.accent, textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                Все товары
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-              </Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  onClick={() => scrollRelated('left')}
+                  disabled={!relCanLeft}
+                  style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.border}`, background: C.bgCard, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: relCanLeft ? 'pointer' : 'default', opacity: relCanLeft ? 1 : 0.3, transition: 'opacity 0.15s', flexShrink: 0 }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <button
+                  onClick={() => scrollRelated('right')}
+                  disabled={!relCanRight}
+                  style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.border}`, background: C.bgCard, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: relCanRight ? 'pointer' : 'default', opacity: relCanRight ? 1 : 0.3, transition: 'opacity 0.15s', flexShrink: 0 }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <Link href="/" style={{ fontSize: 13, color: C.accent, textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 4 }}>
+                  Все товары
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                </Link>
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 14 }}>
+            <style>{`#related-scroll::-webkit-scrollbar{display:none}`}</style>
+            <div
+              id="related-scroll"
+              ref={relatedRef}
+              onScroll={onRelatedScroll}
+              style={{ display: 'flex', gap: 14, overflowX: 'auto', scrollbarWidth: 'none' as React.CSSProperties['scrollbarWidth'], scrollSnapType: 'x mandatory', paddingBottom: 4 }}
+            >
               {related.map(p => {
                 const rName = p.display_name || p.name
                 const rCountry = p.country_iso ? (COUNTRY_LABELS[p.country_iso] ?? p.country_iso) : null
                 const rColors = (p.colors ?? []).map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
                 const rMeta = [p.pot_diameter ? `Ø ${p.pot_diameter} см` : p.length_cm ? `${p.length_cm} см` : null, rColors[0]?.label, rCountry].filter(Boolean).join(' · ')
                 return (
-                  <Link key={p.id} href={`/product/${p.id}`} style={{ textDecoration: 'none' }}>
-                    <div style={{ background: C.bgCard, border: `1px solid ${C.borderSoft}`, borderRadius: 12, overflow: 'hidden', boxShadow: sh, display: 'flex', flexDirection: 'column' }}>
+                  <Link key={p.id} href={`/product/${p.id}`} style={{ textDecoration: 'none', flexShrink: 0, width: isMobile ? 160 : 210, scrollSnapAlign: 'start' } as React.CSSProperties}>
+                    <div style={{ background: C.bgCard, border: `1px solid ${C.borderSoft}`, borderRadius: 12, overflow: 'hidden', boxShadow: sh, display: 'flex', flexDirection: 'column', height: '100%' }}>
                       <div style={{ aspectRatio: '1/1', background: C.bgSoft, position: 'relative', display: 'flex', alignItems: 'flex-end' }}>
                         {p.image_url
                           ? <img src={p.image_url} alt={rName} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
