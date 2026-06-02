@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
@@ -494,6 +495,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const [sort, setSort] = useState<SortKey>('popular')
   const [viewMode, setViewMode] = useState<'compact' | 'list'>('compact')
 
+  const router = useRouter()
   const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
   const { setProduct, flashCart, panel, productId, product: detailProduct, restoreProduct } = useDetailStore()
@@ -794,7 +796,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   isAuthed={isAuthed}
                   onDec={() => handleDec(p, qty)}
                   onInc={() => handleInc(p, qty, available, price)}
-                  onCardClick={() => setProduct(p)}
+                  onCardClick={() => isMobile ? router.push(`/product/${p.id}`) : setProduct(p)}
                 />
               )
             })}
@@ -813,7 +815,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   isAuthed={isAuthed}
                   onDec={() => handleDec(p, qty)}
                   onInc={() => handleInc(p, qty, available, price)}
-                  onCardClick={() => setProduct(p)}
+                  onCardClick={() => isMobile ? router.push(`/product/${p.id}`) : setProduct(p)}
                 />
               )
             })}
