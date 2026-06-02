@@ -226,6 +226,31 @@ export default function ProductPage() {
     setTimeout(() => setAdded(false), 2000)
   }
 
+  function goToCatalog() {
+    try {
+      const filtersRaw = sessionStorage.getItem('catalog-filters')
+      const filters = filtersRaw ? JSON.parse(filtersRaw) : { state: {}, version: 2 }
+      filters.state = { ...filters.state, category: product!.category, subcat: product!.subcategory ?? '', varietyType: '' }
+      sessionStorage.setItem('catalog-filters', JSON.stringify(filters))
+
+      const detailRaw = sessionStorage.getItem('catalog-detail')
+      const detail = detailRaw ? JSON.parse(detailRaw) : { state: {}, version: 0 }
+      detail.state = { ...detail.state, panel: 'empty' }
+      sessionStorage.setItem('catalog-detail', JSON.stringify(detail))
+    } catch {}
+    router.push('/')
+  }
+
+  function goToCart() {
+    try {
+      const raw = sessionStorage.getItem('catalog-detail')
+      const stored = raw ? JSON.parse(raw) : { state: {}, version: 0 }
+      stored.state = { ...stored.state, panel: 'cart' }
+      sessionStorage.setItem('catalog-detail', JSON.stringify(stored))
+    } catch {}
+    router.push('/')
+  }
+
   const cartQty = items.find(i => i.id === productId)?.qty ?? 0
   const cartTotal = total()
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -312,15 +337,7 @@ export default function ProductPage() {
         {/* ── breadcrumbs ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, fontSize: 12, color: C.ink3, flexWrap: 'wrap' }}>
           <button
-            onClick={() => {
-              try {
-                const raw = sessionStorage.getItem('catalog-filters')
-                const stored = raw ? JSON.parse(raw) : { state: {}, version: 2 }
-                stored.state = { ...stored.state, category: product.category, subcat: product.subcategory ?? '', varietyType: '' }
-                sessionStorage.setItem('catalog-filters', JSON.stringify(stored))
-              } catch {}
-              router.push('/')
-            }}
+            onClick={goToCatalog}
             style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.accent, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', marginRight: 2 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -443,27 +460,49 @@ export default function ProductPage() {
               </div>
 
               {/* stepper + cart */}
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', border: `1.5px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', height: 56, background: C.bgCard, flexShrink: 0 }}>
-                  <button onClick={() => setQuantity(q => Math.max(product.pack_size, q - product.pack_size))} disabled={quantity <= product.pack_size}
-                    style={{ width: 48, height: 56, border: 'none', background: C.bgCard, color: C.accent, fontSize: 22, fontWeight: 600, cursor: quantity <= product.pack_size ? 'default' : 'pointer', opacity: quantity <= product.pack_size ? 0.35 : 1 }}>−</button>
-                  <div style={{ width: 72, textAlign: 'center', borderLeft: `1px solid ${C.border}`, borderRight: `1px solid ${C.border}`, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: C.ink, lineHeight: 1 }}>{quantity}</span>
-                    <span style={{ fontSize: 10, color: C.ink3, marginTop: 3 }}>шт</span>
+              <div style={{ marginTop: 18 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', border: `1.5px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', height: 56, background: C.bgCard, flexShrink: 0 }}>
+                    <button onClick={() => setQuantity(q => Math.max(product.pack_size, q - product.pack_size))} disabled={quantity <= product.pack_size}
+                      style={{ width: 48, height: 56, border: 'none', background: C.bgCard, color: C.accent, fontSize: 22, fontWeight: 600, cursor: quantity <= product.pack_size ? 'default' : 'pointer', opacity: quantity <= product.pack_size ? 0.35 : 1 }}>−</button>
+                    <div style={{ width: 72, textAlign: 'center', borderLeft: `1px solid ${C.border}`, borderRight: `1px solid ${C.border}`, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: C.ink, lineHeight: 1 }}>{quantity}</span>
+                      <span style={{ fontSize: 10, color: C.ink3, marginTop: 3 }}>шт</span>
+                    </div>
+                    <button onClick={() => setQuantity(q => Math.min(product.qty, q + product.pack_size))} disabled={quantity + product.pack_size > product.qty}
+                      style={{ width: 48, height: 56, border: 'none', background: C.bgCard, color: C.accent, fontSize: 22, fontWeight: 600, cursor: quantity + product.pack_size > product.qty ? 'default' : 'pointer', opacity: quantity + product.pack_size > product.qty ? 0.35 : 1 }}>+</button>
                   </div>
-                  <button onClick={() => setQuantity(q => Math.min(product.qty, q + product.pack_size))} disabled={quantity + product.pack_size > product.qty}
-                    style={{ width: 48, height: 56, border: 'none', background: C.bgCard, color: C.accent, fontSize: 22, fontWeight: 600, cursor: quantity + product.pack_size > product.qty ? 'default' : 'pointer', opacity: quantity + product.pack_size > product.qty ? 0.35 : 1 }}>+</button>
+
+                  {cartQty > 0 ? (
+                    <button onClick={goToCart}
+                      style={{ flex: 1, height: 56, background: `linear-gradient(180deg,${C.fern},${C.fernDeep})`, color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, letterSpacing: '-0.005em', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: '0 4px 12px rgba(61,107,80,0.25),inset 0 1px 0 rgba(255,255,255,0.15)', transition: 'opacity 0.15s' }}
+                      onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.88')}
+                      onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                      В корзину → {(cartQty * product.price).toLocaleString('ru-RU')} ₸
+                    </button>
+                  ) : (
+                    <button onClick={handleAddToCart} disabled={product.qty === 0}
+                      style={{ flex: 1, height: 56, background: product.qty === 0 ? '#e8e8e8' : `linear-gradient(180deg,${C.accent},${C.accentDeep})`, color: product.qty === 0 ? '#aaa' : '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, letterSpacing: '-0.005em', cursor: product.qty === 0 ? 'default' : 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: product.qty > 0 ? '0 4px 12px rgba(139,58,90,0.25),inset 0 1px 0 rgba(255,255,255,0.15)' : 'none', transition: 'opacity 0.15s' }}
+                      onMouseEnter={e => product.qty > 0 && ((e.currentTarget as HTMLButtonElement).style.opacity = '0.88')}
+                      onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                      {product.qty === 0 ? 'Нет в наличии' : added ? '✓ Добавлено' : `В корзину — ${(quantity * product.price).toLocaleString('ru-RU')} ₸`}
+                    </button>
+                  )}
                 </div>
 
-                <button onClick={handleAddToCart} disabled={product.qty === 0}
-                  style={{ flex: 1, height: 56, background: product.qty === 0 ? '#e8e8e8' : `linear-gradient(180deg,${C.accent},${C.accentDeep})`, color: product.qty === 0 ? '#aaa' : '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, letterSpacing: '-0.005em', cursor: product.qty === 0 ? 'default' : 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: product.qty > 0 ? '0 4px 12px rgba(139,58,90,0.25),inset 0 1px 0 rgba(255,255,255,0.15)' : 'none', transition: 'opacity 0.15s' }}
-                  onMouseEnter={e => product.qty > 0 && ((e.currentTarget as HTMLButtonElement).style.opacity = '0.88')}
-                  onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                  {product.qty === 0 ? 'Нет в наличии' : added ? '✓ Добавлено' : `В корзину — ${(quantity * product.price).toLocaleString('ru-RU')} ₸`}
-                </button>
-
+                {cartQty === 0 && cartCount > 0 && (
+                  <button onClick={goToCart}
+                    style={{ width: '100%', marginTop: 10, height: 44, background: C.bgCard, color: C.ink2, border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'border-color 0.15s' }}
+                    onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.borderColor = C.accent)}
+                    onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.borderColor = C.border)}
+                  >
+                    🛒 Корзина ({cartCount}) · {cartTotal.toLocaleString('ru-RU')} ₸ →
+                  </button>
+                )}
               </div>
             </div>
 
@@ -496,12 +535,6 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* in-cart link */}
-            {cartQty > 0 && (
-              <Link href="/" style={{ display: 'block', textAlign: 'center', fontSize: 12, marginTop: 12, color: C.accent, textDecoration: 'none', fontWeight: 500 }}>
-                В корзине {cartQty} шт → Перейти к оформлению
-              </Link>
-            )}
           </div>
 
         {/* ── TABS ── */}
@@ -626,15 +659,7 @@ export default function ProductPage() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
                 <button
-                  onClick={() => {
-                    try {
-                      const raw = sessionStorage.getItem('catalog-filters')
-                      const stored = raw ? JSON.parse(raw) : { state: {}, version: 2 }
-                      stored.state = { ...stored.state, category: product!.category, subcat: product!.subcategory ?? '', varietyType: '' }
-                      sessionStorage.setItem('catalog-filters', JSON.stringify(stored))
-                    } catch {}
-                    router.push('/')
-                  }}
+                  onClick={goToCatalog}
                   style={{ fontSize: 13, color: C.accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 4, fontFamily: 'inherit', padding: 0 }}
                 >
                   Все товары

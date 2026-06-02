@@ -553,8 +553,8 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   const {
     category, subcat, varietyType,
     colors, lengths, origins, farms, potSizes, tags,
-    seasons, stockLevel, onlyAvailable, facets,
-    setStockLevel, setSubcat, setVarietyType,
+    seasons, onlyAvailable, facets,
+    setSubcat, setVarietyType,
     toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleTag,
     toggleSeason, reset, loadFacets,
   } = useFilters()
@@ -809,25 +809,27 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </>
         )}
 
-        {/* ОСТАТОК — мало / много (внизу, по умолчанию не активен) */}
+        {/* Хит продаж / Акция */}
         <div style={{ display: 'flex', gap: 6, marginTop: 10, marginBottom: 4 }}>
           {([
-            { id: 'low',  label: '🔴 Мало',  hint: '< 50 шт' },
-            { id: 'high', label: '🟢 Много', hint: '≥ 50 шт' },
-          ] as const).map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setStockLevel(stockLevel === opt.id ? '' : opt.id)}
-              title={opt.hint}
-              style={{
-                flex: 1, height: 32, border: `1px solid ${stockLevel === opt.id ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: stockLevel === opt.id ? 600 : 400,
-                background: stockLevel === opt.id ? 'var(--accent-light)' : 'var(--bg2)',
-                color: stockLevel === opt.id ? 'var(--accent)' : 'var(--text-mid)',
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >{opt.label}</button>
-          ))}
+            { id: 'hit',  label: '🔥 Хит продаж' },
+            { id: 'sale', label: '🏷 Акция'       },
+          ] as const).map(opt => {
+            const on = tags.includes(opt.id)
+            return (
+              <button
+                key={opt.id}
+                onClick={() => toggleTag(opt.id)}
+                style={{
+                  flex: 1, height: 32, border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: on ? 600 : 400,
+                  background: on ? 'var(--accent-light)' : 'var(--bg2)',
+                  color: on ? 'var(--accent)' : 'var(--text-mid)',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >{opt.label}</button>
+            )
+          })}
         </div>
 
         {/* bottom padding so last item isn't behind sticky button */}
