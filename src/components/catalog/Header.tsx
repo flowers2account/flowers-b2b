@@ -8,10 +8,10 @@ import { useDetailStore } from '@/lib/detail-store'
 import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
 
-const CATS: { id: FilterCategory; label: string }[] = [
+const CATS: { id: FilterCategory; label: string; shortLabel?: string }[] = [
   { id: 'cut', label: '🌸 Срезанные' },
   { id: 'pot', label: '🪴 Горшечные' },
-  { id: 'accessories', label: '📦 Сопутствующие' },
+  { id: 'accessories', label: '📦 Уход · Упаковка · Декор', shortLabel: '📦 Уход · Упак. · Декор' },
 ]
 
 function CategoryPills() {
@@ -32,7 +32,12 @@ function CategoryPills() {
             boxShadow: category === cat.id ? '0 0 0 2px rgba(255,255,255,0.4)' : 'none',
           }}
         >
-          {cat.label}
+          {cat.shortLabel ? (
+            <>
+              <span className="md:hidden">{cat.shortLabel}</span>
+              <span className="hidden md:inline">{cat.label}</span>
+            </>
+          ) : cat.label}
         </button>
       ))}
     </>
