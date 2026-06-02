@@ -118,6 +118,7 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const [tab, setTab] = useState<'description' | 'specs' | 'care'>('description')
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const [related,    setRelated]    = useState<RelatedProduct[]>([])
   const [relLoading, setRelLoading] = useState(false)
   const [relCanLeft,  setRelCanLeft]  = useState(false)
@@ -356,15 +357,26 @@ export default function ProductPage() {
             )}
 
             {/* main image */}
-            <div style={{ aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: C.bgCard, border: `1px solid ${C.borderSoft}`, position: 'relative', display: 'flex', alignItems: 'flex-end', boxShadow: sh }}>
+            <div
+              onClick={() => mainPhoto && setLightboxOpen(true)}
+              style={{ aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: C.bgCard, border: `1px solid ${C.borderSoft}`, position: 'relative', display: 'flex', alignItems: 'flex-end', boxShadow: sh, cursor: mainPhoto ? 'zoom-in' : 'default' }}
+            >
               {mainPhoto
                 ? <img src={mainPhoto} alt={displayName} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
                 : <div style={{ position: 'absolute', inset: 0, background: `repeating-linear-gradient(135deg,transparent 0 18px,rgba(139,58,90,0.04) 18px 19px)` }} />
               }
+              {/* qty badge */}
               <span style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(26,26,31,0.78)', color: '#fff', fontSize: 12, fontWeight: 600, padding: '5px 11px', borderRadius: 999, backdropFilter: 'blur(8px)', display: 'inline-flex', alignItems: 'center', gap: 6, zIndex: 2 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, flexShrink: 0 }} />
                 {product.qty} шт
               </span>
+              {/* like button — top-right of photo */}
+              <button
+                onClick={e => e.stopPropagation()}
+                style={{ position: 'absolute', top: 12, right: 12, zIndex: 3, width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.88)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 6px rgba(0,0,0,0.15)', backdropFilter: 'blur(4px)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+              </button>
               {images.length > 1 && (
                 <span style={{ position: 'relative', zIndex: 2, fontFamily: 'monospace', fontSize: 11, color: 'rgba(139,58,90,0.45)', padding: 16, fontWeight: 500 }}>
                   {photoIdx + 1} / {images.length}
@@ -452,9 +464,6 @@ export default function ProductPage() {
                   {product.qty === 0 ? 'Нет в наличии' : added ? '✓ Добавлено' : `В корзину — ${(quantity * product.price).toLocaleString('ru-RU')} ₸`}
                 </button>
 
-                <button style={{ width: 56, height: 56, border: `1px solid ${C.border}`, background: C.bgCard, borderRadius: 8, color: C.ink3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                </button>
               </div>
             </div>
 
@@ -681,6 +690,50 @@ export default function ProductPage() {
         )}
 
       </div>
+
+      {/* ── LIGHTBOX ── */}
+      {lightboxOpen && mainPhoto && (
+        <div
+          onClick={() => setLightboxOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.93)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {/* close */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            style={{ position: 'absolute', top: 16, right: 16, width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+          >×</button>
+
+          {/* prev */}
+          {images.length > 1 && photoIdx > 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); setPhotoIdx(i => i - 1) }}
+              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+            >‹</button>
+          )}
+          {/* next */}
+          {images.length > 1 && photoIdx < images.length - 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); setPhotoIdx(i => i + 1) }}
+              style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+            >›</button>
+          )}
+
+          {/* image */}
+          <img
+            src={mainPhoto}
+            alt={displayName}
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '95vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 8px 40px rgba(0,0,0,0.6)', userSelect: 'none' }}
+          />
+
+          {/* counter */}
+          {images.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 20, fontSize: 12, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>
+              {photoIdx + 1} / {images.length}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
