@@ -8,11 +8,6 @@ export async function POST(req: NextRequest) {
   const { category = 'cut', onlyAvailable = true, subcat = null, varietyType = null } = body
 
   const supabase = await createClient()
-  const { data: products } = await supabase
-    .from('products')
-    .select('id, colors, length_cm, country_iso, subcategory, variety_type, qty, farm')
-    .eq('is_active', true)
-    .eq('category', category)
 
   type RawProduct = {
     id: number
@@ -25,8 +20,24 @@ export async function POST(req: NextRequest) {
     farm: string | null
   }
 
+  const PAGE = 900
+  let products: RawProduct[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, colors, length_cm, country_iso, subcategory, variety_type, qty, farm')
+      .eq('is_active', true)
+      .eq('category', category)
+      .range(from, from + PAGE - 1)
+    if (error || !data || data.length === 0) break
+    products = products.concat(data as RawProduct[])
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+
   // All available products in category
-  const allBase = (products as RawProduct[] ?? []).filter(
+  const allBase = products.filter(
     p => !onlyAvailable || p.qty > 0
   )
 
