@@ -14,18 +14,6 @@ const CATS: { id: FilterCategory; label: string }[] = [
   { id: 'accessories', label: '📦 Расходники' },
 ]
 
-const PAGE_CATS = [
-  { label: 'Срезанные цветы',           href: '/',    enabled: true  },
-  { label: 'Комнатные растения',         href: '/pot', enabled: true  },
-  { label: 'Грунты и удобрения',         href: null,   enabled: false },
-  { label: 'Газоны и укрывной материал', href: null,   enabled: false },
-  { label: 'Упаковка флористическая',    href: null,   enabled: false },
-  { label: 'Сад, огород',                href: null,   enabled: false },
-  { label: 'Игрушки',                    href: null,   enabled: false },
-  { label: 'Искусственные растения',     href: null,   enabled: false },
-  { label: 'Горшки, кашпо и фонтаны',   href: null,   enabled: false },
-] as const
-
 function CategoryPills() {
   const { category, setCategory } = useFilters()
 
@@ -63,6 +51,13 @@ export default function Header() {
   const cartTotal = total()
 
   const isAdminRole = role === 'admin' || role === 'manager'
+  const NAV = [
+    { href: '/', label: 'Каталог' },
+    ...(isAuthed ? [{
+      href: isAdminRole ? '/admin/orders' : '/cabinet',
+      label: isAdminRole ? 'Заказы' : 'Личный кабинет / Мои заказы',
+    }] : []),
+  ]
 
   return (
     <header className="sticky top-0 z-[100]">
@@ -71,7 +66,7 @@ export default function Header() {
         <div className="max-w-[1480px] w-full mx-auto px-[22px] flex items-center" style={{ height: 58 }}>
 
           {/* Логотип */}
-          <Link href="/" className="flex items-center gap-[10px] mr-6 shrink-0 no-underline">
+          <Link href="/" className="flex items-center gap-[10px] mr-9 shrink-0 no-underline">
             <svg width="36" height="36" viewBox="0 0 44 44" fill="none">
               <path d="M12 22C16 18 21 14 28 12" stroke="#E8B4C0" strokeWidth="1.1"/>
               <path d="M14 18C13 14 12 11 11 8" stroke="#E8B4C0" strokeWidth="0.9"/>
@@ -91,42 +86,23 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Category navigation — horizontal scroll */}
-          <nav
-            className="flex items-center flex-1 min-w-0"
-            style={{ height: 58, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {PAGE_CATS.map((cat) => {
-              const isActive = cat.enabled && cat.href && (
-                cat.href === '/'
-                  ? pathname === '/'
-                  : pathname === cat.href || pathname.startsWith(cat.href + '/')
-              )
-              if (!cat.enabled || !cat.href) {
-                return (
-                  <span
-                    key={cat.label}
-                    className="flex items-center px-3 text-[12px] shrink-0"
-                    style={{ height: 58, color: '#ccc', fontWeight: 400, whiteSpace: 'nowrap', userSelect: 'none' }}
-                  >
-                    {cat.label}
-                  </span>
-                )
-              }
+          {/* Навигация — скрыта на мобильном */}
+          <nav className="hidden md:flex items-center flex-1" style={{ height: 58 }}>
+            {NAV.map(({ href, label }) => {
+              const isActive = href !== '#' && (href === '/' ? pathname === '/' : pathname.startsWith(href))
               return (
                 <Link
-                  key={cat.label}
-                  href={cat.href}
-                  className="flex items-center px-3 text-[12px] no-underline transition-colors shrink-0"
+                  key={label}
+                  href={href}
+                  className="flex items-center px-4 text-[13px] no-underline transition-colors"
                   style={{
                     height: 58,
-                    fontWeight: isActive ? 600 : 500,
-                    color: isActive ? 'var(--accent)' : '#555',
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'var(--accent)' : '#444',
                     borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {cat.label}
+                  {label}
                 </Link>
               )
             })}
@@ -135,7 +111,7 @@ export default function Header() {
           {/* User / Auth */}
           {isAuthed ? (
             <div className="flex items-center gap-2 shrink-0">
-              {isAdminRole && (
+              {(role === 'admin' || role === 'manager') && (
                 <Link
                   href="/admin"
                   className="hidden sm:inline-flex items-center gap-1 text-[12px] bg-[#f5f0f3] hover:bg-[#ede5ea] px-3 py-1.5 no-underline transition-colors"
