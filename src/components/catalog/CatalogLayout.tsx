@@ -156,8 +156,8 @@ export default function CatalogLayout({
         />
       )}
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        height: '85vh', background: '#fff',
+        position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
+        background: '#fff',
         borderRadius: '16px 16px 0 0',
         transform: isFilterOpen ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.3s ease',
@@ -195,8 +195,8 @@ export default function CatalogLayout({
         />
       )}
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        height: '85vh', background: '#fff',
+        position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
+        background: '#fff',
         borderRadius: '16px 16px 0 0',
         transform: isDetailOpen ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.3s ease',
