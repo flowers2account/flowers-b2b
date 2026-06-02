@@ -4,6 +4,7 @@ export const COLORS = [
   { key: 'ivory',      label: 'Айвори',       bg: '#FFFFF0',   border: '#E8E4C8' },
 
   { key: 'yellow',        label: 'Жёлтый',          bg: '#FDD835',   border: '#F9A825' },
+  { key: 'apricot',       label: 'Абрикосовый',     bg: '#FFBE7D',   border: '#E8943A' },
   { key: 'yellow_orange', label: 'Жёлто-оранжевый', bg: '#FFAB40',   border: '#FF8F00' },
   { key: 'orange',        label: 'Оранжевый',       bg: '#FF7043',   border: '#E64A19' },
   { key: 'light_orange',  label: 'Светло-оранжевый',bg: '#FFCC80',   border: '#FFA040' },
@@ -16,10 +17,11 @@ export const COLORS = [
   { key: 'burgundy',   label: 'Бордовый',     bg: '#7B1A2E',   border: '#5C1220' },
   { key: 'red_dark',   label: 'Тёмно-красный', bg: '#B71C1C',   border: '#7F0000' },
 
-  { key: 'light_pink', label: 'Светло-розовый', bg: '#FFE4EC',  border: '#FFADB8' },
   { key: 'pink_light', label: 'Нежно-розовый',  bg: '#FADADD',  border: '#F4A7B0' },
   { key: 'pink',       label: 'Розовый',        bg: '#FFB6C1',  border: '#E991A0' },
+  { key: 'cerise',     label: 'Вишнёвый',       bg: '#DE3163',   border: '#B71C1C' },
   { key: 'hot_pink',   label: 'Ярко-розовый',   bg: '#FF1493',  border: '#C71585' },
+  { key: 'pink_dark',  label: 'Тёмно-розовый',  bg: '#C2185B',   border: '#880E4F' },
 
   { key: 'lilac',      label: 'Сиреневый',       bg: '#DDB6F2',   border: '#B39DDB' },
   { key: 'milka',      label: 'Милка',           bg: '#C9A8E0',   border: '#9B72BB' },
@@ -42,14 +44,15 @@ export const COLORS = [
   { key: 'black',      label: 'Чёрный',       bg: '#212121',   border: '#000000' },
 
   { key: 'pink_white',           label: 'Розово-белый',      gradient: 'linear-gradient(135deg,#FFB6C1 50%,#FFFFFF 50%)' },
+  { key: 'lilac_white',          label: 'Сиренево-белый',    gradient: 'linear-gradient(135deg,#DDB6F2 50%,#FFFFFF 50%)' },
+  { key: 'purple_white',         label: 'Фиолетово-белый',   gradient: 'linear-gradient(135deg,#7B1FA2 50%,#FFFFFF 50%)' },
+  { key: 'red_white',            label: 'Красно-белый',      gradient: 'linear-gradient(135deg,#E53935 50%,#FFFFFF 50%)' },
+  { key: 'red_yellow',           label: 'Красно-жёлтый',     gradient: 'linear-gradient(135deg,#E53935 50%,#FDD835 50%)' },
+  { key: 'green_white',          label: 'Зелёно-белый',      gradient: 'linear-gradient(135deg,#66BB6A 50%,#FFFFFF 50%)' },
   { key: 'green_pink',           label: 'Зелёно-розовый',    gradient: 'linear-gradient(135deg,#66BB6A 50%,#FFB6C1 50%)' },
   { key: 'bicolor',              label: 'Биколор',           gradient: 'linear-gradient(135deg,#E53935 50%,#FFFFFF 50%)' },
-  { key: 'bicolor_red_white',    label: 'Красно-белый',      gradient: 'linear-gradient(135deg,#E53935 50%,#FFFFFF 50%)' },
-  { key: 'bicolor_pink_white',   label: 'Розово-белый',      gradient: 'linear-gradient(135deg,#FFB6C1 50%,#FFFFFF 50%)' },
-  { key: 'bicolor_red_yellow',   label: 'Красно-жёлтый',     gradient: 'linear-gradient(135deg,#E53935 50%,#FDD835 50%)' },
   { key: 'bicolor_orange_yellow',label: 'Оранжево-жёлтый',   gradient: 'linear-gradient(135deg,#FF7043 50%,#FDD835 50%)' },
   { key: 'bicolor_orange_green', label: 'Оранжево-зелёный',  gradient: 'linear-gradient(135deg,#FF7043 50%,#66BB6A 50%)' },
-  { key: 'bicolor_white_green',  label: 'Бело-зелёный',      gradient: 'linear-gradient(135deg,#FFFFFF 50%,#66BB6A 50%)' },
   { key: 'bicolor_blue_white',   label: 'Голубо-белый',      gradient: 'linear-gradient(135deg,#64B5F6 50%,#FFFFFF 50%)' },
   { key: 'multicolor',           label: 'Микс',              gradient: 'conic-gradient(#E53935 0deg,#FDD835 90deg,#66BB6A 180deg,#7B1FA2 270deg,#E53935 360deg)' },
 ] as const

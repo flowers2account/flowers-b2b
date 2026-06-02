@@ -109,18 +109,15 @@ const DISPLAY_NAMES = {
   'rosa garden mayra white':          'Майра Уайт',
 }
 
-// Normalize OZ color keys → palette keys
+// Normalize OZ color keys → canonical palette keys
 const COLOR_MAP = {
   'orange_light':  'light_orange',
   'orange_yellow': 'yellow_orange',
   'yellow-orange': 'yellow_orange',
   'orange-red':    'orange_red',
-  'pink_light':    'pink_light',   // exists in palette
-  'pink_white':    'pink_white',   // exists in palette
-  'red_white':     'bicolor_red_white',
-  'white_red':     'bicolor_red_white',
-  'white_green':   'bicolor_white_green',
-  'red_dark':      'red_dark',     // exists in palette
+  'red_white':     'red_white',
+  'white_red':     'red_white',
+  'white_green':   'green_white',
 }
 
 function normalizeColors(colors) {
@@ -190,7 +187,7 @@ for (const item of items) {
         ...((!existing.image_url && photo)              ? { image_url: photo }        : {}),
         ...((!existing.country_iso && item.country_iso) ? { country_iso: item.country_iso } : {}),
         ...((!existing.farm && farm)                    ? { farm }                    : {}),
-        ...(((!existing.colors?.length) && colors.length) ? { colors }               : {}),
+        ...(colors.length ? { colors } : {}),
         ...(displayIsRaw                                ? { display_name }            : {}),
       })
       .eq('id', existing.id)

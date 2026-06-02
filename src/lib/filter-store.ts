@@ -35,6 +35,7 @@ type FilterStore = {
   setCategory: (v: FilterCategory) => void
   setSubcat: (v: string) => void
   setVarietyType: (v: string) => void
+  setSubcatAndVT: (subcat: string, varietyType: string) => void
   setOnlyAvailable: (v: boolean) => void
   setOnlyDiscount: (v: boolean) => void
   setStockLevel: (v: StockLevel) => void
@@ -79,6 +80,7 @@ export const useFilters = create<FilterStore>()(
   }),
   setSubcat:        (subcat) => set({ subcat, varietyType: '' }),
   setVarietyType:   (varietyType) => set({ varietyType }),
+  setSubcatAndVT:   (subcat, varietyType) => set({ subcat, varietyType }),
   setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
   setOnlyDiscount:  (onlyDiscount) => set({ onlyDiscount }),
   setStockLevel:    (stockLevel) => set({ stockLevel }),

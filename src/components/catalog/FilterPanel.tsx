@@ -353,7 +353,7 @@ function StaticGroup({ label, children }: { label: string; children: React.React
 // ── accordion subcategory section ─────────────────────────────────────────────
 
 function AccordionSubcats({ products }: { products: Product[] }) {
-  const { category, subcat, varietyType, setSubcat, setVarietyType, facets } = useFilters()
+  const { category, subcat, varietyType, setSubcat, setVarietyType, setSubcatAndVT, facets } = useFilters()
   const [openItem,   setOpenItem]   = useState('')
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
 
@@ -427,8 +427,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
   }
 
   const handleChild = (parentKey: string, child: VarietyChild) => {
-    setSubcat(parentKey)
-    setVarietyType(child.varietyType)
+    setSubcatAndVT(parentKey, child.varietyType)
     setOpenItem(parentKey)
   }
 
