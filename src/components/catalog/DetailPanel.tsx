@@ -384,7 +384,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           )}
 
           <Row label="Цена">
-            {isAuthed ? (
+            {(isAuthed || product.category === 'accessories') ? (
               <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
                 {price.toLocaleString('ru-RU')} ₸/шт
               </span>

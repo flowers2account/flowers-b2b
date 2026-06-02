@@ -315,7 +315,7 @@ function GridCard({
         )}
 
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
-          {isAuthed ? (
+          {(isAuthed || product.category === 'accessories') ? (
             <>
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>
                 {price.toLocaleString('ru-RU')} ₸
@@ -413,7 +413,7 @@ function ListRow({
         onClick={e => e.stopPropagation()}
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}
       >
-        {isAuthed ? (
+        {(isAuthed || product.category === 'accessories') ? (
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
             {price.toLocaleString('ru-RU')} ₸
           </span>
