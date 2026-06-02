@@ -486,6 +486,57 @@ function matchesSearch(p: Product, query: string): boolean {
   return false
 }
 
+// ── smart search suggestions ─────────────────────────────────────────────────
+
+type SuggestionDef = { keywords: string[]; label: string; type: 'subcat' | 'tag' | 'color'; value: string }
+
+const SMART_SUGGESTIONS: SuggestionDef[] = [
+  // Tags
+  { keywords: ['хит', 'популяр', 'бестселл'], label: '🔥 Хит продаж', type: 'tag', value: 'hit' },
+  { keywords: ['акция', 'скидк', 'уценк', 'дешев'], label: '🏷 Акция', type: 'tag', value: 'sale' },
+  { keywords: ['новинк', 'новый', 'новое', 'новые'], label: '🆕 Новинка', type: 'tag', value: 'new' },
+  // Accessories subcategories
+  { keywords: ['упаков', 'упак', 'лент', 'пленк', 'плёнк', 'флорист', 'сетк', 'бумаг', 'органз'], label: 'Упаковка', type: 'subcat', value: 'packaging' },
+  { keywords: ['горшок', 'горш', 'кашпо', 'вазон', 'фонтан'], label: 'Горшки и кашпо', type: 'subcat', value: 'pots' },
+  { keywords: ['грунт', 'субстрат', 'торф', 'перлит', 'компост', 'дренаж', 'кокос'], label: 'Грунты', type: 'subcat', value: 'soil' },
+  { keywords: ['удобрен', 'удобр', 'фертик', 'подкорм', 'стимул', 'инсектицид', 'фунгицид'], label: 'Удобрения', type: 'subcat', value: 'fertilizers' },
+  { keywords: ['газон', 'укрывн', 'агро', 'мульч', 'геотекст'], label: 'Газон/укрывной', type: 'subcat', value: 'lawns' },
+  { keywords: ['сад', 'огород', 'рассад', 'семен', 'дача'], label: 'Сад и огород', type: 'subcat', value: 'garden' },
+  { keywords: ['искусств'], label: 'Искусственные', type: 'subcat', value: 'artificial' },
+  { keywords: ['игрушк', 'мягк', 'медвед', 'кукл'], label: 'Игрушки', type: 'subcat', value: 'toys' },
+  // Cut flower subcategories (for when cut is re-enabled)
+  { keywords: ['роза', 'розы', 'роз', 'rosa', 'rose'], label: '🌹 Розы', type: 'subcat', value: 'roses' },
+  { keywords: ['хризант', 'хриз', 'chrys'], label: 'Хризантемы', type: 'subcat', value: 'chrysanthemums' },
+  { keywords: ['тюльпан', 'tulip'], label: '🌷 Тюльпаны', type: 'subcat', value: 'tulips' },
+  { keywords: ['пион', 'peony'], label: 'Пионы', type: 'subcat', value: 'peonies' },
+  { keywords: ['лилия', 'лили', 'lily'], label: 'Лилии', type: 'subcat', value: 'lilies' },
+  { keywords: ['герб', 'gerbera'], label: 'Герберы', type: 'subcat', value: 'gerberas' },
+  { keywords: ['гвоздик', 'carnation'], label: 'Гвоздики', type: 'subcat', value: 'carnations' },
+  { keywords: ['альстром', 'alstro'], label: 'Альстромерии', type: 'subcat', value: 'alstroemeria' },
+  { keywords: ['орхид', 'orchid'], label: 'Орхидеи', type: 'subcat', value: 'orchids' },
+  { keywords: ['антуриум', 'anthurium'], label: 'Антуриумы', type: 'subcat', value: 'anthuriums' },
+  { keywords: ['гортензи', 'hydrangea'], label: 'Гортензии', type: 'subcat', value: 'hydrangeas' },
+  { keywords: ['зелень', 'листь'], label: 'Зелень', type: 'subcat', value: 'greens' },
+  // Colors
+  { keywords: ['белый', 'белая', 'белые', 'бел', 'white'], label: '⬜ Белый', type: 'color', value: 'white' },
+  { keywords: ['красный', 'красн', 'red'], label: '🔴 Красный', type: 'color', value: 'red' },
+  { keywords: ['розовый', 'розов', 'pink'], label: '🩷 Розовый', type: 'color', value: 'pink' },
+  { keywords: ['жёлтый', 'желтый', 'желт', 'yellow'], label: '🟡 Жёлтый', type: 'color', value: 'yellow' },
+  { keywords: ['оранжевый', 'оранж', 'orange'], label: '🟠 Оранжевый', type: 'color', value: 'orange' },
+  { keywords: ['фиолетовый', 'фиолет', 'purple'], label: '🟣 Фиолетовый', type: 'color', value: 'purple' },
+  { keywords: ['лавандовый', 'лаванд', 'lavender'], label: 'Лавандовый', type: 'color', value: 'lavender' },
+  { keywords: ['бордовый', 'бордов', 'бордо', 'burgundy'], label: '🍷 Бордовый', type: 'color', value: 'burgundy' },
+  { keywords: ['зелёный', 'зеленый', 'зелен', 'green'], label: '🟢 Зелёный', type: 'color', value: 'green' },
+  { keywords: ['кремовый', 'крем', 'cream'], label: 'Кремовый', type: 'color', value: 'cream' },
+  { keywords: ['персиковый', 'персик', 'peach'], label: 'Персиковый', type: 'color', value: 'peach' },
+  { keywords: ['коралловый', 'коралл', 'coral'], label: 'Коралловый', type: 'color', value: 'coral' },
+]
+
+function matchKeyword(kw: string, q: string): boolean {
+  // keyword starts with query OR query starts with keyword (handles prefix matching in both directions)
+  return kw.startsWith(q) || q.startsWith(kw)
+}
+
 // ── main component ───────────────────────────────────────────────────────────
 
 export default function ProductGrid({ products: initialProducts }: { products: Product[] }) {
@@ -504,8 +555,23 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const {
     category, subcat, varietyType, colors, onlyDiscount, stockLevel, search,
     lengths, origins, farms, potSizes, tags, seasons,
-    setSearch, reset,
+    setSearch, setSubcat, toggleTag, toggleColor, reset,
   } = useFilters()
+
+  const suggestions = useMemo<SuggestionDef[]>(() => {
+    const q = search.toLowerCase().trim()
+    if (q.length < 2) return []
+    return SMART_SUGGESTIONS
+      .filter(s => s.keywords.some(kw => matchKeyword(kw, q)))
+      .slice(0, 6)
+  }, [search])
+
+  function applySuggestion(s: SuggestionDef) {
+    if (s.type === 'subcat') setSubcat(s.value)
+    else if (s.type === 'tag') toggleTag(s.value)
+    else if (s.type === 'color') toggleColor(s.value)
+    setSearch('')
+  }
 
   // Sync products to global store so DetailPanel can look up by id
   useEffect(() => { syncProducts(products) }, [products])
@@ -691,6 +757,48 @@ export default function ProductGrid({ products: initialProducts }: { products: P
             >×</button>
           )}
         </div>
+
+        {/* Row 1b: smart search suggestions */}
+        {suggestions.length > 0 && (
+          <div style={{
+            padding: '0 16px 8px',
+            display: 'flex', gap: 6, overflowX: 'auto',
+            scrollbarWidth: 'none' as React.CSSProperties['scrollbarWidth'],
+          }}>
+            <style>{`#suggest-row::-webkit-scrollbar{display:none}`}</style>
+            <span style={{ fontSize: 10, color: 'var(--text-mid)', whiteSpace: 'nowrap', alignSelf: 'center', marginRight: 2 }}>→</span>
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => applySuggestion(s)}
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '4px 11px', borderRadius: 14,
+                  fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+                  background: '#fff',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.12s, color 0.12s',
+                }}
+                onMouseEnter={e => {
+                  const b = e.currentTarget as HTMLButtonElement
+                  b.style.borderColor = 'var(--accent)'
+                  b.style.color = 'var(--accent)'
+                }}
+                onMouseLeave={e => {
+                  const b = e.currentTarget as HTMLButtonElement
+                  b.style.borderColor = 'var(--border)'
+                  b.style.color = 'var(--text)'
+                }}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Row 2: sort + view toggle + count */}
         <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
