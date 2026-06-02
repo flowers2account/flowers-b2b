@@ -11,7 +11,7 @@ import AuthModal from './AuthModal'
 const CATS: { id: FilterCategory; label: string }[] = [
   { id: 'cut', label: '🌸 Срезанные' },
   { id: 'pot', label: '🪴 Горшечные' },
-  { id: 'accessories', label: '📦 Расходники' },
+  { id: 'accessories', label: '📦 Сопутствующие' },
 ]
 
 function CategoryPills() {

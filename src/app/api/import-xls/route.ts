@@ -61,7 +61,7 @@ const SPECIES_SUBCAT: Record<number, { subcat: string; vt?: string }> = {
   45: { subcat: 'accents'      },
 }
 
-function getSubcatByKeyword(name: string, category: 'cut' | 'pot'): { subcategory: string | null; variety_type: string | null } {
+function getSubcatByKeyword(name: string, category: 'cut' | 'pot' | 'accessories'): { subcategory: string | null; variety_type: string | null } {
   const n = name.toLowerCase()
   if (category === 'cut') {
     if (/пион/.test(n))                  return { subcategory: 'peonies',     variety_type: null }
@@ -86,6 +86,15 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot'): { subcategor
     if (/алое/.test(n))                  return { subcategory: 'succulents', variety_type: null }
     if (/туя|фритиллария/.test(n))       return { subcategory: 'outdoor',   variety_type: null }
     if (/антуриум|фаленопсис|орхидея|гортензия|нарцисс|гвоздика|роза/.test(n)) return { subcategory: 'flowering', variety_type: null }
+  }
+  if (category === 'accessories') {
+    if (/упаков|лент|плёнк|пленк|сетк|бумаг|флорист|рафия|ткан|органза|джут|сизал|гофр/.test(n)) return { subcategory: 'packaging',  variety_type: null }
+    if (/горшок|горш|кашпо|фонтан|вазон/.test(n))                                                  return { subcategory: 'pots',       variety_type: null }
+    if (/грунт|удобрен|торф|перлит|субстрат|компост|вермикул/.test(n))                             return { subcategory: 'soil',       variety_type: null }
+    if (/газон|укрывной|агрополотно|мульч|геотекстил/.test(n))                                     return { subcategory: 'lawns',      variety_type: null }
+    if (/сад|огород|дача|рассад|семен/.test(n))                                                     return { subcategory: 'garden',     variety_type: null }
+    if (/искусствен/.test(n))                                                                       return { subcategory: 'artificial', variety_type: null }
+    if (/игрушк/.test(n))                                                                           return { subcategory: 'toys',       variety_type: null }
   }
   return { subcategory: null, variety_type: null }
 }
@@ -140,8 +149,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Нет данных в файле' }, { status: 400 })
 
   const fileNameLower = file.name.toLowerCase()
-  const fileCategory: 'cut' | 'pot' =
-    fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' : 'cut'
+  const fileCategory: 'cut' | 'pot' | 'accessories' =
+    fileNameLower.includes('горшок') || fileNameLower.includes('горш') ? 'pot' :
+    fileNameLower.includes('сопут') || fileNameLower.includes('упаков') || fileNameLower.includes('расход') ? 'accessories' :
+    'cut'
   const fileCountry = countryFromText(file.name)
 
   const importId = importIdRaw ? parseInt(importIdRaw) : Date.now()
@@ -160,19 +171,21 @@ export async function POST(req: NextRequest) {
   const aliasByNorm = new Map<string, number>()
   for (const a of aliases ?? []) aliasByNorm.set(a.norm_name, a.product_id)
 
-  // ── AI enrichment (all rows, used for new product creation) ────────────────
+  // ── AI enrichment (skip for accessories — no color/species/country) ────────
   const aiStats = { ai_enriched: 0, ai_cached: 0, ai_failed: 0 }
   let enrichedMap = new Map<string, Awaited<ReturnType<typeof enrichProductBatch>>[number]>()
-  try {
-    const enriched = await enrichProductBatch(rows.map(r => r.name))
-    enrichedMap = new Map(enriched.map(e => [e.raw_name, e]))
-    enriched.forEach(e => {
-      if (e.source === 'ai') aiStats.ai_enriched++
-      else if (e.source === 'cache') aiStats.ai_cached++
-      else aiStats.ai_failed++
-    })
-  } catch (err) {
-    console.error('[import-xls] enrichProductBatch failed:', err)
+  if (fileCategory !== 'accessories') {
+    try {
+      const enriched = await enrichProductBatch(rows.map(r => r.name))
+      enrichedMap = new Map(enriched.map(e => [e.raw_name, e]))
+      enriched.forEach(e => {
+        if (e.source === 'ai') aiStats.ai_enriched++
+        else if (e.source === 'cache') aiStats.ai_cached++
+        else aiStats.ai_failed++
+      })
+    } catch (err) {
+      console.error('[import-xls] enrichProductBatch failed:', err)
+    }
   }
 
   // ── Build and insert buffer rows ────────────────────────────────────────────
