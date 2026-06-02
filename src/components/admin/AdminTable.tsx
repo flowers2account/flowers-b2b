@@ -373,9 +373,16 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
   )
 }
 
+const CAT_FILTERS = [
+  { key: 'cut',         label: '✂️ Срез'    },
+  { key: 'pot',         label: '🪴 Горшок'  },
+  { key: 'accessories', label: '📦 Расходка' },
+] as const
+
 export default function AdminTable() {
   const [search, setSearch] = useState('')
   const [inStockOnly, setInStockOnly] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<string>('')
   const [data, setData] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [editId, setEditId] = useState<number | null>(null)
@@ -409,6 +416,8 @@ export default function AdminTable() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
+
+  const displayed = categoryFilter ? data.filter(p => p.category === categoryFilter) : data
 
   return (
     <div>
@@ -453,8 +462,30 @@ export default function AdminTable() {
         </label>
 
         <Badge variant="outline" className="whitespace-nowrap">
-          {loading ? '...' : `${data.length} позиций`}
+          {loading ? '...' : `${displayed.length} позиций`}
         </Badge>
+      </div>
+
+      {/* Category filter buttons */}
+      <div className="flex gap-2 mb-3">
+        {CAT_FILTERS.map(f => {
+          const active = categoryFilter === f.key
+          return (
+            <button
+              key={f.key}
+              onClick={() => setCategoryFilter(active ? '' : f.key)}
+              className="text-xs px-3 py-1 rounded-full border transition-colors"
+              style={{
+                background: active ? '#7a1c2e' : '#fff',
+                borderColor: active ? '#7a1c2e' : '#e5e7eb',
+                color: active ? '#fff' : '#6b7280',
+                fontWeight: active ? 600 : 400,
+              }}
+            >
+              {f.label}
+            </button>
+          )
+        })}
       </div>
 
       <div className="rounded-lg border bg-white shadow-sm">
@@ -485,7 +516,7 @@ export default function AdminTable() {
                 <TableCell colSpan={10} className="text-center py-8 text-gray-400 text-sm">Ничего не найдено</TableCell>
               </TableRow>
             )}
-            {!loading && data.map(p => (
+            {!loading && displayed.map(p => (
               <StockRow
                 key={p.id}
                 product={p}
