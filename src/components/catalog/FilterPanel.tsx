@@ -786,14 +786,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               })}
             </CollapsibleGroup>
 
-            <CollapsibleGroup
-              label="Теги"
-              open={openGroups.tags}
-              onToggle={() => tog('tags')}
-              activeCount={tags.length}
-            >
-              <TagChips tagDefs={TAGS_CUT} active={tags} onToggle={toggleTag} />
-            </CollapsibleGroup>
           </>
         )}
 
@@ -812,14 +804,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               ))}
             </CollapsibleGroup>
 
-            <CollapsibleGroup
-              label="Теги"
-              open={openGroups.tags}
-              onToggle={() => tog('tags')}
-              activeCount={tags.length}
-            >
-              <TagChips tagDefs={TAGS_POT} active={tags} onToggle={toggleTag} />
-            </CollapsibleGroup>
           </>
         )}
 
