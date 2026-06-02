@@ -155,7 +155,8 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
   accessories: [
     { label: 'Упаковка флористическая',    key: 'packaging'  },
     { label: 'Горшки, кашпо и фонтаны',   key: 'pots'       },
-    { label: 'Грунты и удобрения',         key: 'soil'       },
+    { label: 'Грунты и субстраты',          key: 'soil'       },
+    { label: 'Удобрения',                  key: 'fertilizers'},
     { label: 'Газоны и укрывной материал', key: 'lawns'      },
     { label: 'Сад и огород',               key: 'garden'     },
     { label: 'Искусственные растения',     key: 'artificial' },

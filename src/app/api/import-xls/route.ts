@@ -90,7 +90,8 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot' | 'accessories
   if (category === 'accessories') {
     if (/упаков|лент|плёнк|пленк|сетк|бумаг|флорист|рафия|ткан|органза|джут|сизал|гофр/.test(n)) return { subcategory: 'packaging',  variety_type: null }
     if (/горшок|горш|кашпо|фонтан|вазон/.test(n))                                                  return { subcategory: 'pots',       variety_type: null }
-    if (/грунт|удобрен|торф|перлит|субстрат|компост|вермикул/.test(n))                             return { subcategory: 'soil',       variety_type: null }
+    if (/грунт|торф|перлит|субстрат|компост|вермикул|дренаж|мульч|кора/.test(n))                    return { subcategory: 'soil',        variety_type: null }
+    if (/удобрен|fertika|bona forte|osmocot|агрикола|рeasil|reasil|гумат|криcталон|кристалон|стимул|инсектицид|фунгицид|гербицид/.test(n)) return { subcategory: 'fertilizers', variety_type: null }
     if (/газон|укрывной|агрополотно|мульч|геотекстил/.test(n))                                     return { subcategory: 'lawns',      variety_type: null }
     if (/садов|огород|дача|дачн|рассад|семен/.test(n))                                              return { subcategory: 'garden',     variety_type: null }
     if (/искусствен/.test(n))                                                                       return { subcategory: 'artificial', variety_type: null }
