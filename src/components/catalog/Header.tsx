@@ -14,12 +14,24 @@ const CATS: { id: FilterCategory; label: string; shortLabel?: string }[] = [
   { id: 'accessories', label: '📦 Уход · Упаковка · Декор', shortLabel: '📦 Уход · Упак. · Декор' },
 ]
 
+// To restore cut/pot pills: remove them from this array
+const HIDDEN_CATEGORIES: FilterCategory[] = ['cut', 'pot']
+
+const VISIBLE_CATS = CATS.filter(c => !HIDDEN_CATEGORIES.includes(c.id))
+
 function CategoryPills() {
   const { category, setCategory } = useFilters()
 
+  // If active category is hidden, redirect to first visible one
+  useEffect(() => {
+    if (HIDDEN_CATEGORIES.includes(category) && VISIBLE_CATS.length > 0) {
+      setCategory(VISIBLE_CATS[0].id)
+    }
+  }, [])
+
   return (
     <>
-      {CATS.map(cat => (
+      {VISIBLE_CATS.map(cat => (
         <button
           key={cat.id}
           onClick={() => setCategory(cat.id)}

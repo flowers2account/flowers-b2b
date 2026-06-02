@@ -3,14 +3,17 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type FilterCategory = 'all' | 'cut' | 'pot' | 'accessories'
 
+// Default category while cut/pot pills are hidden — change back to 'cut' when unhiding
+const DEFAULT_CATEGORY: FilterCategory = 'accessories'
+
 function getPersistedCategory(): FilterCategory {
-  if (typeof window === 'undefined') return 'cut'
+  if (typeof window === 'undefined') return DEFAULT_CATEGORY
   try {
     const raw = sessionStorage.getItem('catalog-filters')
     const val = raw ? JSON.parse(raw)?.state?.category : null
     if (val === 'all' || val === 'cut' || val === 'pot' || val === 'accessories') return val
   } catch {}
-  return 'cut'
+  return DEFAULT_CATEGORY
 }
 
 export type StockLevel = '' | 'low' | 'high'
@@ -103,7 +106,7 @@ export const useFilters = create<FilterStore>()(
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
-    category: 'cut' as FilterCategory, subcat: '', varietyType: '',
+    category: DEFAULT_CATEGORY, subcat: '', varietyType: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], tags: [],
     seasons: [], facets: null,
