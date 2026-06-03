@@ -92,6 +92,14 @@ export async function POST(req: NextRequest) {
     items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
   )
 
+  // amoCRM sync (non-fatal — ошибка не роняет заказ)
+  try {
+    const { syncOrderToAmo } = await import('@/lib/amo')
+    await syncOrderToAmo(orderId)
+  } catch (err) {
+    console.error('[checkout] amoCRM sync failed:', err instanceof Error ? err.message : err)
+  }
+
   // Create reservations (replace any existing client reservations for these products)
   for (const item of items) {
     await supabase.from('reservations').delete()

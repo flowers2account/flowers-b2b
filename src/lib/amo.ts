@@ -262,3 +262,114 @@ export async function syncPreorderToAmo(orderId: number): Promise<void> {
     throw err // re-throw so caller can see it in logs
   }
 }
+
+// ── Витринный заказ (orders) → amoCRM ────────────────────────────────────────
+
+export async function syncOrderToAmo(orderId: number): Promise<void> {
+  const supabase = createAdminClient()
+
+  // 1. Читаем заказ (идемпотентность)
+  const { data: order } = await supabase
+    .from('orders')
+    .select(`
+      id, total, status, client_id, created_at,
+      amo_lead_id, amo_sync_attempts,
+      order_items (
+        qty, qty_ordered, price, is_removed,
+        products ( display_name, name, length_cm, colors )
+      )
+    `)
+    .eq('id', orderId)
+    .single()
+
+  if (!order) throw new Error(`Order ${orderId} not found`)
+  if ((order as any).amo_lead_id) return // уже синкнули
+
+  const incrementAttempts = async (error: string) => {
+    await supabase.from('orders').update({
+      amo_sync_attempts: ((order as any).amo_sync_attempts ?? 0) + 1,
+      amo_sync_error: error.slice(0, 500),
+    }).eq('id', orderId)
+  }
+
+  try {
+    // 2. Клиент → телефон и имя
+    const { data: client } = await supabase
+      .from('clients')
+      .select('phone, name, company_name')
+      .eq('id', order.client_id)
+      .maybeSingle()
+
+    const phone = client?.phone ?? ''
+    const contactName =
+      client?.name ??
+      (client as any)?.company_name ??
+      phone
+
+    const phones = normalizePhoneAmo(phone)
+
+    // 3. Найти или создать контакт
+    let contactId = await findContactByPhone(phones)
+    if (!contactId) {
+      contactId = await createContact({ name: contactName, phone: phones[0] })
+    }
+
+    // 4. Позиции (is_removed=false)
+    const items = ((order as any).order_items ?? []).filter(
+      (i: any) => !i.is_removed
+    )
+
+    // 5. Создать сделку
+    // TODO: при будущем маппинге статусов orders → этапы воронки amoCRM
+    //   (pending→Новый, confirmed→Подтверждён, assembled→В сборке и т.д.)
+    //   заменить AMO_STATUS_NEW на динамическое значение по order.status
+    const leadId = await createLead({
+      name:       `Заказ #${orderId} (Сайт)`,
+      price:      Number(order.total ?? 0),
+      contactId,
+      pipelineId: AMO_PIPELINE_ID,
+      statusId:   AMO_STATUS_NEW,
+      customFields: [
+        { field_id: CF_ORDERID, values: [{ value: String(orderId) }] },
+        // DATA_DOSTAVKI: в orders колонки с датой доставки нет → пропускаем
+      ],
+      tags: ['Источник: Сайт'],
+    })
+
+    // 6. Примечание с позициями
+    const tz = 'Asia/Oral'
+    const lines: string[] = [
+      `📋 Заказ #${orderId} с витрины`,
+      `👤 ${contactName}  📞 ${phone}`,
+      `📅 ${new Date((order as any).created_at).toLocaleString('ru-RU', { timeZone: tz })}`,
+      '',
+      '--- Позиции ---',
+    ]
+    for (const item of items) {
+      const p = item.products
+      const qty   = item.qty_ordered ?? item.qty ?? 0
+      const price = Number(item.price ?? 0)
+      let label = p?.display_name ?? p?.name ?? '—'
+      if (p?.length_cm) label += ` ${p.length_cm}см`
+      if (p?.colors?.length) label += ` (${(p.colors as string[]).join(', ')})`
+      lines.push(`• ${label}: ${qty} шт × ${price.toLocaleString('ru-RU')} ₸ = ${(qty * price).toLocaleString('ru-RU')} ₸`)
+    }
+    lines.push('')
+    lines.push(`💰 ИТОГО: ${Number(order.total ?? 0).toLocaleString('ru-RU')} ₸`)
+
+    await addNote(leadId, lines.join('\n'))
+
+    // 7. Обновить orders
+    await supabase.from('orders').update({
+      amo_lead_id:    leadId,
+      amo_contact_id: contactId,
+      amo_synced_at:  new Date().toISOString(),
+      amo_sync_error: null,
+    }).eq('id', orderId)
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    await incrementAttempts(msg)
+    throw err
+  }
+}
