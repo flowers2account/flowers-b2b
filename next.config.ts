@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  webpack: (config) => {
+    config.experiments = { ...config.experiments, asyncWebAssembly: true }
+    // Ensure WASM files are emitted to static dir (required for Vercel)
+    config.output = config.output ?? {}
+    config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm'
+    return config
+  },
   images: {
     remotePatterns: [
       {

@@ -11,6 +11,8 @@ import {
 import { COLORS } from '@/lib/colors'
 import ProductEditModal from './ProductEditModal'
 
+const BG_TINT = '#F7EEF2'
+
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
 type Product = { id: number; name: string; display_name?: string | null; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; country_iso?: string | null; farm?: string | null; is_new?: boolean; stock: Stock[] | Stock }
 
@@ -49,9 +51,11 @@ function StockRow({ product, onSaved, onEdit }: {
   const [saved, setSaved] = useState(false)
   const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
   const [campaignImageUrl, setCampaignImageUrl] = useState(product.campaign_image_url ?? '')
-  const [uploading, setUploading] = useState(false)
+  const [uploadStep, setUploadStep] = useState<'' | 'bg' | 'save'>('')
+  const [campaignUploadStep, setCampaignUploadStep] = useState<'' | 'bg' | 'save'>('')
+  const uploading = uploadStep !== ''
+  const campaignUploading = campaignUploadStep !== ''
   const [uploadMsg, setUploadMsg] = useState<string | null>(null)
-  const [campaignUploading, setCampaignUploading] = useState(false)
   const [colors, setColors] = useState<string[]>(product.colors ?? [])
   const [colorsOpen, setColorsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -100,84 +104,78 @@ function StockRow({ product, onSaved, onEdit }: {
     } catch { return null }
   }
 
-  async function compressIfNeeded(file: File): Promise<File> {
-    const MAX = 3.5 * 1024 * 1024
-    if (file.size <= MAX) return file
+  async function downscaleImage(file: File | Blob, maxPx: number): Promise<Blob> {
     return new Promise(resolve => {
       const img = new Image()
-      const objectUrl = URL.createObjectURL(file)
+      const url = URL.createObjectURL(file)
       img.onload = () => {
-        const ratio = Math.sqrt(MAX / file.size) * 0.9
+        const scale = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight))
+        const w = Math.round(img.naturalWidth * scale)
+        const h = Math.round(img.naturalHeight * scale)
         const canvas = document.createElement('canvas')
-        canvas.width = Math.floor(img.naturalWidth * ratio)
-        canvas.height = Math.floor(img.naturalHeight * ratio)
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-        canvas.toBlob(blob => {
-          URL.revokeObjectURL(objectUrl)
-          resolve(blob ? new File([blob], 'photo.jpg', { type: 'image/jpeg' }) : file)
-        }, 'image/jpeg', 0.88)
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+        URL.revokeObjectURL(url)
+        canvas.toBlob(blob => resolve(blob!), 'image/jpeg', 0.92)
       }
-      img.src = objectUrl
+      img.src = url
+    })
+  }
+
+  async function removeBgClient(input: Blob): Promise<Blob> {
+    const { removeBackground } = await import('@imgly/background-removal')
+    const pngBlob = await removeBackground(input)
+    return new Promise(resolve => {
+      const img = new Image()
+      const url = URL.createObjectURL(pngBlob)
+      img.onload = () => {
+        const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight))
+        const w = Math.round(img.naturalWidth * scale)
+        const h = Math.round(img.naturalHeight * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.fillStyle = BG_TINT
+        ctx.fillRect(0, 0, w, h)
+        ctx.drawImage(img, 0, 0, w, h)
+        URL.revokeObjectURL(url)
+        canvas.toBlob(blob => resolve(blob!), 'image/jpeg', 0.88)
+      }
+      img.src = url
     })
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setUploading(true)
+    setUploadStep('bg')
     setUploadMsg(null)
-
     try {
-      // 1. Сжать если > 3.5 МБ
-      const compressed = await compressIfNeeded(file)
+      const scaled = await downscaleImage(file, 1500)
+      const processed = await removeBgClient(scaled)
+      const processedFile = new File([processed], 'photo.jpg', { type: 'image/jpeg' })
 
-      // 2. Сервер вызывает remove.bg, возвращает готовое изображение
-      const fd = new FormData()
-      fd.append('file', compressed)
-      const res = await fetch('/api/admin/process-image', { method: 'POST', body: fd })
-
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}))
-        setUploadMsg(json.error ?? `Ошибка сервера ${res.status}`)
-        setTimeout(() => setUploadMsg(null), 6000)
-        return
-      }
-
-      const noCredits = res.headers.get('X-No-Credits') === '1'
-      const contentType = res.headers.get('Content-Type') || 'image/jpeg'
-      const blob = await res.blob()
-      const ext = contentType.includes('jpeg') ? 'jpg' : (file.name.split('.').pop() || 'jpg')
-      const processedFile = new File([blob], `photo.${ext}`, { type: contentType })
-
-      // 3. Клиент грузит в Supabase Storage (с сессией)
+      setUploadStep('save')
       if (imageUrl) {
         const oldPath = extractStoragePath(imageUrl)
         if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
       }
-      const path = `${slugify(product.name)}_${Date.now()}.${ext}`
+      const path = `${slugify(product.name)}_${Date.now()}.jpg`
       const { error: uploadErr } = await supabase.storage
-        .from('product-images')
-        .upload(path, processedFile, { upsert: false })
-
+        .from('product-images').upload(path, processedFile, { upsert: false })
       if (uploadErr) {
         setUploadMsg(`Storage: ${uploadErr.message}`)
         setTimeout(() => setUploadMsg(null), 6000)
         return
       }
-
       const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
       await supabase.from('products').update({ image_url: publicUrl }).eq('id', product.id)
       setImageUrl(publicUrl)
-
-      if (noCredits) {
-        setUploadMsg('Кредиты remove.bg закончились, фото сохранено без обработки')
-        setTimeout(() => setUploadMsg(null), 7000)
-      }
     } catch (err) {
-      setUploadMsg('Ошибка: ' + (err instanceof Error ? err.message : 'неизвестная'))
-      setTimeout(() => setUploadMsg(null), 5000)
+      setUploadMsg('Ошибка обработки: ' + (err instanceof Error ? err.message : 'неизвестная'))
+      setTimeout(() => setUploadMsg(null), 6000)
     } finally {
-      setUploading(false)
+      setUploadStep('')
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -185,56 +183,34 @@ function StockRow({ product, onSaved, onEdit }: {
   async function handleCampaignImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setCampaignUploading(true)
-
+    setCampaignUploadStep('bg')
+    setUploadMsg(null)
     try {
-      const compressed = await compressIfNeeded(file)
+      const scaled = await downscaleImage(file, 1500)
+      const processed = await removeBgClient(scaled)
+      const processedFile = new File([processed], 'photo.jpg', { type: 'image/jpeg' })
 
-      const fd = new FormData()
-      fd.append('file', compressed)
-      const res = await fetch('/api/admin/process-image', { method: 'POST', body: fd })
-
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}))
-        setUploadMsg(json.error ?? `Ошибка сервера ${res.status}`)
-        setTimeout(() => setUploadMsg(null), 6000)
-        return
-      }
-
-      const noCredits = res.headers.get('X-No-Credits') === '1'
-      const contentType = res.headers.get('Content-Type') || 'image/jpeg'
-      const blob = await res.blob()
-      const ext = contentType.includes('jpeg') ? 'jpg' : (file.name.split('.').pop() || 'jpg')
-      const processedFile = new File([blob], `photo.${ext}`, { type: contentType })
-
+      setCampaignUploadStep('save')
       if (campaignImageUrl) {
         const oldPath = extractStoragePath(campaignImageUrl)
         if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
       }
-      const path = `campaign_${slugify(product.name)}_${Date.now()}.${ext}`
+      const path = `campaign_${slugify(product.name)}_${Date.now()}.jpg`
       const { error: uploadErr } = await supabase.storage
-        .from('product-images')
-        .upload(path, processedFile, { upsert: false })
-
+        .from('product-images').upload(path, processedFile, { upsert: false })
       if (uploadErr) {
         setUploadMsg(`Storage: ${uploadErr.message}`)
         setTimeout(() => setUploadMsg(null), 6000)
         return
       }
-
       const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
       await supabase.from('products').update({ campaign_image_url: publicUrl }).eq('id', product.id)
       setCampaignImageUrl(publicUrl)
-
-      if (noCredits) {
-        setUploadMsg('Кредиты remove.bg закончились, фото сохранено без обработки')
-        setTimeout(() => setUploadMsg(null), 7000)
-      }
     } catch (err) {
-      setUploadMsg('Ошибка: ' + (err instanceof Error ? err.message : 'неизвестная'))
-      setTimeout(() => setUploadMsg(null), 5000)
+      setUploadMsg('Ошибка обработки: ' + (err instanceof Error ? err.message : 'неизвестная'))
+      setTimeout(() => setUploadMsg(null), 6000)
     } finally {
-      setCampaignUploading(false)
+      setCampaignUploadStep('')
       if (campaignFileInputRef.current) campaignFileInputRef.current.value = ''
     }
   }
@@ -267,9 +243,11 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
               ) : (
                 <div className="w-7 h-7 rounded bg-gray-100" />
               )}
-              <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                {uploading
-                  ? <span className="text-white text-[8px] leading-tight text-center px-0.5">фон…</span>
+              <div className="absolute inset-0 rounded bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {uploadStep === 'bg'
+                  ? <span className="text-white text-[8px] leading-tight text-center px-0.5">удаляю фон…</span>
+                  : uploadStep === 'save'
+                  ? <span className="text-white text-[8px] leading-tight text-center px-0.5">сохраняю…</span>
                   : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 }
               </div>
@@ -291,9 +269,13 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" className="group-hover:stroke-[#7a1c2e]"><path d="M12 5v14M5 12h14"/></svg>
               </div>
             )}
-            <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              {campaignUploading ? <span className="text-white text-[8px]">...</span>
-                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>}
+            <div className="absolute inset-0 rounded bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {campaignUploadStep === 'bg'
+                ? <span className="text-white text-[8px] leading-tight text-center px-0.5">удаляю фон…</span>
+                : campaignUploadStep === 'save'
+                ? <span className="text-white text-[8px] leading-tight text-center px-0.5">сохраняю…</span>
+                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              }
             </div>
           </div>
           <span

@@ -7,11 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { checkoutPreorder } from '@/app/admin/preorder-actions'
 import { useIsMobile } from '@/lib/use-mobile'
 import { COLORS } from '@/lib/colors'
-
-const COUNTRY_LABELS: Record<string, string> = {
-  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль', DK: 'Дания',
-}
+import { COUNTRY_LABELS } from '@/lib/countries'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

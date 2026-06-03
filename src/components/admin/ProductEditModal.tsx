@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { COLORS } from '@/lib/colors'
+import { COUNTRY_LABELS } from '@/lib/countries'
 
 type ProductEdit = {
   id: number
@@ -150,11 +151,9 @@ const PRODUCT_TAGS = [
   { v: 'seasonal',l: '🌸 Сезонные'  },
   { v: 'spring',  l: '🌷 Весна'     },
 ]
-const COUNTRIES = [
-  { v: 'CN', l: 'Китай' }, { v: 'EC', l: 'Эквадор' }, { v: 'KE', l: 'Кения' },
-  { v: 'NL', l: 'Голландия' }, { v: 'CO', l: 'Колумбия' }, { v: 'RU', l: 'Россия' },
-  { v: 'ET', l: 'Эфиопия' }, { v: 'EG', l: 'Египет' }, { v: 'IL', l: 'Израиль' },
-]
+const COUNTRIES = Object.entries(COUNTRY_LABELS)
+  .sort((a, b) => a[1].localeCompare(b[1], 'ru'))
+  .map(([v, l]) => ({ v, l }))
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

@@ -58,7 +58,24 @@
       "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\oz-parser-new\\\\output\\\\Antirrhinum.jsonl\" -TotalCount 2 | ForEach-Object { $_ | ConvertFrom-Json | Select-Object name, image_urls, color | ConvertTo-Json -Compress })",
       "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\oz-parser-new\\\\output\\\\Astilbe.jsonl\" -TotalCount 2 | ForEach-Object { $_ | ConvertFrom-Json | Select-Object name, image_urls, color | ConvertTo-Json -Compress })",
       "PowerShell(Get-Content \"C:\\\\Users\\\\Владелец\\\\Desktop\\\\oz-parser-new\\\\output\\\\Alstroemeria.jsonl\" -TotalCount 2 | ForEach-Object { $_ | ConvertFrom-Json | Select-Object name, @{n='img_count';e={$_.image_urls.Count}} | ConvertTo-Json -Compress })",
-      "Bash(openssl rand *)"
+      "Bash(openssl rand *)",
+      "mcp__claude_ai_Vercel__get_project",
+      "Bash(grep -E \"\\\\.\\(sql|ts\\)$\")",
+      "Bash(findstr *)",
+      "Bash(xargs grep -l \"/api/facets\")",
+      "Bash(python *)",
+      "Bash(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Id, CPU, StartTime)",
+      "Bash(Head -5)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/admin)",
+      "Bash(curl *)",
+      "Bash(Start-Sleep -Seconds 30)",
+      "Bash(Get-Content \"C:\\\\Users\\\\4227~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users----------flowers-b2b\\\\5b99f61c-06ae-49cf-832f-d903dfb70384\\\\tasks\\\\bqod1rxd6.output\")",
+      "Bash(Select-Object -Last 5)",
+      "Bash(python3 -c ' *)",
+      "Read(//tmp/**)",
+      "Bash(git *)",
+      "Bash(npm install *)"
     ]
   }
 }

@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import { COUNTRY_LABELS } from '@/lib/countries';
 
 export interface CardData {
   id: number;
@@ -13,10 +14,6 @@ export interface CardData {
   imageUrl: string;
 }
 
-const COUNTRY_LABELS: Record<string, string> = {
-  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
-};
 
 // Canvas doesn't support CSS variables — use actual family names from next/font/google
 const FONT_BODY = '"Golos Text", sans-serif';

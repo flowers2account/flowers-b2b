@@ -5,6 +5,7 @@ import Link from 'next/link';
 import JSZip from 'jszip';
 import { createClient } from '@/lib/supabase/client';
 import { generateProductCard } from '@/lib/card-generator';
+import { COUNTRY_LABELS } from '@/lib/countries';
 
 interface Product {
   id: number;
@@ -28,10 +29,6 @@ interface GeneratedCard {
   name: string;
 }
 
-const COUNTRY_LABELS: Record<string, string> = {
-  EC: 'Эквадор', KE: 'Кения', NL: 'Голландия', CN: 'Китай',
-  CO: 'Колумбия', RU: 'Россия', ET: 'Эфиопия', EG: 'Египет', IL: 'Израиль',
-};
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_').substring(0, 50);
