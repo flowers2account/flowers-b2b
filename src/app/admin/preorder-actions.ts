@@ -313,6 +313,14 @@ export async function checkoutPreorder(params: {
 
   if (itemsInsertErr) return { error: 'Ошибка записи позиций: ' + itemsInsertErr.message }
 
+  // amoCRM sync (non-fatal)
+  try {
+    const { syncPreorderToAmo } = await import('@/lib/amo')
+    await syncPreorderToAmo(order.id)
+  } catch (err) {
+    console.error('[checkoutPreorder] amoCRM sync failed:', err instanceof Error ? err.message : err)
+  }
+
   // Telegram notification (non-fatal)
   try {
     const tgMsg = [
