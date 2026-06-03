@@ -128,31 +128,58 @@ function StockRow({ product, onSaved, onEdit }: {
     setUploadMsg(null)
 
     try {
+      // 1. Сжать если > 3.5 МБ
       const compressed = await compressIfNeeded(file)
+
+      // 2. Сервер вызывает remove.bg, возвращает готовое изображение
       const fd = new FormData()
       fd.append('file', compressed)
-      fd.append('productId', String(product.id))
-
       const res = await fetch('/api/admin/process-image', { method: 'POST', body: fd })
-      const json = await res.json()
 
-      if (json.url) {
-        setImageUrl(json.url)
-        if (json.message) {
-          setUploadMsg(json.message)
-          setTimeout(() => setUploadMsg(null), 6000)
-        }
-      } else {
-        setUploadMsg(json.error ?? 'Ошибка загрузки')
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        setUploadMsg(json.error ?? `Ошибка сервера ${res.status}`)
         setTimeout(() => setUploadMsg(null), 6000)
+        return
       }
-    } catch {
-      setUploadMsg('Ошибка соединения')
-      setTimeout(() => setUploadMsg(null), 4000)
-    }
 
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+      const noCredits = res.headers.get('X-No-Credits') === '1'
+      const contentType = res.headers.get('Content-Type') || 'image/jpeg'
+      const blob = await res.blob()
+      const ext = contentType.includes('jpeg') ? 'jpg' : (file.name.split('.').pop() || 'jpg')
+      const processedFile = new File([blob], `photo.${ext}`, { type: contentType })
+
+      // 3. Клиент грузит в Supabase Storage (с сессией)
+      if (imageUrl) {
+        const oldPath = extractStoragePath(imageUrl)
+        if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
+      }
+      const path = `${slugify(product.name)}_${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage
+        .from('product-images')
+        .upload(path, processedFile, { upsert: false })
+
+      if (uploadErr) {
+        setUploadMsg(`Storage: ${uploadErr.message}`)
+        setTimeout(() => setUploadMsg(null), 6000)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
+      await supabase.from('products').update({ image_url: publicUrl }).eq('id', product.id)
+      setImageUrl(publicUrl)
+
+      if (noCredits) {
+        setUploadMsg('Кредиты remove.bg закончились, фото сохранено без обработки')
+        setTimeout(() => setUploadMsg(null), 7000)
+      }
+    } catch (err) {
+      setUploadMsg('Ошибка: ' + (err instanceof Error ? err.message : 'неизвестная'))
+      setTimeout(() => setUploadMsg(null), 5000)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   async function handleCampaignImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
