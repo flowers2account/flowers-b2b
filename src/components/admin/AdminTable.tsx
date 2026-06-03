@@ -50,6 +50,7 @@ function StockRow({ product, onSaved, onEdit }: {
   const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
   const [campaignImageUrl, setCampaignImageUrl] = useState(product.campaign_image_url ?? '')
   const [uploading, setUploading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null)
   const [campaignUploading, setCampaignUploading] = useState(false)
   const [colors, setColors] = useState<string[]>(product.colors ?? [])
   const [colorsOpen, setColorsOpen] = useState(false)
@@ -99,29 +100,55 @@ function StockRow({ product, onSaved, onEdit }: {
     } catch { return null }
   }
 
+  async function compressIfNeeded(file: File): Promise<File> {
+    const MAX = 3.5 * 1024 * 1024
+    if (file.size <= MAX) return file
+    return new Promise(resolve => {
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(file)
+      img.onload = () => {
+        const ratio = Math.sqrt(MAX / file.size) * 0.9
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.floor(img.naturalWidth * ratio)
+        canvas.height = Math.floor(img.naturalHeight * ratio)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(objectUrl)
+          resolve(blob ? new File([blob], 'photo.jpg', { type: 'image/jpeg' }) : file)
+        }, 'image/jpeg', 0.88)
+      }
+      img.src = objectUrl
+    })
+  }
+
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
+    setUploadMsg(null)
 
-    const ext = file.name.split('.').pop()
-    const path = `${slugify(product.name)}_${Date.now()}.${ext}`
+    try {
+      const compressed = await compressIfNeeded(file)
+      const fd = new FormData()
+      fd.append('file', compressed)
+      fd.append('productId', String(product.id))
 
-    if (imageUrl) {
-      const oldPath = extractStoragePath(imageUrl)
-      if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
-    }
+      const res = await fetch('/api/admin/process-image', { method: 'POST', body: fd })
+      const json = await res.json()
 
-    const { error } = await supabase.storage
-      .from('product-images')
-      .upload(path, file, { upsert: false })
-
-    if (!error) {
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(path)
-      await supabase.from('products').update({ image_url: publicUrl }).eq('id', product.id)
-      setImageUrl(publicUrl)
+      if (json.url) {
+        setImageUrl(json.url)
+        if (json.message) {
+          setUploadMsg(json.message)
+          setTimeout(() => setUploadMsg(null), 6000)
+        }
+      } else {
+        setUploadMsg(json.error ?? 'Ошибка загрузки')
+        setTimeout(() => setUploadMsg(null), 6000)
+      }
+    } catch {
+      setUploadMsg('Ошибка соединения')
+      setTimeout(() => setUploadMsg(null), 4000)
     }
 
     setUploading(false)
@@ -170,23 +197,28 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
           {!product.is_active && (
             <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded flex-shrink-0">новый</span>
           )}
-          {/* Основное фото — загрузка файлом */}
-          <div
-            className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
-            onClick={() => fileInputRef.current?.click()}
-            title="Загрузить фото"
-          >
-            {imageUrl ? (
-              <img src={imageUrl} alt="" className="w-7 h-7 rounded object-cover" />
-            ) : (
-              <div className="w-7 h-7 rounded bg-gray-100" />
-            )}
-            <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              {uploading
-                ? <span className="text-white text-[8px]">...</span>
-                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              }
+          {/* Основное фото — загрузка через remove.bg */}
+          <div className="flex flex-col items-center gap-0.5">
+            <div
+              className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              title="Загрузить фото (удаление фона)"
+            >
+              {imageUrl ? (
+                <img src={imageUrl} alt="" className="w-7 h-7 rounded object-cover" />
+              ) : (
+                <div className="w-7 h-7 rounded bg-gray-100" />
+              )}
+              <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {uploading
+                  ? <span className="text-white text-[8px] leading-tight text-center px-0.5">фон…</span>
+                  : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                }
+              </div>
             </div>
+            {uploadMsg && (
+              <span className="text-[9px] text-amber-600 leading-tight max-w-[120px] text-center">{uploadMsg}</span>
+            )}
           </div>
           {/* Фото кампании */}
           <div
