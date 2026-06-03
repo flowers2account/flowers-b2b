@@ -186,26 +186,57 @@ function StockRow({ product, onSaved, onEdit }: {
     const file = e.target.files?.[0]
     if (!file) return
     setCampaignUploading(true)
-    const ext = file.name.split('.').pop()
-    const path = `campaign_${slugify(product.name)}_${Date.now()}.${ext}`
 
-    if (campaignImageUrl) {
-      const oldPath = extractStoragePath(campaignImageUrl)
-      if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
-    }
+    try {
+      const compressed = await compressIfNeeded(file)
 
-    const { error } = await supabase.storage
-      .from('product-images')
-      .upload(path, file, { upsert: false })
-    if (!error) {
-      const { data: { publicUrl } } = supabase.storage
+      const fd = new FormData()
+      fd.append('file', compressed)
+      const res = await fetch('/api/admin/process-image', { method: 'POST', body: fd })
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        setUploadMsg(json.error ?? `Ошибка сервера ${res.status}`)
+        setTimeout(() => setUploadMsg(null), 6000)
+        return
+      }
+
+      const noCredits = res.headers.get('X-No-Credits') === '1'
+      const contentType = res.headers.get('Content-Type') || 'image/jpeg'
+      const blob = await res.blob()
+      const ext = contentType.includes('jpeg') ? 'jpg' : (file.name.split('.').pop() || 'jpg')
+      const processedFile = new File([blob], `photo.${ext}`, { type: contentType })
+
+      if (campaignImageUrl) {
+        const oldPath = extractStoragePath(campaignImageUrl)
+        if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
+      }
+      const path = `campaign_${slugify(product.name)}_${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage
         .from('product-images')
-        .getPublicUrl(path)
+        .upload(path, processedFile, { upsert: false })
+
+      if (uploadErr) {
+        setUploadMsg(`Storage: ${uploadErr.message}`)
+        setTimeout(() => setUploadMsg(null), 6000)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
       await supabase.from('products').update({ campaign_image_url: publicUrl }).eq('id', product.id)
       setCampaignImageUrl(publicUrl)
+
+      if (noCredits) {
+        setUploadMsg('Кредиты remove.bg закончились, фото сохранено без обработки')
+        setTimeout(() => setUploadMsg(null), 7000)
+      }
+    } catch (err) {
+      setUploadMsg('Ошибка: ' + (err instanceof Error ? err.message : 'неизвестная'))
+      setTimeout(() => setUploadMsg(null), 5000)
+    } finally {
+      setCampaignUploading(false)
+      if (campaignFileInputRef.current) campaignFileInputRef.current.value = ''
     }
-    setCampaignUploading(false)
-    if (campaignFileInputRef.current) campaignFileInputRef.current.value = ''
   }
 
 const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
