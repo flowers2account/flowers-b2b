@@ -79,6 +79,24 @@ export async function findContactByPhone(phones: string[]): Promise<number | nul
   return null
 }
 
+// Проверяет, выглядит ли строка как номер телефона (без имени)
+function looksLikePhone(s: string): boolean {
+  return /^[\d\s\+\-\(\)]{7,}$/.test(s.trim())
+}
+
+// После find/create: если контакт без имени или имя = телефон → PATCH с реальным именем
+export async function ensureContactName(contactId: number, realName: string): Promise<void> {
+  if (!realName || looksLikePhone(realName)) return // нет смысла обновлять телефоном
+  const res = await amoFetch(`/contacts/${contactId}`)
+  const data = await res.json()
+  const current = (data.name ?? '').trim()
+  if (current && !looksLikePhone(current)) return // уже есть нормальное имя — не перетираем
+  await amoFetch(`/contacts/${contactId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name: realName }),
+  })
+}
+
 export async function createContact(params: {
   name: string
   phone: string
@@ -190,10 +208,12 @@ export async function syncPreorderToAmo(orderId: number): Promise<void> {
 
     const phones = normalizePhoneAmo(phone)
 
-    // 3. Find or create contact
+    // 3. Find or create contact; patch name if existing contact has phone as name
     let contactId = await findContactByPhone(phones)
     if (!contactId) {
       contactId = await createContact({ name: contactName, phone: phones[0] })
+    } else {
+      await ensureContactName(contactId, contactName)
     }
 
     // 4. Prepare custom fields
@@ -308,10 +328,12 @@ export async function syncOrderToAmo(orderId: number): Promise<void> {
 
     const phones = normalizePhoneAmo(phone)
 
-    // 3. Найти или создать контакт
+    // 3. Найти или создать контакт; обновить имя если контакт без имени
     let contactId = await findContactByPhone(phones)
     if (!contactId) {
       contactId = await createContact({ name: contactName, phone: phones[0] })
+    } else {
+      await ensureContactName(contactId, contactName)
     }
 
     // 4. Позиции (is_removed=false)
