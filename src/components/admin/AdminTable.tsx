@@ -520,7 +520,7 @@ export default function AdminTable() {
       .select('subcategory')
       .eq('category', categoryFilter)
       .not('subcategory', 'is', null)
-      .then(({ data: rows }) => {
+      .then(({ data: rows }: { data: { subcategory: string | null }[] | null }) => {
         const counts: Record<string, number> = {}
         for (const r of rows ?? []) {
           if (r.subcategory) counts[r.subcategory] = (counts[r.subcategory] || 0) + 1
