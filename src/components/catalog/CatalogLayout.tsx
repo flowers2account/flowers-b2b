@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode, useState, useEffect, useRef } from 'react'
 import { useIsMobile } from '@/lib/use-mobile'
 import { useDetailStore } from '@/lib/detail-store'
 import { useFilters } from '@/lib/filter-store'
@@ -110,6 +110,21 @@ export default function CatalogLayout({
   ].filter(Boolean).length
 
   const isDetailOpen = isMobile && panel !== 'empty'
+  const mainRef = useRef<HTMLElement>(null)
+
+  // Restore scroll position when returning from product page
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('catalog-scroll-restore')
+      if (saved) {
+        const y = parseInt(saved, 10)
+        sessionStorage.removeItem('catalog-scroll-restore')
+        requestAnimationFrame(() => {
+          if (mainRef.current) mainRef.current.scrollTop = y
+        })
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     if (panel !== 'empty') setIsFilterOpen(false)
@@ -129,7 +144,13 @@ export default function CatalogLayout({
         <aside className="overflow-y-auto bg-white" style={{ borderRight: '1px solid var(--border)' }}>
           {left}
         </aside>
-        <main className="overflow-y-auto bg-[#fafafa]">
+        <main
+          ref={mainRef}
+          className="overflow-y-auto bg-[#fafafa]"
+          onScroll={() => {
+            try { sessionStorage.setItem('catalog-scroll', String(mainRef.current?.scrollTop ?? 0)) } catch {}
+          }}
+        >
           {center}
         </main>
         <aside className="overflow-y-auto bg-white" style={{ borderLeft: '1px solid var(--border)' }}>

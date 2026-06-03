@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/cart-store'
+import { useFilters, type FilterCategory } from '@/lib/filter-store'
 import Link from 'next/link'
 import { COLORS } from '@/lib/colors'
 import { useIsMobile } from '@/lib/use-mobile'
@@ -232,17 +233,22 @@ export default function ProductPage() {
   }
 
   function goToCatalog() {
-    try {
-      const filtersRaw = sessionStorage.getItem('catalog-filters')
-      const filters = filtersRaw ? JSON.parse(filtersRaw) : { state: {}, version: 2 }
-      filters.state = { ...filters.state, category: product!.category, subcat: product!.subcategory ?? '', varietyType: '' }
-      sessionStorage.setItem('catalog-filters', JSON.stringify(filters))
+    // Update filter store directly — sessionStorage write alone is ignored
+    // because Zustand doesn't re-hydrate on client-side navigation
+    const store = useFilters.getState()
+    const cat = product!.category as FilterCategory
+    const sub = product!.subcategory ?? ''
+    if (store.category !== cat) {
+      store.setCategory(cat)  // resets subcat; we set it next
+    }
+    store.setSubcat(sub)
 
-      const detailRaw = sessionStorage.getItem('catalog-detail')
-      const detail = detailRaw ? JSON.parse(detailRaw) : { state: {}, version: 0 }
-      detail.state = { ...detail.state, panel: 'empty' }
-      sessionStorage.setItem('catalog-detail', JSON.stringify(detail))
+    // Restore catalog scroll position
+    try {
+      const saved = sessionStorage.getItem('catalog-scroll')
+      if (saved) sessionStorage.setItem('catalog-scroll-restore', saved)
     } catch {}
+
     router.push('/')
   }
 
