@@ -301,10 +301,20 @@ export default function ProductPage() {
   const hasLatin = /[a-zA-Z]/.test(product.name) && product.name !== displayName
   const latinLine = [hasLatin ? product.name : null, product.variant].filter(Boolean).join(' · ')
 
+  const isBasket = product.subcategory === 'baskets'
+  const potL = {
+    diameter:      isBasket ? 'Диаметр корзины' : 'Диаметр горшка',
+    diameterShort: isBasket ? 'Диаметр'         : 'Горшок',
+    color:         isBasket ? 'Цвет'             : 'Цвет горшка',
+    material:      isBasket ? 'Материал'         : 'Материал горшка',
+    form:          isBasket ? 'Форма'            : 'Тип горшка',
+    variant:       isBasket ? 'Комплектность'    : 'Вариант',
+  }
+
   const specRows = [
     { label: 'Категория', value: subcategoryLabel },
     { label: product.category === 'cut' ? 'Длина стебля' : 'Высота', value: product.length_cm ? `${product.length_cm} см` : null },
-    { label: 'Диаметр горшка', value: product.pot_diameter ? `${product.pot_diameter} см` : null },
+    { label: potL.diameter, value: product.pot_diameter ? `${product.pot_diameter} см` : null },
     { label: 'Цвет', value: colorDefs.length > 0 ? colorDefs.map(c => c.label).join(', ') : null },
     { label: 'Страна', value: countryLabel },
     { label: 'Поставщик', value: product.farm },
@@ -314,16 +324,16 @@ export default function ProductPage() {
     { label: 'Вес упаковки', value: product.weight_gram ? `${product.weight_gram} г` : null },
     { label: 'Растений в горшке', value: product.min_plants_per_pot ? `${product.min_plants_per_pot} шт` : null },
     { label: 'Цветков в горшке', value: product.min_flowers_per_pot ? `${product.min_flowers_per_pot} шт` : null },
-    { label: 'Цвет горшка', value: potColorVal },
-    { label: 'Материал горшка', value: matVal },
-    { label: 'Тип горшка', value: formVal },
+    { label: potL.color, value: potColorVal },
+    { label: potL.material, value: matVal },
+    { label: potL.form, value: formVal },
     { label: 'Субстрат', value: substrVal },
-    { label: 'Вариант', value: product.variant },
+    { label: potL.variant, value: product.variant },
   ].filter(r => r.value) as { label: string; value: string }[]
 
   const factCards = [
     product.length_cm ? { l: product.category === 'cut' ? 'Длина' : 'Высота', v: `${product.length_cm} см` } : null,
-    product.pot_diameter ? { l: 'Горшок', v: `Ø ${product.pot_diameter} см` } : null,
+    product.pot_diameter ? { l: potL.diameterShort, v: `Ø ${product.pot_diameter} см` } : null,
     product.min_plants_per_pot ? { l: 'В горшке', v: `${product.min_plants_per_pot} раст.` } : null,
     !product.min_plants_per_pot && product.pack_size > 1 ? { l: 'Упаковка', v: `${product.pack_size} ${unit}` } : null,
     product.stems_per_pack ? { l: 'Стеблей', v: `${product.stems_per_pack} шт` } : null,
