@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { removeBackground } from '@imgly/background-removal'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -123,7 +124,6 @@ function StockRow({ product, onSaved, onEdit }: {
   }
 
   async function removeBgClient(input: Blob): Promise<Blob> {
-    const { removeBackground } = await import('@imgly/background-removal')
     const pngBlob = await removeBackground(input)
     return new Promise(resolve => {
       const img = new Image()
