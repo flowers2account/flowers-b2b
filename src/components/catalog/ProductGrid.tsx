@@ -55,7 +55,8 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ]
 
 const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
-function unitFor(subcategory?: string | null) {
+function unitFor(subcategory?: string | null, unit?: string | null): string {
+  if (unit) return unit
   return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
 }
 
@@ -244,7 +245,7 @@ function GridCard({
             ))}
           </div>
         )}
-        <QtyBadge qty={available} unit={unitFor(product.subcategory)} />
+        <QtyBadge qty={available} unit={unitFor(product.subcategory, (product as any).unit)} />
         {/* Теги */}
         <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           {hasDiscount && <TagBadge type="sale" />}
@@ -268,6 +269,11 @@ function GridCard({
         {(product as any).variant && (
           <div style={{ fontSize: 10, color: 'var(--text-mid)', fontStyle: 'italic', lineHeight: 1.2 }}>
             {(product as any).variant}
+          </div>
+        )}
+        {(product as any).short_description && (
+          <div style={{ fontSize: 10, color: 'var(--text-mid)', lineHeight: 1.4, marginTop: 2 }}>
+            {(product as any).short_description}
           </div>
         )}
 
@@ -320,23 +326,41 @@ function GridCard({
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
-          {(isAuthed || product.category === 'accessories') ? (
-            <>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>
-                {price.toLocaleString('ru-RU')} ₸
-              </span>
-              {hasDiscount && (
-                <span style={{ fontSize: 10, color: 'var(--text-mid)', textDecoration: 'line-through' }}>
-                  {product.previous_price!.toLocaleString('ru-RU')} ₸
-                </span>
+        {(() => {
+          const unit = unitFor(product.subcategory, (product as any).unit)
+          return (
+            <div style={{ marginTop: 'auto', paddingTop: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                {(isAuthed || product.category === 'accessories') ? (
+                  <>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>
+                      {price.toLocaleString('ru-RU')} ₸
+                      {' '}<span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-mid)' }}>/ {unit}</span>
+                    </span>
+                    {hasDiscount && (
+                      <span style={{ fontSize: 10, color: 'var(--text-mid)', textDecoration: 'line-through' }}>
+                        {product.previous_price!.toLocaleString('ru-RU')} ₸
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span style={{ fontSize: 13, color: '#ccc', letterSpacing: '0.1em', userSelect: 'none' }}>●●● ₸</span>
+                )}
+                {unit !== 'шт' && product.pack_size > 1 && (
+                  <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size}</span>
+                )}
+              </div>
+              {/* price_per_m / price_per_m2 справочная строка */}
+              {(isAuthed || product.category === 'accessories') && ((product as any).price_per_m || (product as any).price_per_m2) && (
+                <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 2 }}>
+                  {(product as any).price_per_m && `${Number((product as any).price_per_m).toLocaleString('ru-RU')} ₸/пог.м`}
+                  {(product as any).price_per_m && (product as any).price_per_m2 && ' · '}
+                  {(product as any).price_per_m2 && `${Number((product as any).price_per_m2).toLocaleString('ru-RU')} ₸/м²`}
+                </div>
               )}
-            </>
-          ) : (
-            <span style={{ fontSize: 13, color: '#ccc', letterSpacing: '0.1em', userSelect: 'none' }}>●●● ₸</span>
-          )}
-          <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size} {unitFor(product.subcategory)}</span>
-        </div>
+            </div>
+          )
+        })()}
 
         {/* stop propagation so stepper click doesn't open detail */}
         <div onClick={e => e.stopPropagation()}>
@@ -407,7 +431,7 @@ function ListRow({
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>
-            {available === 0 ? 'Нет в наличии' : `${available} ${unitFor(product.subcategory)}`}
+            {available === 0 ? 'Нет в наличии' : `${available} ${unitFor(product.subcategory, (product as any).unit)}`}
           </span>
           {product.country_iso && <CountryBadge iso={product.country_iso} />}
           {hasDiscount && <TagBadge type="sale" />}
@@ -905,12 +929,13 @@ export default function ProductGrid({ products: initialProducts }: { products: P
             Ничего не найдено
           </div>
         ) : viewMode !== 'list' ? (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-            gap: 12,
-          }}>
-            {filtered.map(p => {
+          (() => {
+            const gridStyle: React.CSSProperties = {
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+              gap: 12,
+            }
+            const renderCard = (p: Product) => {
               const qty = getQty(p.id)
               const available = getAvailable(p.stock)
               const price = getPrice(p.stock)
@@ -925,8 +950,50 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   onCardClick={() => isMobile ? router.push(`/product/${p.id}`) : setProduct(p)}
                 />
               )
-            })}
-          </div>
+            }
+            if (subcat === 'decor') {
+              const SUBGROUP_ORDER = ['Зоокашпо', 'Статуэтки и фигуры', 'Посуда', 'Сувениры', 'Деревянные изделия']
+              const grouped = new Map<string, Product[]>()
+              const noGroup: Product[] = []
+              for (const p of filtered) {
+                const sg = (p as any).subgroup as string | null | undefined
+                if (sg) {
+                  if (!grouped.has(sg)) grouped.set(sg, [])
+                  grouped.get(sg)!.push(p)
+                } else {
+                  noGroup.push(p)
+                }
+              }
+              const orderedGroups: [string, Product[]][] = []
+              for (const sg of SUBGROUP_ORDER) {
+                if (grouped.has(sg)) orderedGroups.push([sg, grouped.get(sg)!])
+              }
+              for (const [sg, items] of grouped) {
+                if (!SUBGROUP_ORDER.includes(sg)) orderedGroups.push([sg, items])
+              }
+              return (
+                <div>
+                  {orderedGroups.map(([sg, items]) => (
+                    <div key={sg} style={{ marginBottom: 20 }}>
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', color: '#b9aab1',
+                        padding: '4px 0 8px', borderBottom: '1px solid var(--border)',
+                        marginBottom: 10,
+                      }}>
+                        {sg}
+                      </div>
+                      <div style={gridStyle}>{items.map(renderCard)}</div>
+                    </div>
+                  ))}
+                  {noGroup.length > 0 && (
+                    <div style={gridStyle}>{noGroup.map(renderCard)}</div>
+                  )}
+                </div>
+              )
+            }
+            return <div style={gridStyle}>{filtered.map(renderCard)}</div>
+          })()
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filtered.map(p => {

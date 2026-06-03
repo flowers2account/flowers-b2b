@@ -158,6 +158,14 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
       { label: 'Бумага',  key: 'paper'     },
       { label: 'Пакеты',  key: 'film_bags' },
     ]},
+    { label: 'Упаковка и фурнитура', isGroup: true as const, items: [
+      { label: 'Подарочные коробки',      key: 'gift_boxes'    },
+      { label: 'Флор. пена / Оазис',      key: 'floral_foam'   },
+      { label: 'Инструмент',              key: 'tools'         },
+      { label: 'Открытки и топперы',      key: 'cards_toppers' },
+      { label: 'Наполнители',             key: 'fillers'       },
+      { label: 'Уход за срезкой',         key: 'freshcut'      },
+    ]},
     { label: 'Горшки, кашпо и фонтаны', isGroup: true as const, items: [
       { label: 'Горшки',           key: 'pots'      },
       { label: 'Кашпо',            key: 'kashpo'    },
@@ -176,7 +184,6 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
       { label: 'Искусственный газон', key: 'artificial_grass' },
       { label: 'Семена газона',       key: 'grass_seed'      },
     ]},
-    { label: 'Наборы коробок',          key: 'gift_boxes' },
     { label: 'Сад и огород',           key: 'garden'    },
     { label: 'Искусственные растения', key: 'artificial' },
     { label: 'Игрушки',                key: 'toys'      },

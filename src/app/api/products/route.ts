@@ -15,9 +15,11 @@ export async function GET(request: NextRequest) {
       id, name, display_name, length_cm, category, subcategory, variety_type, pack_size, stems_per_pack, weight_gram,
       colors, image_url, campaign_image_url, arrival_date, price, previous_price, qty, country_iso, tags, farm,
       pot_diameter, container_code, quality_grade, min_plants_per_pot, min_flowers_per_pot,
-      pot_color, pot_material, pot_form, substrate, variant, description
+      pot_color, pot_material, pot_form, substrate, variant, description,
+      subgroup, unit, price_per_m, price_per_m2, volume_l, short_description, source
     `)
     .eq('is_active', true)
+    .in('source', ['uralsk_site', 'uralsk_1c'])
     .order('name')
     .order('length_cm')
 

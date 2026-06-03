@@ -56,6 +56,12 @@ export type Product = {
   is_new?: boolean
   tags?: string[] | null
   farm?: string | null
+  unit?: string | null
+  subgroup?: string | null
+  price_per_m?: number | null
+  price_per_m2?: number | null
+  volume_l?: number | null
+  short_description?: string | null
   stock: Stock[] | Stock
 }
 

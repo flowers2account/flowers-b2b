@@ -100,7 +100,8 @@ const SUBSTRATE_RU: Record<string, string> = {
 }
 
 const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
-function unitFor(subcategory?: string | null) {
+function unitFor(subcategory?: string | null, unit?: string | null): string {
+  if (unit) return unit
   return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
 }
 
@@ -391,14 +392,22 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           <Row label="Цена">
             {(isAuthed || product.category === 'accessories') ? (
               <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                {price.toLocaleString('ru-RU')} ₸/{unitFor(product.subcategory)}
+                {price.toLocaleString('ru-RU')} ₸/{unitFor(product.subcategory, (product as any).unit)}
               </span>
             ) : (
               <span style={{ color: '#ccc', letterSpacing: '0.12em', userSelect: 'none' }}>●●● ₸</span>
             )}
           </Row>
 
-          <Row label="Кратность">{packSize} {unitFor(product.subcategory)}</Row>
+          <Row label="Кратность">{packSize} {unitFor(product.subcategory, (product as any).unit)}</Row>
+
+          {((product as any).price_per_m || (product as any).price_per_m2) && (
+            <div style={{ fontSize: 11, color: 'var(--text-mid)', marginTop: 4 }}>
+              {(product as any).price_per_m && `${Number((product as any).price_per_m).toLocaleString('ru-RU')} ₸/пог.м`}
+              {(product as any).price_per_m && (product as any).price_per_m2 && ' · '}
+              {(product as any).price_per_m2 && `${Number((product as any).price_per_m2).toLocaleString('ru-RU')} ₸/м²`}
+            </div>
+          )}
 
           {product.stems_per_pack && product.stems_per_pack > 0 && (
             <Row label="Стеблей в уп.">{product.stems_per_pack} шт</Row>
@@ -410,7 +419,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
           {isAuthed && (
             <Row label="Остаток">
-              <span style={{ color: availColor, fontWeight: 700 }}>{available} {unitFor(product.subcategory)}</span>
+              <span style={{ color: availColor, fontWeight: 700 }}>{available} {unitFor(product.subcategory, (product as any).unit)}</span>
             </Row>
           )}
 
@@ -493,6 +502,19 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             </button>
           )}
         </div>
+
+        {/* Short description */}
+        {(product as any).short_description && (
+          <div style={{
+            marginBottom: 8,
+            padding: '6px 10px',
+            background: 'var(--bg2)',
+            borderRadius: 'var(--radius-btn)',
+            fontSize: 12, color: 'var(--text)', lineHeight: 1.5,
+          }}>
+            {(product as any).short_description}
+          </div>
+        )}
 
         {/* Description */}
         {product.description && (

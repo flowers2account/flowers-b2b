@@ -474,6 +474,8 @@ const SUBCAT_LABELS: Record<string, string> = {
   cover_fabric: 'Укрывной материал', cover_film: 'Плёнка полиэтиленовая',
   artificial_grass: 'Искусственный газон', grass_seed: 'Семена газона',
   garden: 'Сад и огород', artificial: 'Искусственные растения', toys: 'Игрушки',
+  floral_foam: 'Флор. пена / Оазис', tools: 'Инструмент',
+  cards_toppers: 'Открытки и топперы', freshcut: 'Уход за срезкой',
 }
 
 export default function AdminTable() {
