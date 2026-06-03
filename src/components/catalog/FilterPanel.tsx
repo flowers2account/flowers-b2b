@@ -176,6 +176,7 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
       { label: 'Искусственный газон', key: 'artificial_grass' },
       { label: 'Семена газона',       key: 'grass_seed'      },
     ]},
+    { label: 'Наборы коробок',          key: 'gift_boxes' },
     { label: 'Сад и огород',           key: 'garden'    },
     { label: 'Искусственные растения', key: 'artificial' },
     { label: 'Игрушки',                key: 'toys'      },

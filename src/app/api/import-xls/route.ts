@@ -88,6 +88,7 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot' | 'accessories
     if (/антуриум|фаленопсис|орхидея|гортензия|нарцисс|гвоздика|роза/.test(n)) return { subcategory: 'flowering', variety_type: null }
   }
   if (category === 'accessories') {
+    if (/набор.*коробок|коробок.*набор/.test(n))                                                    return { subcategory: 'gift_boxes', variety_type: null }
     if (/упаков|лент|плёнк|пленк|сетк|бумаг|флорист|рафия|ткан|органза|джут|сизал|гофр/.test(n)) return { subcategory: 'packaging',  variety_type: null }
     if (/горшок|горш|кашпо|фонтан|вазон/.test(n))                                                  return { subcategory: 'pots',       variety_type: null }
     if (/грунт|торф|перлит|субстрат|компост|вермикул|дренаж|мульч|кора/.test(n))                    return { subcategory: 'soil',        variety_type: null }

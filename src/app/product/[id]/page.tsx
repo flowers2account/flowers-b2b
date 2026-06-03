@@ -27,7 +27,7 @@ const SUBCAT_RU: Record<string, string> = {
   lilies: 'Лилии', gerbera: 'Герберы', peonies: 'Пионы', hydrangeas: 'Гортензии',
   lisianthus: 'Лизиантус', alstroemeria: 'Альстромерия', carnations: 'Гвоздики',
   gypsophila: 'Гипсофила', ranunculus: 'Ранункулюс', anemones: 'Анемоны',
-  baskets: 'Корзины', vases: 'Вазы', lanterns: 'Фонари',
+  baskets: 'Корзины', vases: 'Вазы', lanterns: 'Фонари', gift_boxes: 'Наборы коробок',
   pots_accessories: 'Горшки', floristry_items: 'Аксессуары', compositions: 'Композиции',
 }
 
