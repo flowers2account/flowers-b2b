@@ -4,7 +4,26 @@
 const BASE = 'https://tropinvladislav1.amocrm.ru/api/v4'
 
 export const AMO_PIPELINE_ID = 10853806
-export const AMO_STATUS_NEW  = 85413462   // этап «Новый»
+
+// Этапы воронки 10853806 (GET /api/v4/leads/pipelines/10853806)
+export const AMO_STATUS_NEW       = 85413462  // Новый
+export const AMO_STATUS_RESERVED  = 85413466  // В брони
+export const AMO_STATUS_CONFIRMED = 85413470  // Подтверждён
+export const AMO_STATUS_ASSEMBLING = 86286418 // В сборке
+export const AMO_STATUS_ASSEMBLED  = 86286422 // Готово к выдаче
+export const AMO_STATUS_DELIVERED  = 142       // Выдан (финал успешно)
+export const AMO_STATUS_CANCELLED  = 143       // Отменён (финал)
+
+// Маппинг order_status → этап amoCRM
+// pending/cart/in_transit/arrived — не двигаем
+const ORDER_STATUS_TO_AMO: Record<string, number> = {
+  reserved:   AMO_STATUS_RESERVED,
+  confirmed:  AMO_STATUS_CONFIRMED,
+  assembling: AMO_STATUS_ASSEMBLING,
+  assembled:  AMO_STATUS_ASSEMBLED,
+  delivered:  AMO_STATUS_DELIVERED,
+  cancelled:  AMO_STATUS_CANCELLED,
+}
 
 // Custom field IDs (from /api/v4/leads/custom_fields)
 export const CF_ORDERID       = 1394611   // ORDERID  (textarea)
@@ -394,4 +413,26 @@ export async function syncOrderToAmo(orderId: number): Promise<void> {
     await incrementAttempts(msg)
     throw err
   }
+}
+
+// ── Смена статуса заказа → движение по воронке ───────────────────────────────
+
+export async function updateLeadStage(orderId: number): Promise<void> {
+  const supabase = createAdminClient()
+
+  const { data: order } = await supabase
+    .from('orders')
+    .select('amo_lead_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (!order?.amo_lead_id) return // заказ не синкнут с amoCRM
+  const statusId = ORDER_STATUS_TO_AMO[order.status ?? '']
+  if (!statusId) return // статус не в маппинге — не двигаем
+
+  // PATCH безопасен (идемпотентен) — шлём даже если этап уже такой
+  await amoFetch(`/leads/${order.amo_lead_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status_id: statusId }),
+  })
 }

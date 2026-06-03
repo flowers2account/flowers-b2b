@@ -143,5 +143,13 @@ export async function PATCH(
     console.log('⚠ UMNICO_API_TOKEN not set, skipping all notifications')
   }
 
+  // amoCRM: двигаем сделку → «Готово к выдаче» (non-fatal)
+  try {
+    const { updateLeadStage } = await import('@/lib/amo')
+    await updateLeadStage(orderId)
+  } catch (err) {
+    console.error('[assemble] amoCRM stage update failed:', err instanceof Error ? err.message : err)
+  }
+
   return NextResponse.json({ success: true })
 }

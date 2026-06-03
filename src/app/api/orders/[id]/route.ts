@@ -173,5 +173,13 @@ export async function PATCH(
     }
   }
 
+  // amoCRM: двигаем сделку по воронке (non-fatal)
+  try {
+    const { updateLeadStage } = await import('@/lib/amo')
+    await updateLeadStage(orderId)
+  } catch (err) {
+    console.error('[orders/[id]] amoCRM stage update failed:', err instanceof Error ? err.message : err)
+  }
+
   return NextResponse.json({ success: true })
 }

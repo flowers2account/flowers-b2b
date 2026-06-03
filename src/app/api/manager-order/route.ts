@@ -80,5 +80,13 @@ export async function POST(req: NextRequest) {
     await supabase.from('orders').update({ status: 'reserved' }).eq('id', order.id)
   }
 
+  // amoCRM: двигаем сделку по воронке (non-fatal)
+  try {
+    const { updateLeadStage } = await import('@/lib/amo')
+    await updateLeadStage(order.id)
+  } catch (err) {
+    console.error('[manager-order] amoCRM stage update failed:', err instanceof Error ? err.message : err)
+  }
+
   return NextResponse.json({ success: true, order_id: order.id })
 }
