@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import { Golos_Text, Playfair_Display, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/catalog/Header'
-import UmnicoWidget from '@/components/UmnicoWidget'
 
 const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
@@ -36,7 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}
-        <UmnicoWidget />
       </body>
     </html>
   )
