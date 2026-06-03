@@ -171,7 +171,7 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
     ]},
     { label: 'Газоны и укрывной материал', isGroup: true as const, items: [
       { label: 'Укрывной материал',   key: 'cover_fabric'    },
-      { label: 'Плёнка укрывная',     key: 'cover_film'      },
+      { label: 'Плёнка полиэтиленовая', key: 'cover_film'      },
       { label: 'Искусственный газон', key: 'artificial_grass' },
       { label: 'Семена газона',       key: 'grass_seed'      },
     ]},
@@ -430,6 +430,11 @@ function AccordionSubcats({ products }: { products: Product[] }) {
     return (facets?.subcatCounts?.[node.key] ?? bySC[node.key] ?? 0) > 0 || subcat === node.key
   }
 
+  const nodeCount = (node: SubcatNode): number => {
+    if (isGroup(node)) return node.items.reduce((s, n) => s + nodeCount(n), 0)
+    return facets?.subcatCounts?.[node.key] ?? bySC[node.key] ?? 0
+  }
+
   const toggleGroup = (label: string) =>
     setOpenGroups(prev => {
       const next = new Set(prev)
@@ -470,6 +475,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
     if (isGroup(node)) {
       if (!node.items.some(nodeHasStock)) return null
       const open = openGroups.has(node.label)
+      const total = nodeCount(node)
       return (
         <div key={node.label}>
           <button
@@ -491,6 +497,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
             }}>
               {node.label}
             </span>
+            {!open && total > 0 && countBadge(total, false)}
           </button>
           {open && (
             <div style={{ paddingLeft: depth === 0 ? 4 : 10 }}>
