@@ -163,9 +163,9 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
       { label: 'Кашпо',            key: 'kashpo'    },
       { label: 'Фонтаны',          key: 'fountains' },
       { label: 'Вазы',             key: 'vases'     },
-      { label: 'Корзины',          key: 'baskets'   },
       { label: 'Декор и сувениры', key: 'decor'     },
     ]},
+    { label: 'Корзины',            key: 'baskets'   },
     { label: 'Грунт и удобрения', isGroup: true as const, items: [
       { label: 'Грунты',    key: 'soil'        },
       { label: 'Удобрения', key: 'fertilizers' },
