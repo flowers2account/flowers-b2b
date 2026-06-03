@@ -595,7 +595,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
   const isMobile = useIsMobile()
   const {
-    category, subcat, varietyType, colors, onlyDiscount, stockLevel, search,
+    category, subcat, varietyType, subgroup, colors, onlyDiscount, stockLevel, search,
     lengths, origins, farms, potSizes, tags, seasons,
     setSearch, setSubcat, toggleTag, toggleColor, reset,
   } = useFilters()
@@ -671,6 +671,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (category !== 'all' && p.category !== category) return false
       if (subcat && (p.subcategory || '') !== subcat) return false
       if (varietyType && (p.variety_type || '') !== varietyType) return false
+      if (subgroup && ((p as any).subgroup || '') !== subgroup) return false
       if (colors.length > 0 && !colors.some(c => p.colors?.includes(c) || p.color === c)) return false
       if (available <= 0) return false
       if (stockLevel === 'low'  && available >= 50) return false
@@ -740,7 +741,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     }
 
     return list
-  }, [products, category, subcat, varietyType, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, tags, seasons, sort])
+  }, [products, category, subcat, varietyType, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])
@@ -949,47 +950,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   onInc={() => handleInc(p, qty, available, price)}
                   onCardClick={() => isMobile ? router.push(`/product/${p.id}`) : setProduct(p)}
                 />
-              )
-            }
-            if (subcat === 'decor') {
-              const SUBGROUP_ORDER = ['Зоокашпо', 'Статуэтки и фигуры', 'Посуда', 'Сувениры', 'Деревянные изделия']
-              const grouped = new Map<string, Product[]>()
-              const noGroup: Product[] = []
-              for (const p of filtered) {
-                const sg = (p as any).subgroup as string | null | undefined
-                if (sg) {
-                  if (!grouped.has(sg)) grouped.set(sg, [])
-                  grouped.get(sg)!.push(p)
-                } else {
-                  noGroup.push(p)
-                }
-              }
-              const orderedGroups: [string, Product[]][] = []
-              for (const sg of SUBGROUP_ORDER) {
-                if (grouped.has(sg)) orderedGroups.push([sg, grouped.get(sg)!])
-              }
-              for (const [sg, items] of grouped) {
-                if (!SUBGROUP_ORDER.includes(sg)) orderedGroups.push([sg, items])
-              }
-              return (
-                <div>
-                  {orderedGroups.map(([sg, items]) => (
-                    <div key={sg} style={{ marginBottom: 20 }}>
-                      <div style={{
-                        fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
-                        textTransform: 'uppercase', color: '#b9aab1',
-                        padding: '4px 0 8px', borderBottom: '1px solid var(--border)',
-                        marginBottom: 10,
-                      }}>
-                        {sg}
-                      </div>
-                      <div style={gridStyle}>{items.map(renderCard)}</div>
-                    </div>
-                  ))}
-                  {noGroup.length > 0 && (
-                    <div style={gridStyle}>{noGroup.map(renderCard)}</div>
-                  )}
-                </div>
               )
             }
             return <div style={gridStyle}>{filtered.map(renderCard)}</div>

@@ -32,6 +32,7 @@ type FilterStore = {
   category: FilterCategory
   subcat: string
   varietyType: string
+  subgroup: string
   onlyAvailable: boolean
   onlyDiscount: boolean
   stockLevel: StockLevel
@@ -49,6 +50,7 @@ type FilterStore = {
   setSubcat: (v: string) => void
   setVarietyType: (v: string) => void
   setSubcatAndVT: (subcat: string, varietyType: string) => void
+  setSubgroup: (v: string) => void
   setOnlyAvailable: (v: boolean) => void
   setOnlyDiscount: (v: boolean) => void
   setStockLevel: (v: StockLevel) => void
@@ -73,6 +75,7 @@ export const useFilters = create<FilterStore>()(
   category: getPersistedCategory(),
   subcat: '',
   varietyType: '',
+  subgroup: '',
   onlyAvailable: true,
   onlyDiscount: false,
   stockLevel: '',
@@ -91,9 +94,10 @@ export const useFilters = create<FilterStore>()(
     colors: [], lengths: [], origins: [], farms: [], potSizes: [], tags: [],
     seasons: [],
   }),
-  setSubcat:        (subcat) => set({ subcat, varietyType: '' }),
+  setSubcat:        (subcat) => set({ subcat, varietyType: '', subgroup: '' }),
   setVarietyType:   (varietyType) => set({ varietyType }),
-  setSubcatAndVT:   (subcat, varietyType) => set({ subcat, varietyType }),
+  setSubcatAndVT:   (subcat, varietyType) => set({ subcat, varietyType, subgroup: '' }),
+  setSubgroup:      (subgroup) => set({ subgroup }),
   setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
   setOnlyDiscount:  (onlyDiscount) => set({ onlyDiscount }),
   setStockLevel:    (stockLevel) => set({ stockLevel }),
@@ -106,7 +110,7 @@ export const useFilters = create<FilterStore>()(
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
-    category: DEFAULT_CATEGORY, subcat: '', varietyType: '',
+    category: DEFAULT_CATEGORY, subcat: '', varietyType: '', subgroup: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], tags: [],
     seasons: [], facets: null,
@@ -132,6 +136,7 @@ export const useFilters = create<FilterStore>()(
     category:      s.category,
     subcat:        s.subcat,
     varietyType:   s.varietyType,
+    subgroup:      s.subgroup,
     search:        s.search,
     onlyAvailable: s.onlyAvailable,
     onlyDiscount:  s.onlyDiscount,

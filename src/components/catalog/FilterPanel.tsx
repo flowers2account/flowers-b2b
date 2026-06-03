@@ -582,13 +582,15 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, subcat, varietyType,
+    category, subcat, varietyType, subgroup,
     colors, lengths, origins, farms, potSizes, tags,
     seasons, onlyAvailable, facets,
-    setSubcat, setVarietyType,
+    setSubcat, setVarietyType, setSubgroup,
     toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleTag,
     toggleSeason, reset, loadFacets,
   } = useFilters()
+
+  const DECOR_SUBGROUPS = ['Зоокашпо', 'Статуэтки и фигуры', 'Посуда', 'Сувениры', 'Деревянные изделия']
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
 
@@ -664,6 +666,41 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         >
           <AccordionSubcats products={products} />
         </CollapsibleGroup>
+
+        {/* Декор: субвкладки по subgroup */}
+        {subcat === 'decor' && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+              textTransform: 'uppercase', color: '#b9aab1', padding: '5px 4px 6px',
+            }}>
+              Тип
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {['', ...DECOR_SUBGROUPS].map(sg => {
+                const active = subgroup === sg
+                return (
+                  <button
+                    key={sg || '__all__'}
+                    onClick={() => setSubgroup(sg)}
+                    style={{
+                      display: 'flex', alignItems: 'center',
+                      padding: '5px 8px', fontSize: 12,
+                      borderRadius: 'var(--radius-btn)', marginBottom: 1,
+                      cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+                      background: active ? 'var(--accent)' : 'transparent',
+                      color: active ? '#fff' : 'var(--text)',
+                      fontWeight: active ? 600 : 400,
+                      textAlign: 'left',
+                    }}
+                  >
+                    {sg || 'Все'}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 4–8. CUT-only filters */}
         {category === 'cut' && (
