@@ -23,7 +23,7 @@ export default function UmnicoWidget() {
     loader.textContent = 'Loading'
     document.body.appendChild(loader)
 
-    ;(document as any).umnicoWidgetHash = '59018708dd7a418abf3e40cd543717d7'
+    ;(document as any).umnicoWidgetHash = 'f3ed509085f6da0d5fb4fa5e40ec3156'
     const script = document.createElement('script')
     script.src = 'https://umnico.com/assets/widget-loader.js'
     script.type = 'text/javascript'
