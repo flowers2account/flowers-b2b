@@ -7,28 +7,30 @@ const admin = createAdminClient()
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const search = searchParams.get('search')?.trim() ?? ''
-  const inStock = searchParams.get('inStock') === 'true'
+  const search      = searchParams.get('search')?.trim() ?? ''
+  const inStock     = searchParams.get('inStock') === 'true'
+  const category    = searchParams.get('category')?.trim() ?? ''
+  const subcategory = searchParams.get('subcategory')?.trim() ?? ''
 
   let query = admin
     .from('products')
     .select(`
-      id, name, display_name, length_cm, category,
-      pack_size, image_url, campaign_image_url, colors, country_iso, farm,
+      id, name, display_name, length_cm, category, subcategory,
+      pack_size, stems_per_pack, image_url, campaign_image_url, colors, country_iso, farm,
       price, previous_price, qty, is_active, arrival_date
     `)
     .order('name')
     .order('length_cm', { ascending: true, nullsFirst: false })
-    .limit(500)
+    .limit(600)
 
-  if (search) {
-    query = query.ilike('name', `%${search}%`)
-  }
+  if (search)      query = query.ilike('name', `%${search}%`)
+  if (category)    query = query.eq('category', category)
+  if (subcategory) query = query.eq('subcategory', subcategory)
+  if (inStock)     query = query.gt('qty', 0)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Fetch reserved quantities separately
   const ids = (data ?? []).map((p: any) => p.id)
   let reservedMap = new Map<number, number>()
   if (ids.length > 0) {
@@ -44,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   const today = new Date().toISOString().split('T')[0]
-  let products = (data ?? []).map((p: any) => {
+  const products = (data ?? []).map((p: any) => {
     const qty_reserved = reservedMap.get(p.id) ?? 0
     const available_qty = Math.max(0, p.qty - qty_reserved)
     return {
@@ -59,10 +61,6 @@ export async function GET(req: NextRequest) {
       },
     }
   })
-
-  if (inStock) {
-    products = products.filter((p: any) => (p.qty ?? 0) > 0)
-  }
 
   return NextResponse.json(products)
 }

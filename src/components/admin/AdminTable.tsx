@@ -469,33 +469,83 @@ const CAT_FILTERS = [
   { key: 'accessories', label: '📦 Расходка' },
 ] as const
 
+const SUBCAT_LABELS: Record<string, string> = {
+  // cut
+  roses: 'Розы', chrysanthemums: 'Хризантемы', carnations: 'Гвоздики',
+  tulips: 'Тюльпаны', peonies: 'Пионы', lilies: 'Лилии', gerberas: 'Герберы',
+  lisianthus: 'Эустомы', alstroemeria: 'Альстромерии', hydrangeas: 'Гортензии',
+  orchids: 'Орхидеи', callas: 'Каллы', anthuriums: 'Антуриумы', proteas: 'Протеи',
+  sunflowers: 'Подсолнухи', ranunculus: 'Ранункулюсы', anemones: 'Анемоны',
+  irises: 'Ирисы', delphiniums: 'Дельфиниумы', freesia: 'Фрезия', asters: 'Астры',
+  dahlia: 'Георгин', greens: 'Зелень', branches: 'Ветки', fillers: 'Наполнители',
+  texture: 'Текстурные', berries: 'Ягоды', vines: 'Лианы',
+  // pot
+  flowering: 'Цветущие', green: 'Декор.-лиственные', succulents: 'Суккуленты',
+  cacti: 'Кактусы', palms: 'Пальмы', ficus: 'Фикусы', dracaena: 'Драцена',
+  calathea: 'Калатея', zamioculcas: 'Замиокулькас', large: 'Крупномеры',
+  outdoor: 'Садовые', perennials: 'Многолетние', conifers: 'Хвойные',
+  // accessories
+  film: 'Плёнка', paper: 'Бумага', film_bags: 'Пакеты',
+  pots: 'Горшки', kashpo: 'Кашпо', fountains: 'Фонтаны',
+  vases: 'Вазы', baskets: 'Корзины', decor: 'Декор и сувениры',
+  gift_boxes: 'Наборы коробок', soil: 'Грунты', fertilizers: 'Удобрения',
+  cover_fabric: 'Укрывной материал', cover_film: 'Плёнка полиэтиленовая',
+  artificial_grass: 'Искусственный газон', grass_seed: 'Семена газона',
+  garden: 'Сад и огород', artificial: 'Искусственные растения', toys: 'Игрушки',
+}
+
 export default function AdminTable() {
   const [search, setSearch] = useState('')
   const [inStockOnly, setInStockOnly] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string>('')
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string>('')
+  const [availableSubcats, setAvailableSubcats] = useState<{ key: string; label: string }[]>([])
   const [data, setData] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [editId, setEditId] = useState<number | null>(null)
 
-  // Debounce search to avoid request on every keystroke
   const [debouncedSearch, setDebouncedSearch] = useState('')
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search), 350)
     return () => clearTimeout(id)
   }, [search])
 
+  // Load subcategories from DB when category changes
+  useEffect(() => {
+    setSubcategoryFilter('')
+    if (!categoryFilter) { setAvailableSubcats([]); return }
+    const supabase = createClient()
+    supabase
+      .from('products')
+      .select('subcategory')
+      .eq('category', categoryFilter)
+      .not('subcategory', 'is', null)
+      .then(({ data: rows }) => {
+        const counts: Record<string, number> = {}
+        for (const r of rows ?? []) {
+          if (r.subcategory) counts[r.subcategory] = (counts[r.subcategory] || 0) + 1
+        }
+        const list = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([key]) => ({ key, label: SUBCAT_LABELS[key] ?? key }))
+        setAvailableSubcats(list)
+      })
+  }, [categoryFilter])
+
   async function load() {
     setLoading(true)
     const params = new URLSearchParams()
-    if (debouncedSearch) params.set('search', debouncedSearch)
-    if (inStockOnly) params.set('inStock', 'true')
+    if (debouncedSearch)  params.set('search', debouncedSearch)
+    if (inStockOnly)      params.set('inStock', 'true')
+    if (categoryFilter)   params.set('category', categoryFilter)
+    if (subcategoryFilter) params.set('subcategory', subcategoryFilter)
     const res = await fetch(`/api/admin/products?${params}`)
     const json = await res.json()
     setData(Array.isArray(json) ? json : [])
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [debouncedSearch, inStockOnly])
+  useEffect(() => { load() }, [debouncedSearch, inStockOnly, categoryFilter, subcategoryFilter])
 
   // Realtime: reload on reservation changes
   useEffect(() => {
@@ -506,8 +556,6 @@ export default function AdminTable() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
-
-  const displayed = categoryFilter ? data.filter(p => p.category === categoryFilter) : data
 
   return (
     <div>
@@ -552,12 +600,12 @@ export default function AdminTable() {
         </label>
 
         <Badge variant="outline" className="whitespace-nowrap">
-          {loading ? '...' : `${displayed.length} позиций`}
+          {loading ? '...' : `${data.length} позиций`}
         </Badge>
       </div>
 
       {/* Category filter buttons */}
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-2 flex-wrap">
         {CAT_FILTERS.map(f => {
           const active = categoryFilter === f.key
           return (
@@ -577,6 +625,30 @@ export default function AdminTable() {
           )
         })}
       </div>
+
+      {/* Subcategory chips — появляются когда выбрана категория */}
+      {availableSubcats.length > 0 && (
+        <div className="flex gap-1.5 mb-3 flex-wrap">
+          {availableSubcats.map(s => {
+            const active = subcategoryFilter === s.key
+            return (
+              <button
+                key={s.key}
+                onClick={() => setSubcategoryFilter(active ? '' : s.key)}
+                className="text-xs px-2.5 py-0.5 rounded-full border transition-colors"
+                style={{
+                  background: active ? '#4a6741' : '#f9fafb',
+                  borderColor: active ? '#4a6741' : '#e5e7eb',
+                  color: active ? '#fff' : '#6b7280',
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                {s.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="rounded-lg border bg-white shadow-sm">
         <Table>
@@ -606,7 +678,7 @@ export default function AdminTable() {
                 <TableCell colSpan={10} className="text-center py-8 text-gray-400 text-sm">Ничего не найдено</TableCell>
               </TableRow>
             )}
-            {!loading && displayed.map(p => (
+            {!loading && data.map(p => (
               <StockRow
                 key={p.id}
                 product={p}
