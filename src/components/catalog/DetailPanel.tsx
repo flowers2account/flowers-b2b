@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { useDetailStore } from '@/lib/detail-store'
+import SwipeToDelete from './SwipeToDelete'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useProductsStore } from '@/lib/products-store'
@@ -675,7 +676,8 @@ function StateCart({ onBack }: { onBack: () => void }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {items.map(item => (
-              <div key={item.id} style={{
+              <SwipeToDelete key={item.id} onDelete={() => remove(item.id)}>
+              <div style={{
                 background: 'var(--bg2)', borderRadius: 'var(--radius-card)', padding: '8px 10px',
               }}>
                 {/* Row: thumbnail + name/price + total */}
@@ -723,6 +725,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
               </div>
+              </SwipeToDelete>
             ))}
           </div>
         )}

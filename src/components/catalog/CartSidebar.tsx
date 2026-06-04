@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
+import SwipeToDelete from './SwipeToDelete'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
@@ -204,7 +205,8 @@ export default function CartSidebar() {
             <>
               <div className="space-y-3">
                 {items.map(item => (
-                  <div key={item.id}>
+                  <SwipeToDelete key={item.id} onDelete={() => remove(item.id)}>
+                  <div>
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{item.name}</p>
@@ -225,6 +227,7 @@ export default function CartSidebar() {
                     </p>
                     <Separator className="mt-2" />
                   </div>
+                  </SwipeToDelete>
                 ))}
               </div>
 
