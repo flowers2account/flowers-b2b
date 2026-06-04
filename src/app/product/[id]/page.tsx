@@ -232,24 +232,31 @@ export default function ProductPage() {
     setTimeout(() => setAdded(false), 2000)
   }
 
-  function goToCatalog() {
-    // Update filter store directly — sessionStorage write alone is ignored
-    // because Zustand doesn't re-hydrate on client-side navigation
-    const store = useFilters.getState()
-    const cat = product!.category as FilterCategory
-    const sub = product!.subcategory ?? ''
-    if (store.category !== cat) {
-      store.setCategory(cat)  // resets subcat; we set it next
-    }
-    store.setSubcat(sub)
-
-    // Restore catalog scroll position
+  function saveScroll() {
     try {
       const saved = sessionStorage.getItem('catalog-scroll')
       if (saved) sessionStorage.setItem('catalog-scroll-restore', saved)
     } catch {}
+  }
 
+  function goToCategory() {
+    const store = useFilters.getState()
+    store.setCategory(product!.category as FilterCategory) // сбрасывает subcat
+    saveScroll()
     router.push('/')
+  }
+
+  function goToSubcat() {
+    const store = useFilters.getState()
+    const cat = product!.category as FilterCategory
+    if (store.category !== cat) store.setCategory(cat)
+    store.setSubcat(product!.subcategory ?? '')
+    saveScroll()
+    router.push('/')
+  }
+
+  function goToCatalog() {
+    goToSubcat() // «Назад» ведёт в подкатегорию товара
   }
 
   function goToCart() {
@@ -366,9 +373,26 @@ export default function ProductPage() {
             Назад
           </button>
           <span style={{ color: C.ink4 }}>/</span>
-          <Link href="/" style={{ color: C.ink3, textDecoration: 'none' }}>Каталог</Link>
-          {categoryLabel && <><span style={{ color: C.ink4 }}>/</span><span>{categoryLabel}</span></>}
-          {subcategoryLabel && <><span style={{ color: C.ink4 }}>/</span><span>{subcategoryLabel}</span></>}
+          <button onClick={() => { useFilters.getState().reset(); router.push('/') }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.ink3, fontSize: 12, padding: 0, fontFamily: 'inherit' }}>
+            Каталог
+          </button>
+          {categoryLabel && (
+            <>
+              <span style={{ color: C.ink4 }}>/</span>
+              <button onClick={goToCategory}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.ink3, fontSize: 12, padding: 0, fontFamily: 'inherit' }}
+              >{categoryLabel}</button>
+            </>
+          )}
+          {subcategoryLabel && (
+            <>
+              <span style={{ color: C.ink4 }}>/</span>
+              <button onClick={goToSubcat}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.accent, fontSize: 12, padding: 0, fontFamily: 'inherit', fontWeight: 500 }}
+              >{subcategoryLabel}</button>
+            </>
+          )}
           <span style={{ color: C.ink4 }}>/</span>
           <span style={{ color: C.ink2, fontWeight: 500 }}>{displayName}</span>
         </div>
