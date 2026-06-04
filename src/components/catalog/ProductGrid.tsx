@@ -784,7 +784,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       } else {
         update(product.id, Math.min(qty + packSize, available))
       }
-      flashCart(product)
+      if (!isMobile) flashCart(product) // на мобиле корзина открывается только явным нажатием
     })
 
   return (
