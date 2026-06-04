@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from 'next'
-import { Golos_Text, Playfair_Display, Cormorant_Garamond } from 'next/font/google'
+import { Golos_Text, Playfair_Display, Cormorant_Garamond, JetBrains_Mono } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import Header from '@/components/catalog/Header'
@@ -26,6 +26,12 @@ const cormorant = Cormorant_Garamond({
   variable: '--font-cormorant'
 })
 
+const jetbrains = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-jetbrains'
+})
+
 export const metadata: Metadata = {
   title: 'Цветы Уральска — оптовый прайс',
   description: 'B2B оптовый прайс-лист остатков',
@@ -33,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={`${golos.variable} ${playfair.variable} ${cormorant.variable}`}>
+    <html lang="ru" className={`${golos.variable} ${playfair.variable} ${cormorant.variable} ${jetbrains.variable}`}>
       <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}
