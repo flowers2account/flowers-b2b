@@ -67,7 +67,7 @@ export default function OrdersKanban({ onOrderClick }: Props) {
     const { data, error } = await supabase
       .from('orders')
       .select(`
-        id, status, total, created_at, guest_phone, guest_name,
+        id, status, payment_status, total, created_at, guest_phone, guest_name,
         client:client_id(name, phone, company_name),
         order_items(id, qty, is_removed),
         reservations(expires_at)
@@ -77,7 +77,10 @@ export default function OrdersKanban({ onOrderClick }: Props) {
       .limit(300)
 
     if (error) console.error('[OrdersKanban]', error)
-    setOrders((data as KanbanOrder[] | null) ?? [])
+    // Скрываем заказы ожидающие оплаты (pending + unpaid) — появятся только после подтверждения
+    const visible = ((data as KanbanOrder[] | null) ?? [])
+      .filter(o => !(o.status === 'pending' && (o as any).payment_status === 'unpaid'))
+    setOrders(visible)
     setLoading(false)
   }, [])
 

@@ -79,14 +79,61 @@ export async function POST(req: NextRequest) {
         payment_comment: cardMask ? `Карта ${cardMask}` : 'epay',
       }).eq('id', payment.order_id)
 
-      // Manager notification via Telegram
-      const amount = Number(payment.amount).toLocaleString('ru-RU')
-      const tgText = `💳 Заказ №${payment.order_id} ОПЛАЧЕН${cardMask ? ` картой ${cardMask}` : ''}\nСумма: ${amount} ₸\nInvoice: ${invoiceId}`
+      // Полное уведомление менеджеру — только сейчас, после подтверждения оплаты
+      const supabaseAdmin = createAdminClient()
+      const { data: orderFull } = await supabaseAdmin
+        .from('orders')
+        .select('total, guest_phone, guest_name, client:client_id(name, phone, company_name), order_items(qty, price, product:product_id(name, display_name))')
+        .eq('id', payment.order_id)
+        .single()
+
+      const clientPhone = (orderFull?.client as any)?.phone ?? (orderFull as any)?.guest_phone ?? ''
+      const clientName  = (orderFull?.client as any)?.name ?? (orderFull as any)?.guest_name ?? clientPhone
+      const orderTotal  = Number(payment.amount).toLocaleString('ru-RU')
+      const itemsList   = ((orderFull as any)?.order_items ?? [])
+        .map((i: any) => {
+          const n = i.product?.display_name ?? i.product?.name ?? 'Товар'
+          return `• ${n} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`
+        }).join('\n')
+
+      const tgText = [
+        `🌸 Новый заказ #${payment.order_id} (ОПЛАЧЕН)`,
+        `👤 ${clientName} | 📞 ${clientPhone}`,
+        cardMask ? `💳 Карта ${cardMask}` : '',
+        ``,
+        itemsList,
+        ``,
+        `💰 Итого: ${orderTotal} ₸`,
+      ].filter(Boolean).join('\n')
+
       fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: tgText }),
       }).catch(e => console.error('Telegram notify failed:', e))
+
+      // WhatsApp менеджеру
+      if (process.env.UMNICO_MANAGER_PHONE && process.env.UMNICO_API_TOKEN && orderFull) {
+        const { umnicoClient } = await import('@/lib/umnico/client')
+        const { umnicoTemplates } = await import('@/lib/umnico/templates')
+        const orderItems = ((orderFull as any).order_items ?? []).map((i: any) => ({
+          name: i.product?.display_name ?? i.product?.name ?? 'Товар',
+          qty: i.qty, price: i.price,
+        }))
+        umnicoClient.checkContact(process.env.UMNICO_MANAGER_PHONE).then(has => {
+          if (has) umnicoClient.sendMessage(
+            process.env.UMNICO_MANAGER_PHONE!,
+            umnicoTemplates.newOrderToManager({
+              orderId: String(payment.order_id),
+              clientName, clientPhone,
+              companyName: (orderFull?.client as any)?.company_name ?? undefined,
+              total: Number(payment.amount),
+              items: orderItems,
+              adminUrl: 'https://flowers-b2b-phi.vercel.app/admin'
+            })
+          )
+        }).catch(() => {})
+      }
 
     } else {
       // Failed payment
