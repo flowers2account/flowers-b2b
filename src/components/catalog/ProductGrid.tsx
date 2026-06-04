@@ -896,9 +896,12 @@ export default function ProductGrid({ products: initialProducts }: { products: P
             ))}
           </div>
 
-          <span style={{ fontSize: 11, color: search ? 'var(--accent)' : 'var(--text-mid)', whiteSpace: 'nowrap', fontWeight: search ? 600 : 400 }}>
-            {filtered.length} позиций
-          </span>
+          {/* счётчик перенесён в CtxBar — здесь не дублируем */}
+          {search && (
+            <span style={{ fontSize: 11, color: 'var(--accent)', whiteSpace: 'nowrap', fontWeight: 600 }}>
+              {filtered.length} поз.
+            </span>
+          )}
         </div>
       </div>
 

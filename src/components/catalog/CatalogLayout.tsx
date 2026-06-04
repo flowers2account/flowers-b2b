@@ -253,41 +253,56 @@ export default function CatalogLayout({
       {/* ── Bottom bar ───────────────────────────────────────────── */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
-        zIndex: 40, background: '#fff',
-        borderTop: '0.5px solid var(--border)',
-        padding: '8px 12px', display: 'flex', gap: 8,
+        zIndex: 50, background: '#fff',
+        borderTop: '1px solid var(--border-soft, #EFEAE5)',
+        padding: 'calc(9px) 12px',
+        paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
+        display: 'flex', gap: 8,
+        boxShadow: '0 -4px 16px rgba(40,20,30,0.06)',
       }}>
+        {/* Фильтры — нейтральный стиль */}
         <button
           onClick={() => setIsFilterOpen(true)}
           style={{
-            flex: 1,
-            background: 'var(--accent)', color: '#fff',
-            border: 'none', borderRadius: 6,
-            padding: '10px', fontSize: 13, fontWeight: 700,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            flex: 1, height: 44, border: '1px solid var(--border)',
+            borderRadius: 10, background: 'var(--bg-soft, #F7F4F1)',
+            color: 'var(--text)', fontSize: 13, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             cursor: 'pointer', fontFamily: 'inherit',
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
           </svg>
           Фильтры{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
         </button>
 
-        {cartCount > 0 && (
-          <button
-            onClick={() => setPanel('cart')}
-            style={{
-              flex: 1,
-              background: 'var(--accent)', color: '#fff',
-              border: 'none', borderRadius: 6,
-              padding: '10px', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            Корзина ({cartCount}) · {cartTotal.toLocaleString('ru-RU')} ₸
-          </button>
-        )}
+        {/* Корзина — всегда видна, акцентный стиль */}
+        <button
+          onClick={() => setPanel('cart')}
+          style={{
+            flex: 1, height: 44, border: 'none',
+            borderRadius: 10, background: 'var(--accent)',
+            color: '#fff', fontSize: 13, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+          🛒 Корзина
+          {cartCount > 0 && (
+            <span style={{
+              fontFamily: 'var(--font-jetbrains, monospace)',
+              fontSize: 10, fontWeight: 600,
+              padding: '2px 6px', background: 'rgba(255,255,255,0.18)',
+              borderRadius: 8, marginLeft: 2,
+            }}>
+              {cartCount} · {cartTotal.toLocaleString('ru-RU')} ₸
+            </span>
+          )}
+        </button>
       </div>
     </div>
   )

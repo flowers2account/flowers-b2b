@@ -10,7 +10,6 @@ const CAT_LABEL: Record<string, string> = {
 }
 
 const SUBCAT_LABEL: Record<string, string> = {
-  // accessories
   film: 'Плёнка', paper: 'Бумага', film_bags: 'Пакеты', ribbon: 'Лента и банты',
   organza: 'Органза', mesh: 'Сетка', tissue: 'Тишью', felt: 'Фетр',
   jute: 'Джут и шпагат', bags: 'Сумки', napkins: 'Салфетки',
@@ -25,12 +24,10 @@ const SUBCAT_LABEL: Record<string, string> = {
   artificial_grass: 'Искусственный газон', grass_seed: 'Семена газона',
   garden: 'Сад и огород', artificial: 'Искусственные растения', toys: 'Игрушки',
   dried: 'Сухоцветы',
-  // cut
   roses: 'Розы', chrysanthemums: 'Хризантемы', carnations: 'Гвоздики',
   tulips: 'Тюльпаны', peonies: 'Пионы', lilies: 'Лилии', gerberas: 'Герберы',
   hydrangeas: 'Гортензии', orchids: 'Орхидеи', lisianthus: 'Эустомы',
   alstroemeria: 'Альстромерии', greens: 'Зелень',
-  // pot
   flowering: 'Цветущие', succulents: 'Суккуленты', cacti: 'Кактусы',
   palms: 'Пальмы', ficus: 'Фикусы', dracaena: 'Драцена',
 }
@@ -39,55 +36,49 @@ export default function CtxBar() {
   const { category, subcat } = useFilters()
   const { filteredCount } = useProductsStore()
 
-  const catLabel  = CAT_LABEL[category] ?? 'Каталог'
+  const catLabel    = CAT_LABEL[category] ?? 'Каталог'
   const subcatLabel = subcat ? (SUBCAT_LABEL[subcat] ?? subcat) : null
-  const h1 = subcatLabel ?? catLabel
+  const h1          = subcatLabel ?? catLabel
 
-  const today = new Date()
+  const today   = new Date()
   const updated = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}`
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-      gap: 24, padding: '18px 28px 14px',
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '11px 18px',
       background: 'var(--bg-app, #F6F2EF)',
       borderBottom: '1px solid var(--border-soft, #EFEAE5)',
-      flexShrink: 0,
+      flexShrink: 0, minHeight: 44,
     }}>
-      <div>
-        {/* breadcrumbs */}
-        <div style={{
-          fontSize: 12, color: 'var(--ink-3, #7A7780)',
-          marginBottom: 5, lineHeight: 1,
-        }}>
-          Каталог
-          {subcatLabel && (
-            <> / <span>{catLabel}</span> / </>
-          )}
-          {!subcatLabel && category !== 'all' && <> / </>}
-        </div>
-        {/* H1 */}
-        <h1 style={{
-          fontFamily: 'var(--font-golos)',
-          fontWeight: 700, fontSize: 'clamp(18px, 2.5vw, 26px)',
-          color: 'var(--ink, #1A1A1F)',
-          lineHeight: 1.1, margin: 0,
-        }}>
-          {h1}
-        </h1>
-      </div>
+      {/* breadcrumb — скрыт на мобиле если занимает место */}
+      {subcatLabel && (
+        <span style={{ fontSize: 11, color: 'var(--ink-3, #7A7780)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {catLabel} /
+        </span>
+      )}
 
-      {/* meta */}
-      <div style={{
+      {/* H1 */}
+      <h1 style={{
+        fontFamily: 'var(--font-golos)',
+        fontWeight: 700, fontSize: 20,
+        letterSpacing: '-0.015em',
+        color: 'var(--ink, #1A1A1F)',
+        lineHeight: 1, margin: 0, flexShrink: 0,
+      }}>
+        {h1}
+      </h1>
+
+      {/* счётчик — единственное место */}
+      <span style={{
+        marginLeft: 'auto',
         fontFamily: 'var(--font-jetbrains, monospace)',
         fontSize: 11, color: 'var(--ink-3, #7A7780)',
         whiteSpace: 'nowrap', flexShrink: 0,
       }}>
-        <span style={{ color: 'var(--accent, #8B3A5A)', fontWeight: 600 }}>
-          {filteredCount}
-        </span>
-        {' '}позиций · обновлено {updated}
-      </div>
+        <b style={{ color: 'var(--accent, #8B3A5A)', fontWeight: 600 }}>{filteredCount}</b>
+        {' '}поз. · {updated}
+      </span>
     </div>
   )
 }
