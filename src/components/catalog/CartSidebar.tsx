@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { Button } from '@/components/ui/button'
@@ -11,51 +11,178 @@ function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
 }
 
+declare global {
+  interface Window {
+    halyk?: {
+      showPaymentWidget: (config: object, cb: (result: unknown) => void) => void
+    }
+  }
+}
+
+type PayStep = 'idle' | 'creating' | 'paying' | 'polling' | 'success' | 'failed'
+
 export default function CartSidebar() {
   const { items, remove, update, clear, total } = useCart()
   const { phone } = useAuthStore()
   const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
   const [stockError, setStockError] = useState('')
-  const [whatsappUrl, setWhatsappUrl] = useState('')
   const [showAuth, setShowAuth] = useState(false)
+
+  // Payment state
+  const [payStep, setPayStep] = useState<PayStep>('idle')
+  const [orderId, setOrderId] = useState<number | null>(null)
+  const [invoiceId, setInvoiceId] = useState<string | null>(null)
+  const [payResult, setPayResult] = useState<{ cardMask?: string; amount?: number } | null>(null)
+  const [payError, setPayError] = useState('')
+  const epayLoaded = useRef(false)
 
   const count = items.reduce((s, i) => s + i.qty, 0)
 
-  async function submitOrder() {
-    if (!phone) {
-      setShowAuth(true)
-      return
+  function loadEpayScript(): Promise<void> {
+    if (epayLoaded.current || window.halyk) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = process.env.NEXT_PUBLIC_EPAY_JS_URL!
+      s.onload = () => { epayLoaded.current = true; resolve() }
+      s.onerror = () => reject(new Error('Не удалось загрузить платёжный скрипт'))
+      document.body.appendChild(s)
+    })
+  }
+
+  async function pollStatus(invoice: string): Promise<{ status: string; cardMask?: string; amount?: number }> {
+    const deadline = Date.now() + 30_000
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 2000))
+      const res = await fetch(`/api/payments/status?invoice=${invoice}`)
+      if (res.ok) {
+        const d = await res.json()
+        if (d.status === 'success' || d.status === 'failed') return d
+      }
     }
+    return { status: 'failed' }
+  }
+
+  async function submitOrder() {
+    if (!phone) { setShowAuth(true); return }
     setLoading(true)
     setStockError('')
+    setPayError('')
+    setPayStep('creating')
 
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
-        phone,
-      }),
-    })
+    try {
+      // 1. Create order
+      const checkRes = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
+          phone,
+        }),
+      })
+      if (!checkRes.ok) {
+        const d = await checkRes.json()
+        setStockError(d.error ?? 'Ошибка при оформлении заказа')
+        setPayStep('idle')
+        setLoading(false)
+        return
+      }
+      const { order_id } = await checkRes.json()
+      setOrderId(order_id)
 
-    if (!res.ok) {
-      const data = await res.json()
-      setStockError(data.error ?? 'Ошибка при оформлении заказа')
+      // 2. Init payment
+      const initRes = await fetch('/api/payments/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order_id }),
+      })
+      if (!initRes.ok) {
+        const d = await initRes.json()
+        setPayError(d.error ?? 'Ошибка инициализации оплаты')
+        setPayStep('failed')
+        setLoading(false)
+        return
+      }
+      const widgetConfig = await initRes.json()
+      setInvoiceId(widgetConfig.invoiceId)
+      setPayStep('paying')
+
+      // 3. Load epay script once
+      await loadEpayScript()
+
+      if (!window.halyk) throw new Error('halyk widget не загружен')
+
+      // 4. Show widget
+      await new Promise<void>(resolve => {
+        window.halyk!.showPaymentWidget(widgetConfig, () => resolve())
+      })
+
+      // 5. Poll status
+      setPayStep('polling')
+      const result = await pollStatus(widgetConfig.invoiceId)
+
+      if (result.status === 'success') {
+        setPayResult({ cardMask: result.cardMask, amount: result.amount })
+        setPayStep('success')
+        clear()
+      } else {
+        setPayStep('failed')
+      }
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Неизвестная ошибка')
+      setPayStep('failed')
+    } finally {
       setLoading(false)
-      return
     }
+  }
 
-    const { order_id } = await res.json()
+  async function retryPayment() {
+    if (!orderId) return
+    setPayError('')
+    setPayStep('paying')
 
-    const msg = `🌸 Новый заказ #${order_id}\n\n` +
-      items.map(i => `• ${i.name} × ${i.qty} шт = ${formatPrice(i.price * i.qty)}`).join('\n') +
-      `\n\nИтого: ${formatPrice(total())}\n\nКлиент: ${phone}`
+    try {
+      const initRes = await fetch('/api/payments/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      })
+      if (!initRes.ok) {
+        const d = await initRes.json()
+        setPayError(d.error ?? 'Ошибка инициализации оплаты')
+        setPayStep('failed')
+        return
+      }
+      const widgetConfig = await initRes.json()
+      setInvoiceId(widgetConfig.invoiceId)
 
-    setWhatsappUrl(`https://wa.me/77007575243?text=${encodeURIComponent(msg)}`)
-    clear()
-    setDone(true)
-    setLoading(false)
+      await loadEpayScript()
+      if (!window.halyk) throw new Error('halyk widget не загружен')
+
+      await new Promise<void>(resolve => {
+        window.halyk!.showPaymentWidget(widgetConfig, () => resolve())
+      })
+
+      setPayStep('polling')
+      const result = await pollStatus(widgetConfig.invoiceId)
+      if (result.status === 'success') {
+        setPayResult({ cardMask: result.cardMask, amount: result.amount })
+        setPayStep('success')
+        clear()
+      } else {
+        setPayStep('failed')
+      }
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Неизвестная ошибка')
+      setPayStep('failed')
+    }
+  }
+
+  function reset() {
+    setPayStep('idle')
+    setOrderId(null)
+    setInvoiceId(null)
+    setPayResult(null)
+    setPayError('')
   }
 
   return (
@@ -107,16 +234,36 @@ export default function CartSidebar() {
                   <span className="text-green-800">{formatPrice(total())}</span>
                 </div>
                 {stockError && <p className="text-red-500 text-xs">{stockError}</p>}
-                <Button
-                  className="w-full bg-green-700 hover:bg-green-800"
-                  onClick={submitOrder}
-                  disabled={loading}
-                >
-                  {loading ? 'Оформляем...' : '✅ Создать заказ'}
-                </Button>
-                <Button variant="ghost" className="w-full text-red-400 text-sm" onClick={clear}>
-                  Очистить корзину
-                </Button>
+
+                {/* Payment status indicator */}
+                {(payStep === 'creating' || payStep === 'paying' || payStep === 'polling') && (
+                  <div className="text-center text-sm text-muted-foreground py-2 space-y-1">
+                    <div className="animate-spin inline-block w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full" />
+                    <p>{payStep === 'creating' ? 'Создаём заказ...' : payStep === 'paying' ? 'Ожидаем оплату...' : 'Проверяем оплату...'}</p>
+                  </div>
+                )}
+
+                {payStep === 'idle' && (
+                  <Button
+                    className="w-full bg-green-700 hover:bg-green-800"
+                    onClick={submitOrder}
+                    disabled={loading}
+                  >
+                    💳 Оформить и оплатить
+                  </Button>
+                )}
+
+                {payStep !== 'idle' && payStep !== 'creating' && payStep !== 'paying' && payStep !== 'polling' && (
+                  <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={reset}>
+                    ← Вернуться к корзине
+                  </Button>
+                )}
+
+                {payStep === 'idle' && (
+                  <Button variant="ghost" className="w-full text-red-400 text-sm" onClick={clear}>
+                    Очистить корзину
+                  </Button>
+                )}
               </div>
             </>
           )}
@@ -130,20 +277,45 @@ export default function CartSidebar() {
         />
       )}
 
-      <Dialog open={done} onOpenChange={setDone}>
+      {/* Успешная оплата */}
+      <Dialog open={payStep === 'success'} onOpenChange={() => reset()}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>🎉 Заказ оформлен!</DialogTitle>
+            <DialogTitle>🎉 Заказ оформлен и оплачен!</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-sm">Менеджер получил заказ и свяжется с вами.</p>
+          <p className="text-sm text-muted-foreground">
+            Заказ №{orderId} создан. Менеджер получил уведомление и свяжется с вами.
+          </p>
+          {payResult?.cardMask && (
+            <p className="text-sm font-medium">
+              💳 Оплачено картой {payResult.cardMask}
+              {payResult.amount ? ` · ${formatPrice(Number(payResult.amount))}` : ''}
+            </p>
+          )}
+          <Button className="w-full bg-green-700 hover:bg-green-800 mt-2" onClick={reset}>
+            Отлично!
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Неуспешная оплата */}
+      <Dialog open={payStep === 'failed'} onOpenChange={() => reset()}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>⚠️ Заказ №{orderId} создан, но не оплачен</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Товары зарезервированы на 30 минут. Вы можете повторить оплату прямо сейчас.
+          </p>
+          {payError && <p className="text-xs text-red-500">{payError}</p>}
           <Button
             className="w-full bg-green-700 hover:bg-green-800 mt-2"
-            onClick={() => window.open(whatsappUrl, '_blank')}
+            onClick={() => { setPayStep('idle'); retryPayment() }}
           >
-            📲 Открыть WhatsApp
+            🔄 Повторить оплату
           </Button>
-          <Button variant="outline" className="w-full mt-2" onClick={() => setDone(false)}>
-            Отлично!
+          <Button variant="outline" className="w-full mt-2" onClick={reset}>
+            Закрыть
           </Button>
         </DialogContent>
       </Dialog>
