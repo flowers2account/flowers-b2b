@@ -619,10 +619,21 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       .slice(0, 6)
   }, [search])
 
+  function isSuggestionActive(s: SuggestionDef): boolean {
+    if (s.type === 'subcat') return subcat === s.value
+    if (s.type === 'tag')   return tags.includes(s.value)
+    if (s.type === 'color') return colors.includes(s.value)
+    return false
+  }
+
   function applySuggestion(s: SuggestionDef) {
-    if (s.type === 'subcat') setSubcat(s.value)
-    else if (s.type === 'tag') toggleTag(s.value)
-    else if (s.type === 'color') toggleColor(s.value)
+    if (s.type === 'subcat') {
+      setSubcat(isSuggestionActive(s) ? '' : s.value) // toggle
+    } else if (s.type === 'tag') {
+      toggleTag(s.value)
+    } else if (s.type === 'color') {
+      toggleColor(s.value)
+    }
     setSearch('')
   }
 
@@ -825,7 +836,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           }}>
             <style>{`#suggest-row::-webkit-scrollbar{display:none}`}</style>
             <span style={{ fontSize: 10, color: 'var(--text-mid)', whiteSpace: 'nowrap', alignSelf: 'center', marginRight: 2 }}>→</span>
-            {suggestions.map((s, i) => (
+            {suggestions.map((s, i) => {
+              const active = isSuggestionActive(s)
+              return (
               <button
                 key={i}
                 onClick={() => applySuggestion(s)}
@@ -834,13 +847,14 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '4px 11px', borderRadius: 14,
                   fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
-                  background: '#fff',
-                  border: '1.5px solid var(--border)',
-                  color: 'var(--text)',
+                  background: active ? 'var(--accent)' : '#fff',
+                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                  color: active ? '#fff' : 'var(--text)',
                   cursor: 'pointer',
-                  transition: 'border-color 0.12s, color 0.12s',
+                  transition: 'border-color 0.12s, color 0.12s, background 0.12s',
                 }}
                 onMouseEnter={e => {
+                  if (active) return
                   const b = e.currentTarget as HTMLButtonElement
                   b.style.borderColor = 'var(--accent)'
                   b.style.color = 'var(--accent)'
@@ -852,9 +866,11 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                 }}
               >
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                {active ? '✕' : '+'}
                 {s.label}
               </button>
-            ))}
+              )}
+            )}
           </div>
         )}
 
