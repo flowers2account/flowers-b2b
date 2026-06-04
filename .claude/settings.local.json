@@ -80,7 +80,8 @@
       "Bash(cp \"C:/Users/Владелец/Downloads/privacy \\(1\\).md\" \"C:/Users/Владелец/flowers-b2b/docs/legal-content/privacy.md\")",
       "Bash(cp \"C:/Users/Владелец/Downloads/personal-data \\(1\\).md\" \"C:/Users/Владелец/flowers-b2b/docs/legal-content/personal-data.md\")",
       "Bash(cp \"C:/Users/Владелец/Downloads/payment \\(1\\).md\" \"C:/Users/Владелец/flowers-b2b/docs/legal-content/payment.md\")",
-      "Bash(cp \"C:/Users/Владелец/Downloads/delivery \\(1\\).md\" \"C:/Users/Владелец/flowers-b2b/docs/legal-content/delivery.md\")"
+      "Bash(cp \"C:/Users/Владелец/Downloads/delivery \\(1\\).md\" \"C:/Users/Владелец/flowers-b2b/docs/legal-content/delivery.md\")",
+      "Bash(npx vercel *)"
     ]
   }
 }

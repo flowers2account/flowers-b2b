@@ -476,7 +476,7 @@ export default function ProductPage() {
             </div>
 
             {/* name */}
-            <h1 style={{ fontFamily: 'var(--font-playfair)', fontSize: isMobile ? 26 : 38, fontWeight: 400, lineHeight: 1.08, letterSpacing: '-0.02em', color: C.ink, margin: 0 }}>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: isMobile ? 26 : 36, fontWeight: 600, lineHeight: 1.1, color: C.ink, margin: 0 }}>
               {displayName}
             </h1>
             {latinLine && <div style={{ fontSize: 14, color: C.ink3, fontStyle: 'italic', marginTop: 6 }}>{latinLine}</div>}
@@ -686,7 +686,7 @@ export default function ProductPage() {
         {related.length > 0 && (
           <div style={{ marginTop: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h3 style={{ fontFamily: 'var(--font-playfair)', fontSize: 22, fontWeight: 400, color: C.ink, letterSpacing: '-0.01em', margin: 0 }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: C.ink, margin: 0 }}>
                 Похожие в «{subcategoryLabel ?? categoryLabel}»
               </h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -739,7 +739,7 @@ export default function ProductPage() {
                         </span>
                       </div>
                       <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <div style={{ fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400, lineHeight: 1.2, letterSpacing: '-0.005em', color: C.ink }}>
+                        <div style={{ fontFamily: 'var(--font-golos)', fontSize: 14, fontWeight: 600, lineHeight: 1.2, color: C.ink }}>
                           {rName.length > 32 ? rName.slice(0, 32) + '…' : rName}
                         </div>
                         {rMeta && <div style={{ fontSize: 11, color: C.ink3 }}>{rMeta}</div>}

@@ -24,7 +24,7 @@ export default function AboutBlock() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <h2 style={{
             margin: 0,
-            fontFamily: 'var(--font-playfair)',
+            fontFamily: 'var(--font-serif)',
             fontSize: 'clamp(15px, 2vw, 18px)',
             fontWeight: 500,
             color: 'var(--text)',

@@ -265,7 +265,7 @@ function GridCard({
       {/* Тело */}
       <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', flex: 1, gap: 2 }}>
         <div style={{
-          fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400,
+          fontFamily: 'var(--font-golos)', fontSize: 14, fontWeight: 600,
           lineHeight: 1.25, color: 'var(--text)',
         }}>
           {displayName}
@@ -425,7 +425,7 @@ function ListRow({
 
       {/* Инфо */}
       <div>
-        <div style={{ fontFamily: 'var(--font-playfair)', fontSize: 13, fontWeight: 400, lineHeight: 1.25, color: 'var(--text)' }}>
+        <div style={{ fontFamily: 'var(--font-golos)', fontSize: 13, fontWeight: 600, lineHeight: 1.25, color: 'var(--text)' }}>
           {displayName}
         </div>
         {dims.length > 0 && (
