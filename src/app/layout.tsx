@@ -36,26 +36,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}
-        <Script id="umnico-widget" strategy="afterInteractive">{`
+        <Script id="umnico-init" strategy="afterInteractive">{`
 (function(){
-  if(document.querySelector('[data-umnico-logo]'))return;
-  var a=document.createElement('a');
-  a.href='https://umnico.com/?utm_source=widget&utm_medium=online_chat&utm_campaign=button';
-  a.target='_blank';a.draggable=false;
-  a.setAttribute('data-umnico-logo','true');
-  a.setAttribute('style','position:fixed !important;right:38px !important;bottom:25px !important;z-index:2147483646 !important;display:flex !important;align-items:center !important;justify-content:center !important;padding-top:1px !important;padding-bottom:2px !important;background-color:rgba(227,237,243,0.4) !important;border-radius:41px !important;cursor:pointer !important');
-  var img=document.createElement('img');
-  img.src='https://umnico.com/assets/index/umnico1.svg';img.alt='Umnico logo';img.draggable=false;
-  img.setAttribute('style','width:45px !important;height:9px !important');
-  a.appendChild(img);document.body.appendChild(a);
-  var d=document.createElement('div');
-  d.setAttribute('data-umnico-loader','true');
-  d.setAttribute('style','all:initial;position:fixed !important;right:37px !important;bottom:9px !important;z-index:2147483646 !important;font-family:sans-serif !important;font-size:10px !important;line-height:1 !important;font-weight:bold !important;padding:2px 4px 1px !important;background-color:rgba(227,237,243,0.4) !important;border-radius:41px !important');
-  d.textContent='Loading';document.body.appendChild(d);
-  document.umnicoWidgetHash='f3ed509085f6da0d5fb4fa5e40ec3156';
-  var s=document.createElement('script');
-  s.src='https://umnico.com/assets/widget-loader.js';s.type='text/javascript';s.charset='UTF-8';s.async=true;
-  document.body.appendChild(s);
+  if(document.getElementById('umnico-app'))return;
+  var g=typeof globalThis!=='undefined'?globalThis:typeof window!=='undefined'?window:typeof self!=='undefined'?self:global;
+  g.SCRM_GLOBALS_PUBLIC_URL='https://umnico.com';
+  g.document.umnicoWidgetHash='f3ed509085f6da0d5fb4fa5e40ec3156';
+  var x=document.createElement('script');
+  x.id='umnico-app';
+  x.src='https://umnico.com/assets/manifest-umnico-app-c3542196967eb1750894.js';
+  x.type='text/javascript';x.charset='UTF-8';x.defer=true;
+  var z=document.createElement('script');
+  z.src='https://umnico.com/assets/widgets-0be0ec429de4abf28951.js';
+  z.type='text/javascript';z.charset='UTF-8';z.defer=true;
+  document.body.appendChild(x);
+  document.body.appendChild(z);
 })();
         `}</Script>
       </body>
