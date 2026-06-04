@@ -8,6 +8,7 @@ import { useCart } from '@/lib/cart-store'
 import { useProductsStore } from '@/lib/products-store'
 import { useFilterChips } from '@/lib/filter-chips'
 import { useSheetBack } from '@/lib/use-sheet-back'
+import { useSwipeDown } from '@/lib/use-swipe-down'
 
 // header L1(58px) + L2(46px) = 104px
 const HEADER_H = 104
@@ -133,6 +134,9 @@ export default function CatalogLayout({
   useSheetBack(isDetailOpen, () => setPanel('empty'))
   useSheetBack(isMobile && isFilterOpen, () => setIsFilterOpen(false))
 
+  const filterSwipe = useSwipeDown(() => setIsFilterOpen(false))
+  const detailSwipe = useSwipeDown(() => setPanel('empty'))
+
   // desktop layout
   if (!isMobile) {
     return (
@@ -176,23 +180,28 @@ export default function CatalogLayout({
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 49 }}
         />
       )}
-      <div style={{
-        position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
-        background: '#fff',
-        borderRadius: '16px 16px 0 0',
-        transform: isFilterOpen ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform 0.3s ease',
-        zIndex: 100, display: 'flex', flexDirection: 'column',
-        overflowX: 'hidden',        // контент не вылезает за ширину экрана
-        maxWidth: '100vw',
-      }}>
+      <div
+        ref={filterSwipe.sheetRef}
+        onTouchStart={filterSwipe.onTouchStart}
+        onTouchMove={filterSwipe.onTouchMove}
+        onTouchEnd={filterSwipe.onTouchEnd}
+        style={{
+          position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
+          background: '#fff',
+          borderRadius: '16px 16px 0 0',
+          transform: isFilterOpen ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.3s ease',
+          zIndex: 100, display: 'flex', flexDirection: 'column',
+          overflowX: 'hidden',
+          maxWidth: '100vw',
+        }}>
         <DragHandle />
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <BackBtn onClick={() => setIsFilterOpen(false)} />
           <span style={{ fontFamily: 'var(--font-playfair)', fontSize: 15, marginLeft: 4 }}>Фильтры</span>
         </div>
         <ChipBar />
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        <div data-scrollable style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {left}
         </div>
         <div style={{ padding: '10px 14px 16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
@@ -217,15 +226,20 @@ export default function CatalogLayout({
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 49 }}
         />
       )}
-      <div style={{
-        position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
-        background: '#fff',
-        borderRadius: '16px 16px 0 0',
-        transform: isDetailOpen ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform 0.3s ease',
-        zIndex: 50, display: 'flex', flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
+      <div
+        ref={detailSwipe.sheetRef}
+        onTouchStart={detailSwipe.onTouchStart}
+        onTouchMove={detailSwipe.onTouchMove}
+        onTouchEnd={detailSwipe.onTouchEnd}
+        style={{
+          position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
+          background: '#fff',
+          borderRadius: '16px 16px 0 0',
+          transform: isDetailOpen ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.3s ease',
+          zIndex: 50, display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
         <DragHandle />
         <div style={{
           display: 'flex', alignItems: 'center',
@@ -247,7 +261,7 @@ export default function CatalogLayout({
             К каталогу
           </button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        <div data-scrollable style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {right}
         </div>
       </div>
