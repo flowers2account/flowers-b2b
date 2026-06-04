@@ -33,8 +33,10 @@ export const useDetailStore = create<DetailStore>()(
     {
       name: 'catalog-detail',
       storage: createJSONStorage(() => sessionStorage),
-      // Don't persist panel/productId — prevents orphaned product on reload
-      partialize: () => ({}),
+      partialize: (s) => ({
+        panel: s.panel,
+        productId: s.productId,
+      }),
     }
   )
 )
