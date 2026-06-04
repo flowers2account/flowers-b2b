@@ -60,6 +60,19 @@ function unitFor(subcategory?: string | null, unit?: string | null): string {
   return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
 }
 
+const VARIANT_LABEL: Record<string, string> = {
+  baskets: 'Комплектность', gift_boxes: 'Размер', pots: 'Вариант',
+  kashpo: 'Вариант', vases: 'Вариант', soil: 'Фасовка',
+  fertilizers: 'Фасовка', growth_stim: 'Фасовка', plant_protection: 'Объём',
+}
+
+const VOLUME_RANGE_TEST: Record<string, (v: number) => boolean> = {
+  'до5':   v => v <= 5,
+  '5-15':  v => v > 5 && v <= 15,
+  '15-40': v => v > 15 && v <= 40,
+  '40+':   v => v > 40,
+}
+
 // ── card tag badge ──────────────────────────────────────────────────────────
 
 function TagBadge({ type }: { type: 'hit' | 'sale' | 'new' }) {
@@ -267,7 +280,8 @@ function GridCard({
           </div>
         )}
         {(product as any).variant && (
-          <div style={{ fontSize: 10, color: 'var(--text-mid)', fontStyle: 'italic', lineHeight: 1.2 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-mid)', lineHeight: 1.2 }}>
+            <span style={{ opacity: 0.7 }}>{VARIANT_LABEL[product.subcategory ?? ''] ?? 'Вариант'}:</span>{' '}
             {(product as any).variant}
           </div>
         )}
@@ -596,9 +610,10 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const isMobile = useIsMobile()
   const {
     category, subcat, varietyType, subgroup, colors, onlyDiscount, stockLevel, search,
-    lengths, origins, farms, potSizes, tags, seasons,
+    lengths, origins, farms, potSizes, volumeRanges, tags, seasons,
     setSearch, setSubcat, toggleTag, toggleColor, reset,
   } = useFilters()
+
 
   const suggestions = useMemo<SuggestionDef[]>(() => {
     const q = search.toLowerCase().trim()
@@ -672,6 +687,10 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (subcat && (p.subcategory || '') !== subcat) return false
       if (varietyType && (p.variety_type || '') !== varietyType) return false
       if (subgroup && ((p as any).subgroup || '') !== subgroup) return false
+      if (volumeRanges.length > 0) {
+        const vol = Number((p as any).volume_l)
+        if (!vol || !volumeRanges.some(id => VOLUME_RANGE_TEST[id]?.(vol))) return false
+      }
       if (colors.length > 0 && !colors.some(c => p.colors?.includes(c) || p.color === c)) return false
       if (available <= 0) return false
       if (stockLevel === 'low'  && available >= 50) return false
@@ -741,7 +760,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     }
 
     return list
-  }, [products, category, subcat, varietyType, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, tags, seasons, sort])
+  }, [products, category, subcat, varietyType, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])

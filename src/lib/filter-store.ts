@@ -42,6 +42,7 @@ type FilterStore = {
   origins: string[]
   farms: string[]
   potSizes: string[]
+  volumeRanges: string[]
   tags: string[]
   seasons: string[]
   facets: Facets | null
@@ -60,6 +61,7 @@ type FilterStore = {
   toggleOrigin: (v: string) => void
   toggleFarm: (v: string) => void
   togglePotSize: (v: string) => void
+  toggleVolumeRange: (v: string) => void
   toggleTag: (v: string) => void
   toggleSeason: (v: string) => void
   reset: () => void
@@ -85,6 +87,7 @@ export const useFilters = create<FilterStore>()(
   origins: [],
   farms: [],
   potSizes: [],
+  volumeRanges: [],
   tags: [],
   seasons: [],
   facets: null,
@@ -107,12 +110,13 @@ export const useFilters = create<FilterStore>()(
   toggleOrigin:     (v) => set(s => ({ origins:     tog(s.origins,     v) })),
   toggleFarm:       (v) => set(s => ({ farms:       tog(s.farms,       v) })),
   togglePotSize:    (v) => set(s => ({ potSizes:    tog(s.potSizes,    v) })),
+  toggleVolumeRange:(v) => set(s => ({ volumeRanges: tog(s.volumeRanges, v) })),
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
     category: DEFAULT_CATEGORY, subcat: '', varietyType: '', subgroup: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
-    search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], tags: [],
+    search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
     seasons: [], facets: null,
   }),
   loadFacets: async () => {
@@ -145,6 +149,7 @@ export const useFilters = create<FilterStore>()(
     origins:       s.origins,
     farms:         s.farms,
     potSizes:      s.potSizes,
+    volumeRanges:  s.volumeRanges,
     tags:          s.tags,
     seasons:       s.seasons,
   }),

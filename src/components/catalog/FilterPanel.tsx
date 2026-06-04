@@ -155,16 +155,21 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
   accessories: [
     { label: 'Упаковка флористическая', isGroup: true as const, items: [
       { label: 'Плёнка',  key: 'film'      },
-      { label: 'Бумага',  key: 'paper'     },
       { label: 'Пакеты',  key: 'film_bags' },
     ]},
     { label: 'Упаковка и фурнитура', isGroup: true as const, items: [
-      { label: 'Подарочные коробки',      key: 'gift_boxes'    },
-      { label: 'Флор. пена / Оазис',      key: 'floral_foam'   },
-      { label: 'Инструмент',              key: 'tools'         },
-      { label: 'Открытки и топперы',      key: 'cards_toppers' },
-      { label: 'Наполнители',             key: 'fillers'       },
-      { label: 'Уход за срезкой',         key: 'freshcut'      },
+      { label: 'Бумага',               key: 'paper'         },
+      { label: 'Лента и банты',        key: 'ribbon'        },
+      { label: 'Органза',              key: 'organza'       },
+      { label: 'Сетка',                key: 'mesh'          },
+      { label: 'Тишью',                key: 'tissue'        },
+      { label: 'Фетр',                 key: 'felt'          },
+      { label: 'Джут и шпагат',        key: 'jute'          },
+      { label: 'Подарочные коробки',   key: 'gift_boxes'    },
+      { label: 'Флор. пена / Оазис',   key: 'floral_foam'   },
+      { label: 'Инструмент',           key: 'tools'         },
+      { label: 'Открытки и топперы',   key: 'cards_toppers' },
+      { label: 'Наполнители',          key: 'fillers'       },
     ]},
     { label: 'Горшки, кашпо и фонтаны', isGroup: true as const, items: [
       { label: 'Горшки',           key: 'pots'      },
@@ -174,15 +179,19 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
       { label: 'Декор и сувениры', key: 'decor'     },
     ]},
     { label: 'Корзины',            key: 'baskets'   },
-    { label: 'Грунт и удобрения', isGroup: true as const, items: [
-      { label: 'Грунты',    key: 'soil'        },
-      { label: 'Удобрения', key: 'fertilizers' },
+    { label: 'Сад и удобрения', isGroup: true as const, items: [
+      { label: 'Грунты',              key: 'soil'             },
+      { label: 'Удобрения',           key: 'fertilizers'      },
+      { label: 'Защита растений',     key: 'plant_protection' },
+      { label: 'Стимуляторы роста',   key: 'growth_stim'      },
+      { label: 'Садовый уход',        key: 'garden_care'      },
+      { label: 'Уход за срезкой',     key: 'freshcut'         },
     ]},
     { label: 'Газоны и укрывной материал', isGroup: true as const, items: [
-      { label: 'Укрывной материал',   key: 'cover_fabric'    },
+      { label: 'Укрывной материал',     key: 'cover_fabric'    },
       { label: 'Плёнка полиэтиленовая', key: 'cover_film'      },
-      { label: 'Искусственный газон', key: 'artificial_grass' },
-      { label: 'Семена газона',       key: 'grass_seed'      },
+      { label: 'Искусственный газон',   key: 'artificial_grass' },
+      { label: 'Семена газона',         key: 'grass_seed'      },
     ]},
     { label: 'Сад и огород',           key: 'garden'    },
     { label: 'Искусственные растения', key: 'artificial' },
@@ -234,8 +243,25 @@ const DEFAULT_OPEN = {
   available: true,
   subcat: true,
   length: false, origin: false, farm: false,
-  season: false, tags: false, potSize: false,
+  season: false, tags: false, potSize: false, volume: false,
 }
+
+// Порядок подгрупп по подкатегории (data-driven subgroup tabs)
+const SUBGROUP_ORDER: Record<string, string[]> = {
+  decor:            ['Зоокашпо', 'Статуэтки и фигуры', 'Посуда', 'Сувениры', 'Деревянные изделия'],
+  paper:            ['Крафт', 'Жатая', 'Калька', 'Атлас', 'Гофрированная', 'Двухсторонняя', 'Рисовая', 'Прочая'],
+  plant_protection: ['Инсектициды', 'Фунгициды', 'Гербициды', 'Родентициды'],
+  garden_care:      ['Раскислители'],
+}
+
+// Диапазоны объёма (горшки/кашпо/грунты)
+const VOLUME_RANGES = [
+  { id: 'до5',   label: 'до 5 л',   test: (v: number) => v <= 5 },
+  { id: '5-15',  label: '5–15 л',   test: (v: number) => v > 5 && v <= 15 },
+  { id: '15-40', label: '15–40 л',  test: (v: number) => v > 15 && v <= 40 },
+  { id: '40+',   label: '40+ л',    test: (v: number) => v > 40 },
+]
+const VOLUME_SUBCATS = new Set(['pots', 'kashpo', 'soil'])
 
 // ── primitives ────────────────────────────────────────────────────────────────
 
@@ -583,14 +609,25 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
     category, subcat, varietyType, subgroup,
-    colors, lengths, origins, farms, potSizes, tags,
+    colors, lengths, origins, farms, potSizes, volumeRanges, tags,
     seasons, onlyAvailable, facets,
     setSubcat, setVarietyType, setSubgroup,
-    toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleTag,
+    toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleVolumeRange, toggleTag,
     toggleSeason, reset, loadFacets,
   } = useFilters()
 
-  const DECOR_SUBGROUPS = ['Зоокашпо', 'Статуэтки и фигуры', 'Посуда', 'Сувениры', 'Деревянные изделия']
+  // Data-driven subgroup tabs: compute available subgroups for current subcat
+  const availableSubgroups = useMemo(() => {
+    if (!subcat) return []
+    const seen = new Set<string>()
+    products.forEach(p => {
+      if (p.subcategory === subcat && (p as any).subgroup) seen.add((p as any).subgroup as string)
+    })
+    const order = SUBGROUP_ORDER[subcat] ?? []
+    const inOrder = order.filter(sg => seen.has(sg))
+    const rest = [...seen].filter(sg => !order.includes(sg)).sort()
+    return [...inOrder, ...rest]
+  }, [products, subcat])
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
 
@@ -609,11 +646,12 @@ export default function FilterPanel({ products }: { products: Product[] }) {
       if (farms.length > 0)       next.farm      = true
       if (seasons.length > 0)     next.season    = true
       if (tags.length > 0)        next.tags      = true
-      if (potSizes.length > 0)    next.potSize   = true
-      if (subcat)                 next.subcat    = true
+      if (potSizes.length > 0)      next.potSize   = true
+      if (volumeRanges.length > 0)  next.volume    = true
+      if (subcat)                   next.subcat    = true
       return next
     })
-  }, [lengths, origins, farms, seasons, tags, potSizes, subcat])
+  }, [lengths, origins, farms, seasons, tags, potSizes, volumeRanges, subcat])
 
   const tog = (key: keyof typeof DEFAULT_OPEN) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -667,33 +705,26 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           <AccordionSubcats products={products} />
         </CollapsibleGroup>
 
-        {/* Декор: субвкладки по subgroup */}
-        {subcat === 'decor' && (
+        {/* Субвкладки по subgroup (data-driven: decor, paper, plant_protection, …) */}
+        {availableSubgroups.length > 0 && (
           <div style={{ marginBottom: 10 }}>
             <div style={{
               fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
               textTransform: 'uppercase', color: '#b9aab1', padding: '5px 4px 6px',
-            }}>
-              Тип
-            </div>
+            }}>Тип</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {['', ...DECOR_SUBGROUPS].map(sg => {
+              {['', ...availableSubgroups].map(sg => {
                 const active = subgroup === sg
                 return (
-                  <button
-                    key={sg || '__all__'}
-                    onClick={() => setSubgroup(sg)}
-                    style={{
-                      display: 'flex', alignItems: 'center',
-                      padding: '5px 8px', fontSize: 12,
-                      borderRadius: 'var(--radius-btn)', marginBottom: 1,
-                      cursor: 'pointer', border: 'none', fontFamily: 'inherit',
-                      background: active ? 'var(--accent)' : 'transparent',
-                      color: active ? '#fff' : 'var(--text)',
-                      fontWeight: active ? 600 : 400,
-                      textAlign: 'left',
-                    }}
-                  >
+                  <button key={sg || '__all__'} onClick={() => setSubgroup(sg)} style={{
+                    display: 'flex', alignItems: 'center',
+                    padding: '5px 8px', fontSize: 12,
+                    borderRadius: 'var(--radius-btn)', marginBottom: 1,
+                    cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+                    background: active ? 'var(--accent)' : 'transparent',
+                    color: active ? '#fff' : 'var(--text)',
+                    fontWeight: active ? 600 : 400, textAlign: 'left',
+                  }}>
                     {sg || 'Все'}
                   </button>
                 )
@@ -873,8 +904,22 @@ export default function FilterPanel({ products }: { products: Product[] }) {
                   label={ps.label} onChange={() => togglePotSize(ps.id)} />
               ))}
             </CollapsibleGroup>
-
           </>
+        )}
+
+        {/* Объём, л — для горшков/кашпо/грунтов */}
+        {VOLUME_SUBCATS.has(subcat) && (
+          <CollapsibleGroup
+            label="Объём, л"
+            open={openGroups.volume}
+            onToggle={() => tog('volume')}
+            activeCount={volumeRanges.length}
+          >
+            {VOLUME_RANGES.map(r => (
+              <CheckRow key={r.id} checked={volumeRanges.includes(r.id)}
+                label={r.label} onChange={() => toggleVolumeRange(r.id)} />
+            ))}
+          </CollapsibleGroup>
         )}
 
         {/* Хит продаж / Акция */}
