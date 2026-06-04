@@ -178,13 +178,19 @@ function GridCard({
         ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
         : [])
   const [activePhoto, setActivePhoto] = useState(0)
-  const hasSecondPhoto = !!product.campaign_image_url
-  const showSecond = activePhoto === 1
+
+  // Все фото: основное + кампанийное + extra_images
+  const photos = [
+    product.image_url,
+    product.campaign_image_url,
+    ...((product as any).extra_images as string[] ?? []),
+  ].filter(Boolean) as string[]
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    if (!hasSecondPhoto) return
+    if (photos.length < 2) return
     const { left, width } = e.currentTarget.getBoundingClientRect()
-    setActivePhoto(e.clientX - left > width / 2 ? 1 : 0)
+    const idx = Math.min(photos.length - 1, Math.floor(((e.clientX - left) / width) * photos.length))
+    setActivePhoto(idx)
   }
 
   return (
@@ -204,18 +210,21 @@ function GridCard({
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setActivePhoto(0)}
       >
-        {product.image_url ? (
-          <Image
-            fill
-            src={product.image_url}
-            alt={displayName}
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            style={{
-              objectFit: 'cover',
-              opacity: showSecond ? 0 : 1,
-              transition: 'opacity 0.3s ease',
-            }}
-          />
+        {photos.length > 0 ? (
+          photos.map((url, idx) => (
+            <Image
+              key={url}
+              fill
+              src={url}
+              alt={displayName}
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              style={{
+                objectFit: 'cover',
+                opacity: idx === activePhoto ? 1 : 0,
+                transition: 'opacity 0.25s ease',
+              }}
+            />
+          ))
         ) : (
           <div style={{
             width: '100%', height: '100%', display: 'flex', alignItems: 'center',
@@ -225,26 +234,13 @@ function GridCard({
             🌸
           </div>
         )}
-        {hasSecondPhoto && (
-          <Image
-            fill
-            src={product.campaign_image_url!}
-            alt={displayName}
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            style={{
-              objectFit: 'cover',
-              opacity: showSecond ? 1 : 0,
-              transition: 'opacity 0.3s ease',
-            }}
-          />
-        )}
-        {/* Точки-переключатели — только если есть 2 фото */}
-        {hasSecondPhoto && (
+        {/* Точки — по количеству фото */}
+        {photos.length > 1 && (
           <div
             style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4, zIndex: 3 }}
             onClick={e => e.stopPropagation()}
           >
-            {[0, 1].map(i => (
+            {photos.map((_, i) => (
               <div
                 key={i}
                 onClick={() => setActivePhoto(i)}
