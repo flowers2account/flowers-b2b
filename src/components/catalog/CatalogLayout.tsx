@@ -253,13 +253,16 @@ export default function CatalogLayout({
       {/* ── Bottom bar ───────────────────────────────────────────── */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
-        zIndex: 50, background: '#fff',
+        zIndex: 99,                                   // выше sheets (50) и below header (100)
+        background: '#fff',
         borderTop: '1px solid var(--border-soft, #EFEAE5)',
-        padding: 'calc(9px) 12px',
+        padding: '9px 12px',
         paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
         display: 'flex', gap: 8,
         boxShadow: '0 -4px 16px rgba(40,20,30,0.06)',
-      }}>
+        transform: 'translateZ(0)',                   // GPU-слой — не прячется при скролле iOS
+        WebkitTransform: 'translateZ(0)',
+      } as React.CSSProperties}>
         {/* Фильтры — нейтральный стиль */}
         <button
           onClick={() => setIsFilterOpen(true)}
