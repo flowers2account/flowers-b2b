@@ -121,11 +121,11 @@ export const useFilters = create<FilterStore>()(
     seasons: [], facets: null,
   }),
   loadFacets: async () => {
-    const { category, subcat, varietyType, onlyAvailable } = get()
+    const { category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable } = get()
     const res = await fetch('/api/facets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, subcat, varietyType, onlyAvailable }),
+      body: JSON.stringify({ category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable }),
     })
     if (res.ok) {
       const facets: Facets = await res.json()

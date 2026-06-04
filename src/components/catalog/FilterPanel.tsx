@@ -637,7 +637,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
 
   // Recalculate facets when structural filters change (not colors — standard faceting behavior)
-  useEffect(() => { loadFacets() }, [category, subcat, varietyType, onlyAvailable])
+  useEffect(() => { loadFacets() }, [category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable])
 
   // Reset group open states when category changes
   useEffect(() => { setOpenGroups({ ...DEFAULT_OPEN }) }, [category])
