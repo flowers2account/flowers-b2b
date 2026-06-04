@@ -1,52 +1,79 @@
 'use client'
-import { useRef, useCallback } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 
 /**
- * Добавляет свайп вниз для закрытия bottom sheet.
- * Работает с нативным transform — без лишних ре-рендеров.
- * Срабатывает только если scrollTop внутреннего scroll-контейнера = 0.
+ * Плавный свайп вниз для закрытия bottom sheet.
+ * Использует нативные слушатели с passive:false чтобы перехватить скролл.
  */
-export function useSwipeDown(onClose: () => void, threshold = 80) {
-  const sheetRef = useRef<HTMLDivElement>(null)
+export function useSwipeDown(isOpen: boolean, onClose: () => void, threshold = 80) {
+  const sheetRef  = useRef<HTMLDivElement>(null)
   const startY    = useRef(0)
   const dragging  = useRef(false)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    startY.current = e.touches[0].clientY
+  const handleStart = useCallback((e: TouchEvent) => {
+    startY.current  = e.touches[0].clientY
     dragging.current = false
+    const el = sheetRef.current
+    if (el) {
+      el.style.transition = 'none'
+      el.style.willChange = 'transform'
+    }
   }, [])
 
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
+  const handleMove = useCallback((e: TouchEvent) => {
     const delta = e.touches[0].clientY - startY.current
     if (delta <= 0) return
 
-    // Не перехватываем если внутренний scroll не в начале
+    // Не перехватываем когда внутренний скролл не в начале
     const target = e.target as HTMLElement
     const scrollable = target.closest('[data-scrollable]') as HTMLElement | null
     if (scrollable && scrollable.scrollTop > 0) return
 
+    e.preventDefault() // ключевой вызов — блокирует стандартный скролл
     dragging.current = true
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = `translateY(${delta}px)`
-      sheetRef.current.style.transition = 'none'
-    }
+    const el = sheetRef.current
+    if (el) el.style.transform = `translateY(${delta}px)`
   }, [])
 
-  const onTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!dragging.current) return
-    const delta = e.changedTouches[0].clientY - startY.current
+  const handleEnd = useCallback((e: TouchEvent) => {
     const el = sheetRef.current
     if (!el) return
+    el.style.willChange = ''
 
+    if (!dragging.current) {
+      el.style.transition = 'transform 0.3s ease'
+      el.style.transform  = 'translateY(0)'
+      return
+    }
+
+    const delta = e.changedTouches[0].clientY - startY.current
     el.style.transition = 'transform 0.3s ease'
+
     if (delta > threshold) {
       el.style.transform = 'translateY(100%)'
-      setTimeout(onClose, 280)
+      setTimeout(() => onCloseRef.current(), 280)
     } else {
       el.style.transform = 'translateY(0)'
     }
     dragging.current = false
-  }, [onClose, threshold])
+  }, [threshold])
 
-  return { sheetRef, onTouchStart, onTouchMove, onTouchEnd }
+  useEffect(() => {
+    const el = sheetRef.current
+    if (!el || !isOpen) return
+
+    el.addEventListener('touchstart', handleStart, { passive: true })
+    el.addEventListener('touchmove',  handleMove,  { passive: false }) // false = можем preventDefault
+    el.addEventListener('touchend',   handleEnd,   { passive: true })
+
+    return () => {
+      el.removeEventListener('touchstart', handleStart)
+      el.removeEventListener('touchmove',  handleMove)
+      el.removeEventListener('touchend',   handleEnd)
+    }
+  }, [isOpen, handleStart, handleMove, handleEnd])
+
+  return { sheetRef }
 }

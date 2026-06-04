@@ -134,8 +134,8 @@ export default function CatalogLayout({
   useSheetBack(isDetailOpen, () => setPanel('empty'))
   useSheetBack(isMobile && isFilterOpen, () => setIsFilterOpen(false))
 
-  const filterSwipe = useSwipeDown(() => setIsFilterOpen(false))
-  const detailSwipe = useSwipeDown(() => setPanel('empty'))
+  const filterSwipe = useSwipeDown(isFilterOpen,  () => setIsFilterOpen(false))
+  const detailSwipe = useSwipeDown(isDetailOpen,  () => setPanel('empty'))
 
   // desktop layout
   if (!isMobile) {
@@ -182,9 +182,6 @@ export default function CatalogLayout({
       )}
       <div
         ref={filterSwipe.sheetRef}
-        onTouchStart={filterSwipe.onTouchStart}
-        onTouchMove={filterSwipe.onTouchMove}
-        onTouchEnd={filterSwipe.onTouchEnd}
         style={{
           position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
           background: '#fff',
@@ -228,9 +225,6 @@ export default function CatalogLayout({
       )}
       <div
         ref={detailSwipe.sheetRef}
-        onTouchStart={detailSwipe.onTouchStart}
-        onTouchMove={detailSwipe.onTouchMove}
-        onTouchEnd={detailSwipe.onTouchEnd}
         style={{
           position: 'fixed', top: `${HEADER_H}px`, bottom: 0, left: 0, right: 0,
           background: '#fff',
