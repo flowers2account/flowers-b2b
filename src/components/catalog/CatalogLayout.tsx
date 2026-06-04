@@ -182,7 +182,9 @@ export default function CatalogLayout({
         borderRadius: '16px 16px 0 0',
         transform: isFilterOpen ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.3s ease',
-        zIndex: 50, display: 'flex', flexDirection: 'column',
+        zIndex: 100, display: 'flex', flexDirection: 'column',
+        overflowX: 'hidden',        // контент не вылезает за ширину экрана
+        maxWidth: '100vw',
       }}>
         <DragHandle />
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
@@ -250,15 +252,16 @@ export default function CatalogLayout({
         </div>
       </div>
 
-      {/* ── Bottom bar ───────────────────────────────────────────── */}
+      {/* ── Bottom bar — скрыт когда открыт фильтр или detail ── */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
-        zIndex: 99,                                   // выше sheets (50) и below header (100)
+        zIndex: 99,
         background: '#fff',
+        display: isFilterOpen || isDetailOpen ? 'none' : 'flex',
+        gap: 8,
         borderTop: '1px solid var(--border-soft, #EFEAE5)',
         padding: '9px 12px',
         paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
-        display: 'flex', gap: 8,
         boxShadow: '0 -4px 16px rgba(40,20,30,0.06)',
         transform: 'translateZ(0)',                   // GPU-слой — не прячется при скролле iOS
         WebkitTransform: 'translateZ(0)',
