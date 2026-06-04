@@ -162,10 +162,10 @@ export default function CatalogLayout({
 
   // mobile layout
   return (
-    <div style={{ height: `calc(100vh - ${HEADER_H}px)`, position: 'relative', overflow: 'hidden' }}>
+    <div style={{ position: 'relative' }}>
 
       {/* Main content */}
-      <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 72, background: '#fafafa' }}>
+      <div style={{ paddingBottom: 80, background: '#fafafa' }}>
         {center}
       </div>
 
