@@ -4,6 +4,7 @@ import { Golos_Text, Playfair_Display, Cormorant_Garamond } from 'next/font/goog
 import Script from 'next/script'
 import './globals.css'
 import Header from '@/components/catalog/Header'
+import SiteFooter from '@/components/SiteFooter'
 
 const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}
+        <SiteFooter />
         <Script id="umnico-widget" strategy="afterInteractive">{`
 (function(){
   if(document.querySelector('[data-umnico-logo]'))return;

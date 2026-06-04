@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 78 48" role="img" aria-label="UnionPay">
+  <rect width="78" height="48" rx="6" fill="#e21836"/>
+  <rect x="2" y="2" width="74" height="44" rx="5" fill="url(#upGrad)"/>
+  <defs>
+    <linearGradient id="upGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e21836"/>
+      <stop offset="100%" stop-color="#a50012"/>
+    </linearGradient>
+  </defs>
+  <text x="50%" y="46%" dominant-baseline="central" text-anchor="middle"
+    font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#ffffff">UnionPay</text>
+  <text x="50%" y="70%" dominant-baseline="central" text-anchor="middle"
+    font-family="Arial,sans-serif" font-size="7" fill="rgba(255,255,255,0.75)">银联</text>
+</svg>

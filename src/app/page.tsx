@@ -3,6 +3,7 @@ import FilterPanel from '@/components/catalog/FilterPanel'
 import ProductGrid from '@/components/catalog/ProductGrid'
 import DetailPanel from '@/components/catalog/DetailPanel'
 import CatalogLayout from '@/components/catalog/CatalogLayout'
+import AboutBlock from '@/components/catalog/AboutBlock'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,10 +51,13 @@ export default async function HomePage() {
   }))
 
   return (
-    <CatalogLayout
-      left={<FilterPanel products={list} />}
-      center={<ProductGrid products={list} />}
-      right={<DetailPanel />}
-    />
+    <>
+      <AboutBlock />
+      <CatalogLayout
+        left={<FilterPanel products={list} />}
+        center={<ProductGrid products={list} />}
+        right={<DetailPanel />}
+      />
+    </>
   )
 }
