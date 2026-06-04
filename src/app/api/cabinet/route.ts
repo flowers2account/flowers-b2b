@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id,
       status,
+      payment_status,
       created_at,
       assembly_photo_url,
       order_items (

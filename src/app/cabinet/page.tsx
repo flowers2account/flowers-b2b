@@ -346,9 +346,21 @@ export default function CabinetPage() {
               <div key={order.id} className={`border rounded-xl p-4 bg-white shadow-sm ${isAssembled ? 'border-teal-400 ring-1 ring-teal-300' : ''}`}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-400">{date}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {STATUS_LABELS[order.status] ?? order.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {(order as any).payment_status === 'paid' && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                        ✅ Оплачен
+                      </span>
+                    )}
+                    {(order as any).payment_status === 'unpaid' && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                        💳 Не оплачен
+                      </span>
+                    )}
+                    <span className={`text-xs px-2 py-1 rounded-full ${STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {STATUS_LABELS[order.status] ?? order.status}
+                    </span>
+                  </div>
                 </div>
 
                 {isAssembled && (

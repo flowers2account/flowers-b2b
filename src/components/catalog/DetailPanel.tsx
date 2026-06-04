@@ -609,6 +609,27 @@ function StateCart({ onBack }: { onBack: () => void }) {
     )
   }
 
+  // Timeout screen
+  if (checkout.step === 'timeout') {
+    return (
+      <div style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <div style={{ fontSize: 48 }}>⏳</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Оплата обрабатывается</div>
+        <div style={{ fontSize: 12, color: 'var(--text-mid)', textAlign: 'center', lineHeight: 1.5 }}>
+          Заказ №{checkout.orderId} создан. Статус платежа появится в личном кабинете через 1–3 минуты.
+        </div>
+        <button onClick={() => { checkout.reset(); onBack() }} style={{
+          width: '100%', padding: '10px 14px', marginTop: 4,
+          background: 'var(--accent)', color: '#fff', border: 'none',
+          borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          Перейти в кабинет
+        </button>
+      </div>
+    )
+  }
+
   // Failed screen
   if (checkout.step === 'failed') {
     return (

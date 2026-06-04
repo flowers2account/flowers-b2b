@@ -79,6 +79,12 @@ export default function CartSidebar() {
                 </div>
                 {checkout.stockError && <p className="text-red-500 text-xs">{checkout.stockError}</p>}
 
+                {checkout.step === 'polling' && (
+                  <div className="text-center text-sm text-muted-foreground py-1">
+                    <p className="text-xs">Обычно занимает до 2 мин…</p>
+                  </div>
+                )}
+
                 {checkout.busy && (
                   <div className="text-center text-sm text-muted-foreground py-2 space-y-1">
                     <div className="animate-spin inline-block w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full" />
@@ -97,7 +103,7 @@ export default function CartSidebar() {
                   </Button>
                 )}
 
-                {(checkout.step === 'success' || checkout.step === 'failed') && (
+                {(checkout.isTerminal) && (
                   <Button variant="ghost" className="w-full text-sm text-muted-foreground"
                     onClick={checkout.reset}>
                     ← Вернуться к корзине
@@ -137,6 +143,19 @@ export default function CartSidebar() {
           <Button className="w-full bg-green-700 hover:bg-green-800 mt-2" onClick={checkout.reset}>
             Отлично!
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Оплата обрабатывается (таймаут поллинга) */}
+      <Dialog open={checkout.step === 'timeout'} onOpenChange={() => checkout.reset()}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>⏳ Оплата обрабатывается</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Заказ №{checkout.orderId} создан. Платёж поставлен в обработку — статус появится в личном кабинете через 1–3 минуты.
+          </p>
+          <Button className="w-full mt-2" onClick={checkout.reset}>Понятно</Button>
         </DialogContent>
       </Dialog>
 

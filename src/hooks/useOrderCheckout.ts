@@ -8,7 +8,7 @@ declare global {
 }
 
 export type CheckoutStep =
-  | 'idle' | 'creating' | 'paying' | 'polling' | 'success' | 'failed'
+  | 'idle' | 'creating' | 'paying' | 'polling' | 'success' | 'failed' | 'timeout'
 
 export interface PaymentInfo {
   cardMask?: string
@@ -46,25 +46,29 @@ function loadEpayScript(): Promise<void> {
   })
 }
 
-async function pollStatus(invoice: string): Promise<{ status: string; cardMask?: string; amount?: number }> {
-  const deadline = Date.now() + 30_000
+interface PollResult { status: string; cardMask?: string; amount?: number; reason?: string; timedOut?: boolean }
+async function pollStatus(invoice: string): Promise<PollResult> {
+  // Постлинк может приходить с задержкой 1–3 мин — ждём до 120с
+  const deadline = Date.now() + 120_000
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 2000))
     try {
       const res = await fetch(`/api/payments/status?invoice=${invoice}`)
       if (res.ok) {
         const d = await res.json()
+        // Только терминальные статусы — 'created'/'processing' продолжаем ждать
         if (d.status === 'success' || d.status === 'failed') return d
       }
     } catch { /* сеть — попробуем снова */ }
   }
-  return { status: 'failed' }
+  // Таймаут — не "отказ", платёж может ещё обрабатываться
+  return { status: 'timeout', timedOut: true }
 }
 
 async function runPaymentStep(orderId: number): Promise<{
   ok: boolean
   invoiceId?: string
-  result?: { status: string; cardMask?: string; amount?: number }
+  result?: PollResult
   error?: string
 }> {
   // Init
@@ -90,6 +94,7 @@ async function runPaymentStep(orderId: number): Promise<{
 
   // Poll
   const result = await pollStatus(widgetConfig.invoiceId)
+  // timeout — не ошибка, передаём как есть
   return { ok: true, invoiceId: widgetConfig.invoiceId, result }
 }
 
@@ -103,6 +108,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess }: Op
   const inFlight = useRef(false)
 
   const busy = step === 'creating' || step === 'paying' || step === 'polling'
+  const isTerminal = step === 'success' || step === 'failed' || step === 'timeout'
 
   const reset = useCallback(() => {
     setStep('idle')
@@ -157,7 +163,10 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess }: Op
         setPayInfo({ cardMask: pay.result.cardMask, amount: pay.result.amount })
         setStep('success')
         onSuccess()
+      } else if (pay.result?.timedOut) {
+        setStep('timeout')
       } else {
+        setPayError(pay.result?.status === 'failed' ? (pay.result as any).reason ?? '' : '')
         setStep('failed')
       }
     } catch (err) {
@@ -187,7 +196,10 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess }: Op
         setPayInfo({ cardMask: pay.result.cardMask, amount: pay.result.amount })
         setStep('success')
         onSuccess()
+      } else if (pay.result?.timedOut) {
+        setStep('timeout')
       } else {
+        setPayError(pay.result?.status === 'failed' ? (pay.result as any).reason ?? '' : '')
         setStep('failed')
       }
     } catch (err) {
@@ -198,7 +210,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess }: Op
   }, [orderId, onSuccess])
 
   return {
-    step, busy,
+    step, busy, isTerminal,
     orderId, invoiceId, payInfo,
     payError, stockError,
     submitOrder, retryPayment, reset,
