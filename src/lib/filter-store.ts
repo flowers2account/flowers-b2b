@@ -93,8 +93,9 @@ export const useFilters = create<FilterStore>()(
   facets: null,
 
   setCategory: (category) => set({
-    category, subcat: '', varietyType: '',
-    colors: [], lengths: [], origins: [], farms: [], potSizes: [], tags: [],
+    category, subcat: '', varietyType: '', subgroup: '',
+    search: '',
+    colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
     seasons: [],
   }),
   setSubcat:        (subcat) => set({ subcat, varietyType: '', subgroup: '' }),
