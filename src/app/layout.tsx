@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from 'next'
-import { Golos_Text, Playfair_Display, Cormorant_Garamond, JetBrains_Mono } from 'next/font/google'
+import { Golos_Text, JetBrains_Mono } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import Header from '@/components/catalog/Header'
@@ -8,22 +8,8 @@ import SiteFooter from '@/components/SiteFooter'
 
 const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-golos'
-})
-
-const playfair = Playfair_Display({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500'],
-  style: ['normal', 'italic'],
-  variable: '--font-playfair'
-})
-
-const cormorant = Cormorant_Garamond({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500'],
-  style: ['normal', 'italic'],
-  variable: '--font-cormorant'
 })
 
 const jetbrains = JetBrains_Mono({
@@ -39,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={`${golos.variable} ${playfair.variable} ${cormorant.variable} ${jetbrains.variable}`}>
+    <html lang="ru" className={`${golos.variable} ${jetbrains.variable}`}>
       <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}

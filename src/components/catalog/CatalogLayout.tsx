@@ -187,7 +187,7 @@ export default function CatalogLayout({
         <DragHandle />
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <BackBtn onClick={() => setIsFilterOpen(false)} />
-          <span style={{ fontFamily: 'var(--font-playfair)', fontSize: 15, marginLeft: 4 }}>Фильтры</span>
+          <span style={{ fontFamily: 'var(--font-golos)', fontSize: 15, fontWeight: 600, marginLeft: 4 }}>Фильтры</span>
         </div>
         <ChipBar />
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>

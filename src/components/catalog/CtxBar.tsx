@@ -68,9 +68,8 @@ export default function CtxBar() {
         </div>
         {/* H1 */}
         <h1 style={{
-          fontFamily: 'var(--font-playfair, serif)',
-          fontWeight: 400, fontSize: 'clamp(18px, 2.5vw, 26px)',
-          letterSpacing: '-0.01em',
+          fontFamily: 'var(--font-golos)',
+          fontWeight: 700, fontSize: 'clamp(18px, 2.5vw, 26px)',
           color: 'var(--ink, #1A1A1F)',
           lineHeight: 1.1, margin: 0,
         }}>

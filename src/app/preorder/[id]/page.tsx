@@ -514,7 +514,7 @@ function PreorderDetailView({
 
       <div style={{ padding: '12px 12px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{
-          fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400,
+          fontFamily: 'var(--font-golos)', fontSize: 14, fontWeight: 600,
           lineHeight: 1.35, marginBottom: 10,
         }}>
           {item.display_name ?? item.name}
@@ -728,7 +728,7 @@ function PreorderCartView({
         padding: '14px 16px 12px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
       }}>
-        <span style={{ fontFamily: 'var(--font-playfair)', fontSize: 15, fontWeight: 400 }}>
+        <span style={{ fontFamily: 'var(--font-golos)', fontSize: 15, fontWeight: 700 }}>
           Корзина
         </span>
         {cart.length > 0 && (
@@ -1072,7 +1072,7 @@ export default function PreorderRoomPage() {
   const centerContent = (
     <div style={{ padding: '16px 16px 24px' }}>
       <div style={{ marginBottom: 12 }}>
-        <h1 style={{ fontSize: 18, fontFamily: 'var(--font-playfair)', fontWeight: 400, marginBottom: 4 }}>
+        <h1 style={{ fontSize: 18, fontFamily: 'var(--font-golos)', fontWeight: 700, marginBottom: 4 }}>
           {title}
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -1234,7 +1234,7 @@ export default function PreorderRoomPage() {
           >
             ← Витрина
           </button>
-          <span style={{ fontFamily: 'var(--font-playfair)', fontSize: 15, marginLeft: 4 }}>Фильтры</span>
+          <span style={{ fontFamily: 'var(--font-golos)', fontSize: 15, fontWeight: 600, marginLeft: 4 }}>Фильтры</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>{leftContent}</div>
         <div style={{ padding: '10px 14px 16px', borderTop: '1px solid var(--border)' }}>
