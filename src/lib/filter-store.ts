@@ -142,7 +142,6 @@ export const useFilters = create<FilterStore>()(
     subcat:        s.subcat,
     varietyType:   s.varietyType,
     subgroup:      s.subgroup,
-    search:        s.search,
     onlyAvailable: s.onlyAvailable,
     onlyDiscount:  s.onlyDiscount,
     colors:        s.colors,
