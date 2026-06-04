@@ -747,11 +747,11 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'price_desc') list = [...list].sort((a, b) => getPrice(b.stock) - getPrice(a.stock))
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
     else {
-      // Default: новинки первыми, затем по умолчанию
+      // Default: новинки первыми, затем по убыванию остатка
       list = [...list].sort((a, b) => {
         if (a.is_new && !b.is_new) return -1
         if (!a.is_new && b.is_new) return 1
-        return 0
+        return getAvailable(b.stock) - getAvailable(a.stock)
       })
     }
 
