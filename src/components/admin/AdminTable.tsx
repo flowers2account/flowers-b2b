@@ -12,7 +12,7 @@ import {
 import { COLORS } from '@/lib/colors'
 import ProductEditModal from './ProductEditModal'
 
-const BG_TINT = '#F7EEF2'
+const BG_TINT = '#FFFFFF'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
 type Product = { id: number; name: string; display_name?: string | null; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; country_iso?: string | null; farm?: string | null; is_new?: boolean; stock: Stock[] | Stock }
