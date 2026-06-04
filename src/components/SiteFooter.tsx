@@ -79,15 +79,15 @@ export default function SiteFooter() {
                 width: 42, height: 42, borderRadius: 8, flexShrink: 0,
                 background: 'linear-gradient(155deg,#8B3A5A,#6E2A45)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontFamily: 'var(--font-golos)',
-                fontWeight: 700, fontSize: 20,
+                color: '#fff', fontFamily: 'var(--font-playfair,serif)',
+                fontStyle: 'italic', fontWeight: 500, fontSize: 20,
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)',
               }}>
                 ц
               </span>
               <span>
                 <div style={{
-                  fontFamily: 'var(--font-golos)',
+                  fontFamily: 'var(--font-playfair,serif)',
                   fontSize: 20, color: '#fff', letterSpacing: '-0.01em', lineHeight: 1.1,
                 }}>
                   {company.name}
@@ -102,8 +102,8 @@ export default function SiteFooter() {
               </span>
             </div>
             <div style={{
-              fontFamily: 'var(--font-golos)',
-              fontSize: 15,
+              fontFamily: 'var(--font-playfair,serif)',
+              fontStyle: 'italic', fontSize: 15,
               color: '#EDE3E7', lineHeight: 1.5, marginTop: 20,
             }}>
               Оптовая поставка цветов, горшков и расходников для флористов и магазинов <strong style={{ fontStyle: 'normal', fontWeight: 500, color: '#fff' }}>с 2008 года</strong>.

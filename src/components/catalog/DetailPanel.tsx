@@ -315,7 +315,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            fontFamily: 'var(--font-golos)', fontSize: 14, fontWeight: 600,
+            fontFamily: 'var(--font-playfair)', fontSize: 14, fontWeight: 400,
             lineHeight: 1.35, color: 'var(--text)', marginBottom: 2,
             overflow: 'hidden', display: '-webkit-box',
             WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
@@ -652,7 +652,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
             ← К товару
           </button>
         )}
-        <span style={{ fontFamily: 'var(--font-golos)', fontSize: 15, fontWeight: 700, marginLeft: product ? 4 : 0 }}>
+        <span style={{ fontFamily: 'var(--font-playfair)', fontSize: 15, fontWeight: 400, marginLeft: product ? 4 : 0 }}>
           Корзина
         </span>
         {count > 0 && (

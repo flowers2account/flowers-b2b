@@ -51,7 +51,7 @@ export default function CtxBar() {
       borderBottom: '1px solid var(--border-soft, #EFEAE5)',
       flexShrink: 0, minHeight: 44,
     }}>
-      {/* breadcrumb — скрыт на мобиле если занимает место */}
+      {/* breadcrumb */}
       {subcatLabel && (
         <span style={{ fontSize: 11, color: 'var(--ink-3, #7A7780)', whiteSpace: 'nowrap', flexShrink: 0 }}>
           {catLabel} /

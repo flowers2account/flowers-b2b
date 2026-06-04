@@ -17,7 +17,7 @@ export interface CardData {
 
 // Canvas doesn't support CSS variables — use actual family names from next/font/google
 const FONT_BODY = '"Golos Text", sans-serif';
-const FONT_HEADING = '"Golos Text", sans-serif';
+const FONT_HEADING = '"Playfair Display", serif';
 
 const BRAND = '#7a1c2e';
 const BRAND_LIGHT = '#F7EEF2';

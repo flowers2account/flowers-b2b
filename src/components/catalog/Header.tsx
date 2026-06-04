@@ -94,7 +94,7 @@ export default function Header() {
               <circle cx="31" cy="6" r="1.5" fill="#E8B4C0"/>
             </svg>
             <div>
-              <div style={{ fontFamily: 'var(--font-golos)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', lineHeight: 1.1 }}>
+              <div style={{ fontFamily: 'var(--font-cormorant)', fontStyle: 'italic', fontWeight: 500, fontSize: 15, color: 'var(--accent)', lineHeight: 1.1 }}>
                 Цветы Уральска
               </div>
               <span style={{ display: 'block', fontSize: 8, fontWeight: 400, color: 'var(--accent-mid)', letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: 'var(--font-golos)', lineHeight: 1.6 }}>
