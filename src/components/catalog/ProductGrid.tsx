@@ -982,7 +982,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   isAuthed={isAuthed}
                   onDec={() => handleDec(p, qty)}
                   onInc={() => handleInc(p, qty, available, price)}
-                  onCardClick={() => isMobile ? router.push(`/product/${p.id}`) : setProduct(p)}
+                  onCardClick={() => setProduct(p)}
                 />
               )
             }
@@ -1002,7 +1002,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                   isAuthed={isAuthed}
                   onDec={() => handleDec(p, qty)}
                   onInc={() => handleInc(p, qty, available, price)}
-                  onCardClick={() => isMobile ? router.push(`/product/${p.id}`) : setProduct(p)}
+                  onCardClick={() => setProduct(p)}
                 />
               )
             })}
