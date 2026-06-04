@@ -1,9 +1,9 @@
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from 'next'
 import { Golos_Text, Playfair_Display, Cormorant_Garamond } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import Header from '@/components/catalog/Header'
-import UmnicoWidget from '@/components/UmnicoWidget'
 
 const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
@@ -36,7 +36,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}
-        <UmnicoWidget />
+        <Script id="umnico-widget" strategy="afterInteractive">{`
+(function(){
+  if(document.querySelector('[data-umnico-logo]'))return;
+  var a=document.createElement('a');
+  a.href='https://umnico.com/?utm_source=widget&utm_medium=online_chat&utm_campaign=button';
+  a.target='_blank';a.draggable=false;
+  a.setAttribute('data-umnico-logo','true');
+  a.setAttribute('style','position:fixed !important;right:38px !important;bottom:25px !important;z-index:2147483646 !important;display:flex !important;align-items:center !important;justify-content:center !important;padding-top:1px !important;padding-bottom:2px !important;background-color:rgba(227,237,243,0.4) !important;border-radius:41px !important;cursor:pointer !important');
+  var img=document.createElement('img');
+  img.src='https://umnico.com/assets/index/umnico1.svg';img.alt='Umnico logo';img.draggable=false;
+  img.setAttribute('style','width:45px !important;height:9px !important');
+  a.appendChild(img);document.body.appendChild(a);
+  var d=document.createElement('div');
+  d.setAttribute('data-umnico-loader','true');
+  d.setAttribute('style','all:initial;position:fixed !important;right:37px !important;bottom:9px !important;z-index:2147483646 !important;font-family:sans-serif !important;font-size:10px !important;line-height:1 !important;font-weight:bold !important;padding:2px 4px 1px !important;background-color:rgba(227,237,243,0.4) !important;border-radius:41px !important');
+  d.textContent='Loading';document.body.appendChild(d);
+  document.umnicoWidgetHash='f3ed509085f6da0d5fb4fa5e40ec3156';
+  var s=document.createElement('script');
+  s.src='https://umnico.com/assets/widget-loader.js';s.type='text/javascript';s.charset='UTF-8';s.async=true;
+  document.body.appendChild(s);
+})();
+        `}</Script>
       </body>
     </html>
   )
