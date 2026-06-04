@@ -197,31 +197,41 @@ B2B платформа для оптовой торговли цветами. С
 - **Хранилище**: Supabase Storage, бакет `product-images`
 - **Основное фото** (`image_url`): путь `{slugify(name)}_timestamp.jpg`
 - **Второе фото** (`campaign_image_url`): путь `campaign_{slugify(name)}_timestamp.jpg`
+- **Дополнительные фото** (`extra_images`): массив URL, хранится в `products.extra_images text[]`
 - **Загрузка**: клик по миниатюре в строке AdminTable → выбор файла или камера
-- **Ховер-эффект в каталоге**: GridCard переключается на `campaign_image_url` при наведении + точки-переключатели
+- **Ховер-эффект в каталоге**: GridCard переключает все N фото (image_url + campaign_image_url + extra_images[]) при движении мыши — ширина карточки делится на N зон; точки-переключатели
 - **Генератор карточек**: использует `campaign_image_url` если есть, иначе `image_url`
 - **Рекомендуемое соотношение**: **1:1 (квадрат)** — карточка каталога `aspect-ratio: 1/1`
 
-### Удаление фона через remove.bg (03.06.2026)
+### Удаление фона — клиентская сторона через @imgly/background-removal (04.06.2026)
 
-При загрузке фото (оба слота — основное и кампанийное) в AdminTable фото автоматически проходит обработку:
+При загрузке фото в AdminTable (оба слота — основное и кампанийное) фон удаляется прямо в браузере:
 
-1. Клиент сжимает файл до < 3.5 МБ (если нужно) через canvas
-2. POST `/api/admin/process-image` (Node runtime) → remove.bg API → возвращает байты обработанного фото
-3. Клиент сам загружает результат в Supabase Storage (с сессией) → обновляет `products.image_url`
+1. Даунскейл входного файла до max 1500px (canvas)
+2. `removeBackground(blob)` из `@imgly/background-removal` → прозрачный PNG (WASM/ONNX, модель кешируется при первом запуске)
+3. Композитинг: canvas залит `BG_TINT = '#FFFFFF'` (белый), поверх — PNG без фона
+4. Экспорт → JPEG 88%, max 1200px
+5. Загрузка в Supabase Storage клиентом (с сессией) → UPDATE products
 
-**ENV-переменные:**
-| Переменная | Описание |
-|-----------|---------|
-| `REMOVE_BG_API_KEY` | Ключ API remove.bg (только сервер) |
-| `REMOVE_BG_SIZE` | `preview` для теста (без расхода кредитов), `auto` для прода |
+**Первый запуск**: браузер скачивает модель ONNX с CDN (~30–50 МБ), кешируется навсегда. Последующие вызовы — быстро.
 
-**Поведение при ошибках:**
-- 402 (нет кредитов) → фото сохраняется без обработки + сообщение под миниатюрой
-- 429 → один ретрай по `Retry-After`
-- Прочие ошибки → сообщение под миниатюрой (исчезает через 5-7 сек)
+**Индикация**: «удаляю фон…» → «сохраняю…» на миниатюре при наведении.
 
-⚠️ Только ручная загрузка по «+». Никаких массовых прогонов автоматически.
+⚠️ Только ручная загрузка по «+». Серверного роута для обработки фото больше нет — удалён.
+
+### Загрузка extra_images вручную (скриптом)
+
+```bash
+node --env-file=.env.local --input-type=module <<'EOF'
+import { createClient } from '@supabase/supabase-js'
+import { readFileSync } from 'fs'
+const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+const bytes = readFileSync('/path/to/photo.jpg')
+const { } = await sb.storage.from('product-images').upload('extra_slug_ts.jpg', bytes, { contentType: 'image/jpeg', upsert: true })
+const url = sb.storage.from('product-images').getPublicUrl('extra_slug_ts.jpg').data.publicUrl
+await sb.from('products').update({ extra_images: [url] }).eq('id', PRODUCT_ID)
+EOF
+```
 
 ## Логика резервирования
 
@@ -243,9 +253,7 @@ B2B платформа для оптовой торговли цветами. С
 
 ## Критические замечания
 
-⚠️ **SUPABASE_SERVICE_ROLE_KEY не работает в serverless на Vercel**
-- **Решение**: Используется `createClient()` (client role) + RLS политики
-- **Статус**: Постоянное ограничение архитектуры Vercel
+⚠️ **SUPABASE_SERVICE_ROLE_KEY** — используется в десятках API routes через `createAdminClient()` и работает. Ранее задокументированное ограничение «не работает в Vercel serverless» устарело.
 
 ⚠️ **PostgREST `max_rows` = 1000 — жёсткий лимит**
 - `.limit(N)` где N > 1000 возвращает ошибку → `data=null` → пустой каталог
@@ -275,7 +283,9 @@ B2B платформа для оптовой торговли цветами. С
 | `/api/preorder/[id]/admit` | POST | Одобрение/отклонение запроса (admin/manager) |
 | `/api/reserve` | POST | Создать резервирование |
 | `/api/cron/cleanup` | GET | Cron: удаляет истекшие резервирования (защита CRON_SECRET) |
-| `/api/admin/process-image` | POST | remove.bg: принимает `file` (multipart), возвращает байты фото на белом фоне; `X-No-Credits: 1` если кредиты кончились |
+| `/api/orders/[id]` | PATCH | Смена статуса заказа; вызывает `updateLeadStage` для amoCRM |
+| `/api/orders/[id]/assemble` | POST | Сборка заказа → статус assembled; вызывает `updateLeadStage` |
+| `/api/manager-order` | POST | reserved/delivered менеджером; вызывает `updateLeadStage` |
 
 ## Роли и доступ
 
@@ -578,17 +588,19 @@ src/
 │   │   ├── ProductEditModal.tsx  # Редактирование товара
 │   │   └── ImportXLS.tsx         # Загрузка XLS файлов
 │   └── catalog/
-│       └── ProductGrid.tsx       # GridCard с ховер-эффектом 2-го фото; показывает флаг страны + ферму курсивом
+│       └── ProductGrid.tsx       # GridCard с ховер-эффектом N фото; VARIANT_LABEL; VOLUME_RANGE_TEST
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts     # Singleton Supabase client (браузер)
-│   │   └── server.ts     # Supabase client (сервер/API)
+│   │   ├── server.ts     # Supabase client (сервер/API)
+│   │   └── admin.ts      # createAdminClient() → service role
+│   ├── amo.ts            # amoCRM API v4: contacts, leads, notes, sync functions
 │   ├── card-generator.ts # Canvas-генератор карточек товаров
 │   ├── parse-nomenclature.ts # Парсер названий из 1С (длина, горшок, категория)
 │   ├── auth-store.ts     # Zustand: user, role, phone, isAuthed
 │   ├── cart-store.ts     # Zustand: CartItem[]
 │   ├── products-store.ts # Zustand: products[], filteredCount
-│   ├── filter-store.ts   # Zustand: все фильтры каталога
+│   ├── filter-store.ts   # Zustand: все фильтры (subgroup, volumeRanges добавлены)
 │   ├── colors.ts         # Палитра COLORS — единая точка
 │   ├── use-mobile.ts     # useIsMobile() — < 768px
 │   └── phone.ts          # normalizePhone()
@@ -602,36 +614,127 @@ src/
 |------------|---------|------------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL Supabase проекта | Браузер + Backend |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (anon) key | Браузер + Backend |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (**не использовать на Vercel!**) | Только локально |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key | Только сервер (API routes) |
 | `CRON_SECRET` | Защита cron endpoints | Vercel |
-| `REMOVE_BG_API_KEY` | Ключ API remove.bg (удаление фона при загрузке фото) | Только сервер |
-| `REMOVE_BG_SIZE` | `preview` (тест, не жжёт кредиты) / `auto` (прод) | Только сервер |
+| `AMO_ACCESS_TOKEN` | Долгосрочный JWT токен amoCRM | Только сервер |
 
-## Каталог и фильтры — актуально на 03.06.2026
+## amoCRM интеграция — актуально с 04.06.2026
 
-### Новые подкатегории accessories
+Аккаунт: `tropinvladislav1.amocrm.ru`. Авторизация: Bearer JWT из `AMO_ACCESS_TOKEN`.
 
-| Ключ | Метка | Группа |
-|------|-------|--------|
-| `baskets` | Корзины | Горшки, кашпо и фонтаны |
-| `gift_boxes` | Наборы коробок | (standalone leaf) |
+### Константы (src/lib/amo.ts)
 
-Метка `pot_diameter` зависит от subcategory: для `baskets` → «Диаметр корзины», для остальных → «Диаметр горшка». Аналогично: `pot_material`, `pot_form`, `pot_color`, `variant`.
+| Константа | Значение | Описание |
+|-----------|---------|---------|
+| `AMO_PIPELINE_ID` | 10853806 | Воронка «заявки с сайта» |
+| `AMO_STATUS_NEW` | 85413462 | Этап «Новый» |
+| `AMO_STATUS_RESERVED` | 85413466 | «В брони» |
+| `AMO_STATUS_CONFIRMED` | 85413470 | «Подтверждён» |
+| `AMO_STATUS_ASSEMBLING` | 86286418 | «В сборке» |
+| `AMO_STATUS_ASSEMBLED` | 86286422 | «Готово к выдаче» |
+| `AMO_STATUS_DELIVERED` | 142 | «Выдан» |
+| `AMO_STATUS_CANCELLED` | 143 | «Отменён» |
+| `CF_ORDERID` | 1394611 | Кастомное поле ORDERID (textarea) |
+| `CF_DATA_DOSTAVKI` | 1394599 | Кастомное поле ДАТА_ДОСТАВКИ (textarea) |
 
-### FilterPanel — счётчик на свёрнутых группах (03.06.2026)
+### Функции (src/lib/amo.ts)
 
-Когда группа (isGroup) свёрнута — рядом с заголовком показывается суммарное количество товаров во всех дочерних подкатегориях (функция `nodeCount`). При раскрытии бейдж скрывается.
+| Функция | Описание |
+|---------|---------|
+| `findContactByPhone(phones)` | GET `/contacts?query=` по каждому формату (+7/8), дедупликация, возвращает первый id или null. Обрабатывает 204. |
+| `createContact({name, phone})` | POST `/contacts`, phone в field_code PHONE / WORK |
+| `ensureContactName(id, name)` | Проверяет name контакта — если пустой или = телефону, PATCH с реальным именем (Умнико создаёт контакты без имён) |
+| `createLead({...})` | POST `/leads` с contacts, tags, custom_fields |
+| `addNote(leadId, text)` | POST `/leads/{id}/notes`, note_type=common |
+| `syncOrderToAmo(orderId)` | Витринный заказ (orders) → контакт + сделка + примечание с позициями. Идемпотентно по amo_lead_id. |
+| `syncPreorderToAmo(orderId)` | Предзаказ (campaign_orders) → то же самое |
+| `updateLeadStage(orderId)` | Читает orders.amo_lead_id + status, PATCH status_id по маппингу |
 
-### Навигация «Назад» со страницы товара (03.06.2026)
+**Retry**: 3 попытки на 429/5xx с задержкой 1с/2с/4с. На 4xx не ретраить.
 
-Кнопки «Назад» и «Все товары» на `/product/[id]` вызывают `useFilters.getState().setCategory()` / `setSubcat()` напрямую (не через sessionStorage), потому что Zustand-стор уже инициализирован в памяти и при клиентской навигации sessionStorage повторно не читается.
+### Маппинг статусов orders → этапы amoCRM
 
-Позиция скролла каталога сохраняется в `sessionStorage['catalog-scroll']` при скролле `<main>` в CatalogLayout, восстанавливается при возврате через `catalog-scroll-restore`.
+```
+reserved   → В брони (85413466)
+confirmed  → Подтверждён (85413470)
+assembling → В сборке (86286418)
+assembled  → Готово к выдаче (86286422)
+delivered  → Выдан (142)
+cancelled  → Отменён (143)
+pending / cart / in_transit / arrived → не двигаем
+```
+
+### Где вызывается
+
+- **Создание заказа** (`/api/checkout`): `syncOrderToAmo(orderId)` после INSERT, в try/catch, неблокирующе
+- **Создание предзаказа** (`checkoutPreorder`): `syncPreorderToAmo(orderId)` аналогично
+- **Смена статуса** (`/api/orders/[id]`, `/api/orders/[id]/assemble`, `/api/manager-order`): `updateLeadStage(orderId)` в конце, в try/catch
+
+### Колонки в orders и campaign_orders
+
+```sql
+amo_lead_id       BIGINT  -- уникальный, partial index WHERE NOT NULL
+amo_contact_id    BIGINT
+amo_synced_at     TIMESTAMPTZ
+amo_sync_attempts INT DEFAULT 0
+amo_sync_error    TEXT
+```
+
+Примечание в сделке (addNote): список позиций с display_name, qty, price, итог; дата в таймзоне Asia/Oral.
+
+## Каталог и фильтры — актуально на 04.06.2026
+
+### Витрина: только активные и свои товары
+
+Все источники данных (`page.tsx`, `/api/products`) фильтруют:
+```
+is_active = true AND source IN ('uralsk_site', 'uralsk_1c')
+```
+Карточки поставщиков (waterdrinker, oz_preorder) на витрине не отображаются.
+
+### Подкатегории accessories (полный список групп)
+
+| Группа | Подкатегории |
+|--------|-------------|
+| Упаковка флористическая | film, film_bags |
+| Упаковка и фурнитура | paper, ribbon, organza, mesh, tissue, felt, jute, gift_boxes, floral_foam, tools, cards_toppers, fillers, bags, napkins, paints, foamiran |
+| Горшки, кашпо и фонтаны | pots, kashpo, fountains, vases, decor |
+| Корзины | baskets (standalone) |
+| Сад и удобрения | soil, fertilizers, plant_protection, growth_stim, garden_care, freshcut |
+| Газоны и укрывной материал | cover_fabric, cover_film, artificial_grass, grass_seed |
+| Прочие | garden, artificial, toys |
+
+### Subgroup-вкладки (data-driven)
+
+Для любой подкатегории с заполненным `products.subgroup` в FilterPanel появляются sub-вкладки «Тип». Порядок задан в `SUBGROUP_ORDER` (amo.ts):
+
+| subcat | subgroups |
+|--------|-----------|
+| decor | Зоокашпо, Статуэтки и фигуры, Посуда, Сувениры, Деревянные изделия |
+| paper | Крафт, Жатая, Калька, Атлас, Гофрированная, Двухсторонняя, Рисовая, Прочая |
+| plant_protection | Инсектициды, Фунгициды, Гербициды, Родентициды |
+| garden_care | Раскислители |
+
+Фильтр по subgroup хранится в filter-store (`subgroup: string`), сбрасывается при смене subcat.
+
+### Фильтр «Объём, л»
+
+Показывается для subcat = pots / kashpo / soil. Диапазоны: до 5 л / 5–15 л / 15–40 л / 40+ л. Состояние: `volumeRanges: string[]` в filter-store.
+
+### Прочие улучшения каталога
+
+- **Сортировка по умолчанию**: новинки первыми, затем по убыванию `available qty`
+- **Ховер-эффект**: переключает все N фото (image_url + campaign_image_url + extra_images[]) по горизонтальным зонам
+- **Variant label**: зависит от subcategory — baskets→Комплектность, soil/fertilizers→Фасовка, plant_protection→Объём и т.д. (карта `VARIANT_LABEL` в ProductGrid)
+- **Хлебные крошки** на странице товара: Каталог / Категория / Подкатегория — все кликабельны, устанавливают нужные фильтры
+- **Поиск**: не персистируется в sessionStorage; сбрасывается при смене категории (`setCategory` включает `search: ''`)
+- **Счётчик на свёрнутых группах**: рядом с заголовком collapsed-группы — сумма товаров во всех дочерних подкатегориях (функция `nodeCount`)
+
+### Навигация «Назад» со страницы товара
+
+`goToCategory()` / `goToSubcat()` / `goToCatalog()` вызывают `useFilters.getState()` напрямую — sessionStorage не читается при клиентской навигации. Позиция скролла: `sessionStorage['catalog-scroll']` → `catalog-scroll-restore`.
 
 ### Known Issues
-
-### 🔴 SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless
-- **Решение**: `createClient()` (client role) + RLS
 
 ### 🔴 PostgREST max_rows=1000 — нельзя делать `.limit(>1000)`
 - Возвращает ошибку, `data=null`, каталог пустой
