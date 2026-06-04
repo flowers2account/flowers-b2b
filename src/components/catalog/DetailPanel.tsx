@@ -165,19 +165,114 @@ function Stepper({ qty, available, packSize, onDec, onInc }: {
   )
 }
 
-// ── State A: empty ───────────────────────────────────────────────────────────
+// ── State A: empty / cart summary ────────────────────────────────────────────
 
-function StateEmpty() {
+function StateEmpty({ onOpenCart }: { onOpenCart: () => void }) {
+  const { items, total } = useCart()
+  const { setPanel } = useDetailStore()
+
+  if (items.length === 0) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', height: '100%', padding: 32,
+        gap: 14, color: 'var(--text-mid)',
+      }}>
+        <div style={{ fontSize: 56, opacity: 0.18, lineHeight: 1 }}>🌸</div>
+        <p style={{ fontSize: 12, textAlign: 'center', lineHeight: 1.6, maxWidth: 200, margin: 0 }}>
+          Нажмите на карточку товара, чтобы увидеть подробности
+        </p>
+      </div>
+    )
+  }
+
+  // Variant B — cart summary
+  const count = items.reduce((s, i) => s + i.qty, 0)
+  const sum = total()
+  const preview = items.slice(0, 3)
+  const overflow = items.length - preview.length
+
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100%', padding: 32,
-      gap: 14, color: 'var(--text-mid)',
-    }}>
-      <div style={{ fontSize: 56, opacity: 0.18, lineHeight: 1 }}>🌸</div>
-      <p style={{ fontSize: 12, textAlign: 'center', lineHeight: 1.6, maxWidth: 200, margin: 0 }}>
-        Нажмите на карточку товара, чтобы увидеть подробности
-      </p>
+    <div style={{ padding: '20px 18px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* header */}
+      <div style={{
+        fontFamily: 'var(--font-jetbrains, monospace)',
+        fontSize: 10, fontWeight: 500, letterSpacing: '0.14em',
+        textTransform: 'uppercase', color: 'var(--text-mid)',
+        marginBottom: 14,
+      }}>
+        В корзине
+      </div>
+
+      {/* sum */}
+      <div style={{ marginBottom: 4 }}>
+        <span style={{
+          fontSize: 26, fontWeight: 700, color: 'var(--accent)',
+          fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em',
+        }}>
+          {sum.toLocaleString('ru-RU')} ₸
+        </span>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-mid)', marginBottom: 16 }}>
+        {count} {count % 10 === 1 && count % 100 !== 11 ? 'позиция' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20) ? 'позиции' : 'позиций'}
+      </div>
+
+      {/* mini-preview */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' }}>
+        {preview.map(item => (
+          <div key={item.id} style={{
+            width: 52, height: 52, borderRadius: 8, overflow: 'hidden',
+            background: 'var(--accent-light)', flexShrink: 0,
+            border: '1px solid var(--border)',
+          }}>
+            {item.image_url ? (
+              <Image src={item.image_url} alt={item.name} width={52} height={52}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🌸</div>
+            )}
+          </div>
+        ))}
+        {overflow > 0 && (
+          <div style={{
+            width: 52, height: 52, borderRadius: 8, flexShrink: 0,
+            background: 'var(--bg2)', border: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 600, color: 'var(--text-mid)',
+          }}>
+            +{overflow}
+          </div>
+        )}
+      </div>
+
+      {/* CTAs */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 'auto' }}>
+        <button
+          onClick={onOpenCart}
+          style={{
+            width: '100%', padding: '11px 16px',
+            background: 'linear-gradient(180deg, var(--accent), var(--accent-deep, #6E2A45))',
+            color: '#fff', border: 'none', borderRadius: 8,
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            fontFamily: 'inherit',
+            boxShadow: '0 4px 12px rgba(139,58,90,0.25)',
+          }}
+        >
+          Оформить заказ →
+        </button>
+        <button
+          onClick={() => setPanel('cart')}
+          style={{
+            width: '100%', padding: '9px 16px',
+            background: 'transparent', color: 'var(--accent)',
+            border: '1px solid var(--border)', borderRadius: 8,
+            fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Открыть корзину
+        </button>
+      </div>
     </div>
   )
 }
@@ -778,7 +873,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
 export default function DetailPanel() {
   const { panel, product, setPanel } = useDetailStore()
 
-  if (panel === 'cart') return <StateCart onBack={() => setPanel('detail')} />
+  if (panel === 'cart') return <StateCart onBack={() => setPanel('empty')} />
   if (panel === 'detail' && product) return <StateDetail product={product} onGoToCart={() => setPanel('cart')} onClose={() => setPanel('empty')} />
-  return <StateEmpty />
+  return <StateEmpty onOpenCart={() => setPanel('cart')} />
 }
