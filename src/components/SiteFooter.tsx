@@ -52,11 +52,12 @@ export default function SiteFooter() {
         .ft-req-link { color: #B7ADB2; text-decoration: none; transition: color .15s; }
         .ft-req-link:hover { color: #E8B4C0; }
         @media (max-width: 900px) {
-          .ft-main-grid { grid-template-columns: 1fr 1fr !important; }
+          .ft-main-grid { grid-template-columns: 1fr 1fr !important; padding: 32px 20px 24px !important; }
+          .ft-bar-inner { padding: 14px 20px !important; }
         }
         @media (max-width: 560px) {
-          .ft-main-grid { grid-template-columns: 1fr !important; }
-          .ft-bar-inner { flex-direction: column !important; align-items: flex-start !important; }
+          .ft-main-grid { grid-template-columns: 1fr !important; padding: 24px 16px 20px !important; }
+          .ft-bar-inner { flex-direction: column !important; align-items: flex-start !important; padding: 12px 16px !important; }
         }
       `}</style>
 
