@@ -37,13 +37,13 @@ export async function POST(req: NextRequest) {
     }
 
     // New invoice_id from sequence + secret_hash
-    // Get next invoice_id from sequence
+    // Get next invoice_id from sequence — строго цифры, 6-15 знаков (требование epay)
     let invoiceId: string
     try {
       const { data: seqRow } = await supabase.rpc('get_next_invoice_id').single()
-      invoiceId = seqRow ? String(seqRow) : `INV${Date.now()}`
+      invoiceId = seqRow ? String(seqRow) : String(Date.now()).slice(-12)
     } catch {
-      invoiceId = `INV${Date.now()}`
+      invoiceId = String(Date.now()).slice(-12)
     }
 
     const secretHash = randomBytes(12).toString('hex') // 24 hex chars
