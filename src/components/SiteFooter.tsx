@@ -74,16 +74,13 @@ export default function SiteFooter() {
           {/* brand */}
           <div style={{ maxWidth: 300 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{
-                width: 42, height: 42, borderRadius: 8, flexShrink: 0,
-                background: 'linear-gradient(155deg,#8B3A5A,#6E2A45)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontFamily: 'var(--font-serif)',
-                fontStyle: 'italic', fontWeight: 500, fontSize: 20,
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)',
-              }}>
-                ц
-              </span>
+              <img
+                src="/logo.png"
+                alt="Цветы Уральска"
+                width={42}
+                height={42}
+                style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              />
               <span>
                 <div style={{
                   fontFamily: 'var(--font-serif)',

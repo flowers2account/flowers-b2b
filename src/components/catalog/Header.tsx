@@ -83,16 +83,14 @@ export default function Header() {
         <div className="max-w-[1480px] w-full mx-auto px-[22px] flex items-center" style={{ height: 58 }}>
 
           {/* Логотип */}
-          <Link href="/" className="flex items-center gap-[10px] mr-9 shrink-0 no-underline">
-            <svg width="36" height="36" viewBox="0 0 44 44" fill="none">
-              <path d="M12 22C16 18 21 14 28 12" stroke="#E8B4C0" strokeWidth="1.1"/>
-              <path d="M14 18C13 14 12 11 11 8" stroke="#E8B4C0" strokeWidth="0.9"/>
-              <circle cx="11" cy="7" r="2.5" fill="#E8B4C0"/>
-              <path d="M20 15C20 11 21 9 23 7" stroke="#C97A92" strokeWidth="0.9"/>
-              <circle cx="23" cy="6" r="2" fill="#C97A92"/>
-              <path d="M26 14C27 11 29 9 31 7" stroke="#E8B4C0" strokeWidth="0.7"/>
-              <circle cx="31" cy="6" r="1.5" fill="#E8B4C0"/>
-            </svg>
+          <Link href="/" className="flex items-center gap-[8px] mr-9 shrink-0 no-underline">
+            <img
+              src="/logo.png"
+              alt="Цветы Уральска"
+              width={44}
+              height={44}
+              style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+            />
             <div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 15, color: 'var(--accent)', lineHeight: 1.1 }}>
                 Цветы Уральска
