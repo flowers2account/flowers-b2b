@@ -220,7 +220,29 @@ export default function CabinetPage() {
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Мои заказы</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-gray-800">Мои заказы</h1>
+            {(() => {
+              const active = orders.filter(o =>
+                (o as any).payment_status === 'paid' &&
+                !['cancelled', 'delivered'].includes(o.status)
+              )
+              if (!active.length) return null
+              const sum = active.reduce((s, o) => s + Number((o as any).total ?? 0), 0)
+              return (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: '#F7EEF2', border: '1px solid #C97A92',
+                  borderRadius: 20, padding: '3px 12px',
+                  fontSize: 13, fontWeight: 600, color: '#8B3A5A',
+                }}>
+                  {active.length} активн.
+                  <span style={{ opacity: 0.6, fontSize: 11 }}>·</span>
+                  {sum.toLocaleString('ru-RU')} ₸
+                </span>
+              )
+            })()}
+          </div>
           <p className="text-sm text-gray-500 mt-1">📞 {phone}</p>
         </div>
         <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Каталог</Link>

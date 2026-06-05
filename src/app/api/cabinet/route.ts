@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       id,
       status,
       payment_status,
+      total,
       created_at,
       assembly_photo_url,
       order_items (
