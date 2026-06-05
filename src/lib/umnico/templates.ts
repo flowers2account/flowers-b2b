@@ -88,6 +88,31 @@ ${clientName}, ваш заказ был отменён.
 Если есть вопросы — свяжитесь с нами.
 _Цветы Уральска_`,
 
+  orderPaidToClient: (
+    orderId: string,
+    clientName: string,
+    items: Array<{ name: string; qty: number; price: number }>,
+    total: number,
+    cardMask?: string
+  ): string => {
+    const itemsList = items
+      .map(i => `• ${i.name} — ${i.qty} шт × ${i.price.toLocaleString('ru-RU')} ₸`)
+      .join('\n')
+    const paymentLine = cardMask ? `💳 Оплачено картой ${cardMask}` : '💳 Оплата прошла успешно'
+
+    return `✅ Заказ #${orderId} оплачен!
+${clientName ? clientName + ', ваш' : 'Ваш'} заказ успешно оплачен.
+
+${itemsList}
+
+💰 Итого: ${total.toLocaleString('ru-RU')} ₸
+${paymentLine}
+
+📦 Мы уже приступили к обработке заказа. Как только он будет проверен и передан в сборку — пришлём уведомление.
+
+_Цветы Уральска_`
+  },
+
   orderCreatedToClient: (
     orderId: string,
     clientName: string,
