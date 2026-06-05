@@ -5,6 +5,7 @@ export type FilterCategory = 'all' | 'cut' | 'pot' | 'accessories'
 
 // Default category while cut/pot pills are hidden — change back to 'cut' when unhiding
 const DEFAULT_CATEGORY: FilterCategory = 'accessories'
+const DEFAULT_SUBCAT = 'paper'
 
 function getPersistedCategory(): FilterCategory {
   if (typeof window === 'undefined') return DEFAULT_CATEGORY
@@ -75,7 +76,7 @@ export const useFilters = create<FilterStore>()(
   persist(
     (set, get) => ({
   category: getPersistedCategory(),
-  subcat: '',
+  subcat: DEFAULT_SUBCAT,
   varietyType: '',
   subgroup: '',
   onlyAvailable: true,
@@ -115,7 +116,7 @@ export const useFilters = create<FilterStore>()(
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
-    category: DEFAULT_CATEGORY, subcat: '', varietyType: '', subgroup: '',
+    category: DEFAULT_CATEGORY, subcat: DEFAULT_SUBCAT, varietyType: '', subgroup: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
     seasons: [], facets: null,
