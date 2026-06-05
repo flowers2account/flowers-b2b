@@ -779,7 +779,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     requireAuth(() => {
       const packSize = product.stems_per_pack || product.pack_size || 1
       if (qty === 0) {
-        add({ id: product.id, name: (product.display_name || product.variety_name || product.name) + (product.length_str ? ' ' + product.length_str : ''), price, available, category: product.category, image_url: product.image_url })
+        add({ id: product.id, name: (product.display_name || product.variety_name || product.name) + (product.length_str ? ' ' + product.length_str : ''), price, available, category: product.category, image_url: product.image_url, unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null })
         update(product.id, packSize)
       } else {
         update(product.id, Math.min(qty + packSize, available))

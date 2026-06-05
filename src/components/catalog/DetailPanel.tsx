@@ -249,6 +249,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         id: product.id,
         name: displayName + (product.length_str ? ' ' + product.length_str : ''),
         price, available, category: product.category, image_url: product.image_url,
+        unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
       })
       update(product.id, packSize)
     } else {
@@ -263,6 +264,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         id: product.id,
         name: displayName + (product.length_str ? ' ' + product.length_str : ''),
         price, available, category: product.category, image_url: product.image_url,
+        unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
       })
       update(product.id, packSize)
     }
@@ -570,7 +572,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
 
   // Формируем WhatsApp-ссылку для success-экрана
   const waMsg = `🌸 Заказ #${checkout.orderId}\n\n` +
-    items.map(i => `• ${i.name} × ${i.qty} шт = ${(i.price * i.qty).toLocaleString('ru-RU')} ₸`).join('\n') +
+    items.map(i => `• ${i.name} × ${i.qty} ${unitFor(i.subcategory, i.unit)} = ${(i.price * i.qty).toLocaleString('ru-RU')} ₸`).join('\n') +
     `\n\nИтого: ${total().toLocaleString('ru-RU')} ₸\n\nКлиент: ${phone ?? ''}`
   const waUrl = `https://wa.me/77007575243?text=${encodeURIComponent(waMsg)}`
 
@@ -738,7 +740,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
                       {item.name}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-mid)' }}>
-                      {item.price.toLocaleString('ru-RU')} ₸/шт
+                      {item.price.toLocaleString('ru-RU')} ₸/{unitFor(item.subcategory, item.unit)}
                     </div>
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 500, flexShrink: 0 }}>

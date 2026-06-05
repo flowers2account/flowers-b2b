@@ -9,6 +9,8 @@ export type CartItem = {
   available: number
   category: string
   image_url?: string | null
+  unit?: string | null
+  subcategory?: string | null
 }
 
 type CartStore = {
