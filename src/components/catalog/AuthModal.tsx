@@ -10,22 +10,6 @@ interface Props {
   onClose: () => void
 }
 
-function formatDisplay(digits: string): string {
-  if (!digits) return ''
-  // Международный номер (не начинается с 7 или 8) — без форматирования
-  if (!digits.startsWith('7') && !digits.startsWith('8')) {
-    return '+' + digits.slice(0, 15)
-  }
-  // Казахстан / Россия — маска +7 (XXX) XXX-XX-XX
-  const d = digits.slice(0, 11)
-  const local = d.startsWith('7') ? d.slice(1) : d
-  let r = '+7'
-  if (local.length > 0) r += ` (${local.slice(0, 3)}`
-  if (local.length >= 3) r += `) ${local.slice(3, 6)}`
-  if (local.length >= 6) r += `-${local.slice(6, 8)}`
-  if (local.length >= 8) r += `-${local.slice(8, 10)}`
-  return r
-}
 
 const PIN_LEN = 6
 
@@ -47,8 +31,11 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
   const { login } = useAuthStore()
 
   function handlePhoneInput(raw: string) {
-    const digits = raw.replace(/\D/g, '')
-    setPhoneDisplay(digits ? formatDisplay(digits) : '')
+    // Свободный ввод — только убираем лишние символы, оставляем + в начале
+    const cleaned = raw.startsWith('+')
+      ? '+' + raw.slice(1).replace(/\D/g, '').slice(0, 15)
+      : raw.replace(/\D/g, '').slice(0, 15)
+    setPhoneDisplay(cleaned)
   }
 
   // ── Screen 1: Phone ───────────────────────────────────────────────
@@ -198,7 +185,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
                   value={phoneDisplay}
                   onChange={e => handlePhoneInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleCheckPhone()}
-                  placeholder="+7 (700) 000-00-00"
+                  placeholder="+77001234567"
                   autoFocus
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-pink-400 font-mono"
                 />
@@ -206,7 +193,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <button
                 onClick={handleCheckPhone}
-                disabled={loading || phoneDisplay.replace(/\D/g, '').length < 11 || phoneDisplay.replace(/\D/g, '').length > 15}
+                disabled={loading || phoneDisplay.replace(/\D/g, '').length < 10}
                 className="w-full py-3 text-white font-medium rounded-lg transition disabled:opacity-50"
                 style={BRAND}
               >
@@ -301,7 +288,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
               <div>
                 <label className="block text-xs text-gray-500 mb-1.5">Телефон</label>
                 <input type="tel" value={phoneDisplay} onChange={e => handlePhoneInput(e.target.value)}
-                  placeholder="+7 (700) 000-00-00" autoFocus
+                  placeholder="+77001234567" autoFocus
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm font-mono focus:outline-none focus:border-pink-400" />
               </div>
               <div>
