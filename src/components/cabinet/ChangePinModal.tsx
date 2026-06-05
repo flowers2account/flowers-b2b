@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useAuthStore } from '@/lib/auth-store'
 
 interface Props {
   isOpen: boolean
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function ChangePinModal({ isOpen, onClose }: Props) {
+  const { phone } = useAuthStore()
   const [currentPin, setCurrentPin] = useState('')
   const [newPin, setNewPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
@@ -37,7 +39,7 @@ export default function ChangePinModal({ isOpen, onClose }: Props) {
       const res = await fetch('/api/client/change-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPin, newPin }),
+        body: JSON.stringify({ phone, currentPin, newPin }),
       })
       const data = await res.json()
       if (data.success) {

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useAuthStore } from '@/lib/auth-store'
 
 interface Props {
   isOpen: boolean
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function EditProfileModal({ isOpen, onClose, currentName, currentCompany, onSuccess }: Props) {
+  const { phone } = useAuthStore()
   const [name, setName] = useState(currentName)
   const [company, setCompany] = useState(currentCompany)
   const [loading, setLoading] = useState(false)
@@ -34,7 +36,7 @@ export default function EditProfileModal({ isOpen, onClose, currentName, current
       const res = await fetch('/api/client/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), company_name: company.trim() }),
+        body: JSON.stringify({ phone, name: name.trim(), company_name: company.trim() }),
       })
       const data = await res.json()
       if (data.success) {
