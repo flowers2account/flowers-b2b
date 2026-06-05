@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const normalizedPhone = normalizePhone(String(phone))
   const phoneDigits = normalizedPhone.replace('+', '')
 
-  if (!/^\d{11}$/.test(phoneDigits)) {
+  if (!/^\d{11,15}$/.test(phoneDigits)) {
     return NextResponse.json({ error: 'Неверный формат телефона' }, { status: 400 })
   }
 
