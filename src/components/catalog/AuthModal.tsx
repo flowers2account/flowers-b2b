@@ -10,9 +10,14 @@ interface Props {
   onClose: () => void
 }
 
-function formatDisplay(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 11)
-  if (!d) return ''
+function formatDisplay(digits: string): string {
+  if (!digits) return ''
+  // Международный номер (не начинается с 7 или 8) — без форматирования
+  if (!digits.startsWith('7') && !digits.startsWith('8')) {
+    return '+' + digits.slice(0, 15)
+  }
+  // Казахстан / Россия — маска +7 (XXX) XXX-XX-XX
+  const d = digits.slice(0, 11)
   const local = d.startsWith('7') ? d.slice(1) : d
   let r = '+7'
   if (local.length > 0) r += ` (${local.slice(0, 3)}`
@@ -42,7 +47,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
   const { login } = useAuthStore()
 
   function handlePhoneInput(raw: string) {
-    const digits = raw.replace(/\D/g, '').slice(0, 11)
+    const digits = raw.replace(/\D/g, '')
     setPhoneDisplay(digits ? formatDisplay(digits) : '')
   }
 
@@ -54,8 +59,8 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
     let normalized: string
     try { normalized = normalizePhone(phoneDisplay) }
     catch { setError('Введите корректный номер телефона'); return }
-    if (normalized.replace(/\D/g, '').length < 11) {
-      setError('Введите полный номер телефона'); return
+    if (normalized.replace(/\D/g, '').length < 11 || normalized.replace(/\D/g, '').length > 15) {
+      setError('Введите корректный номер телефона'); return
     }
 
     setLoading(true)
@@ -201,7 +206,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <button
                 onClick={handleCheckPhone}
-                disabled={loading || phoneDisplay.replace(/\D/g, '').length < 11}
+                disabled={loading || phoneDisplay.replace(/\D/g, '').length < 11 || phoneDisplay.replace(/\D/g, '').length > 15}
                 className="w-full py-3 text-white font-medium rounded-lg transition disabled:opacity-50"
                 style={BRAND}
               >
