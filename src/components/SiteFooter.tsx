@@ -171,6 +171,14 @@ export default function SiteFooter() {
             }}>
               ИИН {company.iin}
             </div>
+            <div style={{
+              fontFamily: 'var(--font-jetbrains, monospace)',
+              fontSize: 11, color: '#8A8088', marginBottom: 16, letterSpacing: '0.02em', lineHeight: 1.6,
+            }}>
+              ИИК {company.iik}<br />
+              {company.bank}<br />
+              БИК {company.bik} · КБЕ {company.kbe}
+            </div>
             <div style={{ display: 'flex', gap: 10, fontSize: 13, color: '#B7ADB2', marginBottom: 12, lineHeight: 1.5 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C97A92" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
                 <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
