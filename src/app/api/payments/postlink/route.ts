@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
               companyName: (orderFull?.client as any)?.company_name ?? undefined,
               total: Number(payment.amount),
               items: orderItems,
-              adminUrl: 'https://flowers-b2b-phi.vercel.app/admin'
+              adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://uralskflowers.kz'}/admin`
             })
           )
         }).catch(() => {})

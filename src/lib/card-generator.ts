@@ -180,7 +180,7 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   const qrY = INFO_Y + PAD;
   let qrImg: HTMLImageElement | null = null;
   try {
-    const qrUrl = `https://flowers-b2b-phi.vercel.app/product/${data.id}`;
+    const qrUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://uralskflowers.kz'}/product/${data.id}`;
     const qrDataUrl = await QRCode.toDataURL(qrUrl, {
       width: 360,
       margin: 1,

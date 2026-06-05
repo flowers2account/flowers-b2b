@@ -25,8 +25,20 @@ const jetbrains = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Цветы Уральска — оптовый прайс',
-  description: 'B2B оптовый прайс-лист остатков',
+  metadataBase: new URL('https://uralskflowers.kz'),
+  title: {
+    default: '«Цветы Уральска» — всё для флориста и магазина | Уральск',
+    template: '%s | Цветы Уральска',
+  },
+  description: 'Оптовая база флористических материалов и расходников в Уральске. Упаковка, ленты, грунты, горшки, удобрения — от производителей. Доставка по Казахстану.',
+  openGraph: {
+    siteName: 'Цветы Уральска',
+    locale: 'ru_KZ',
+    type: 'website',
+  },
+  alternates: {
+    canonical: 'https://uralskflowers.kz',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
