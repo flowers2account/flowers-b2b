@@ -1,0 +1,67 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_EPAY_JS_URL: ${{ secrets.NEXT_PUBLIC_EPAY_JS_URL }}
+          NEXT_PUBLIC_PAYMENTS_MODE: ${{ secrets.NEXT_PUBLIC_PAYMENTS_MODE }}
+          NEXT_PUBLIC_SITE_URL: https://uralskflowers.kz
+
+      - name: Package artifacts
+        run: |
+          tar -czf deploy.tar.gz -C .next/standalone .
+          tar -czf static.tar.gz -C .next static
+          tar -czf public.tar.gz -C . public
+
+      - name: Upload to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "deploy.tar.gz,static.tar.gz,public.tar.gz"
+          target: /tmp/flowers-upload
+
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /srv/flowers-b2b
+
+            # Распаковываем поверх текущей версии
+            tar -xzf /tmp/flowers-upload/deploy.tar.gz -C /srv/flowers-b2b
+            mkdir -p /srv/flowers-b2b/.next
+            tar -xzf /tmp/flowers-upload/static.tar.gz -C /srv/flowers-b2b/.next
+            tar -xzf /tmp/flowers-upload/public.tar.gz -C /srv/flowers-b2b
+
+            # Перезапускаем без downtime
+            pm2 reload flowers-b2b
+
+            # Чистим tmp
+            rm -f /tmp/flowers-upload/*.tar.gz
+
+            echo "DEPLOYED $(date)"
