@@ -206,7 +206,48 @@ nginx -t && sudo systemctl reload nginx
 - **Ротация логов**: `pm2-logrotate` установлен (`max_size 10M`, `retain 14`, ежедневная ротация `0 0 * * *`). Логи — `/srv/flowers-b2b/logs/{out,err}.log`.
 - **Бэкап `.env.production`**: офлайн-копия у владельца. На сервере файл `chmod 600` (владелец `deploy`). При смене секрета — обновить и серверный файл, и офлайн-копию.
 
+## Резервное копирование БД (Supabase → VPS)
+
+Ночной логический дамп Supabase на VPS — независимая копия помимо бэкапов самого Supabase.
+
+| Параметр | Значение |
+|----------|----------|
+| Расписание | **02:00 UTC ежедневно** (часовой пояс сервера — UTC; это 07:00 по Уральску, UTC+5) |
+| Cron | `/etc/cron.d/supabase-backup` → запускает `/usr/local/bin/supabase-backup.sh` (от root) |
+| Скрипт | `/usr/local/bin/supabase-backup.sh` (root, `chmod 700`) — `pg_dump -Fc --no-owner --no-privileges` |
+| Каталог дампов | `/srv/backups/supabase/` (root, `750`) |
+| Имя файла | `supabase_YYYY-MM-DD_HHMMSS.dump` (формат custom, `-Fc`) |
+| Хранение | 14 дней (старше — удаляются в скрипте через `find -mtime +14 -delete`) |
+| Логи | `/srv/backups/supabase/backup.log` (успехи) + `cron.log` (вывод cron) |
+| Подключение | Session pooler, IPv4: `aws-1-ap-northeast-2.pooler.supabase.com:5432`, user `postgres.<ref>`, db `postgres` |
+| Креды | `/root/.supabase-backup.env` (root, `chmod 600`, `PG*` + `PGPASSWORD`) — **в репо не хранятся** |
+| Клиент | `postgresql-client-17` из PGDG (pg_dump 17.x ≥ сервер PG 17; client 16 из Ubuntu-repo НЕ годится) |
+
+> ⚠️ Дамп делается под обычной ролью пула (не суперюзер), поэтому это **логическая копия доступных объектов** (public + auth схемы, таблицы, данные, функции, политики, индексы; ~1000 TOC-записей). Объекты, требующие суперюзера, могут не попасть — для полного DR полагаться также на бэкапы Supabase.
+>
+> Прямой хост `db.<ref>.supabase.co` использовать нельзя — он IPv6-only, VPS работает по IPv4. Только pooler.
+
+### Ручной запуск
+```bash
+sudo /usr/local/bin/supabase-backup.sh
+```
+
+### Проверить содержимое дампа (без восстановления)
+```bash
+sudo pg_restore --list /srv/backups/supabase/<файл>.dump | less
+```
+
+### Восстановление одной командой
+
+В **новую/другую** БД (заменить строку подключения на целевую; `--no-owner` — роли Supabase локально не нужны):
+```bash
+pg_restore --no-owner --no-privileges --clean --if-exists \
+  -d "postgresql://postgres.<ref>:<PASSWORD>@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres" \
+  /srv/backups/supabase/<файл>.dump
+```
+> ⚠️ `--clean --if-exists` дропает существующие объекты перед восстановлением — для отката прод-БД использовать осознанно. Для выборочного восстановления одной таблицы: добавить `-t public.<table>` и убрать `--clean`.
+
 ## TODO / вопросы
 
-- **TODO**: настроить **ночной `pg_dump` Supabase на VPS** (cron) — резервная копия БД помимо бэкапов Supabase. Складывать в `/srv/backups/`, ротация N дней.
 - **TODO**: уточнить у поддержки hoster.kz, есть ли резервное копирование/снапшоты VPS на их стороне.
+- **TODO**: рассмотреть выгрузку ночных дампов с VPS во внешнее хранилище (off-site) — сейчас дампы только на самом сервере.
