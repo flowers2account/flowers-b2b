@@ -3,11 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
-const admin = createAdminClient()
+let _admin: ReturnType<typeof createAdminClient> | null = null
+const getAdmin = () => (_admin ??= createAdminClient())
 
 async function authorizeUser(userId: string | undefined) {
   if (!userId) return { ok: false, error: 'userId не передан' }
 
+  const admin = getAdmin()
   const { data: profile } = await admin
     .from('profiles')
     .select('role')
@@ -22,6 +24,7 @@ async function authorizeUser(userId: string | undefined) {
 }
 
 export async function POST(req: NextRequest) {
+  const admin = getAdmin()
   const body = await req.json().catch(() => ({}))
   const { product_id, quantity, reason, photo_url, userId } = body
 
@@ -85,6 +88,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const admin = getAdmin()
   const { searchParams } = new URL(req.url)
   const userId = searchParams.get('userId') || undefined
 

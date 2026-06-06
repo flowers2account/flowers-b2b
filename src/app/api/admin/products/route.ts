@@ -3,9 +3,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
-const admin = createAdminClient()
+let _admin: ReturnType<typeof createAdminClient> | null = null
+const getAdmin = () => (_admin ??= createAdminClient())
 
 export async function GET(req: NextRequest) {
+  const admin = getAdmin()
   const { searchParams } = new URL(req.url)
   const search      = searchParams.get('search')?.trim() ?? ''
   const inStock     = searchParams.get('inStock') === 'true'
