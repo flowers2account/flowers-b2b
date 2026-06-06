@@ -140,12 +140,16 @@ RPC `get_next_invoice_id()` — SECURITY DEFINER, отдаёт `nextval('payment
 | `EPAY_CLIENT_ID` | боевой от Halyk |
 | `EPAY_CLIENT_SECRET` | боевой от Halyk |
 
-(плюс боевой `EPAY_TERMINAL_ID`, если отличается от тестового — уточнить у банка)
+> Банк выдаёт **полный боевой комплект** (`EPAY_TERMINAL_ID` + `EPAY_CLIENT_ID` + `EPAY_CLIENT_SECRET`) после одобрения заявки — менять все три, не только client_id/secret. Тестовый терминал: `67e34d63-102f-4bd1-898e-370781d0074d`.
 
 > Историческая заметка: коммиты `abeb374` / `b773992` метались между `homebank.kz` и `epayment.kz` — на тесте рабочий хост `epayment.kz`, боевой `homebank.kz`.
 
 ### Тестовые карты epay (Halyk)
-- **TODO**: уточнить актуальный список тестовых карт у Halyk Bank. Типовой набор epay — успешная `4405 6390 0214 3199` (exp 01/25, CVV 815) и отклоняемая карта; **проверить в кабинете мерчанта перед использованием**.
+
+| Результат | Номер | Срок | CVV |
+|-----------|-------|------|-----|
+| ✅ Успех | `4405 6397 0401 5096` | 01/27 | 321 |
+| ❌ Отказ | `4003 0327 0454 7597` | 09/20 | 170 |
 
 ---
 
@@ -155,7 +159,7 @@ RPC `get_next_invoice_id()` — SECURITY DEFINER, отдаёт `nextval('payment
 - [ ] Обновить `EPAY_OAUTH_URL` (homebank.kz) в `.env.production` на VPS.
 - [ ] Обновить GitHub Secrets `NEXT_PUBLIC_EPAY_JS_URL` (homebank.kz) и `NEXT_PUBLIC_PAYMENTS_MODE=live`.
 - [ ] Убедиться, что сайт доступен по публичному HTTPS-домену (postlink без TLS не дойдёт — см. `docs/INFRA.md` чек-лист DNS).
-- [ ] Зарегистрировать postlink-URL `https://uralskflowers.kz/api/payments/postlink` в кабинете мерчанта (если требуется).
+- [x] ~~Регистрировать postlink-URL в кабинете мерчанта~~ — **не требуется**: `postLink`/`failurePostLink` передаются динамически в каждом вызове `/api/payments/init` (строятся от `origin` запроса).
 - [ ] Редеплой (push в main → пересборка с боевыми `NEXT_PUBLIC_*`).
 - [ ] Контрольный платёж на минимальную сумму реальной картой → проверить `payments.status=success`, заказ в админке, Telegram/WhatsApp.
 
