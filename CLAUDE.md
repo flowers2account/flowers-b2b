@@ -7,10 +7,20 @@ B2B платформа для оптовой торговли цветами. С
 ## Стек технологий
 
 - **Frontend**: Next.js 16, React, Tailwind CSS, Zustand (состояние)
-- **Backend**: Next.js API Routes (serverless functions на Vercel)
+- **Backend**: Next.js API Routes (Node-сервер, `output: 'standalone'`)
 - **База данных**: Supabase (PostgreSQL + RLS)
-- **Хостинг**: Vercel
+- **Хостинг (prod)**: собственный VPS hoster.kz `109.235.118.214` (Астана, Ubuntu 24.04) — Node 22 + pm2 + nginx. Деплой push→main через GitHub Actions. См. `docs/INFRA.md`
+- **Хостинг (preview)**: Vercel (`flowers-b2b-phi`) — стейджинг/превью
+- **Оплата**: epay / Halyk Bank (тестовый контур работает, ждём боевые ключи + DNS). См. `docs/PAYMENTS.md`
 - **Аутентификация**: Supabase Auth (телефон + PIN, через @supabase/supabase-js — @supabase/ssr убран)
+
+## Прод, реквизиты, статус (карта входа)
+
+- **Домен**: `uralskflowers.kz` (регистратор Megagroup) — ⏳ ждёт DNS; пока прод доступен по IP без TLS
+- **Бренд**: «Цветы Уральска»
+- **Реквизиты** (`src/config/company.ts` — единый источник): ИП Тропин Валерий Алексеевич, ИИН `610803301378`, ИИК `KZ256017181000005303` (АО «Народный Банк Казахстана», БИК `HSBKKZKX`, КБЕ `19`), тел `+7 700 757 5243`, e-mail `opt.uralsk@gmail.com`
+- **Статус**: тестовый контур оплаты epay работает; ждём DNS (Megagroup) и боевые ключи банка. Чек-листы — в `docs/INFRA.md` и `docs/PAYMENTS.md`.
+- **Вход на сервер**: `ssh -i deploy_vps.key deploy@109.235.118.214`
 
 ## Аутентификация
 
@@ -566,11 +576,22 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 
 | Файл | Тема |
 |------|------|
+| `docs/INFRA.md` | **VPS, деплой (deploy-vps.yml), nginx/pm2/certbot, env, чек-лист «ждёт DNS»** — актуально 06.06 |
+| `docs/PAYMENTS.md` | **Оплата epay/Halyk: поток, схема БД, тест↔бой, грабли, юр.слой** — актуально 06.06 |
+| `docs/DESIGN-CHANGES.md` | **Журнал UI-изменений 27.05–06.06 (шрифты, футер, моб. UX, карточка товара)** |
+| `docs/BANK_AUDIT_2026-06-04.md` | Аудит готовности к Halyk Bank (часть пунктов уже закрыта) |
+| `docs/UX_DESIGN_BRIEF.md` | UX/дизайн-бриф (стратегия, аудитория) |
 | `docs/CATALOG_IMPORT.md` | Импорт каталога поставщиков (OZ, Waterdrinker) — актуально |
+| `docs/PHOTO_UPLOAD.md` | Загрузка фото + удаление фона (@imgly клиентская сторона) |
+| `docs/DATABASE_SCHEMA.md` | Таблицы, views, триггеры, функции, FK-карта |
+| `docs/ARCHITECTURE.md` | Стек, структура папок, API-роуты, Zustand-сторы |
+| `docs/BUSINESS_LOGIC.md` | Жизненный цикл заказа, резервы, кампании |
 | `docs/IMPORT_SYSTEM.md` | Импорт XLS из 1С — ⚠️ устарело (описывает batches/stock до 25.05.2026) |
 | `docs/STOCK_MANAGEMENT.md` | Архитектура остатков |
 | `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
 | `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
+| `docs/KNOWN_ISSUES.md` | Известные баги |
+| `docs/ROADMAP.md` | Планы развития |
 
 ## Важные файлы и папки
 
@@ -689,7 +710,9 @@ amo_sync_error    TEXT
 
 Примечание в сделке (addNote): список позиций с display_name, qty, price, итог; дата в таймзоне Asia/Oral.
 
-## Каталог и фильтры — актуально на 04.06.2026
+## Каталог и фильтры — актуально на 06.06.2026
+
+> Дельта 05–06.06 (подробности — `docs/DESIGN-CHANGES.md`): подкатегория по умолчанию при загрузке — `paper` (Бумага); добавлена подкатегория `dried` (Сухоцветы); единица «пог. м / шт» в корзине из unit/subcategory; свободный ввод телефона без маски + поддержка международных номеров.
 
 ### Витрина: только активные и свои товары
 
@@ -772,5 +795,7 @@ npm run build
 
 ## Развёртывание
 
-- **Репозиторий**: GitHub → автодеплой на Vercel при push в main
-- **База данных**: Supabase (один проект для prod и dev)
+- **Prod**: GitHub Actions (`.github/workflows/deploy-vps.yml`) при push в `main` → сборка → rsync/scp артефактов → `pm2 reload` на VPS. Подробности — `docs/INFRA.md`
+- **Preview**: Vercel (`flowers-b2b-phi`) — стейджинг
+- **База данных**: Supabase (один проект для prod и preview)
+- **Домен**: `uralskflowers.kz` (Megagroup) — ⏳ ждёт DNS (nginx-домен + certbot). Чек-лист в `docs/INFRA.md`
