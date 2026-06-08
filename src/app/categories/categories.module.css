@@ -54,7 +54,8 @@
 }
 .tile:hover { transform: translateY(-4px); box-shadow: var(--sh-pop); }
 .ph { position: absolute; inset: 0; z-index: 0; transition: transform .5s cubic-bezier(.2,.7,.2,1);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 38%, #fff), var(--c)); }
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 38%, #fff), var(--c));
+  background-size: cover; background-position: center; }
 .tile:hover .ph { transform: scale(1.05); }
 .wash { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
