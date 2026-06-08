@@ -3,59 +3,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
-import { useFilters, type FilterCategory } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
 import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
-import { ACCESSORIES_LABEL, ACCESSORIES_LABEL_SHORT } from '@/lib/category-tree'
-
-const CATS: { id: FilterCategory; label: string; shortLabel?: string }[] = [
-  { id: 'cut', label: '🌸 Срезанные' },
-  { id: 'pot', label: '🪴 Горшечные' },
-  { id: 'accessories', label: ACCESSORIES_LABEL, shortLabel: ACCESSORIES_LABEL_SHORT },
-]
-
-// To restore cut/pot pills: remove them from this array
-const HIDDEN_CATEGORIES: FilterCategory[] = ['cut', 'pot']
-
-const VISIBLE_CATS = CATS.filter(c => !HIDDEN_CATEGORIES.includes(c.id))
-
-function CategoryPills() {
-  const { category, setCategory } = useFilters()
-
-  // If active category is hidden, redirect to first visible one
-  useEffect(() => {
-    if (HIDDEN_CATEGORIES.includes(category) && VISIBLE_CATS.length > 0) {
-      setCategory(VISIBLE_CATS[0].id)
-    }
-  }, [])
-
-  return (
-    <>
-      {VISIBLE_CATS.map(cat => (
-        <button
-          key={cat.id}
-          onClick={() => setCategory(cat.id)}
-          className="flex items-center gap-[7px] px-[13px] text-[12px] font-semibold border-none cursor-pointer transition-all"
-          style={{
-            height: 30,
-            borderRadius: 'var(--radius-btn)',
-            background: category === cat.id ? '#fff' : 'rgba(255,255,255,0.92)',
-            color: category === cat.id ? 'var(--accent)' : '#1a1a1a',
-            boxShadow: category === cat.id ? '0 0 0 2px rgba(255,255,255,0.4)' : 'none',
-          }}
-        >
-          {cat.shortLabel ? (
-            <>
-              <span className="md:hidden">{cat.shortLabel}</span>
-              <span className="hidden md:inline">{cat.label}</span>
-            </>
-          ) : cat.label}
-        </button>
-      ))}
-    </>
-  )
-}
+import CategoryTabs from './CategoryTabs'
 
 export default function Header() {
   const { isAuthed, phone, role, init, logout } = useAuthStore()
@@ -176,8 +127,8 @@ export default function Header() {
           style={{ overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
         >
 
-          {/* Категории */}
-          <CategoryPills />
+          {/* Разделы каталога — вкладки */}
+          <CategoryTabs />
 
           {/* Корзина — только десктоп */}
           <button
