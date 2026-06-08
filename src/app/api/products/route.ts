@@ -35,7 +35,13 @@ export async function GET(request: NextRequest) {
 
     if (expandedTerms && expandedTerms.length > 0) {
       const searchConditions = expandedTerms
-        .map((term: string) => `name.ilike.%${term}%`)
+        .flatMap((term: string) => {
+          const c = [`name.ilike.%${term}%`]
+          // subcategory.eq — только для slug-подобных токенов (канон-slug подкатегорий),
+          // чтобы не сломать PostgREST or() кириллицей/пробелами и точно матчить лист
+          if (/^[a-z0-9_]+$/.test(term)) c.push(`subcategory.eq.${term}`)
+          return c
+        })
         .join(',')
       query = query.or(searchConditions)
     } else {
