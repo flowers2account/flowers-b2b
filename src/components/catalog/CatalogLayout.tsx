@@ -94,6 +94,7 @@ export default function CatalogLayout({
   const {
     stockLevel, colors, lengths, origins, potSizes,
     tags, seasons, subcat,
+    category, selectedLeaves, setSelectedLeaves, setCategory,
   } = useFilters()
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -112,6 +113,37 @@ export default function CatalogLayout({
 
   const isDetailOpen = isMobile && panel !== 'empty'
   const mainRef = useRef<HTMLElement>(null)
+
+  // ── Shareable URL ⇄ выбранные листья accessories ──────────────────────────
+  // Менеджер подбирает набор → копирует ссылку (?category=accessories&leaves=film,paper)
+  // → клиент открывает с уже выбранными листьями. Путь берём реальный (window.location.pathname).
+  const urlInit = useRef(false)
+  useEffect(() => {
+    if (urlInit.current) return
+    urlInit.current = true
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('category') === 'accessories') {
+      const leaves = (params.get('leaves') ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      if (leaves.length) {
+        if (category !== 'accessories') setCategory('accessories') // setCategory чистит leaves → ставим после
+        setSelectedLeaves(leaves)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!urlInit.current) return // не трогаем URL до инициализации из него (без гонки на маунте)
+    const params = new URLSearchParams(window.location.search)
+    if (category === 'accessories' && selectedLeaves.length > 0) {
+      params.set('category', 'accessories')
+      params.set('leaves', selectedLeaves.join(','))
+    } else {
+      params.delete('leaves')
+      if (category === 'accessories') params.delete('category')
+    }
+    const qs = params.toString()
+    window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
+  }, [category, selectedLeaves])
 
   // Restore scroll position when returning from product page
   useEffect(() => {

@@ -56,6 +56,7 @@ type FilterStore = {
   setVarietyType: (v: string) => void
   setSubcatAndVT: (subcat: string, varietyType: string) => void
   toggleLeaf: (slug: string) => void
+  setSelectedLeaves: (slugs: string[]) => void
   clearLeaves: () => void
   setSubgroup: (v: string) => void
   setOnlyAvailable: (v: boolean) => void
@@ -109,6 +110,7 @@ export const useFilters = create<FilterStore>()(
   setVarietyType:   (varietyType) => set({ varietyType }),
   setSubcatAndVT:   (subcat, varietyType) => set({ subcat, varietyType, subgroup: '' }),
   toggleLeaf:       (slug) => set(s => ({ selectedLeaves: tog(s.selectedLeaves, slug), subgroup: '' })),
+  setSelectedLeaves:(slugs) => set({ selectedLeaves: [...new Set(slugs)], subgroup: '' }),
   clearLeaves:      () => set({ selectedLeaves: [], subgroup: '' }),
   setSubgroup:      (subgroup) => set({ subgroup }),
   setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
