@@ -71,6 +71,7 @@ export default function Header() {
   const isAdminRole = role === 'admin' || role === 'manager'
   const NAV = [
     { href: '/', label: 'Каталог' },
+    { href: '/categories', label: 'Категории' },
     ...(isAuthed ? [{
       href: isAdminRole ? '/admin/orders' : '/cabinet',
       label: isAdminRole ? 'Заказы' : 'Личный кабинет / Мои заказы',

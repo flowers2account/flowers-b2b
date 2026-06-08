@@ -94,7 +94,7 @@ export default function CatalogLayout({
   const {
     stockLevel, colors, lengths, origins, potSizes,
     tags, seasons, subcat,
-    category, selectedLeaves, setSelectedLeaves, setCategory,
+    category, selectedLeaves, setSelectedLeaves, setCategory, setSearch,
   } = useFilters()
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -129,6 +129,10 @@ export default function CatalogLayout({
         setSelectedLeaves(leaves)
       }
     }
+    // Поиск из URL (?search=… или ?q=…) — точка входа со страницы «Категории».
+    // Ставим после setCategory (он сбрасывает search).
+    const q = (params.get('search') ?? params.get('q') ?? '').trim()
+    if (q) setSearch(q)
   }, [])
 
   useEffect(() => {
