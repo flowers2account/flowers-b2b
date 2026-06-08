@@ -613,6 +613,32 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
         if (leaves.length === 0) return null
         const open = openGroups.has(group.id)
         const total = leaves.reduce((s, l) => s + leafCount(l.slug), 0)
+        // выбранные — вверх, затем разделитель, затем остальные (порядок дерева внутри групп сохраняется)
+        const selected = leaves.filter(l => selectedLeaves.includes(l.slug))
+        const unselected = leaves.filter(l => !selectedLeaves.includes(l.slug))
+        const renderLeaf = (leaf: typeof leaves[number]) => {
+          const checked = selectedLeaves.includes(leaf.slug)
+          return (
+            <div
+              key={leaf.slug}
+              onClick={() => toggleLeaf(leaf.slug)}
+              className={checked ? '' : 'hover:bg-[var(--bg2)]'}
+              style={{
+                ...rowBase,
+                background: checked ? 'var(--accent)' : undefined,
+                color: checked ? '#fff' : 'var(--text)',
+                fontWeight: checked ? 600 : 400,
+              }}
+            >
+              <input
+                type="checkbox" checked={checked} onChange={() => toggleLeaf(leaf.slug)}
+                style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+              <span style={{ flex: 1 }}>{leaf.label}</span>
+              {countBadge(leafCount(leaf.slug), checked)}
+            </div>
+          )
+        }
         return (
           <div key={group.id}>
             <button
@@ -631,29 +657,11 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
             </button>
             {open && (
               <div style={{ paddingLeft: 4 }}>
-                {leaves.map(leaf => {
-                  const checked = selectedLeaves.includes(leaf.slug)
-                  return (
-                    <div
-                      key={leaf.slug}
-                      onClick={() => toggleLeaf(leaf.slug)}
-                      className={checked ? '' : 'hover:bg-[var(--bg2)]'}
-                      style={{
-                        ...rowBase,
-                        background: checked ? 'var(--accent)' : undefined,
-                        color: checked ? '#fff' : 'var(--text)',
-                        fontWeight: checked ? 600 : 400,
-                      }}
-                    >
-                      <input
-                        type="checkbox" checked={checked} onChange={() => toggleLeaf(leaf.slug)}
-                        style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
-                      />
-                      <span style={{ flex: 1 }}>{leaf.label}</span>
-                      {countBadge(leafCount(leaf.slug), checked)}
-                    </div>
-                  )
-                })}
+                {selected.map(renderLeaf)}
+                {selected.length > 0 && unselected.length > 0 && (
+                  <div style={{ height: 1, background: 'var(--border)', margin: '6px 8px' }} />
+                )}
+                {unselected.map(renderLeaf)}
               </div>
             )}
           </div>
