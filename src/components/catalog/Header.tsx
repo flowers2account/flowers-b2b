@@ -7,11 +7,12 @@ import { useFilters, type FilterCategory } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
 import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
+import { ACCESSORIES_LABEL, ACCESSORIES_LABEL_SHORT } from '@/lib/category-tree'
 
 const CATS: { id: FilterCategory; label: string; shortLabel?: string }[] = [
   { id: 'cut', label: '🌸 Срезанные' },
   { id: 'pot', label: '🪴 Горшечные' },
-  { id: 'accessories', label: '📦 Уход · Упаковка · Декор', shortLabel: '📦 Уход · Упак. · Декор' },
+  { id: 'accessories', label: ACCESSORIES_LABEL, shortLabel: ACCESSORIES_LABEL_SHORT },
 ]
 
 // To restore cut/pot pills: remove them from this array

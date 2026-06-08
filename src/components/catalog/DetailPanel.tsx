@@ -12,6 +12,7 @@ import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
 import { COLORS } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
+import { unitForProduct } from '@/lib/category-tree'
 
 const FLORAL_ROLE_MAP: Record<string, { label: string; icon: string }> = {
   focal:   { label: 'Фокусный',    icon: '🌹' },
@@ -101,11 +102,6 @@ const SUBSTRATE_RU: Record<string, string> = {
   lava: 'лавовый грунт',
 }
 
-const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
-function unitFor(subcategory?: string | null, unit?: string | null): string {
-  if (unit) return unit
-  return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
-}
 
 // ── primitives ───────────────────────────────────────────────────────────────
 
@@ -396,14 +392,14 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           <Row label="Цена">
             {(isAuthed || product.category === 'accessories') ? (
               <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                {price.toLocaleString('ru-RU')} ₸/{unitFor(product.subcategory, (product as any).unit)}
+                {price.toLocaleString('ru-RU')} ₸/{unitForProduct(product as any)}
               </span>
             ) : (
               <span style={{ color: '#ccc', letterSpacing: '0.12em', userSelect: 'none' }}>●●● ₸</span>
             )}
           </Row>
 
-          <Row label="Кратность">{packSize} {unitFor(product.subcategory, (product as any).unit)}</Row>
+          <Row label="Кратность">{packSize} {unitForProduct(product as any)}</Row>
 
           {((product as any).price_per_m || (product as any).price_per_m2) && (
             <div style={{ fontSize: 11, color: 'var(--text-mid)', marginTop: 4 }}>
@@ -423,7 +419,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
           {isAuthed && (
             <Row label="Остаток">
-              <span style={{ color: availColor, fontWeight: 700 }}>{available} {unitFor(product.subcategory, (product as any).unit)}</span>
+              <span style={{ color: availColor, fontWeight: 700 }}>{available} {unitForProduct(product as any)}</span>
             </Row>
           )}
 
@@ -572,7 +568,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
 
   // Формируем WhatsApp-ссылку для success-экрана
   const waMsg = `🌸 Заказ #${checkout.orderId}\n\n` +
-    items.map(i => `• ${i.name} × ${i.qty} ${unitFor(i.subcategory, i.unit)} = ${(i.price * i.qty).toLocaleString('ru-RU')} ₸`).join('\n') +
+    items.map(i => `• ${i.name} × ${i.qty} ${unitForProduct(i)} = ${(i.price * i.qty).toLocaleString('ru-RU')} ₸`).join('\n') +
     `\n\nИтого: ${total().toLocaleString('ru-RU')} ₸\n\nКлиент: ${phone ?? ''}`
   const waUrl = `https://wa.me/77007575243?text=${encodeURIComponent(waMsg)}`
 
@@ -740,7 +736,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
                       {item.name}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-mid)' }}>
-                      {item.price.toLocaleString('ru-RU')} ₸/{unitFor(item.subcategory, item.unit)}
+                      {item.price.toLocaleString('ru-RU')} ₸/{unitForProduct(item)}
                     </div>
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 500, flexShrink: 0 }}>

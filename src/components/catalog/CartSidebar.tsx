@@ -8,15 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Separator } from '@/components/ui/separator'
 import AuthModal from './AuthModal'
 import { useOrderCheckout } from '@/hooks/useOrderCheckout'
+import { unitForProduct } from '@/lib/category-tree'
 
 function formatPrice(p: number) {
   return p.toLocaleString('ru-RU') + ' ₸'
-}
-
-const LINEAR = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
-function itemUnit(item: { unit?: string | null; subcategory?: string | null }) {
-  if (item.unit) return item.unit
-  return LINEAR.has(item.subcategory ?? '') ? 'пог. м' : 'шт'
 }
 
 export default function CartSidebar() {
@@ -57,7 +52,7 @@ export default function CartSidebar() {
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{item.name}</p>
-                        <p className="text-muted-foreground text-xs">{formatPrice(item.price)} × {itemUnit(item)}</p>
+                        <p className="text-muted-foreground text-xs">{formatPrice(item.price)} × {unitForProduct(item)}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <Button variant="outline" size="sm" className="h-6 w-6 p-0 text-xs"

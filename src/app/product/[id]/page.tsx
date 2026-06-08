@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { COLORS } from '@/lib/colors'
 import { useIsMobile } from '@/lib/use-mobile'
 import { COUNTRY_LABELS } from '@/lib/countries'
+import { leafForSubcat, unitForProduct } from '@/lib/category-tree'
 
 const SUBCAT_RU: Record<string, string> = {
   anthuriums: 'Антуриумы', orchids: 'Орхидеи', kalanchoe: 'Каланхоэ',
@@ -27,8 +28,8 @@ const SUBCAT_RU: Record<string, string> = {
   lilies: 'Лилии', gerbera: 'Герберы', peonies: 'Пионы', hydrangeas: 'Гортензии',
   lisianthus: 'Лизиантус', alstroemeria: 'Альстромерия', carnations: 'Гвоздики',
   gypsophila: 'Гипсофила', ranunculus: 'Ранункулюс', anemones: 'Анемоны',
-  baskets: 'Корзины', vases: 'Вазы', lanterns: 'Фонари', gift_boxes: 'Наборы коробок',
-  pots_accessories: 'Горшки', floristry_items: 'Аксессуары', compositions: 'Композиции',
+  compositions: 'Композиции',
+  // accessories — лейблы из category-tree.ts (leafForSubcat)
 }
 
 const CATEGORY_RU: Record<string, string> = {
@@ -63,10 +64,6 @@ const SUBSTRATE_RU: Record<string, string> = {
   hydro: 'гидрогрунт', steenwol: 'минвата', kokos: 'кокосовый субстрат', lava: 'лавовый грунт',
 }
 
-const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
-function unitFor(subcategory?: string | null) {
-  return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
-}
 
 type ProductData = {
   id: number; name: string; display_name: string | null; category: string
@@ -283,7 +280,7 @@ export default function ProductPage() {
 
   const displayName = product.display_name || product.name
   const countryLabel = product.country_iso ? (COUNTRY_LABELS[product.country_iso] ?? product.country_iso) : null
-  const subcategoryLabel = product.subcategory ? (SUBCAT_RU[product.subcategory] ?? product.subcategory) : null
+  const subcategoryLabel = product.subcategory ? (leafForSubcat(product.subcategory)?.label ?? SUBCAT_RU[product.subcategory] ?? product.subcategory) : null
   const categoryLabel = product.category ? (CATEGORY_RU[product.category] ?? product.category) : null
 
   const images: string[] = (() => {
@@ -304,7 +301,7 @@ export default function ProductPage() {
   const careItems = product.care_instructions ? parseCare(product.care_instructions) : []
   const packPrice = product.price * product.pack_size
   const packCount = product.pack_size > 1 ? Math.floor(product.qty / product.pack_size) : product.qty
-  const unit = unitFor(product.subcategory)
+  const unit = unitForProduct(product)
   const hasLatin = /[a-zA-Z]/.test(product.name) && product.name !== displayName
   const latinLine = [hasLatin ? product.name : null, product.variant].filter(Boolean).join(' · ')
 

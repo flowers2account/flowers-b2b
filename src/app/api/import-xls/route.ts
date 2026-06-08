@@ -88,15 +88,30 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot' | 'accessories
     if (/антуриум|фаленопсис|орхидея|гортензия|нарцисс|гвоздика|роза/.test(n)) return { subcategory: 'flowering', variety_type: null }
   }
   if (category === 'accessories') {
-    if (/набор.*коробок|коробок.*набор/.test(n))                                                    return { subcategory: 'gift_boxes', variety_type: null }
-    if (/упаков|лент|плёнк|пленк|сетк|бумаг|флорист|рафия|ткан|органза|джут|сизал|гофр/.test(n)) return { subcategory: 'packaging',  variety_type: null }
-    if (/горшок|горш|кашпо|фонтан|вазон/.test(n))                                                  return { subcategory: 'pots',       variety_type: null }
-    if (/грунт|торф|перлит|субстрат|компост|вермикул|дренаж|мульч|кора/.test(n))                    return { subcategory: 'soil',        variety_type: null }
-    if (/удобрен|fertika|bona forte|osmocot|агрикола|рeasil|reasil|гумат|криcталон|кристалон|стимул|инсектицид|фунгицид|гербицид/.test(n)) return { subcategory: 'fertilizers', variety_type: null }
-    if (/газон|укрывной|агрополотно|мульч|геотекстил/.test(n))                                     return { subcategory: 'lawns',      variety_type: null }
-    if (/садов|огород|дача|дачн|рассад|семен/.test(n))                                              return { subcategory: 'garden',     variety_type: null }
-    if (/искусствен/.test(n))                                                                       return { subcategory: 'artificial', variety_type: null }
-    if (/игрушк/.test(n))                                                                           return { subcategory: 'toys',       variety_type: null }
+    // ВАЖНО: выдаём ТОЛЬКО канон-slug из members category-tree.ts.
+    // Неизвестное → null (товар попадёт в скрытое "Прочее"). Не выдумывать новые slug.
+    if (/набор.*коробок|коробок.*набор|подароч.*короб/.test(n))            return { subcategory: 'gift_boxes',       variety_type: null }
+    if (/пакет/.test(n))                                                   return { subcategory: 'film_bags',        variety_type: null }
+    if (/искусствен.*газон|газон.*искусствен/.test(n))                     return { subcategory: 'artificial_grass', variety_type: null }
+    if (/укрывн|агрополотно|агроволокно|спанбонд|геотекстил/.test(n))      return { subcategory: 'cover_fabric',      variety_type: null }
+    if (/плёнк|пленк/.test(n))
+      return /полиэтилен|парник|тепличн/.test(n)
+        ? { subcategory: 'cover_film', variety_type: null }
+        : { subcategory: 'film',       variety_type: null }
+    if (/бумаг|крафт|гофр|калька|тишью/.test(n))                           return { subcategory: 'paper',            variety_type: null }
+    if (/краск|спрей|аэрозол/.test(n))                                     return { subcategory: 'paints',           variety_type: null }
+    if (/кашпо/.test(n))                                                   return { subcategory: 'kashpo',           variety_type: null }
+    if (/фонтан/.test(n))                                                  return { subcategory: 'fountains',        variety_type: null }
+    if (/горшок|горш|вазон/.test(n))                                       return { subcategory: 'pots',             variety_type: null }
+    if (/корзин/.test(n))                                                  return { subcategory: 'baskets',          variety_type: null }
+    if (/ваз/.test(n))                                                     return { subcategory: 'vases',            variety_type: null }
+    if (/грунт|торф|перлит|субстрат|компост|вермикул|дренаж|кокосов/.test(n)) return { subcategory: 'soil',          variety_type: null }
+    if (/инсектицид|фунгицид|гербицид|пестицид|родентицид|защит.*растен/.test(n)) return { subcategory: 'plant_protection', variety_type: null }
+    if (/удобрен|fertika|bona forte|osmocot|агрикола|reasil|гумат|кристалон|подкорм/.test(n)) return { subcategory: 'fertilizers', variety_type: null }
+    if (/искусствен/.test(n))                                              return { subcategory: 'artificial',       variety_type: null }
+    if (/игрушк/.test(n))                                                  return { subcategory: 'toys',             variety_type: null }
+    if (/сухоцвет/.test(n))                                                return { subcategory: 'dried',            variety_type: null }
+    return { subcategory: null, variety_type: null }
   }
   return { subcategory: null, variety_type: null }
 }

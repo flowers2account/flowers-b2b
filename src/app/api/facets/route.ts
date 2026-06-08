@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { leafForSubcat } from '@/lib/category-tree'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,11 +63,16 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // subcatCounts: counts without subgroup/volume so switching subcats always works
+  // subcatCounts: counts without subgroup/volume so switching subcats always works.
+  // accessories — счётчики по ЛИСТУ (leaf.slug, агрегируя members); cut/pot — по сырому subcat.
   const baseForSubcats = products.filter(p => !onlyAvailable || p.qty > 0)
   const subcatCounts: Record<string, number> = {}
   baseForSubcats.forEach(p => {
-    if (p.subcategory) subcatCounts[p.subcategory] = (subcatCounts[p.subcategory] || 0) + 1
+    if (!p.subcategory) return
+    const key = category === 'accessories'
+      ? leafForSubcat(p.subcategory)?.slug
+      : p.subcategory
+    if (key) subcatCounts[key] = (subcatCounts[key] || 0) + 1
   })
 
   // vtCounts: scoped to selected subcat (with subgroup/volume applied)

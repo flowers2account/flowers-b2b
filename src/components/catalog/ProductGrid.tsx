@@ -15,6 +15,7 @@ import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import { COLORS } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
+import { unitForProduct, variantLabelForSubcat, subcatInLeaves } from '@/lib/category-tree'
 
 const ROLE_ICONS: Record<string, string> = {
   focal: '🌹', mass: '🌸', line: '🌿',
@@ -53,18 +54,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'price_desc', label: 'Цена ↓' },
   { value: 'stock', label: 'По наличию' },
 ]
-
-const LINEAR_METER_SUBCATS = new Set(['cover_fabric', 'cover_film', 'artificial_grass'])
-function unitFor(subcategory?: string | null, unit?: string | null): string {
-  if (unit) return unit
-  return LINEAR_METER_SUBCATS.has(subcategory ?? '') ? 'пог. м' : 'шт'
-}
-
-const VARIANT_LABEL: Record<string, string> = {
-  baskets: 'Комплектность', gift_boxes: 'Размер', pots: 'Вариант',
-  kashpo: 'Вариант', vases: 'Вариант', soil: 'Фасовка',
-  fertilizers: 'Фасовка', growth_stim: 'Фасовка', plant_protection: 'Объём',
-}
 
 const VOLUME_RANGE_TEST: Record<string, (v: number) => boolean> = {
   'до5':   v => v <= 5,
@@ -254,7 +243,7 @@ function GridCard({
             ))}
           </div>
         )}
-        <QtyBadge qty={available} unit={unitFor(product.subcategory, (product as any).unit)} />
+        <QtyBadge qty={available} unit={unitForProduct(product as any)} />
         {/* Теги */}
         <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           {hasDiscount && <TagBadge type="sale" />}
@@ -277,7 +266,7 @@ function GridCard({
         )}
         {(product as any).variant && (
           <div style={{ fontSize: 10, color: 'var(--text-mid)', lineHeight: 1.2 }}>
-            <span style={{ opacity: 0.7 }}>{VARIANT_LABEL[product.subcategory ?? ''] ?? 'Вариант'}:</span>{' '}
+            <span style={{ opacity: 0.7 }}>{variantLabelForSubcat(product.subcategory)}:</span>{' '}
             {(product as any).variant}
           </div>
         )}
@@ -337,7 +326,7 @@ function GridCard({
         )}
 
         {(() => {
-          const unit = unitFor(product.subcategory, (product as any).unit)
+          const unit = unitForProduct(product as any)
           return (
             <div style={{ marginTop: 'auto', paddingTop: 6 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -441,7 +430,7 @@ function ListRow({
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>
-            {available === 0 ? 'Нет в наличии' : `${available} ${unitFor(product.subcategory, (product as any).unit)}`}
+            {available === 0 ? 'Нет в наличии' : `${available} ${unitForProduct(product as any)}`}
           </span>
           {product.country_iso && <CountryBadge iso={product.country_iso} />}
           {hasDiscount && <TagBadge type="sale" />}
@@ -605,7 +594,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
   const isMobile = useIsMobile()
   const {
-    category, subcat, varietyType, subgroup, colors, onlyDiscount, stockLevel, search,
+    category, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search,
     lengths, origins, farms, potSizes, volumeRanges, tags, seasons,
     setSearch, setSubcat, toggleTag, toggleColor, reset,
   } = useFilters()
@@ -691,8 +680,13 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       const hasDiscount = !!(p.previous_price && p.previous_price > price)
 
       if (category !== 'all' && p.category !== category) return false
-      if (subcat && (p.subcategory || '') !== subcat) return false
-      if (varietyType && (p.variety_type || '') !== varietyType) return false
+      // accessories — мульти-выбор листьев (subcategory IN union(members)); cut/pot — одиночный subcat
+      if (category === 'accessories') {
+        if (!subcatInLeaves(p.subcategory, selectedLeaves)) return false
+      } else {
+        if (subcat && (p.subcategory || '') !== subcat) return false
+        if (varietyType && (p.variety_type || '') !== varietyType) return false
+      }
       if (subgroup && ((p as any).subgroup || '') !== subgroup) return false
       if (volumeRanges.length > 0) {
         const vol = Number((p as any).volume_l)
@@ -767,7 +761,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     }
 
     return list
-  }, [products, category, subcat, varietyType, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
+  }, [products, category, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])

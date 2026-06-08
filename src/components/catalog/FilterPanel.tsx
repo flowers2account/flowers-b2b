@@ -5,6 +5,7 @@ import { useFilters } from '@/lib/filter-store'
 import { COLORS } from '@/lib/colors'
 import { type Product, getAvailable } from './ProductCard'
 import { ORIGIN_LABELS } from '@/lib/filter-chips'
+import { CATEGORY_TREE as ACCESSORIES_TREE, leafForSubcat } from '@/lib/category-tree'
 
 // ── category tree ─────────────────────────────────────────────────────────────
 
@@ -152,56 +153,7 @@ const CATEGORY_TREE: Record<string, SubcatNode[]> = {
     ]},
     { label: 'Композиции',              key: 'compositions'       },
   ],
-  accessories: [
-    { label: 'Упаковка флористическая', isGroup: true as const, items: [
-      { label: 'Плёнка',  key: 'film'      },
-      { label: 'Пакеты',  key: 'film_bags' },
-    ]},
-    { label: 'Упаковка и фурнитура', isGroup: true as const, items: [
-      { label: 'Бумага',               key: 'paper'         },
-      { label: 'Лента и банты',        key: 'ribbon'        },
-      { label: 'Органза',              key: 'organza'       },
-      { label: 'Сетка',                key: 'mesh'          },
-      { label: 'Тишью',                key: 'tissue'        },
-      { label: 'Фетр',                 key: 'felt'          },
-      { label: 'Джут и шпагат',        key: 'jute'          },
-      { label: 'Подарочные коробки',   key: 'gift_boxes'    },
-      { label: 'Флор. пена / Оазис',   key: 'floral_foam'   },
-      { label: 'Инструмент',           key: 'tools'         },
-      { label: 'Открытки и топперы',   key: 'cards_toppers' },
-      { label: 'Наполнители',          key: 'fillers'       },
-      { label: 'Сумки',                key: 'bags'          },
-      { label: 'Салфетки',             key: 'napkins'       },
-      { label: 'Краски и спреи',       key: 'paints'        },
-      { label: 'Фоамиран',             key: 'foamiran'      },
-    ]},
-    { label: 'Горшки, кашпо и фонтаны', isGroup: true as const, items: [
-      { label: 'Горшки',           key: 'pots'      },
-      { label: 'Кашпо',            key: 'kashpo'    },
-      { label: 'Фонтаны',          key: 'fountains' },
-      { label: 'Вазы',             key: 'vases'     },
-      { label: 'Декор и сувениры', key: 'decor'     },
-    ]},
-    { label: 'Корзины',            key: 'baskets'   },
-    { label: 'Сад и удобрения', isGroup: true as const, items: [
-      { label: 'Грунты',              key: 'soil'             },
-      { label: 'Удобрения',           key: 'fertilizers'      },
-      { label: 'Защита растений',     key: 'plant_protection' },
-      { label: 'Стимуляторы роста',   key: 'growth_stim'      },
-      { label: 'Садовый уход',        key: 'garden_care'      },
-      { label: 'Уход за срезкой',     key: 'freshcut'         },
-    ]},
-    { label: 'Газоны и укрывной материал', isGroup: true as const, items: [
-      { label: 'Укрывной материал',     key: 'cover_fabric'    },
-      { label: 'Плёнка полиэтиленовая', key: 'cover_film'      },
-      { label: 'Искусственный газон',   key: 'artificial_grass' },
-      { label: 'Семена газона',         key: 'grass_seed'      },
-    ]},
-    { label: 'Сухоцветы',              key: 'dried'     },
-    { label: 'Сад и огород',           key: 'garden'    },
-    { label: 'Искусственные растения', key: 'artificial' },
-    { label: 'Игрушки',                key: 'toys'      },
-  ],
+  // accessories — рендерится отдельно из category-tree.ts (см. AccessoriesLeaves)
 }
 
 // ── static filter options ─────────────────────────────────────────────────────
@@ -609,14 +561,116 @@ function AccordionSubcats({ products }: { products: Product[] }) {
   )
 }
 
+// ── accessories: мульти-выбор листьев из category-tree.ts ─────────────────────
+
+function AccessoriesLeaves({ products }: { products: Product[] }) {
+  const { selectedLeaves, toggleLeaf, facets } = useFilters()
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(ACCESSORIES_TREE.map(g => g.id))
+  )
+
+  // Клиентский фолбэк: счётчики по leaf.slug (агрегируя members), если facets ещё нет
+  const bySlug = useMemo(() => {
+    const m: Record<string, number> = {}
+    products.forEach(p => {
+      if (getAvailable(p.stock) <= 0) return
+      const leaf = leafForSubcat(p.subcategory)
+      if (leaf) m[leaf.slug] = (m[leaf.slug] || 0) + 1
+    })
+    return m
+  }, [products])
+
+  const leafCount = (slug: string) => facets?.subcatCounts?.[slug] ?? bySlug[slug] ?? 0
+
+  const toggleGroup = (id: string) =>
+    setOpenGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+
+  const countBadge = (count: number, active: boolean) => (
+    <span style={{
+      fontSize: 10, padding: '2px 7px', borderRadius: 10, fontWeight: 500,
+      flexShrink: 0, marginLeft: 'auto',
+      background: active ? 'rgba(255,255,255,0.22)' : 'var(--bg2)',
+      color: active ? '#fff' : 'var(--text-mid)',
+    }}>{count}</span>
+  )
+
+  const rowBase: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '5px 8px', fontSize: 12,
+    borderRadius: 'var(--radius-btn)', marginBottom: 1,
+    cursor: 'pointer', transition: 'background 0.12s',
+  }
+
+  return (
+    <div>
+      {ACCESSORIES_TREE.map(group => {
+        // Лист показываем ⟺ count>0 (или выбран). hidden — лишь семантический маркер.
+        const leaves = group.leaves.filter(l => leafCount(l.slug) > 0 || selectedLeaves.includes(l.slug))
+        if (leaves.length === 0) return null
+        const open = openGroups.has(group.id)
+        const total = leaves.reduce((s, l) => s + leafCount(l.slug), 0)
+        return (
+          <div key={group.id}>
+            <button
+              onClick={() => toggleGroup(group.id)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 4px', background: 'none', border: 'none',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <Chevron open={open} />
+              <span style={{
+                flex: 1, textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text)',
+              }}>{group.label}</span>
+              {!open && total > 0 && countBadge(total, false)}
+            </button>
+            {open && (
+              <div style={{ paddingLeft: 4 }}>
+                {leaves.map(leaf => {
+                  const checked = selectedLeaves.includes(leaf.slug)
+                  return (
+                    <div
+                      key={leaf.slug}
+                      onClick={() => toggleLeaf(leaf.slug)}
+                      className={checked ? '' : 'hover:bg-[var(--bg2)]'}
+                      style={{
+                        ...rowBase,
+                        background: checked ? 'var(--accent)' : undefined,
+                        color: checked ? '#fff' : 'var(--text)',
+                        fontWeight: checked ? 600 : 400,
+                      }}
+                    >
+                      <input
+                        type="checkbox" checked={checked} onChange={() => toggleLeaf(leaf.slug)}
+                        style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                      />
+                      <span style={{ flex: 1 }}>{leaf.label}</span>
+                      {countBadge(leafCount(leaf.slug), checked)}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, subcat, varietyType, subgroup,
+    category, subcat, varietyType, selectedLeaves, subgroup,
     colors, lengths, origins, farms, potSizes, volumeRanges, tags,
     seasons, onlyAvailable, facets,
-    setSubcat, setVarietyType, setSubgroup,
+    setSubcat, setVarietyType, setSubgroup, clearLeaves,
     toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleVolumeRange, toggleTag,
     toggleSeason, reset, loadFacets,
   } = useFilters()
@@ -661,7 +715,9 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   const tog = (key: keyof typeof DEFAULT_OPEN) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
 
-  const subcatActiveCount = subcat ? (varietyType ? 2 : 1) : 0
+  const subcatActiveCount = category === 'accessories'
+    ? selectedLeaves.length
+    : (subcat ? (varietyType ? 2 : 1) : 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -704,10 +760,16 @@ export default function FilterPanel({ products }: { products: Product[] }) {
         <CollapsibleGroup
           label="Подкатегория"
           open={openGroups.subcat}
-          onToggle={() => { tog('subcat'); setSubcat(''); setVarietyType('') }}
+          onToggle={() => {
+            tog('subcat')
+            if (category === 'accessories') clearLeaves()
+            else { setSubcat(''); setVarietyType('') }
+          }}
           activeCount={subcatActiveCount}
         >
-          <AccordionSubcats products={products} />
+          {category === 'accessories'
+            ? <AccessoriesLeaves products={products} />
+            : <AccordionSubcats products={products} />}
         </CollapsibleGroup>
 
         {/* Субвкладки по subgroup (data-driven: decor, paper, plant_protection, …) */}

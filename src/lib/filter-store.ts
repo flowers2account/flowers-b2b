@@ -5,7 +5,9 @@ export type FilterCategory = 'all' | 'cut' | 'pot' | 'accessories'
 
 // Default category while cut/pot pills are hidden — change back to 'cut' when unhiding
 const DEFAULT_CATEGORY: FilterCategory = 'accessories'
-const DEFAULT_SUBCAT = 'paper'
+// accessories теперь мульти-выбор листьев (selectedLeaves), без одиночного subcat-дефолта.
+// cut/pot по-прежнему используют subcat/varietyType.
+const DEFAULT_SUBCAT = ''
 
 function getPersistedCategory(): FilterCategory {
   if (typeof window === 'undefined') return DEFAULT_CATEGORY
@@ -33,6 +35,7 @@ type FilterStore = {
   category: FilterCategory
   subcat: string
   varietyType: string
+  selectedLeaves: string[]   // мульти-выбор листьев для accessories (по leaf.slug)
   subgroup: string
   onlyAvailable: boolean
   onlyDiscount: boolean
@@ -52,6 +55,8 @@ type FilterStore = {
   setSubcat: (v: string) => void
   setVarietyType: (v: string) => void
   setSubcatAndVT: (subcat: string, varietyType: string) => void
+  toggleLeaf: (slug: string) => void
+  clearLeaves: () => void
   setSubgroup: (v: string) => void
   setOnlyAvailable: (v: boolean) => void
   setOnlyDiscount: (v: boolean) => void
@@ -78,6 +83,7 @@ export const useFilters = create<FilterStore>()(
   category: getPersistedCategory(),
   subcat: DEFAULT_SUBCAT,
   varietyType: '',
+  selectedLeaves: [],
   subgroup: '',
   onlyAvailable: true,
   onlyDiscount: false,
@@ -94,7 +100,7 @@ export const useFilters = create<FilterStore>()(
   facets: null,
 
   setCategory: (category) => set({
-    category, subcat: '', varietyType: '', subgroup: '',
+    category, subcat: '', varietyType: '', selectedLeaves: [], subgroup: '',
     search: '',
     colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
     seasons: [],
@@ -102,6 +108,8 @@ export const useFilters = create<FilterStore>()(
   setSubcat:        (subcat) => set({ subcat, varietyType: '', subgroup: '' }),
   setVarietyType:   (varietyType) => set({ varietyType }),
   setSubcatAndVT:   (subcat, varietyType) => set({ subcat, varietyType, subgroup: '' }),
+  toggleLeaf:       (slug) => set(s => ({ selectedLeaves: tog(s.selectedLeaves, slug), subgroup: '' })),
+  clearLeaves:      () => set({ selectedLeaves: [], subgroup: '' }),
   setSubgroup:      (subgroup) => set({ subgroup }),
   setOnlyAvailable: (onlyAvailable) => set({ onlyAvailable }),
   setOnlyDiscount:  (onlyDiscount) => set({ onlyDiscount }),
@@ -116,7 +124,7 @@ export const useFilters = create<FilterStore>()(
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
-    category: DEFAULT_CATEGORY, subcat: DEFAULT_SUBCAT, varietyType: '', subgroup: '',
+    category: DEFAULT_CATEGORY, subcat: DEFAULT_SUBCAT, varietyType: '', selectedLeaves: [], subgroup: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
     seasons: [], facets: null,
@@ -136,12 +144,13 @@ export const useFilters = create<FilterStore>()(
 }),
 {
   name: 'catalog-filters',
-  version: 2,
+  version: 3,
   storage: createJSONStorage(() => sessionStorage),
   partialize: (s) => ({
     category:      s.category,
     subcat:        s.subcat,
     varietyType:   s.varietyType,
+    selectedLeaves: s.selectedLeaves,
     subgroup:      s.subgroup,
     onlyAvailable: s.onlyAvailable,
     onlyDiscount:  s.onlyDiscount,

@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import { useFilters } from './filter-store'
+import { leafForSubcat, labelForLeafSlug } from './category-tree'
 
 export type Chip = { label: string; onRemove: () => void }
 
+// cut/pot — лейблы остаются здесь (источник accessories — category-tree.ts).
 const SUBCAT_LABELS: Record<string, string> = {
   roses: 'Розы', chrysanthemums: 'Хризантемы', carnations: 'Гвоздики',
   tulips: 'Тюльпаны', peonies: 'Пионы', ranunculus: 'Ранункулюсы',
@@ -18,13 +20,6 @@ const SUBCAT_LABELS: Record<string, string> = {
   // pot
   green: 'Зелёные', flowering: 'Цветущие', succulents: 'Суккуленты',
   outdoor: 'Уличные', large: 'Крупномеры',
-  // accessories
-  film: 'Плёнка', paper: 'Бумага', film_bags: 'Пакеты',
-  pots: 'Горшки', kashpo: 'Кашпо', fountains: 'Фонтаны', vases: 'Вазы', decor: 'Декор и сувениры',
-  soil: 'Грунты', fertilizers: 'Удобрения',
-  cover_fabric: 'Укрывной материал', cover_film: 'Плёнка укрывная',
-  artificial_grass: 'Искусственный газон', grass_seed: 'Семена газона',
-  garden: 'Сад и огород', artificial: 'Искусственные растения', toys: 'Игрушки',
 }
 const VARIETY_TYPE_LABELS: Record<string, string> = {
   single: 'Одноголовые', spray: 'Кустовые', pompom: 'Помпонные',
@@ -68,9 +63,9 @@ const POT_SIZE_LABELS: Record<string, string> = {
 
 export function useFilterChips(): Chip[] {
   const {
-    subcat, varietyType, colors, lengths, origins, farms,
+    subcat, varietyType, selectedLeaves, colors, lengths, origins, farms,
     potSizes, tags, seasons,
-    setSubcat, setVarietyType,
+    setSubcat, setVarietyType, toggleLeaf,
     toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize,
     toggleTag, toggleSeason,
   } = useFilters()
@@ -78,10 +73,14 @@ export function useFilterChips(): Chip[] {
   return useMemo<Chip[]>(() => {
     const result: Chip[] = []
     if (subcat) {
-      const parts = [SUBCAT_LABELS[subcat] ?? subcat]
+      const parts = [leafForSubcat(subcat)?.label ?? SUBCAT_LABELS[subcat] ?? subcat]
       if (varietyType) parts.push(VARIETY_TYPE_LABELS[varietyType] ?? varietyType)
       result.push({ label: parts.join(' · '), onRemove: () => { setSubcat(''); setVarietyType('') } })
     }
+    // accessories — мульти-выбор листьев
+    selectedLeaves.forEach(slug =>
+      result.push({ label: labelForLeafSlug(slug), onRemove: () => toggleLeaf(slug) })
+    )
     colors.forEach(c => result.push({ label: COLOR_LABELS[c] ?? c, onRemove: () => toggleColor(c) }))
     lengths.forEach(l => result.push({ label: `${l} см`, onRemove: () => toggleLength(l) }))
     origins.forEach(o => result.push({ label: ORIGIN_LABELS[o] ?? o, onRemove: () => toggleOrigin(o) }))
@@ -90,5 +89,5 @@ export function useFilterChips(): Chip[] {
     tags.forEach(t => result.push({ label: TAG_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
     seasons.forEach(s => result.push({ label: SEASON_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
     return result
-  }, [subcat, varietyType, colors, lengths, origins, farms, potSizes, tags, seasons])
+  }, [subcat, varietyType, selectedLeaves, colors, lengths, origins, farms, potSizes, tags, seasons])
 }

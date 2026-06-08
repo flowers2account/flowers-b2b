@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { removeBackground } from '@imgly/background-removal'
 import { createClient } from '@/lib/supabase/client'
+import { leafForSubcat } from '@/lib/category-tree'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -466,17 +467,12 @@ const SUBCAT_LABELS: Record<string, string> = {
   cacti: 'Кактусы', palms: 'Пальмы', ficus: 'Фикусы', dracaena: 'Драцена',
   calathea: 'Калатея', zamioculcas: 'Замиокулькас', large: 'Крупномеры',
   outdoor: 'Садовые', perennials: 'Многолетние', conifers: 'Хвойные',
-  // accessories
-  film: 'Плёнка', paper: 'Бумага', film_bags: 'Пакеты',
-  pots: 'Горшки', kashpo: 'Кашпо', fountains: 'Фонтаны',
-  vases: 'Вазы', baskets: 'Корзины', decor: 'Декор и сувениры',
-  gift_boxes: 'Наборы коробок', soil: 'Грунты', fertilizers: 'Удобрения',
-  cover_fabric: 'Укрывной материал', cover_film: 'Плёнка полиэтиленовая',
-  artificial_grass: 'Искусственный газон', grass_seed: 'Семена газона',
-  dried: 'Сухоцветы', garden: 'Сад и огород', artificial: 'Искусственные растения', toys: 'Игрушки',
-  floral_foam: 'Флор. пена / Оазис', tools: 'Инструмент',
-  cards_toppers: 'Открытки и топперы', freshcut: 'Уход за срезкой',
+  // accessories — лейблы берутся из category-tree.ts (leafForSubcat)
 }
+
+// accessories → category-tree.ts; cut/pot → SUBCAT_LABELS; fallback — сам slug
+const subcatLabel = (key: string): string =>
+  leafForSubcat(key)?.label ?? SUBCAT_LABELS[key] ?? key
 
 export default function AdminTable() {
   const [search, setSearch] = useState('')
@@ -511,7 +507,7 @@ export default function AdminTable() {
         }
         const list = Object.entries(counts)
           .sort((a, b) => b[1] - a[1])
-          .map(([key]) => ({ key, label: SUBCAT_LABELS[key] ?? key }))
+          .map(([key]) => ({ key, label: subcatLabel(key) }))
         setAvailableSubcats(list)
       })
   }, [categoryFilter])
