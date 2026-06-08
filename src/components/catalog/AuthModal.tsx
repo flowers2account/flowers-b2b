@@ -3,7 +3,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useAuthStore } from '@/lib/auth-store'
 import { normalizePhone } from '@/lib/phone'
 
-type Screen = 'phone' | 'pin' | 'staff'
+type Screen = 'phone' | 'pin'
 
 interface Props {
   onSuccess?: () => void
@@ -19,13 +19,13 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
 
   const [pin, setPin] = useState(Array(PIN_LEN).fill(''))
   const [clientName, setClientName] = useState('')
-  const [staffPin, setStaffPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [criticalError, setCriticalError] = useState<{ title: string; message: string } | null>(null)
   const [sendingPin, setSendingPin] = useState(false)
   const [pinSentMessage, setPinSentMessage] = useState('')
   const [notFound, setNotFound] = useState(false)
+  const [notFoundName, setNotFoundName] = useState('')
 
   const pinRefs = Array.from({ length: PIN_LEN }, () => useRef<HTMLInputElement>(null)) // eslint-disable-line react-hooks/rules-of-hooks
 
@@ -152,16 +152,6 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
     }
   }
 
-  // ── Screen 3: Staff PIN ───────────────────────────────────────────
-
-  async function handleStaffLogin() {
-    setLoading(true); setError('')
-    const result = await login(phoneDisplay, staffPin)
-    setLoading(false)
-    if (result.error) { setError(result.error); return }
-    onSuccess?.(); onClose()
-  }
-
   const BRAND: React.CSSProperties = { backgroundColor: 'var(--accent)' }
 
   return (
@@ -172,7 +162,6 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
           <span className="text-sm font-semibold text-gray-700">
             {screen === 'phone' && 'Вход в личный кабинет'}
             {screen === 'pin' && (clientName ? `Привет, ${clientName}!` : 'Введите PIN-код')}
-            {screen === 'staff' && 'Вход для сотрудников'}
           </span>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
@@ -202,8 +191,15 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
                   <p className="text-xs text-gray-500 mb-3">
                     Напишите нам в WhatsApp — добавим вас в базу и вышлем PIN-код.
                   </p>
+                  <input
+                    type="text"
+                    value={notFoundName}
+                    onChange={e => setNotFoundName(e.target.value)}
+                    placeholder="Ваше имя"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:border-pink-400"
+                  />
                   <a
-                    href={`https://wa.me/77007575243?text=${encodeURIComponent('Здравствуйте! Хочу добавиться в базу. Мой номер: ' + (phoneDisplay || ''))}`}
+                    href={`https://wa.me/77007575243?text=${encodeURIComponent('Здравствуйте! Хочу добавиться в базу. Имя: ' + (notFoundName || '—') + '. Мой номер: ' + (phoneDisplay || ''))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white no-underline"
@@ -300,37 +296,6 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
               >
                 Изменить номер
               </button>
-            </>
-          )}
-
-          {/* ── Экран 3: Персонал ─────────────────────────────── */}
-          {screen === 'staff' && (
-            <>
-              <p className="text-sm text-gray-500">Менеджеры и администраторы — вход с постоянным PIN.</p>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">Телефон</label>
-                <input type="tel" value={phoneDisplay} onChange={e => handlePhoneInput(e.target.value)}
-                  placeholder="+77001234567" autoFocus
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm font-mono focus:outline-none focus:border-pink-400" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">PIN-код (6 цифр)</label>
-                <input type="password" value={staffPin} onChange={e => setStaffPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  onKeyDown={e => e.key === 'Enter' && handleStaffLogin()}
-                  placeholder="••••••" maxLength={6}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-pink-400" />
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <div className="flex gap-2">
-                <button onClick={handleStaffLogin} disabled={loading || !staffPin}
-                  className="flex-1 py-3 text-white font-medium rounded-lg disabled:opacity-50" style={BRAND}>
-                  {loading ? 'Входим...' : 'Войти'}
-                </button>
-                <button onClick={() => { setScreen('phone'); setError('') }}
-                  className="flex-1 py-3 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                  Назад
-                </button>
-              </div>
             </>
           )}
 
