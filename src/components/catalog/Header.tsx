@@ -1,9 +1,10 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useDetailStore } from '@/lib/detail-store'
+import { useFilters } from '@/lib/filter-store'
 import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
 import CategoryTabs from './CategoryTabs'
@@ -13,8 +14,17 @@ export default function Header() {
   const { items, total } = useCart()
   const [showAuth, setShowAuth] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+  const { category, setGroup, setCategory } = useFilters()
 
   useEffect(() => { init() }, [])
+
+  // «Каталог» — нейтральный вход: режим «Все» (комбинируемые фильтры по всем разделам)
+  const goCatalogAll = () => {
+    if (category !== 'accessories') setCategory('accessories')
+    setGroup('all')
+    router.push('/?category=accessories&group=all')
+  }
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
   const cartTotal = total()
@@ -58,18 +68,29 @@ export default function Header() {
           {/* Навигация — скрыта на мобильном */}
           <nav className="hidden md:flex items-center flex-1" style={{ height: 58 }}>
             {NAV.map(({ href, label }) => {
-              const isActive = href !== '#' && (href === '/' ? pathname === '/' : pathname.startsWith(href))
+              const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href)
+              const navStyle: React.CSSProperties = {
+                height: 58,
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? 'var(--accent)' : '#444',
+                borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+              }
+              const cls = 'flex items-center px-4 text-[13px] no-underline transition-colors'
+              // «Каталог» → режим «Все» через обработчик (работает и когда уже на /)
+              if (href === '/') {
+                return (
+                  <button key={label} onClick={goCatalogAll}
+                    className={cls} style={{ ...navStyle, background: 'none', border: 'none', borderBottom: navStyle.borderBottom, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {label}
+                  </button>
+                )
+              }
               return (
                 <Link
                   key={label}
                   href={href}
-                  className="flex items-center px-4 text-[13px] no-underline transition-colors"
-                  style={{
-                    height: 58,
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? 'var(--accent)' : '#444',
-                    borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-                  }}
+                  className={cls}
+                  style={navStyle}
                 >
                   {label}
                 </Link>
