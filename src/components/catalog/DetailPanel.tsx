@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useDetailStore } from '@/lib/detail-store'
 import SwipeToDelete from './SwipeToDelete'
-import { useOrderCheckout } from '@/hooks/useOrderCheckout'
+import { useRouter } from 'next/navigation'
 import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useProductsStore } from '@/lib/products-store'
@@ -545,19 +545,11 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 // ── State C: cart ────────────────────────────────────────────────────────────
 
 function StateCart({ onBack }: { onBack: () => void }) {
+  const router = useRouter()
   const { product, setProduct } = useDetailStore()
   const { items, remove, update, clear, total } = useCart()
-  const { phone } = useAuthStore()
   const { products } = useProductsStore()
-  const [showAuth, setShowAuth] = useState(false)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
-
-  const checkout = useOrderCheckout({
-    items,
-    phone,
-    onAuthRequired: () => setShowAuth(true),
-    onSuccess: () => clear(),
-  })
 
   function openProduct(id: number) {
     const p = products.find(x => x.id === id)
@@ -565,103 +557,6 @@ function StateCart({ onBack }: { onBack: () => void }) {
   }
 
   const count = items.reduce((s, i) => s + i.qty, 0)
-
-  // Формируем WhatsApp-ссылку для success-экрана
-  const waMsg = `🌸 Заказ #${checkout.orderId}\n\n` +
-    items.map(i => `• ${i.name} × ${i.qty} ${unitForProduct(i)} = ${(i.price * i.qty).toLocaleString('ru-RU')} ₸`).join('\n') +
-    `\n\nИтого: ${total().toLocaleString('ru-RU')} ₸\n\nКлиент: ${phone ?? ''}`
-  const waUrl = `https://wa.me/77007575243?text=${encodeURIComponent(waMsg)}`
-
-  // Success screen
-  if (checkout.step === 'success') {
-    return (
-      <div style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-        <div style={{ fontSize: 48 }}>🎉</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Заказ оформлен и оплачен!</div>
-        <div style={{ fontSize: 12, color: 'var(--text-mid)', textAlign: 'center', lineHeight: 1.5 }}>
-          Заказ №{checkout.orderId}. Менеджер получит уведомление и свяжется с вами.
-        </div>
-        {checkout.payInfo?.cardMask && (
-          <div style={{ fontSize: 12, fontWeight: 600 }}>
-            💳 {checkout.payInfo.cardMask}
-            {checkout.payInfo.amount ? ` · ${checkout.payInfo.amount.toLocaleString('ru-RU')} ₸` : ''}
-          </div>
-        )}
-        <button onClick={() => window.open(waUrl, '_blank')} style={{
-          width: '100%', padding: '10px 14px', marginTop: 4,
-          background: '#25D366', color: '#fff', border: 'none',
-          borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>
-          📲 Открыть WhatsApp
-        </button>
-        <button onClick={() => { checkout.reset(); onBack() }} style={{
-          width: '100%', padding: '9px 14px',
-          background: 'var(--bg2)', color: 'var(--text)', border: 'none',
-          borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>
-          Отлично!
-        </button>
-      </div>
-    )
-  }
-
-  // Timeout screen
-  if (checkout.step === 'timeout') {
-    return (
-      <div style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        <div style={{ fontSize: 48 }}>⏳</div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Оплата обрабатывается</div>
-        <div style={{ fontSize: 12, color: 'var(--text-mid)', textAlign: 'center', lineHeight: 1.5 }}>
-          Заказ №{checkout.orderId} создан. Статус платежа появится в личном кабинете через 1–3 минуты.
-        </div>
-        <button onClick={() => { checkout.reset(); onBack() }} style={{
-          width: '100%', padding: '10px 14px', marginTop: 4,
-          background: 'var(--accent)', color: '#fff', border: 'none',
-          borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>
-          Перейти в кабинет
-        </button>
-      </div>
-    )
-  }
-
-  // Failed screen
-  if (checkout.step === 'failed') {
-    return (
-      <div style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        <div style={{ fontSize: 48 }}>⚠️</div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-          Заказ №{checkout.orderId} не оплачен
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--text-mid)', textAlign: 'center', lineHeight: 1.5 }}>
-          Товары зарезервированы на 30 минут.
-        </div>
-        {checkout.payError && (
-          <div style={{ fontSize: 11, color: '#E53935' }}>{checkout.payError}</div>
-        )}
-        <button onClick={checkout.retryPayment} disabled={checkout.busy} style={{
-          width: '100%', padding: '10px 14px',
-          background: 'var(--accent)', color: '#fff', border: 'none',
-          borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
-          cursor: checkout.busy ? 'default' : 'pointer', fontFamily: 'inherit',
-          opacity: checkout.busy ? 0.7 : 1,
-        }}>
-          🔄 Повторить оплату
-        </button>
-        <button onClick={checkout.reset} style={{
-          width: '100%', padding: '9px 14px',
-          background: 'var(--bg2)', color: 'var(--text)', border: 'none',
-          borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>
-          ← Вернуться к корзине
-        </button>
-      </div>
-    )
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -771,27 +666,18 @@ function StateCart({ onBack }: { onBack: () => void }) {
               {total().toLocaleString('ru-RU')} ₸
             </span>
           </div>
-          {checkout.stockError && (
-            <div style={{ fontSize: 11, color: '#E53935', marginBottom: 8 }}>{checkout.stockError}</div>
-          )}
-          {checkout.busy && (
-            <div style={{ fontSize: 12, color: 'var(--text-mid)', textAlign: 'center', marginBottom: 8 }}>
-              {checkout.step === 'creating' ? 'Создаём заказ...'
-               : checkout.step === 'paying' ? 'Ожидаем оплату...'
-               : 'Проверяем оплату...'}
-            </div>
-          )}
           <button
-            onClick={checkout.submitOrder} disabled={checkout.busy}
+            onClick={() => router.push('/checkout')}
             style={{
-              width: '100%', padding: '10px 14px',
+              width: '100%', padding: '11px 14px',
               background: 'var(--accent)', color: '#fff', border: 'none',
               borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
-              cursor: checkout.busy ? 'default' : 'pointer', fontFamily: 'inherit',
-              opacity: checkout.busy ? 0.7 : 1, marginBottom: 6,
+              cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {checkout.busy ? '...' : '💳 Оформить и оплатить'}
+            Оформить заказ
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </button>
           <button
             onClick={clear}
@@ -805,10 +691,6 @@ function StateCart({ onBack }: { onBack: () => void }) {
             Очистить корзину
           </button>
         </div>
-      )}
-
-      {showAuth && (
-        <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />
       )}
     </div>
   )

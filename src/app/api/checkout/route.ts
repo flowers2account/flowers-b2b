@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
 
-  const { items, phone, name } = await req.json()
+  const { items, phone, name, delivery, recipient, payment_method } = await req.json()
   const normalizedPhone = normalizePhone(phone)
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
   if (!phone) return NextResponse.json({ error: 'Phone is required' }, { status: 400 })
@@ -78,11 +78,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: reserveErrors.join(', ') }, { status: 409 })
   }
 
+  // Сумма + скидка 1% для Уральска (самовывоз или доставка по городу).
+  // Сервер — источник суммы к оплате: payments/init берёт order.total.
+  const rawTotal = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
+  const isUralsk = delivery?.method === 'pickup'
+    || (delivery?.method === 'delivery' && delivery?.city === 'Уральск')
+  const discountPct = isUralsk ? 1 : 0
+  const total = Math.round(rawTotal * (1 - discountPct / 100))
+
+  // Заметка для менеджера: способ получения, получатель, скидка (флоу чекаута)
+  const noteLines: string[] = []
+  if (delivery?.method === 'pickup') {
+    noteLines.push('Получение: Самовывоз (склад Уральск, ул. Каримуллина, 11)')
+  } else if (delivery?.method === 'delivery') {
+    noteLines.push(`Получение: Доставка${delivery.city ? ` — ${delivery.city}` : ''}`)
+    if (delivery.date)    noteLines.push(`Желаемая дата: ${delivery.date}`)
+    if (delivery.address) noteLines.push(`Адрес: ${delivery.address}`)
+    if (delivery.comment) noteLines.push(`Комментарий курьеру: ${delivery.comment}`)
+  }
+  if (recipient) {
+    const r = [recipient.name, recipient.phone, recipient.email].filter(Boolean).join(', ')
+    if (r) noteLines.push(`Получатель: ${r}`)
+  }
+  if (discountPct > 0) {
+    noteLines.push(`Скидка ${discountPct}% (Уральск): −${(rawTotal - total).toLocaleString('ru-RU')} ₸`)
+  }
+  const notes = noteLines.length ? noteLines.join('\n') : null
+
   // Always create a new order
-  const total = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .insert({ client_id: clientId, status: 'pending', total })
+    .insert({
+      client_id: clientId,
+      status: 'pending',
+      total,
+      ...(notes ? { notes } : {}),
+      ...(payment_method ? { payment_method } : {}),
+    })
     .select()
     .single()
   if (!order) return NextResponse.json({ error: 'Failed to create order', detail: orderError?.message }, { status: 500 })

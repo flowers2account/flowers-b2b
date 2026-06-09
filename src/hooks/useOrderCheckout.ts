@@ -28,6 +28,8 @@ interface Options {
   phone: string | null
   onAuthRequired: () => void   // показать модалку входа
   onSuccess: () => void        // очистить корзину (или другое действие)
+  /** Доп. поля в тело /api/checkout (доставка, получатель, способ оплаты) — для страницы чекаута */
+  extra?: () => Record<string, unknown>
 }
 
 const epayLoaded = { current: false }  // модульный синглтон — один скрипт на всю сессию
@@ -98,7 +100,7 @@ async function runPaymentStep(orderId: number): Promise<{
   return { ok: true, invoiceId: widgetConfig.invoiceId, result }
 }
 
-export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess }: Options) {
+export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extra }: Options) {
   const [step,       setStep]       = useState<CheckoutStep>('idle')
   const [orderId,    setOrderId]    = useState<number | null>(null)
   const [invoiceId,  setInvoiceId]  = useState<string | null>(null)
@@ -136,6 +138,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess }: Op
         body: JSON.stringify({
           items: items.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
           phone,
+          ...(extra?.() ?? {}),
         }),
       })
       if (!checkRes.ok) {
@@ -174,7 +177,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess }: Op
       setStep('failed')
     }
     inFlight.current = false
-  }, [items, phone, onAuthRequired, onSuccess])
+  }, [items, phone, onAuthRequired, onSuccess, extra])
 
   const retryPayment = useCallback(async () => {
     if (!orderId || inFlight.current) return
