@@ -127,7 +127,6 @@ export default async function CategoriesPage() {
                           className={s.subPh}
                           style={hasPhoto ? { backgroundImage: `url(/subcat-photos/${leaf.slug}.jpg)` } : undefined}
                         />
-                        <span className={s.subTopbar} />
                         <div className={s.subBody}>
                           <div className={s.subName}>{leaf.label}</div>
                           {LEAF_DESC[leaf.slug] && <div className={s.subDesc}>{LEAF_DESC[leaf.slug]}</div>}
