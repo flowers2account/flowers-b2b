@@ -37,7 +37,10 @@ const LEAF_DESC: Record<string, string> = {
 }
 
 // Подкатегории, для которых есть реальное фото (остальные — градиент-плейсхолдер)
-const SUB_PHOTOS = new Set(['film', 'paper', 'film_bags', 'gift_boxes', 'baskets'])
+const SUB_PHOTOS = new Set([
+  'film', 'paper', 'film_bags', 'gift_boxes', 'baskets',
+  'decor', 'toys', 'artificial', 'fountains', 'kashpo', 'paints',
+])
 
 function plural(n: number) {
   const a = n % 10, b = n % 100
@@ -123,9 +126,8 @@ export default async function CategoriesPage() {
                         <div
                           className={s.subPh}
                           style={hasPhoto ? { backgroundImage: `url(/subcat-photos/${leaf.slug}.jpg)` } : undefined}
-                        >
-                          <span className={s.subTopbar} />
-                        </div>
+                        />
+                        <span className={s.subTopbar} />
                         <div className={s.subBody}>
                           <div className={s.subName}>{leaf.label}</div>
                           {LEAF_DESC[leaf.slug] && <div className={s.subDesc}>{LEAF_DESC[leaf.slug]}</div>}

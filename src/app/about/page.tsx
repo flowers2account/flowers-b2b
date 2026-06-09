@@ -85,8 +85,8 @@ export default function AboutPage() {
           </div>
           <div className={s.supply}>
             {SUPPLY.map(it => (
-              <Link key={it.t} href={catHref(it.group)} className={s.supplyItem}
-                style={{ '--c': it.c, backgroundImage: `url(/category-photos/${it.group}.jpg)` } as React.CSSProperties}>
+              <Link key={it.t} href={catHref(it.group)} className={s.supplyItem} style={{ '--c': it.c } as React.CSSProperties}>
+                <span className={s.supplyPh} style={{ backgroundImage: `url(/category-photos/${it.group}.jpg)` }} />
                 <span className={s.supplyTopbar} />
                 <span className={s.supplyAr}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
@@ -235,8 +235,8 @@ export default function AboutPage() {
         <section className={`${s.sec} ${s.secAlt}`}>
           <div className={s.secHead}>
             <div className={s.secEyebrow}>Наша база</div>
-            <h2 className={s.secH2}>Загляните к нам</h2>
-            <p className={s.intro}>Витрина, склад, ассортимент, команда — реальные снимки убеждают лучше любых слов.</p>
+            <h2 className={s.secH2}>Там, где собираются ваши заказы</h2>
+            <p className={s.intro}>Показываем склад, витрину и ассортимент, который всегда можно увидеть своими глазами.</p>
           </div>
           <div className={s.gallery}>
             <div className={`${s.galPh} ${s.g1}`} />
