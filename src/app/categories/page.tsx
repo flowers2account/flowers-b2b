@@ -41,6 +41,7 @@ const SUB_PHOTOS = new Set([
   'film', 'paper', 'film_bags', 'gift_boxes', 'baskets',
   'decor', 'toys', 'artificial', 'fountains', 'kashpo', 'paints',
   'soil', 'fertilizers', 'plant_protection', 'garden_care', 'artificial_grass', 'cover_fabric', 'cover_film',
+  'pots', 'vases',
 ])
 
 function plural(n: number) {
