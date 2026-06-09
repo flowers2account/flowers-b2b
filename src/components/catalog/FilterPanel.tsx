@@ -692,7 +692,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     colors, lengths, origins, farms, potSizes, volumeRanges, tags,
     seasons, onlyAvailable, facets,
     setSubcat, setVarietyType, setSubgroup, clearLeaves,
-    toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleVolumeRange, toggleTag,
+    toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleVolumeRange,
     toggleSeason, reset, loadFacets,
   } = useFilters()
 
@@ -1010,28 +1010,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </CollapsibleGroup>
         )}
 
-        {/* Хит продаж / Акция */}
-        <div style={{ display: 'flex', gap: 6, marginTop: 10, marginBottom: 4 }}>
-          {([
-            { id: 'hit',  label: '🔥 Хит продаж' },
-            { id: 'sale', label: '🏷 Акция'       },
-          ] as const).map(opt => {
-            const on = tags.includes(opt.id)
-            return (
-              <button
-                key={opt.id}
-                onClick={() => toggleTag(opt.id)}
-                style={{
-                  flex: 1, height: 32, border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-                  borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: on ? 600 : 400,
-                  background: on ? 'var(--accent-light)' : 'var(--bg2)',
-                  color: on ? 'var(--accent)' : 'var(--text-mid)',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >{opt.label}</button>
-            )
-          })}
-        </div>
+        {/* Теги «Хит продаж / Акция» временно убраны из фильтров */}
 
         {/* bottom padding so last item isn't behind sticky button */}
         <div style={{ height: 8 }} />
