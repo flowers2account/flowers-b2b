@@ -11,27 +11,37 @@ export const metadata: Metadata = {
 
 const tel = '+' + company.phone.replace(/\D/g, '')
 
-const SUPPLY: { c: string; t: string; d: string; group: string }[] = [
-  { c: '#D26AA0', t: 'Упаковка и флористика', d: 'Плёнка, бумага, пакеты, коробки, краски', group: 'packaging' },
-  { c: '#C45A38', t: 'Горшки и кашпо', d: 'Керамика, пластик, разные размеры', group: 'pots' },
-  { c: '#B0822E', t: 'Вазы и корзины', d: 'Стекло, плетёные корзины', group: 'vases' },
-  { c: '#8A57B8', t: 'Декор и подарки', d: 'Сувениры, игрушки, искусств. растения, фонтаны', group: 'decor' },
-  { c: '#5A9E3A', t: 'Сад и огород', d: 'Грунты, удобрения, защита, садовый уход', group: 'garden' },
-  { c: '#2E9E8F', t: 'Газоны и укрытие', d: 'Искусственный газон, укрывной материал, плёнка', group: 'lawn' },
+const SUPPLY: { c: string; t: string; d: string; group: string; ic: React.ReactNode }[] = [
+  { c: '#D26AA0', t: 'Упаковка и флористика', d: 'Плёнка, бумага, пакеты, коробки, краски', group: 'packaging',
+    ic: <><path d="m2 8 10-5 10 5-10 5z" /><path d="M2 8v8l10 5 10-5V8" /></> },
+  { c: '#C45A38', t: 'Горшки и кашпо', d: 'Керамика, пластик, разные размеры', group: 'pots',
+    ic: <path d="M5 9h14l-1.5 11h-11zM7 9V7a5 5 0 0 1 10 0v2" /> },
+  { c: '#B0822E', t: 'Вазы и корзины', d: 'Стекло, плетёные корзины', group: 'vases',
+    ic: <path d="M8 2h8M9 2c0 3-2 4-2 8a5 5 0 0 0 10 0c0-4-2-5-2-8" /> },
+  { c: '#8A57B8', t: 'Декор и подарки', d: 'Сувениры, игрушки, искусств. растения, фонтаны', group: 'decor',
+    ic: <path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /> },
+  { c: '#5A9E3A', t: 'Сад и огород', d: 'Грунты, удобрения, защита, садовый уход', group: 'garden',
+    ic: <path d="M12 22V12M12 12c0-3 2-5 5-5 0 3-2 5-5 5ZM12 12c0-3-2-5-5-5 0 3 2 5 5 5Z" /> },
+  { c: '#2E9E8F', t: 'Газоны и укрытие', d: 'Искусственный газон, укрывной материал, плёнка', group: 'lawn',
+    ic: <path d="M3 20h18M6 20v-5M10 20v-7M14 20v-5M18 20v-8M4 14c2-3 5-3 7 0M13 13c2-2 5-2 7 0" /> },
 ]
 
 const STEPS = [
-  { n: '1', t: 'Регистрация', d: 'Оставьте номер телефона — откроем доступ к магазину и пришлём PIN-код для входа. Сменить его можно в личном кабинете.' },
+  { n: '1', t: 'Регистрация', d: 'Оставьте номер телефона, откроем доступ к магазину и пришлём PIN-код для входа. Сменить его можно в личном кабинете.' },
   { n: '2', t: 'Выбор товаров', d: 'Выбираете товары в каталоге с реальными остатками склада и добавляете в корзину.' },
-  { n: '3', t: 'Оплата', d: 'Оплачиваете заказ онлайн картой Visa, Mastercard или UnionPay. Оплата проходит на защищённой странице банка (3-D Secure) — данные карты мы не видим и не храним. Комиссии для покупателя нет.' },
-  { n: '4', t: 'Получение', d: 'После оплаты подтверждаем заказ и в тот же день сообщаем о готовности. Самовывоз со склада в Уральске или доставка — по городу, в Актобе и Атырау.' },
+  { n: '3', t: 'Оплата', d: 'Оплачиваете заказ онлайн картой Visa, Mastercard или UnionPay. Оплата проходит на защищённой странице банка (3-D Secure), данные карты мы не видим и не храним. Комиссии для покупателя нет. Для юр. лиц предоставляем полный пакет документов.' },
+  { n: '4', t: 'Получение', d: 'После оплаты подтверждаем заказ и в тот же день сообщаем о готовности. Забираете самовывозом со склада в Уральске или оформляем доставку по городу, а также в Актобе и Атырау.' },
 ]
 
-const WHY = [
-  { t: 'Всё в одном месте', d: 'Шесть направлений от упаковки до садовых товаров — закрываете потребности магазина без поиска по разным поставщикам.' },
-  { t: 'Прямые поставки', d: 'Возим напрямую из Китая, России и десятков стран — без лишних посредников и наценок.' },
-  { t: 'Честные оптовые цены', d: 'Прозрачный прайс и гибкие условия для постоянных клиентов, флористов и магазинов.' },
-  { t: 'Доставка по всей области', d: 'Самовывоз с базы или доставка по Уральску и ЗКО. Поможем с логистикой крупных заказов.' },
+const WHY: { t: string; d: string; ic: React.ReactNode }[] = [
+  { t: 'Свой склад в Уральске', d: 'Большинство товаров можно посмотреть и забрать сразу, без ожидания поставки.',
+    ic: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5M12 22V12" /></> },
+  { t: 'Регулярные поставки цветов', d: 'Свежая срезка и горшечные растения поступают несколько раз в неделю.',
+    ic: <><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" /></> },
+  { t: 'Ассортимент для цветочного магазина', d: 'От упаковки и ваз до удобрений и искусственного газона.',
+    ic: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /> },
+  { t: 'Работаем с любыми заказами', d: 'Закупаются как начинающие флористы, так и магазины с постоянным оборотом.',
+    ic: <><path d="M5 18a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM15 18a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z" /><path d="M3 6h11v9H3zM14 9h4l3 3v3h-3" /></> },
 ]
 
 const catHref = (group: string) => `/?category=accessories&group=${group}`
@@ -45,11 +55,11 @@ export default function AboutPage() {
         <section className={s.hero}>
           <div>
             <div className={s.eyebrow}>О компании · Цветы Уральска</div>
-            <h1 className={s.title}>Всё для флористики, дома и сада — <span className={s.hl}>оптом</span></h1>
+            <h1 className={s.title}>Всё для цветочного магазина <span className={s.hl}>в одном месте</span></h1>
             <p className={s.lede}>
-              Снабжаем флористов, магазины и садоводов Западного Казахстана: упаковка, горшки и кашпо, вазы,
-              декор и товары для сада. Срез и горшечные растения возим под заказ — дважды в неделю.
-              Оптовые цены и доставка по области.
+              Работаем в Уральске с 2008 года. На складе постоянно держим упаковку, горшки, кашпо, вазы,
+              декор, грунты, удобрения и садовые товары. Срезанные цветы и горшечные растения привозим
+              два раза в неделю.
             </p>
             <div className={s.acts}>
               <Link href="/categories" className={`${s.btn} ${s.solid}`}>Смотреть каталог</Link>
@@ -63,31 +73,33 @@ export default function AboutPage() {
               <span className={s.badgeIc}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
               </span>
-              <div><div className={s.badgeN}>150+</div><div className={s.badgeL}>постоянных клиентов</div></div>
+              <div><div className={s.badgeN}>150+</div><div className={s.badgeL}>магазинов и флористов закупаются регулярно</div></div>
             </div>
           </div>
         </section>
 
         {/* STATS — цифры подтвердить у клиента */}
         <section className={s.stats}>
-          <div className={s.stat}><div className={s.statN}>17<span> лет</span></div><div className={s.statL}>на рынке Западного Казахстана</div></div>
-          <div className={s.stat}><div className={s.statN}>6</div><div className={s.statL}>направлений в каталоге</div></div>
-          <div className={s.stat}><div className={s.statN}>2<span>×</span></div><div className={s.statL}>поставки срезки каждую неделю</div></div>
-          <div className={s.stat}><div className={s.statN}>150<span>+</span></div><div className={s.statL}>постоянных клиентов и магазинов</div></div>
+          <div className={s.stat}><div className={s.statN}>2008</div><div className={s.statL}>год основания, Уральск</div></div>
+          <div className={s.stat}><div className={s.statN}>6</div><div className={s.statL}>основных товарных групп</div></div>
+          <div className={s.stat}><div className={s.statN}>2<span>×</span></div><div className={s.statL}>поставки цветов каждую неделю</div></div>
+          <div className={s.stat}><div className={s.statN}>150<span>+</span></div><div className={s.statL}>магазинов и флористов закупаются регулярно</div></div>
         </section>
 
         {/* WHAT WE SUPPLY */}
         <section className={s.sec}>
           <div className={s.secHead}>
             <div className={s.secEyebrow}>Что мы поставляем</div>
-            <h2 className={s.secH2}>Шесть направлений — один поставщик</h2>
-            <p className={s.intro}>Всё, что нужно вокруг цветка: флористическая упаковка, горшки и кашпо, вазы, декор, товары для сада и газоны. Не нужно искать по разным базам.</p>
+            <h2 className={s.secH2}>Основные товарные группы на складе</h2>
+            <p className={s.intro}>Собрали ассортимент, который чаще всего нужен цветочным магазинам, флористам и садовым отделам. Большинство позиций постоянно есть на складе.</p>
           </div>
           <div className={s.supply}>
             {SUPPLY.map(it => (
               <Link key={it.t} href={catHref(it.group)} className={s.supplyItem} style={{ '--c': it.c } as React.CSSProperties}>
                 <span className={s.supplyPh} style={{ backgroundImage: `url(/category-photos/${it.group}.jpg)` }} />
-                <span className={s.supplyTopbar} />
+                <span className={s.supplyIc}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{it.ic}</svg>
+                </span>
                 <span className={s.supplyAr}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </span>
@@ -105,7 +117,7 @@ export default function AboutPage() {
           <div className={s.secHead}>
             <div className={s.secEyebrow}>Поставки</div>
             <h2 className={s.secH2}>Откуда мы возим</h2>
-            <p className={s.intro}>Возим напрямую — поэтому держим ассортимент и оптимальные цены. Расходные материалы есть на складе постоянно, срез и горшечные растения приходят дважды в неделю.</p>
+            <p className={s.intro}>Работаем с производителями и поставщиками напрямую. Поэтому можем поддерживать широкий ассортимент и регулярно пополнять склад. Расходные материалы есть на складе постоянно, срезанные и горшечные растения приходят дважды в неделю.</p>
           </div>
           <div className={s.deliv}>
             <div className={`${s.delivCard} ${s.delivA}`}>
@@ -129,7 +141,7 @@ export default function AboutPage() {
         <section className={s.sec}>
           <div className={s.secHead}>
             <div className={s.secEyebrow}>Как заказать</div>
-            <h2 className={s.secH2}>Четыре шага — от регистрации до получения</h2>
+            <h2 className={s.secH2}>Как оформить заказ</h2>
           </div>
           <div className={s.steps}>
             {STEPS.map(st => (
@@ -216,14 +228,14 @@ export default function AboutPage() {
         {/* WHY US */}
         <section className={s.sec}>
           <div className={s.secHead}>
-            <div className={s.secEyebrow}>Почему выбирают нас</div>
-            <h2 className={s.secH2}>Ассортимент, цена и стабильное наличие</h2>
+            <div className={s.secEyebrow}>Почему с нами работают</div>
+            <h2 className={s.secH2}>Свой склад, поставки и ассортимент</h2>
           </div>
           <div className={s.why}>
             {WHY.map(w => (
               <div key={w.t} className={s.whyCard}>
                 <span className={s.whyIc}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.3 7 8.7 5 8.7-5M12 22V12" /></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{w.ic}</svg>
                 </span>
                 <div><div className={s.whyT}>{w.t}</div><div className={s.whyD}>{w.d}</div></div>
               </div>
@@ -231,40 +243,14 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* GALLERY (плейсхолдеры — заменить реальными фото) */}
-        <section className={`${s.sec} ${s.secAlt}`}>
-          <div className={s.secHead}>
-            <div className={s.secEyebrow}>Наша база</div>
-            <h2 className={s.secH2}>Там, где собираются ваши заказы</h2>
-            <p className={s.intro}>Показываем склад, витрину и ассортимент, который всегда можно увидеть своими глазами.</p>
-          </div>
-          <div className={s.gallery}>
-            <div className={`${s.galPh} ${s.g1}`} />
-            <div className={s.galPh} />
-            <div className={s.galPh} />
-            <div className={`${s.galPh} ${s.g4}`} />
-          </div>
-        </section>
-
-        {/* QUOTE */}
-        <section className={s.sec}>
-          <div className={s.quote}>
-            <div className={s.por}><div className={s.porPh} /></div>
-            <div className={s.qtx}>
-              <div className={s.mk}>“</div>
-              <blockquote>Мы начинали с небольшой точки, а выросли в базу, которой доверяют флористы всего региона. Для нас каждый заказ — это чей-то праздник, поэтому ассортимент, цены и честность для нас не просто слова.</blockquote>
-              <div className={s.who}>Валерий Тропин</div>
-              <div className={s.role}>основатель · «Цветы Уральска»</div>
-            </div>
-          </div>
-        </section>
+        {/* GALLERY и QUOTE свёрнуты по хендофу — вернём, когда будут реальные фото базы. */}
 
         {/* CTA */}
         <div className={s.secPadCta}>
           <div className={s.cta}>
             <div>
               <h3 className={s.ctaH3}>Готовы начать работать с нами?</h3>
-              <p>Запросите прайс или откройте каталог — подберём ассортимент под ваш магазин и объёмы.</p>
+              <p>Запросите прайс или откройте каталог, подберём ассортимент под ваш магазин и объёмы.</p>
             </div>
             <div className={s.acts}>
               <Link href="/categories" className={`${s.btn} ${s.solid}`}>Открыть каталог</Link>
