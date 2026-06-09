@@ -565,7 +565,11 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
 function AccessoriesLeaves({ products }: { products: Product[] }) {
   const { group, selectedLeaves, toggleLeaf, facets } = useFilters()
-  const activeGroup = ACCESSORIES_TREE.find(g => g.id === group) ?? ACCESSORIES_TREE[0]
+  const allMode = group === 'all'  // «Все» — мультивыбор листьев сразу по всем разделам
+
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set(ACCESSORIES_TREE.map(g => g.id)))
+  const toggleGroup = (id: string) =>
+    setOpenGroups(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   // Клиентский фолбэк: счётчики по leaf.slug (агрегируя members), если facets ещё нет
   const bySlug = useMemo(() => {
@@ -596,15 +600,8 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
     cursor: 'pointer', transition: 'background 0.12s',
   }
 
-  // Только листья активного раздела. Лист показываем ⟺ count>0 (или выбран).
-  const leaves = activeGroup.leaves.filter(l => leafCount(l.slug) > 0 || selectedLeaves.includes(l.slug))
-  if (leaves.length === 0) {
-    return <div style={{ fontSize: 12, color: 'var(--text-mid)', padding: '4px 8px' }}>Нет позиций в наличии</div>
-  }
-  // выбранные — вверх, затем разделитель, затем остальные (порядок дерева сохраняется)
-  const selected = leaves.filter(l => selectedLeaves.includes(l.slug))
-  const unselected = leaves.filter(l => !selectedLeaves.includes(l.slug))
-  const renderLeaf = (leaf: typeof leaves[number]) => {
+  type Lf = typeof ACCESSORIES_TREE[number]['leaves'][number]
+  const renderLeaf = (leaf: Lf) => {
     const checked = selectedLeaves.includes(leaf.slug)
     return (
       <div
@@ -627,13 +624,62 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
       </div>
     )
   }
+
+  // выбранные — вверх, затем разделитель, затем остальные
+  const renderList = (leaves: Lf[]) => {
+    const selected = leaves.filter(l => selectedLeaves.includes(l.slug))
+    const unselected = leaves.filter(l => !selectedLeaves.includes(l.slug))
+    return (
+      <>
+        {selected.map(renderLeaf)}
+        {selected.length > 0 && unselected.length > 0 && (
+          <div style={{ height: 1, background: 'var(--border)', margin: '6px 8px' }} />
+        )}
+        {unselected.map(renderLeaf)}
+      </>
+    )
+  }
+
+  // Лист показываем ⟺ count>0 (или выбран).
+  const visibleOf = (g: typeof ACCESSORIES_TREE[number]) =>
+    g.leaves.filter(l => leafCount(l.slug) > 0 || selectedLeaves.includes(l.slug))
+
+  // Один раздел — плоский список листьев
+  if (!allMode) {
+    const g = ACCESSORIES_TREE.find(x => x.id === group) ?? ACCESSORIES_TREE[0]
+    const leaves = visibleOf(g)
+    if (leaves.length === 0) {
+      return <div style={{ fontSize: 12, color: 'var(--text-mid)', padding: '4px 8px' }}>Нет позиций в наличии</div>
+    }
+    return <div>{renderList(leaves)}</div>
+  }
+
+  // «Все» — группы аккордеонами, выбор можно сочетать по нескольким разделам
   return (
     <div>
-      {selected.map(renderLeaf)}
-      {selected.length > 0 && unselected.length > 0 && (
-        <div style={{ height: 1, background: 'var(--border)', margin: '6px 8px' }} />
-      )}
-      {unselected.map(renderLeaf)}
+      {ACCESSORIES_TREE.map(g => {
+        const leaves = visibleOf(g)
+        if (leaves.length === 0) return null
+        const open = openGroups.has(g.id)
+        const total = leaves.reduce((s, l) => s + leafCount(l.slug), 0)
+        return (
+          <div key={g.id}>
+            <button
+              onClick={() => toggleGroup(g.id)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 4px', background: 'none', border: 'none',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <Chevron open={open} />
+              <span style={{ flex: 1, textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{g.label}</span>
+              {!open && total > 0 && countBadge(total, false)}
+            </button>
+            {open && <div style={{ paddingLeft: 4 }}>{renderList(leaves)}</div>}
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -682,8 +682,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (category !== 'all' && p.category !== category) return false
       // accessories — мульти-выбор листьев (subcategory IN union(members)); cut/pot — одиночный subcat
       if (category === 'accessories') {
-        // пусто = весь раздел (листья группы); иначе — выбранные листья
-        const eff = selectedLeaves.length > 0 ? selectedLeaves : slugsForGroup(group)
+        // выбраны листья → по ним; иначе раздел (group); 'all' без выбора → все accessories
+        const eff = selectedLeaves.length > 0 ? selectedLeaves : (group === 'all' ? [] : slugsForGroup(group))
         if (!subcatInLeaves(p.subcategory, eff)) return false
       } else {
         if (subcat && (p.subcategory || '') !== subcat) return false

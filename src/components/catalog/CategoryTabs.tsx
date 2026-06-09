@@ -29,6 +29,24 @@ export default function CategoryTabs() {
 
   return (
     <div className="flex items-stretch gap-0.5 overflow-x-auto" style={{ scrollbarWidth: 'thin', flex: 1, minWidth: 0 }}>
+      {/* «Все» — режим подборки: мультивыбор листьев по всем разделам */}
+      <button
+        onClick={() => open('all')}
+        title="Все категории — комбинируйте фильтры"
+        className="flex items-center gap-2 whitespace-nowrap border-none cursor-pointer transition-colors"
+        style={{
+          flex: 'none', height: 46, padding: '0 14px',
+          background: group === 'all' ? 'rgba(255,255,255,0.12)' : 'transparent',
+          color: group === 'all' ? '#fff' : 'rgba(255,255,255,0.82)',
+          fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+          borderBottom: group === 'all' ? '3px solid #fff' : '3px solid transparent',
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', opacity: 0.92 }}>
+          <path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z" />
+        </svg>
+        Все
+      </button>
       {CATEGORY_TREE.map(g => {
         const active = group === g.id
         return (
