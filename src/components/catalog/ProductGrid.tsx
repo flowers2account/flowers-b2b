@@ -15,7 +15,7 @@ import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import { COLORS } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
-import { unitForProduct, variantLabelForSubcat, subcatInLeaves } from '@/lib/category-tree'
+import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
 
 const ROLE_ICONS: Record<string, string> = {
   focal: '🌹', mass: '🌸', line: '🌿',
@@ -594,7 +594,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
   const isMobile = useIsMobile()
   const {
-    category, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search,
+    category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search,
     lengths, origins, farms, potSizes, volumeRanges, tags, seasons,
     setSearch, setSubcat, toggleTag, toggleColor, reset,
   } = useFilters()
@@ -682,7 +682,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (category !== 'all' && p.category !== category) return false
       // accessories — мульти-выбор листьев (subcategory IN union(members)); cut/pot — одиночный subcat
       if (category === 'accessories') {
-        if (!subcatInLeaves(p.subcategory, selectedLeaves)) return false
+        // пусто = весь раздел (листья группы); иначе — выбранные листья
+        const eff = selectedLeaves.length > 0 ? selectedLeaves : slugsForGroup(group)
+        if (!subcatInLeaves(p.subcategory, eff)) return false
       } else {
         if (subcat && (p.subcategory || '') !== subcat) return false
         if (varietyType && (p.variety_type || '') !== varietyType) return false
@@ -761,7 +763,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     }
 
     return list
-  }, [products, category, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
+  }, [products, category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])

@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect, useRef } from 'react'
 import { useIsMobile } from '@/lib/use-mobile'
 import { useDetailStore } from '@/lib/detail-store'
 import { useFilters } from '@/lib/filter-store'
+import { groupIdForLeafSlug } from '@/lib/category-tree'
 import { useCart } from '@/lib/cart-store'
 import { useProductsStore } from '@/lib/products-store'
 import { useFilterChips } from '@/lib/filter-chips'
@@ -94,7 +95,7 @@ export default function CatalogLayout({
   const {
     stockLevel, colors, lengths, origins, potSizes,
     tags, seasons, subcat,
-    category, selectedLeaves, setSelectedLeaves, setCategory, setSearch,
+    category, group, selectedLeaves, setGroup, setSelectedLeaves, setSearch,
   } = useFilters()
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -124,10 +125,10 @@ export default function CatalogLayout({
     const params = new URLSearchParams(window.location.search)
     if (params.get('category') === 'accessories') {
       const leaves = (params.get('leaves') ?? '').split(',').map(s => s.trim()).filter(Boolean)
-      if (leaves.length) {
-        if (category !== 'accessories') setCategory('accessories') // setCategory чистит leaves → ставим после
-        setSelectedLeaves(leaves)
-      }
+      // group из URL; если нет, но есть leaves — выводим раздел из первого листа
+      const grp = params.get('group') || (leaves[0] ? groupIdForLeafSlug(leaves[0]) : '')
+      if (grp) setGroup(grp)                          // setGroup чистит selectedLeaves
+      if (leaves.length) setSelectedLeaves(leaves)    // уточнение — после setGroup
     }
     // Поиск из URL (?search=… или ?q=…) — точка входа со страницы «Категории».
     // Ставим после setCategory (он сбрасывает search).
@@ -138,16 +139,17 @@ export default function CatalogLayout({
   useEffect(() => {
     if (!urlInit.current) return // не трогаем URL до инициализации из него (без гонки на маунте)
     const params = new URLSearchParams(window.location.search)
-    if (category === 'accessories' && selectedLeaves.length > 0) {
+    if (category === 'accessories') {
       params.set('category', 'accessories')
-      params.set('leaves', selectedLeaves.join(','))
+      params.set('group', group)
+      if (selectedLeaves.length > 0) params.set('leaves', selectedLeaves.join(','))
+      else params.delete('leaves')
     } else {
-      params.delete('leaves')
-      if (category === 'accessories') params.delete('category')
+      params.delete('category'); params.delete('group'); params.delete('leaves')
     }
     const qs = params.toString()
     window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
-  }, [category, selectedLeaves])
+  }, [category, group, selectedLeaves])
 
   // Restore scroll position when returning from product page
   useEffect(() => {

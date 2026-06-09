@@ -11,13 +11,13 @@ export const metadata: Metadata = {
 
 const tel = '+' + company.phone.replace(/\D/g, '')
 
-const SUPPLY: { c: string; t: string; d: string; leaves: string[] }[] = [
-  { c: '#D26AA0', t: 'Упаковка и флористика', d: 'Плёнка, бумага, пакеты, коробки, краски', leaves: ['film', 'paper', 'film_bags', 'gift_boxes', 'paints'] },
-  { c: '#C45A38', t: 'Горшки и кашпо', d: 'Керамика, пластик, разные размеры', leaves: ['pots', 'kashpo'] },
-  { c: '#B0822E', t: 'Вазы и корзины', d: 'Стекло, плетёные корзины', leaves: ['vases', 'baskets'] },
-  { c: '#8A57B8', t: 'Декор и подарки', d: 'Сувениры, игрушки, искусств. растения, фонтаны', leaves: ['decor', 'toys', 'artificial', 'fountains'] },
-  { c: '#5A9E3A', t: 'Сад и огород', d: 'Грунты, удобрения, защита, садовый уход', leaves: ['soil', 'fertilizers', 'plant_protection', 'garden_care'] },
-  { c: '#2E9E8F', t: 'Газоны и укрытие', d: 'Искусственный газон, укрывной материал, плёнка', leaves: ['artificial_grass', 'cover_fabric', 'cover_film'] },
+const SUPPLY: { c: string; t: string; d: string; group: string }[] = [
+  { c: '#D26AA0', t: 'Упаковка и флористика', d: 'Плёнка, бумага, пакеты, коробки, краски', group: 'packaging' },
+  { c: '#C45A38', t: 'Горшки и кашпо', d: 'Керамика, пластик, разные размеры', group: 'pots' },
+  { c: '#B0822E', t: 'Вазы и корзины', d: 'Стекло, плетёные корзины', group: 'vases' },
+  { c: '#8A57B8', t: 'Декор и подарки', d: 'Сувениры, игрушки, искусств. растения, фонтаны', group: 'decor' },
+  { c: '#5A9E3A', t: 'Сад и огород', d: 'Грунты, удобрения, защита, садовый уход', group: 'garden' },
+  { c: '#2E9E8F', t: 'Газоны и укрытие', d: 'Искусственный газон, укрывной материал, плёнка', group: 'lawn' },
 ]
 
 const STEPS = [
@@ -34,7 +34,7 @@ const WHY = [
   { t: 'Доставка по всей области', d: 'Самовывоз с базы или доставка по Уральску и ЗКО. Поможем с логистикой крупных заказов.' },
 ]
 
-const catHref = (leaves: string[]) => `/?category=accessories&leaves=${leaves.join(',')}`
+const catHref = (group: string) => `/?category=accessories&group=${group}`
 
 export default function AboutPage() {
   return (
@@ -85,7 +85,7 @@ export default function AboutPage() {
           </div>
           <div className={s.supply}>
             {SUPPLY.map(it => (
-              <Link key={it.t} href={catHref(it.leaves)} className={s.supplyItem} style={{ '--c': it.c } as React.CSSProperties}>
+              <Link key={it.t} href={catHref(it.group)} className={s.supplyItem} style={{ '--c': it.c } as React.CSSProperties}>
                 <span className={s.supplyIc}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m2 8 10-5 10 5-10 5z M2 8v8l10 5 10-5V8" /></svg>
                 </span>

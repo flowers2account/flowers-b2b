@@ -65,6 +65,21 @@ export const LEAF_BY_SLUG: Map<string, Leaf> = new Map(
   CATEGORY_TREE.flatMap(g => g.leaves.map(l => [l.slug, l] as const)),
 )
 
+// ── группы (раздел = контекст сайдбара/товаров) ───────────────────────────────
+export const GROUP_BY_ID: Map<string, Group> = new Map(CATEGORY_TREE.map(g => [g.id, g] as const))
+export const DEFAULT_GROUP_ID = CATEGORY_TREE[0].id
+
+/** Слаги листьев группы (для фильтра «весь раздел»). */
+export function slugsForGroup(groupId: string): string[] {
+  return (GROUP_BY_ID.get(groupId)?.leaves ?? []).map(l => l.slug)
+}
+
+/** id группы, которой принадлежит лист (по leaf.slug). */
+export function groupIdForLeafSlug(slug: string): string | undefined {
+  for (const g of CATEGORY_TREE) if (g.leaves.some(l => l.slug === slug)) return g.id
+  return undefined
+}
+
 /** Лист дерева, к которому принадлежит сырой products.subcategory (или undefined). */
 export function leafForSubcat(rawSubcat: string | null | undefined): Leaf | undefined {
   if (!rawSubcat) return undefined

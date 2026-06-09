@@ -1,5 +1,5 @@
 'use client'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useFilters } from '@/lib/filter-store'
 import { CATEGORY_TREE } from '@/lib/category-tree'
 
@@ -19,27 +19,22 @@ const ICON: Record<string, string> = {
 
 export default function CategoryTabs() {
   const router = useRouter()
-  const pathname = usePathname()
-  const { category, selectedLeaves, setCategory, setSelectedLeaves } = useFilters()
+  const { category, group, setCategory, setGroup } = useFilters()
 
-  const isActive = (leaves: string[]) =>
-    category === 'accessories' && selectedLeaves.length > 0 && selectedLeaves.every(l => leaves.includes(l))
-
-  const open = (leaves: string[]) => {
-    setCategory('accessories')      // сбрасывает прочие фильтры
-    setSelectedLeaves(leaves)       // ставим листья раздела
-    router.push(`/?category=accessories&leaves=${leaves.join(',')}`)
+  const open = (id: string) => {
+    if (category !== 'accessories') setCategory('accessories') // setCategory сбросит group → ставим после
+    setGroup(id)                    // меняет раздел, очищает selectedLeaves
+    router.push(`/?category=accessories&group=${id}`)
   }
 
   return (
     <div className="flex items-stretch gap-0.5 overflow-x-auto" style={{ scrollbarWidth: 'thin', flex: 1, minWidth: 0 }}>
       {CATEGORY_TREE.map(g => {
-        const slugs = g.leaves.map(l => l.slug)
-        const active = isActive(slugs)
+        const active = group === g.id
         return (
           <button
             key={g.id}
-            onClick={() => open(slugs)}
+            onClick={() => open(g.id)}
             title={g.label}
             className="flex items-center gap-2 whitespace-nowrap border-none cursor-pointer transition-colors"
             style={{

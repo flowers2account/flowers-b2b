@@ -14,6 +14,7 @@ type Tile = {
   name: string
   c: string
   img: string
+  group: string
   leaves: string[]
   subs: string[]
   icon: React.ReactNode
@@ -22,37 +23,37 @@ type Tile = {
 // Направления = группы category-tree.ts; leaves = их листья (ссылки в каталог).
 const TILES: Tile[] = [
   {
-    num: '01', name: 'Упаковка и флористика', c: '#D26AA0', img: 'packaging.jpg',
+    num: '01', name: 'Упаковка и флористика', c: '#D26AA0', img: 'packaging.jpg', group: 'packaging',
     leaves: ['film', 'paper', 'film_bags', 'gift_boxes', 'paints'],
     subs: ['Плёнка', 'Бумага', 'Пакеты', 'Подарочные коробки', 'Краски и спреи'],
     icon: <path d="m2 8 10-5 10 5-10 5z M2 8v8l10 5 10-5V8 M12 13v8" />,
   },
   {
-    num: '02', name: 'Горшки и кашпо', c: '#C45A38', img: 'pots.jpg',
+    num: '02', name: 'Горшки и кашпо', c: '#C45A38', img: 'pots.jpg', group: 'pots',
     leaves: ['pots', 'kashpo'],
     subs: ['Горшки', 'Кашпо'],
     icon: <path d="M5 9h14l-1.5 11h-11z M7 9V7a5 5 0 0 1 10 0v2" />,
   },
   {
-    num: '03', name: 'Вазы и корзины', c: '#B0822E', img: 'vases.jpg',
+    num: '03', name: 'Вазы и корзины', c: '#B0822E', img: 'vases.jpg', group: 'vases',
     leaves: ['vases', 'baskets'],
     subs: ['Вазы', 'Корзины'],
     icon: <path d="M8 2h8 M9 2c0 3-2 4-2 8a5 5 0 0 0 10 0c0-4-2-5-2-8" />,
   },
   {
-    num: '04', name: 'Декор и подарки', c: '#8A57B8', img: 'decor.jpg',
+    num: '04', name: 'Декор и подарки', c: '#8A57B8', img: 'decor.jpg', group: 'decor',
     leaves: ['decor', 'toys', 'artificial', 'fountains'],
     subs: ['Декор и сувениры', 'Игрушки', 'Искусственные растения', 'Фонтаны'],
     icon: <path d="M20 12v10H4V12 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />,
   },
   {
-    num: '05', name: 'Сад и огород', c: '#5A9E3A', img: 'garden.jpg',
+    num: '05', name: 'Сад и огород', c: '#5A9E3A', img: 'garden.jpg', group: 'garden',
     leaves: ['soil', 'fertilizers', 'plant_protection', 'garden_care'],
     subs: ['Грунты', 'Удобрения', 'Защита растений', 'Садовый уход'],
     icon: <path d="M12 22V12 M12 12c0-3 2-5 5-5 0 3-2 5-5 5Z M12 12c0-3-2-5-5-5 0 3 2 5 5 5Z M7 17c0-2 2-3 5-3 M17 17c0-2-2-3-5-3" />,
   },
   {
-    num: '06', name: 'Газоны и укрытие', c: '#2E9E8F', img: 'lawn.jpg',
+    num: '06', name: 'Газоны и укрытие', c: '#2E9E8F', img: 'lawn.jpg', group: 'lawn',
     leaves: ['artificial_grass', 'cover_fabric', 'cover_film'],
     subs: ['Искусственный газон', 'Укрывной материал', 'Плёнка полиэтиленовая'],
     icon: <path d="M3 20h18 M6 20v-5 M10 20v-7 M14 20v-5 M18 20v-8 M4 14c2-3 5-3 7 0 M13 13c2-2 5-2 7 0" />,
@@ -94,7 +95,7 @@ export default function CategoriesPage() {
             {TILES.map(t => (
               <Link
                 key={t.num}
-                href={`/?category=accessories&leaves=${t.leaves.join(',')}`}
+                href={`/?category=accessories&group=${t.group}`}
                 className={s.tile}
                 style={{ '--c': t.c } as React.CSSProperties}
               >

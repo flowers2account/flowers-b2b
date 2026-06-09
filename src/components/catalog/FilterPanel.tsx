@@ -564,10 +564,8 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 // ── accessories: мульти-выбор листьев из category-tree.ts ─────────────────────
 
 function AccessoriesLeaves({ products }: { products: Product[] }) {
-  const { selectedLeaves, toggleLeaf, facets } = useFilters()
-  const [openGroups, setOpenGroups] = useState<Set<string>>(
-    () => new Set(ACCESSORIES_TREE.map(g => g.id))
-  )
+  const { group, selectedLeaves, toggleLeaf, facets } = useFilters()
+  const activeGroup = ACCESSORIES_TREE.find(g => g.id === group) ?? ACCESSORIES_TREE[0]
 
   // Клиентский фолбэк: счётчики по leaf.slug (агрегируя members), если facets ещё нет
   const bySlug = useMemo(() => {
@@ -581,13 +579,6 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
   }, [products])
 
   const leafCount = (slug: string) => facets?.subcatCounts?.[slug] ?? bySlug[slug] ?? 0
-
-  const toggleGroup = (id: string) =>
-    setOpenGroups(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
 
   const countBadge = (count: number, active: boolean) => (
     <span style={{
@@ -605,68 +596,44 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
     cursor: 'pointer', transition: 'background 0.12s',
   }
 
+  // Только листья активного раздела. Лист показываем ⟺ count>0 (или выбран).
+  const leaves = activeGroup.leaves.filter(l => leafCount(l.slug) > 0 || selectedLeaves.includes(l.slug))
+  if (leaves.length === 0) {
+    return <div style={{ fontSize: 12, color: 'var(--text-mid)', padding: '4px 8px' }}>Нет позиций в наличии</div>
+  }
+  // выбранные — вверх, затем разделитель, затем остальные (порядок дерева сохраняется)
+  const selected = leaves.filter(l => selectedLeaves.includes(l.slug))
+  const unselected = leaves.filter(l => !selectedLeaves.includes(l.slug))
+  const renderLeaf = (leaf: typeof leaves[number]) => {
+    const checked = selectedLeaves.includes(leaf.slug)
+    return (
+      <div
+        key={leaf.slug}
+        onClick={() => toggleLeaf(leaf.slug)}
+        className={checked ? '' : 'hover:bg-[var(--bg2)]'}
+        style={{
+          ...rowBase,
+          background: checked ? 'var(--accent)' : undefined,
+          color: checked ? '#fff' : 'var(--text)',
+          fontWeight: checked ? 600 : 400,
+        }}
+      >
+        <input
+          type="checkbox" checked={checked} onChange={() => toggleLeaf(leaf.slug)}
+          style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
+        />
+        <span style={{ flex: 1 }}>{leaf.label}</span>
+        {countBadge(leafCount(leaf.slug), checked)}
+      </div>
+    )
+  }
   return (
     <div>
-      {ACCESSORIES_TREE.map(group => {
-        // Лист показываем ⟺ count>0 (или выбран). hidden — лишь семантический маркер.
-        const leaves = group.leaves.filter(l => leafCount(l.slug) > 0 || selectedLeaves.includes(l.slug))
-        if (leaves.length === 0) return null
-        const open = openGroups.has(group.id)
-        const total = leaves.reduce((s, l) => s + leafCount(l.slug), 0)
-        // выбранные — вверх, затем разделитель, затем остальные (порядок дерева внутри групп сохраняется)
-        const selected = leaves.filter(l => selectedLeaves.includes(l.slug))
-        const unselected = leaves.filter(l => !selectedLeaves.includes(l.slug))
-        const renderLeaf = (leaf: typeof leaves[number]) => {
-          const checked = selectedLeaves.includes(leaf.slug)
-          return (
-            <div
-              key={leaf.slug}
-              onClick={() => toggleLeaf(leaf.slug)}
-              className={checked ? '' : 'hover:bg-[var(--bg2)]'}
-              style={{
-                ...rowBase,
-                background: checked ? 'var(--accent)' : undefined,
-                color: checked ? '#fff' : 'var(--text)',
-                fontWeight: checked ? 600 : 400,
-              }}
-            >
-              <input
-                type="checkbox" checked={checked} onChange={() => toggleLeaf(leaf.slug)}
-                style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
-              />
-              <span style={{ flex: 1 }}>{leaf.label}</span>
-              {countBadge(leafCount(leaf.slug), checked)}
-            </div>
-          )
-        }
-        return (
-          <div key={group.id}>
-            <button
-              onClick={() => toggleGroup(group.id)}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 6,
-                padding: '5px 4px', background: 'none', border: 'none',
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              <Chevron open={open} />
-              <span style={{
-                flex: 1, textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text)',
-              }}>{group.label}</span>
-              {!open && total > 0 && countBadge(total, false)}
-            </button>
-            {open && (
-              <div style={{ paddingLeft: 4 }}>
-                {selected.map(renderLeaf)}
-                {selected.length > 0 && unselected.length > 0 && (
-                  <div style={{ height: 1, background: 'var(--border)', margin: '6px 8px' }} />
-                )}
-                {unselected.map(renderLeaf)}
-              </div>
-            )}
-          </div>
-        )
-      })}
+      {selected.map(renderLeaf)}
+      {selected.length > 0 && unselected.length > 0 && (
+        <div style={{ height: 1, background: 'var(--border)', margin: '6px 8px' }} />
+      )}
+      {unselected.map(renderLeaf)}
     </div>
   )
 }
