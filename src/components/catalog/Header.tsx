@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
-import { useDetailStore } from '@/lib/detail-store'
 import { useFilters } from '@/lib/filter-store'
 import { useFavorites } from '@/lib/favorites-store'
 import { useState, useEffect } from 'react'
@@ -172,9 +171,10 @@ export default function Header() {
           </Link>
 
           {/* Корзина — только десктоп */}
-          <button
-            onClick={() => useDetailStore.getState().setPanel('cart')}
-            className="md:flex hidden items-center gap-2 bg-transparent border-none text-white relative cursor-pointer"
+          <Link
+            href="/cart"
+            aria-label="Корзина"
+            className="md:flex hidden items-center gap-2 bg-transparent border-none text-white relative cursor-pointer no-underline"
             style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -200,7 +200,7 @@ export default function Header() {
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}
-          </button>
+          </Link>
         </div>
       </div>
 
