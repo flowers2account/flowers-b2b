@@ -8,6 +8,12 @@ const ArrowIcon = () => (
   </svg>
 )
 
+const SECTIONS = [
+  { href: '/',           label: 'Каталог' },
+  { href: '/categories', label: 'Категории' },
+  { href: '/about',      label: 'О нас' },
+]
+
 const BUYERS = [
   { href: '/payment',  label: 'Оплата' },
   { href: '/delivery', label: 'Доставка и самовывоз' },
@@ -66,7 +72,7 @@ export default function SiteFooter() {
         {/* ── main grid ── */}
         <div className="ft-main-grid" style={{
           display: 'grid',
-          gridTemplateColumns: '1.5fr 1fr 1fr 1.5fr',
+          gridTemplateColumns: '1.4fr 0.8fr 1fr 1fr 1.4fr',
           gap: '40px',
           padding: '48px 48px 40px',
         }}>
@@ -114,6 +120,24 @@ export default function SiteFooter() {
               </svg>
               Уральск · Западный Казахстан
             </div>
+          </div>
+
+          {/* sections */}
+          <div>
+            <h4 style={{
+              fontFamily: 'var(--font-jetbrains, monospace)',
+              fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase',
+              color: '#8A8088', fontWeight: 500, margin: '0 0 16px',
+            }}>Разделы</h4>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {SECTIONS.map(l => (
+                <li key={l.href}>
+                  <Link href={l.href} className="ft-col-link">
+                    <ArrowIcon />{l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* buyers */}
