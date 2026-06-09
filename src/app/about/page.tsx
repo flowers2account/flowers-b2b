@@ -85,13 +85,15 @@ export default function AboutPage() {
           </div>
           <div className={s.supply}>
             {SUPPLY.map(it => (
-              <Link key={it.t} href={catHref(it.group)} className={s.supplyItem} style={{ '--c': it.c } as React.CSSProperties}>
-                <span className={s.supplyIc}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m2 8 10-5 10 5-10 5z M2 8v8l10 5 10-5V8" /></svg>
-                </span>
-                <span className={s.supplyTx}><span className={s.supplyT}>{it.t}</span><span className={s.supplyD}>{it.d}</span></span>
+              <Link key={it.t} href={catHref(it.group)} className={s.supplyItem}
+                style={{ '--c': it.c, backgroundImage: `url(/category-photos/${it.group}.jpg)` } as React.CSSProperties}>
+                <span className={s.supplyTopbar} />
                 <span className={s.supplyAr}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </span>
+                <span className={s.supplyText}>
+                  <span className={s.supplyT}>{it.t}</span>
+                  <span className={s.supplyD}>{it.d}</span>
                 </span>
               </Link>
             ))}
