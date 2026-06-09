@@ -5,6 +5,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useDetailStore } from '@/lib/detail-store'
 import { useFilters } from '@/lib/filter-store'
+import { useFavorites } from '@/lib/favorites-store'
 import { useState, useEffect } from 'react'
 import AuthModal from './AuthModal'
 import CategoryTabs from './CategoryTabs'
@@ -28,6 +29,7 @@ export default function Header() {
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
   const cartTotal = total()
+  const favCount = useFavorites(s => s.ids.size)
 
   const isAdminRole = role === 'admin' || role === 'manager'
   const NAV = [
@@ -151,10 +153,28 @@ export default function Header() {
           {/* Разделы каталога — вкладки */}
           <CategoryTabs />
 
+          {/* Избранное — только десктоп */}
+          <Link
+            href="/favorites"
+            aria-label="Избранное"
+            className="ml-auto md:flex hidden items-center text-white relative no-underline cursor-pointer"
+            style={{ flexShrink: 0, marginRight: 18 }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+            </svg>
+            {favCount > 0 && (
+              <span className="absolute flex items-center justify-center font-extrabold"
+                style={{ top: -3, right: -10, minWidth: 17, height: 17, borderRadius: 'var(--radius-btn)', padding: '0 4px', background: '#E8B4C0', color: '#1a1a1a', fontSize: 9 }}>
+                {favCount > 99 ? '99+' : favCount}
+              </span>
+            )}
+          </Link>
+
           {/* Корзина — только десктоп */}
           <button
             onClick={() => useDetailStore.getState().setPanel('cart')}
-            className="ml-auto md:flex hidden items-center gap-2 bg-transparent border-none text-white relative cursor-pointer"
+            className="md:flex hidden items-center gap-2 bg-transparent border-none text-white relative cursor-pointer"
             style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

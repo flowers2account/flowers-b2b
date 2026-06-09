@@ -16,6 +16,7 @@ import { type Product, getAvailable, getPrice } from './ProductCard'
 import { COLORS } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
+import FavHeart from './FavHeart'
 
 const ROLE_ICONS: Record<string, string> = {
   focal: '🌹', mass: '🌸', line: '🌿',
@@ -146,7 +147,7 @@ function Stepper({
 
 // ── grid card ───────────────────────────────────────────────────────────────
 
-function GridCard({
+export function GridCard({
   product, qty, isAuthed,
   onDec, onInc, onCardClick,
 }: {
@@ -248,6 +249,10 @@ function GridCard({
         <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           {hasDiscount && <TagBadge type="sale" />}
           {product.is_new && <TagBadge type="new" />}
+        </div>
+        {/* Избранное */}
+        <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 4 }}>
+          <FavHeart productId={product.id} size={30} />
         </div>
       </div>
 

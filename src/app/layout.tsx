@@ -5,6 +5,7 @@ import Script from 'next/script'
 import './globals.css'
 import Header from '@/components/catalog/Header'
 import SiteFooter from '@/components/SiteFooter'
+import FavoritesGate from '@/components/FavoritesGate'
 
 const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         {children}
         <SiteFooter />
+        <FavoritesGate />
         <Script id="umnico-widget" strategy="afterInteractive">{`
 (function(){
   if(document.querySelector('[data-umnico-logo]'))return;

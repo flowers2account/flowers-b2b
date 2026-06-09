@@ -10,6 +10,7 @@ import { COLORS } from '@/lib/colors'
 import { useIsMobile } from '@/lib/use-mobile'
 import { COUNTRY_LABELS } from '@/lib/countries'
 import { leafForSubcat, unitForProduct } from '@/lib/category-tree'
+import FavHeart from '@/components/catalog/FavHeart'
 
 const SUBCAT_RU: Record<string, string> = {
   anthuriums: 'Антуриумы', orchids: 'Орхидеи', kalanchoe: 'Каланхоэ',
@@ -430,13 +431,8 @@ export default function ProductPage() {
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, flexShrink: 0 }} />
                 {product.qty} {unit}
               </span>
-              {/* like button — top-right of photo */}
-              <button
-                onClick={e => e.stopPropagation()}
-                style={{ position: 'absolute', top: 12, right: 12, zIndex: 3, width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.88)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 6px rgba(0,0,0,0.15)', backdropFilter: 'blur(4px)' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-              </button>
+              {/* избранное — top-right of photo */}
+              <FavHeart productId={product.id} size={36} style={{ position: 'absolute', top: 12, right: 12, zIndex: 3 }} />
               {images.length > 1 && (
                 <span style={{ position: 'relative', zIndex: 2, fontFamily: 'monospace', fontSize: 11, color: 'rgba(139,58,90,0.45)', padding: 16, fontWeight: 500 }}>
                   {photoIdx + 1} / {images.length}
