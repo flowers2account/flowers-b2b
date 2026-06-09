@@ -163,9 +163,13 @@ nginx -t && sudo systemctl reload nginx
 
 ---
 
-## 6. nginx (`/etc/nginx/sites-enabled/flowers-ip`)
+## 6. nginx
 
-Сейчас — **только HTTP, без домена** (`server_name _`, `listen 80 default_server`):
+Два сайта в `sites-enabled`:
+- **`flowers-domain`** — `server_name uralskflowers.kz www.uralskflowers.kz`, HTTPS (Let's Encrypt, managed by certbot), HTTP→HTTPS 301. Основной прод-вход.
+- **`flowers-ip`** — `listen 80 default_server`, `server_name _` (доступ по голому IP / прочие хосты).
+
+Оба используют одинаковые location-правила:
 
 - `client_max_body_size 25m`, gzip включён
 - `/_next/static/` → alias `/srv/flowers-b2b/.next/static/` (cache 1y, immutable)
@@ -178,26 +182,22 @@ nginx -t && sudo systemctl reload nginx
 
 - Проект: `flowers-b2b-phi` (`prj_k80BCcMseVVbEQP3tOu46yQzmgXT`, org `team_NyU4Y0SDJBVTXLbswr41VFH5`)
 - URL: `https://flowers-b2b-phi.vercel.app`
-- Теперь это **превью/стейджинг**, не прод.
-- ⚠️ `OZ_IMPORT_URL` на VPS всё ещё указывает на Vercel-домен — python-парсер OZ постит туда. После переезда на домен обновить и URL, и конфиг парсера.
+- Теперь это **только превью** (фич-ветки). Прод-деплой `main` отключён (`vercel.json` → `git.deploymentEnabled.main=false`); прод — только на VPS.
 
 ---
 
-## 8. Чек-лист «ждёт DNS» (домен uralskflowers.kz, регистратор Megagroup)
+## 8. DNS/домен — выполнено (09.06.2026)
 
-Пока A-запись `uralskflowers.kz` → `109.235.118.214` не прописана, нельзя завершить:
+Домен `uralskflowers.kz` (Megagroup) переключён на VPS; прод работает по HTTPS.
 
-- [ ] **DNS**: A-запись `uralskflowers.kz` и `www` → `109.235.118.214` (через Megagroup).
-- [ ] **nginx домен**: заменить `server_name _;` на `server_name uralskflowers.kz www.uralskflowers.kz;` в `/etc/nginx/sites-enabled/flowers-ip`, `nginx -t`, reload.
-- [ ] **TLS**: выпустить сертификат —
-  ```bash
-  sudo certbot --nginx -d uralskflowers.kz -d www.uralskflowers.kz
-  ```
-  (certbot и плагин nginx уже установлены; автопродление через systemd-таймер certbot). Проверить редирект 80→443.
-- [ ] **OZ_IMPORT_URL**: сменить `https://flowers-b2b-phi.vercel.app/api/import-oz-preorder` → `https://uralskflowers.kz/api/import-oz-preorder` в `.env.production` и в конфиге python-парсера; `pm2 reload`.
-- [ ] **Боевая оплата epay**: получить от Halyk Bank боевые ключи и переключить контур (см. `docs/PAYMENTS.md` §6), сделать контрольный платёж на минимальную сумму.
-- [ ] **Хардкоды vercel.app**: вычистить упоминания `flowers-b2b-phi.vercel.app` / `flowers-b2b.vercel.app` в коде/доках (фоллбэки в коде уже используют `uralskflowers.kz`; остаются ссылки в `README.md`, `docs/UX_DESIGN_BRIEF.md`, `docs/BANK_AUDIT_2026-06-04.md` — обновить при финализации).
-- [ ] **amoCRM/постлинк**: убедиться, что postlink-URL оплаты (`/api/payments/postlink`) резолвится по публичному HTTPS-домену (epay требует публичный HTTPS — на голом IP без TLS postlink не дойдёт).
+- [x] **DNS**: A-записи `@` и `www` → `109.235.118.214` (проверено dnschecker).
+- [x] **nginx домен**: `sites-available/flowers-domain` (server_name `uralskflowers.kz www.uralskflowers.kz`) включён в `sites-enabled` (рядом остаётся `flowers-ip` — default_server для доступа по IP). `nginx -t` ok, reload.
+- [x] **TLS**: Let's Encrypt выпущен `certbot --nginx -d uralskflowers.kz -d www.uralskflowers.kz --redirect` (действует до 07.09.2026). Автопродление — `certbot.timer` (enabled/active). HTTP→HTTPS 301 настроен certbot'ом.
+- [x] **OZ_IMPORT_URL** → `https://uralskflowers.kz/api/import-oz-preorder` в `.env.production`, `pm2 reload`. ⚠️ В конфиге **python-парсера OZ** (внешний, Desktop) URL обновить отдельно — это вне репозитория/VPS.
+- [x] **Прод только на VPS**: Vercel-деплой ветки `main` отключён через `vercel.json` (`git.deploymentEnabled.main=false`) — превью с фич-веток работают. ⚠️ Последний прод-деплой на Vercel остаётся «висеть» (трафика нет, DNS → VPS); при желании удалить его в дашборде Vercel.
+- [x] **Cron очистки резерваций** перенесён с Vercel на VPS: `/etc/cron.d/flowers-cleanup` → `/usr/local/bin/flowers-cron-cleanup.sh` (читает `CRON_SECRET` из `.env.production`, дёргает `https://uralskflowers.kz/api/cron/cleanup`), ежедневно 00:00 UTC.
+- [ ] **Боевая оплата epay**: получить от Halyk боевые ключи и переключить контур (см. `docs/PAYMENTS.md` §6), контрольный платёж. (postlink теперь резолвится по публичному HTTPS — техническое препятствие снято.)
+- [ ] **Хардкоды vercel.app в доках**: остаются ссылки в `README.md`, `docs/UX_DESIGN_BRIEF.md`, `docs/BANK_AUDIT_2026-06-04.md` — обновить при финализации (в коде фоллбэки уже `uralskflowers.kz`).
 
 ---
 
