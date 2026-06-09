@@ -121,18 +121,20 @@ export default function AboutPage() {
           </div>
           <div className={s.deliv}>
             <div className={`${s.delivCard} ${s.delivA}`}>
-              <span className={s.globe} />
               <span className={s.route}>Россия · Китай</span>
-              <div className={s.delivT}>Расходные материалы</div>
-              <div className={s.delivD}>Упаковка, горшки и кашпо, вазы, декор и садовый ассортимент. В основном из России и Китая, держим на складе.</div>
-              <span className={s.freq}><span className={s.dot} />На складе · заказ по наличию</span>
+              <div className={s.delivBody}>
+                <div className={s.delivT}>Расходные материалы</div>
+                <div className={s.delivD}>Упаковка, горшки и кашпо, вазы, декор и садовый ассортимент. В основном из России и Китая, держим на складе.</div>
+                <span className={s.freq}><span className={s.dot} />На складе · заказ по наличию</span>
+              </div>
             </div>
             <div className={`${s.delivCard} ${s.delivB}`}>
-              <span className={s.globe} />
               <span className={s.route}>Китай · и другие страны</span>
-              <div className={s.delivT}>Срез и горшечные растения</div>
-              <div className={s.delivD}>Срезка и горшечные с плантаций Китая, Африки, Южной Америки, Голландии и других стран. Под предзаказ и по наличию.</div>
-              <span className={s.freq}><span className={s.dot} />Дважды в неделю · предзаказ и наличие</span>
+              <div className={s.delivBody}>
+                <div className={s.delivT}>Срез и горшечные растения</div>
+                <div className={s.delivD}>Срезка и горшечные с плантаций Китая, Африки, Южной Америки, Голландии и других стран. Под предзаказ и по наличию.</div>
+                <span className={s.freq}><span className={s.dot} />Дважды в неделю · предзаказ и наличие</span>
+              </div>
             </div>
           </div>
         </section>
@@ -180,11 +182,16 @@ export default function AboutPage() {
               </div>
               <p>Оплата картой проходит на защищённой странице {company.bank} по технологии 3-D Secure. Данные карты вводятся только на стороне банка и передаются по шифрованному каналу — магазин их не получает и не хранит.</p>
               <div className={s.payRow}>
-                <span className={s.pay}>VISA</span>
-                <span className={s.pay}>Mastercard</span>
-                <span className={s.pay}>UnionPay</span>
-                <span className={s.pay}>Visa Secure</span>
-                <span className={s.pay}>Mastercard ID Check</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={s.payLogo} src="/payment-logos/visa.svg" alt="Visa" width={49} height={30} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={s.payLogo} src="/payment-logos/mastercard.svg" alt="Mastercard" width={49} height={30} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={s.payLogo} src="/payment-logos/unionpay.svg" alt="UnionPay" width={49} height={30} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={s.payLogo} src="/payment-logos/visa-secure.svg" alt="Visa Secure" width={49} height={30} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={s.payLogo} src="/payment-logos/mc-id-check.svg" alt="Mastercard ID Check" width={49} height={30} />
               </div>
             </div>
 

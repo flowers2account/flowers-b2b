@@ -80,16 +80,22 @@
 
 /* DELIVERIES */
 .deliv { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.delivCard { position: relative; padding: 28px; border-radius: var(--card-r); overflow: hidden; color: #fff; box-shadow: var(--sh-card); }
-.delivA { background: linear-gradient(125deg, rgba(74,58,46,.82), rgba(122,100,80,.72) 72%), url('/about/deliv-supplies.jpg'); background-size: cover; background-position: center; }
-.delivB { background: linear-gradient(125deg, rgba(140,40,70,.82), rgba(196,78,120,.72) 78%), url('/about/deliv-flowers.jpg'); background-size: cover; background-position: center; }
-.route { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-jetbrains), monospace; font-size: 12px;
-  letter-spacing: .06em; text-transform: uppercase; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.26); padding: 6px 13px; border-radius: var(--r-pill); }
-.delivT { font-family: var(--font-serif), serif; font-weight: 600; font-size: 21px; margin-top: 18px; }
-.delivD { font-size: 14px; color: rgba(255,255,255,.9); margin-top: 8px; line-height: 1.55; max-width: 38ch; }
-.freq { margin-top: 16px; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 0 3px rgba(255,255,255,.2); }
-.globe { position: absolute; right: -30px; bottom: -40px; width: 170px; height: 170px; border-radius: 50%; border: 2px solid rgba(255,255,255,.16); }
+.delivCard { position: relative; padding: 28px; border-radius: var(--card-r); overflow: hidden; color: #fff; box-shadow: var(--sh-card);
+  min-height: 300px; display: flex; flex-direction: column; background: #2A2126; isolation: isolate; }
+.delivCard::before { content: ''; position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; transition: transform .5s ease; }
+.delivCard::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.45) 60%, rgba(0,0,0,.62) 100%); }
+.delivCard:hover::before { transform: scale(1.05); }
+.delivA::before { background-image: url('/about/deliv-supplies.jpg'); }
+.delivB::before { background-image: url('/about/deliv-flowers.jpg'); }
+.route { align-self: flex-start; position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--font-jetbrains), monospace; font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+  background: rgba(20,12,16,.4); border: 1px solid rgba(255,255,255,.3); padding: 6px 13px; border-radius: var(--r-pill); backdrop-filter: blur(4px); }
+.delivBody { position: relative; z-index: 2; margin-top: auto; }
+.delivT { font-family: var(--font-serif), serif; font-weight: 600; font-size: 22px; text-shadow: 0 1px 14px rgba(0,0,0,.4); }
+.delivD { font-size: 14px; color: rgba(255,255,255,.92); margin-top: 8px; line-height: 1.55; max-width: 40ch; text-shadow: 0 1px 10px rgba(0,0,0,.35); }
+.freq { margin-top: 16px; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.95); box-shadow: 0 0 0 3px rgba(255,255,255,.25); }
 
 /* STEPS */
 .steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; }
@@ -130,7 +136,7 @@
 .payHead { display: flex; align-items: center; gap: 10px; font-family: var(--font-serif), serif; font-weight: 600; font-size: 16px; margin-bottom: 10px; }
 .paySec p { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; max-width: 80ch; }
 .payRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
-.pay { height: 36px; padding: 0 13px; border-radius: 8px; background: #fff; border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 12.5px; color: #1a1a1f; }
+.payLogo { height: 30px; width: auto; display: block; border-radius: 6px; }
 .legalLine { margin-top: 16px; font-size: 13px; color: var(--ink-3); line-height: 1.6; }
 .legalLine a { color: var(--accent); text-decoration: none; }
 .legalLine a:hover { text-decoration: underline; }
