@@ -252,14 +252,18 @@ export default function SiteFooter() {
               Принимаем к оплате
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ height: 30, minWidth: 48, padding: '0 12px', borderRadius: 6, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, letterSpacing: '0.04em', color: '#1A1F71', fontStyle: 'italic' }}>VISA</span>
-              <span style={{ height: 30, padding: '0 10px', borderRadius: 6, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ width: 15, height: 15, borderRadius: '50%', background: '#EB001B', display: 'inline-block' }} />
-                <span style={{ width: 15, height: 15, borderRadius: '50%', background: '#F79E1B', display: 'inline-block', marginLeft: -7, mixBlendMode: 'multiply' as const }} />
-              </span>
-              <span style={{ height: 30, minWidth: 48, padding: '0 12px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(90deg,#E21836 0 33%,#00798C 33% 66%,#007B5F 66%)', color: '#fff', fontSize: 9, fontWeight: 700 }}>UnionPay</span>
-              <span style={{ height: 30, minWidth: 48, padding: '0 12px', borderRadius: 6, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: '#0F754E' }}>МИР</span>
-              <a href="https://epayment.kz" target="_blank" rel="noopener noreferrer" style={{ height: 30, minWidth: 48, padding: '0 12px', borderRadius: 6, background: '#16B364', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: '#fff', textDecoration: 'none' }}>ePay</a>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/payment-logos/visa.svg" alt="Visa" width={49} height={30} style={{ height: 30, width: 'auto', display: 'block', borderRadius: 6 }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/payment-logos/mastercard.svg" alt="Mastercard" width={49} height={30} style={{ height: 30, width: 'auto', display: 'block', borderRadius: 6 }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/payment-logos/unionpay.svg" alt="UnionPay" width={49} height={30} style={{ height: 30, width: 'auto', display: 'block', borderRadius: 6 }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/payment-logos/mir.svg" alt="МИР" width={49} height={30} style={{ height: 30, width: 'auto', display: 'block', borderRadius: 6 }} />
+              <a href="https://epayment.kz" target="_blank" rel="noopener noreferrer" aria-label="ePay — Народный Банк Казахстана">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/payment-logos/epay.svg" alt="ePay — Народный Банк Казахстана" width={49} height={30} style={{ height: 30, width: 'auto', display: 'block', borderRadius: 6 }} />
+              </a>
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#8A8088' }}>
