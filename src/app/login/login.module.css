@@ -1,0 +1,62 @@
+/* Экран «Вход» — перенос из design_handoff_pages (zip 9).
+   Глобальные шапка/футер остаются (layout.tsx); это центрированная карточка на бордовом фоне. */
+
+.wrap {
+  --accent: #8B3A5A; --accent-deep: #6E2A45; --accent-mid: #C97A92;
+  --accent-light: #F7EEF2; --accent-tint: #FBF6F8;
+  --fern: #3D6B50; --fern-deep: #2E5640; --fern-light: #E8F0EA;
+  --ink: #1A1A1F; --ink-2: #494950; --ink-3: #7A7780; --ink-4: #A8A4AD;
+  --bg-card: #FFFFFF; --bg-soft: #F7F4F1; --border: #E6DFD9; --border-soft: #EFEAE5;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+  --sh-card: 0 1px 3px rgba(0,0,0,.08);
+  --sh-frame: 0 24px 70px rgba(50,25,40,.22), 0 6px 18px rgba(50,25,40,.10);
+  font-family: var(--font-golos), system-ui, sans-serif; color: var(--ink); font-size: 14px;
+  display: flex; align-items: center; justify-content: center; padding: 48px 20px;
+  min-height: calc(100vh - 220px);
+  background:
+    radial-gradient(1100px 600px at 18% -10%, rgba(201,122,146,.30), transparent 60%),
+    radial-gradient(900px 500px at 100% 110%, rgba(61,107,80,.22), transparent 55%),
+    linear-gradient(135deg, #6E2A45, #8B3A5A 55%, #A14A68);
+}
+
+.auth { position: relative; width: 100%; max-width: 412px; background: var(--bg-card); border-radius: var(--r-lg); box-shadow: var(--sh-frame); overflow: hidden; }
+.head { padding: 28px 32px 20px; text-align: center; border-bottom: 1px solid var(--border-soft); }
+.brand { display: inline-flex; align-items: center; gap: 11px; }
+.mark { width: 46px; height: 46px; border-radius: 50%; background: #fff url('/logo.png') center/cover no-repeat; box-shadow: 0 0 0 1px rgba(0,0,0,.06); flex: none; }
+.wm { display: flex; flex-direction: column; line-height: 1.05; text-align: left; }
+.nm { font-family: var(--font-serif), serif; font-weight: 600; font-size: 17px; color: var(--ink); }
+.sub { font-size: 9.5px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); margin-top: 3px; }
+
+.bodyc { padding: 24px 32px 28px; }
+.tabs { display: flex; background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: var(--r-pill); padding: 4px; margin-bottom: 22px; }
+.tabs button { flex: 1; height: 38px; border: none; background: transparent; border-radius: var(--r-pill); font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-3); cursor: pointer; transition: .15s; }
+.tabs button.on { background: #fff; color: var(--accent); box-shadow: var(--sh-card); }
+
+.title { font-family: var(--font-serif), serif; font-weight: 600; font-size: 20px; letter-spacing: -.01em; margin-bottom: 5px; }
+.lead { font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-bottom: 20px; }
+.field { margin-bottom: 15px; }
+.field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-3); margin-bottom: 6px; }
+.field input { width: 100%; height: 50px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 15px; font-family: inherit; font-size: 15px; color: var(--ink); outline: none; transition: .14s; background: #fff; }
+.field input:focus { border-color: var(--accent-mid); box-shadow: 0 0 0 3px var(--accent-light); }
+.field.pin input { letter-spacing: .5em; font-family: var(--font-jetbrains), monospace; text-align: center; }
+.rowBetween { display: flex; align-items: center; justify-content: space-between; margin: -2px 0 18px; }
+.remember { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; user-select: none; }
+.remember .box { width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; background: #fff; color: #fff; }
+.remember.on .box { background: var(--accent); border-color: var(--accent); }
+.remember .box svg { opacity: 0; }
+.remember.on .box svg { opacity: 1; }
+.flink { font-size: 12.5px; font-weight: 600; color: var(--accent); text-decoration: none; cursor: pointer; background: none; border: none; font-family: inherit; }
+.flink:hover { text-decoration: underline; }
+.submit { width: 100%; height: 52px; border: none; border-radius: var(--r-sm); background: var(--accent); color: #fff; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: .15s; }
+.submit:hover { background: var(--accent-deep); }
+.submit:disabled { opacity: .7; cursor: default; }
+.hint { display: flex; gap: 9px; font-size: 12px; color: var(--ink-3); line-height: 1.5; background: var(--accent-tint); border: 1px solid var(--border-soft); border-radius: var(--r-sm); padding: 11px 13px; margin-top: 18px; }
+.hint svg { flex: none; color: var(--accent-mid); margin-top: 1px; }
+.err { color: #C0392B; font-size: 13px; margin: -6px 0 12px; }
+.msg { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 13px; padding: 8px 0 4px; }
+.msg .ic { width: 60px; height: 60px; border-radius: 50%; background: var(--fern-light); color: var(--fern-deep); display: flex; align-items: center; justify-content: center; }
+.msg .tt { font-family: var(--font-serif), serif; font-weight: 600; font-size: 18px; }
+.msg .dd { font-size: 13px; color: var(--ink-3); line-height: 1.55; max-width: 30ch; }
+.back { margin-top: 8px; }
+.foot { text-align: center; font-size: 12px; color: rgba(255,255,255,.78); margin-top: 18px; }
+.foot a { color: #fff; text-decoration: none; font-weight: 600; }
