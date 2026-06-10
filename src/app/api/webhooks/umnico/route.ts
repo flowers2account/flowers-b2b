@@ -36,7 +36,16 @@ function pick<T = unknown>(obj: Record<string, unknown> | undefined, ...keys: st
   return undefined
 }
 
+// Kill-switch: бот отвечает ТОЛЬКО если UMNICO_BOT_ENABLED === 'true'.
+// По умолчанию ВЫКЛ — чтобы случайно/после инцидента не отвечал. Включается env-переменной.
+const BOT_ENABLED = process.env.UMNICO_BOT_ENABLED === 'true'
+
 export async function POST(req: NextRequest) {
+  if (!BOT_ENABLED) {
+    console.log('[umnico webhook] disabled (UMNICO_BOT_ENABLED != true) — игнор')
+    return NextResponse.json({ ok: true, disabled: true })
+  }
+
   let body: UmnicoWebhook
   try {
     body = await req.json()
