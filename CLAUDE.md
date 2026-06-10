@@ -589,6 +589,7 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 | `docs/IMPORT_SYSTEM.md` | Импорт XLS из 1С — ⚠️ устарело (описывает batches/stock до 25.05.2026) |
 | `docs/STOCK_MANAGEMENT.md` | Архитектура остатков |
 | `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
+| `docs/UMNICO_BOT.md` | ИИ-бот поддержки в Umnico (расходка): поток, ENV, разовая настройка, правка промптов |
 | `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
 | `docs/KNOWN_ISSUES.md` | Известные баги |
 | `docs/ROADMAP.md` | Планы развития |
@@ -645,6 +646,41 @@ src/
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key | Только сервер (API routes) |
 | `CRON_SECRET` | Защита cron endpoints | Vercel |
 | `AMO_ACCESS_TOKEN` | Долгосрочный JWT токен amoCRM | Только сервер |
+| `GOOGLE_GEMINI_API_KEY` | Ключ Gemini (переводы, ИИ-бот) | Только сервер |
+| `NEXT_PUBLIC_GEMINI_MODEL` | Модель Gemini (`models/gemini-flash-lite-latest`) | Браузер + Backend |
+| `UMNICO_API_TOKEN` | JWT Umnico (Настройки → API) — ИИ-бот поддержки | Только сервер |
+| `UMNICO_BOT_USER_ID` | id сотрудника-бота в Umnico | Только сервер |
+
+## ИИ-бот поддержки в Umnico (расходка) — актуально с 10.06.2026
+
+Бот автоматически отвечает клиентам в чатах **Umnico** на вопросы по расходным
+материалам (`category='accessories'`), опираясь на живые данные Supabase. Использует
+уже подключённый Gemini (`models/gemini-flash-lite-latest`). **v1 = только расходка** —
+цветы, заказ, доставку, оплату, скидки, жалобы бот не трогает (диалог остаётся менеджеру).
+
+### Файлы
+
+| Файл | Назначение |
+|------|-----------|
+| `src/app/api/webhooks/umnico/route.ts` | Приёмник вебхука (POST): фильтр `message.incoming`, дедуп по `messageId`, всегда 200 |
+| `src/lib/umnico.ts` | Клиент Umnico API v1.3: `getSources`, `sendMessage`, `addTag` |
+| `src/lib/bot/accessories-bot.ts` | Логика: классификация (Gemini JSON) → поиск (Supabase ILIKE) → ответ. **Системный промпт правится здесь** (`SYSTEM_PROMPT`) |
+
+### Поток
+
+1. Обрабатывается **только** `type==='message.incoming'` (всё остальное, особенно `message.outgoing`, → сразу 200 — анти-петля).
+2. Дедуп повторных доставок по `messageId`.
+3. Gemini-классификация → `{in_scope, keywords}`; вне области → ничего не шлём.
+4. Supabase: `products` WHERE `category='accessories' AND is_active AND price>0 AND hidden_for_demo=false` + OR ILIKE по `name`/`display_name`, limit 20.
+5. Gemini с системным промптом → короткий ответ **или** ровно `NO_ANSWER`.
+6. Ответ ≠ `NO_ANSWER` → Umnico (`source` с `type='message'`) + тег `отвечено-ботом`. Иначе — менеджеру.
+
+**Гардрейлы**: не обещает резерв/заказ/доставку; не отвечает на исходящие; дедуп; любая ошибка → 200.
+
+**ENV**: `UMNICO_API_TOKEN`, `UMNICO_BOT_USER_ID` (плюс уже существующие `GOOGLE_GEMINI_API_KEY`, `NEXT_PUBLIC_GEMINI_MODEL`, `SUPABASE_SERVICE_ROLE_KEY`).
+
+**Разовая настройка** (создание сотрудника-бота, регистрация вебхука, проверка) и правка
+промптов — подробно в `docs/UMNICO_BOT.md`. Регистрация вебхука: `scripts/register-umnico-webhook.ts`.
 
 ## amoCRM интеграция — актуально с 04.06.2026
 
