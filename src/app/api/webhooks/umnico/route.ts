@@ -145,8 +145,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, dedup: true })
     }
 
-    // Шаг 2: конвейер бота (внутренние шаги — classify/search/compose — логируются в accessories-bot)
-    const reply = await getAccessoriesReply(text)
+    // Шаг 2: конвейер бота (внутренние шаги — history/classify/search/compose — логируются в accessories-bot)
+    const reply = await getAccessoriesReply(text, { leadId, realId: srcRealId, messageId })
     console.log('[umnico webhook] reply:', reply ? `len=${reply.length}` : 'none (менеджеру)')
 
     // Шаг 3: отправка в Umnico (source из payload, fallback внутри sendMessage)

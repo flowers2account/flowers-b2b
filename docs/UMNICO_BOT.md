@@ -69,6 +69,12 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
 4. Только `message.incoming` идёт дальше. Нет `leadId`/`text` → скип.
 5. Канальная политика (`off` / `manual`-гейт / `auto`).
 6. Дедуп по `messageId` (in-memory Set).
+6a. **Контекст диалога**: `fetchDialogContext(leadId, realId)` — последние ~10 сообщений
+   истории (`POST /messaging/{leadId}/history/{realId}`), роли `client`/`bot`/`manager`,
+   текущее сообщение исключается. Ошибка → продолжаем без контекста. Контекст передаётся
+   в классификатор (наследование темы по коротким репликам) и в compose (не здороваться
+   повторно, отвечать как продолжение). Повторное приветствие, если бот уже писал →
+   короткий `SMALLTALK_REPLIES_REPEAT`.
 7. **Классификация** (Gemini, JSON): `{ intent: 'smalltalk' | 'accessories' | 'site_help' | 'other', keywords }`.
    - `smalltalk` → готовый шаблон из `SMALLTALK_REPLIES` (без Supabase/Gemini).
    - `site_help` (регистрация / вход / PIN / заказ / доставка / оплата / график / контакты)

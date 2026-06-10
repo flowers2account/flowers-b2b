@@ -4,6 +4,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { callGemini } from '@/lib/gemini'
 import { CLIENT_FAQ } from '@/lib/bot/site-faq'
+import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
 
 // Системный промпт для шага C — правится здесь (Цвет).
 const SYSTEM_PROMPT = `Ты — консультант оптовой базы «Цветы Уральска». Отвечаешь ТОЛЬКО по расходным
@@ -18,13 +19,28 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
 4) Оформление заказа не предлагай: для заказа клиент пишет менеджеру.
 5) Отвечай дружелюбно и живо, но коротко; можно одно уместное приветствие или пожелание, без лишней болтовни.
 6) Если называешь конкретный товар — добавь ссылку на его карточку (поле url) отдельной строкой или после названия. Не выдумывай ссылки: используй только url из списка. Если товаров несколько, дай ссылки на 2-3 самых подходящих, не на все.
-7) Если клиент спрашивает про категорию целиком («какая есть плёнка», «что из удобрений»), можешь дать ОДНУ ссылку на подборку — поле catalog_url из списка. Используй только готовый catalog_url из списка, не конструируй параметры сам.`
+7) Если клиент спрашивает про категорию целиком («какая есть плёнка», «что из удобрений»), можешь дать ОДНУ ссылку на подборку — поле catalog_url из списка. Используй только готовый catalog_url из списка, не конструируй параметры сам.
+8) Ниже может быть история диалога. НЕ здоровайся, если уже здоровался в этом диалоге (см. историю). Не повторяй то, что уже говорил. Отвечай как продолжение разговора.
+9) Прощайся / желай хорошего дня ТОЛЬКО если клиент явно прощается.`
 
 // Готовые ответы на small talk — правятся здесь (Цвет). Без похода в Supabase/Gemini.
 const SMALLTALK_REPLIES: Record<string, string> = {
   greeting: 'Здравствуйте! Я помощник «Цветы Уральска» 🌸 Подскажу по ценам на расходные материалы, регистрации и работе сайта. По цветам и оформлению конкретного заказа ответит менеджер.',
   thanks: 'Пожалуйста! Обращайтесь 🌸',
   farewell: 'Хорошего дня! Будем рады помочь снова.',
+}
+
+// Короткие ответы, когда бот уже писал в этом диалоге (повторное приветствие и т.п.) — правит Цвет.
+const SMALLTALK_REPLIES_REPEAT: Record<string, string> = {
+  greeting: 'Да-да, я тут! Чем помочь?',
+}
+
+/** История диалога в компактный текст для промпта (старые→новые). */
+function formatHistory(history: DialogMessage[]): string {
+  if (!history.length) return ''
+  return history
+    .map((h) => `${h.role === 'client' ? 'Клиент' : h.role === 'bot' ? 'Бот' : 'Менеджер'}: ${h.text}`)
+    .join('\n')
 }
 
 // Промпт для вопросов про сайт (регистрация/вход/PIN/заказ/доставка/оплата/график/контакты).
@@ -41,6 +57,8 @@ const SITE_HELP_PROMPT = `Ты — помощник по сайту оптово
 4) Вопросы про КОНКРЕТНЫЙ заказ клиента («где мой заказ», «не пришла оплата», «когда привезёте
    моё») — это к менеджеру: верни ровно NO_ANSWER.
 5) Уместно завершить ответ контактом: WhatsApp +7 700 757 5243.
+6) Ниже может быть история диалога. НЕ здоровайся, если уже здоровался в этом диалоге. Не повторяй
+   сказанное, отвечай как продолжение разговора. Прощайся только если клиент явно прощается.
 
 ПАМЯТКА:
 ${CLIENT_FAQ}`
@@ -74,8 +92,9 @@ interface AccessoryRow {
   pack_size: number | null
 }
 
-/** Шаг A: классификация — small talk / расходка / прочее + ключевые слова. */
-async function classifyMessage(message: string): Promise<ClassifyResult> {
+/** Шаг A: классификация — small talk / расходка / сайт / прочее + ключевые слова. */
+async function classifyMessage(message: string, history: DialogMessage[] = []): Promise<ClassifyResult> {
+  const histBlock = formatHistory(history)
   const prompt = `Ты классификатор сообщений клиента оптовой базы цветов.
 Определи intent сообщения:
 - "smalltalk" — приветствие, благодарность или прощание (без конкретного вопроса).
@@ -97,6 +116,9 @@ async function classifyMessage(message: string): Promise<ClassifyResult> {
   "thanks" (спасибо/благодарю) или "farewell" (пока/до свидания/всего доброго).
 - Для "site_help" и "other": keywords — пустой массив.
 
+Учитывай историю: короткие реплики ("а подешевле?", "сколько штук в упаковке?",
+"давай вторую") — это продолжение темы, наследуй intent и keywords из контекста.
+
 Примеры:
 "есть удобрение для роз и почём" → {"intent":"accessories","keywords":["удобрение"]}
 "нужна плёнка матовая для букетов" → {"intent":"accessories","keywords":["плёнка","матовая"]}
@@ -111,7 +133,7 @@ async function classifyMessage(message: string): Promise<ClassifyResult> {
 "во сколько работаете?" → {"intent":"site_help","keywords":[]}
 "когда привезёте розы?" → {"intent":"other","keywords":[]}
 "где мой заказ?" → {"intent":"other","keywords":[]}
-
+${histBlock ? `\nИстория диалога (старые→новые):\n${histBlock}\n` : ''}
 Сообщение клиента: ${JSON.stringify(message)}`
 
   const text = await callGemini(prompt, { json: true, temperature: 0.1 })
@@ -172,7 +194,7 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
 const SITE_URL = 'https://uralskflowers.kz'
 
 /** Шаг C: сформировать ответ или NO_ANSWER. */
-async function composeAnswer(message: string, rows: AccessoryRow[]): Promise<string | null> {
+async function composeAnswer(message: string, rows: AccessoryRow[], history: DialogMessage[] = []): Promise<string | null> {
   // Готовые ссылки: карточка товара и подборка по подкатегории (catalog читает ?category=accessories&leaves=<subcategory>).
   const context = rows.map((r) => ({
     ...r,
@@ -182,9 +204,10 @@ async function composeAnswer(message: string, rows: AccessoryRow[]): Promise<str
       : undefined,
   }))
 
+  const histBlock = formatHistory(history)
   const prompt = `${SYSTEM_PROMPT}
 Список товаров (JSON): ${JSON.stringify(context)}
-
+${histBlock ? `\nИстория диалога (старые→новые):\n${histBlock}\n` : ''}
 Сообщение клиента: ${message}`
 
   const text = await callGemini(prompt, { temperature: 0.1 })
@@ -195,9 +218,10 @@ async function composeAnswer(message: string, rows: AccessoryRow[]): Promise<str
 }
 
 /** Ответ на вопрос про сайт по памятке (CLIENT_FAQ) или NO_ANSWER. */
-async function composeSiteHelp(message: string): Promise<string | null> {
+async function composeSiteHelp(message: string, history: DialogMessage[] = []): Promise<string | null> {
+  const histBlock = formatHistory(history)
   const prompt = `${SITE_HELP_PROMPT}
-
+${histBlock ? `\nИстория диалога (старые→новые):\n${histBlock}\n` : ''}
 Сообщение клиента: ${message}`
 
   const text = await callGemini(prompt, { temperature: 0.2 })
@@ -211,22 +235,39 @@ async function composeSiteHelp(message: string): Promise<string | null> {
  * Главный конвейер. Возвращает текст ответа клиенту либо null
  * (если вне области / нет данных / ошибка — менеджер обрабатывает сам).
  */
-export async function getAccessoriesReply(message: string): Promise<string | null> {
+export async function getAccessoriesReply(
+  message: string,
+  ctx?: { leadId: string | number; realId?: string | number; messageId?: string | number },
+): Promise<string | null> {
   if (!message || !message.trim()) return null
 
-  const cls = await classifyMessage(message)
+  // Контекст диалога: последние сообщения из истории Umnico. Ошибка → [] (конвейер продолжает).
+  let history: DialogMessage[] = []
+  if (ctx?.leadId !== undefined && ctx.realId !== undefined) {
+    history = await fetchDialogContext(ctx.leadId, ctx.realId, { excludeMessageId: ctx.messageId })
+    console.log(`[accessories-bot] history: ${history.length} messages`)
+  } else {
+    console.log('[accessories-bot] history: 0 messages (no realId)')
+  }
+
+  const cls = await classifyMessage(message, history)
   console.log('[accessories-bot] classify:', JSON.stringify(cls))
 
   // Small talk — готовый шаблон, без Supabase и Gemini-compose.
   if (cls.intent === 'smalltalk') {
-    const reply = SMALLTALK_REPLIES[cls.keywords[0]] ?? SMALLTALK_REPLIES.greeting
-    console.log('[accessories-bot] smalltalk:', cls.keywords[0] ?? 'greeting')
+    const sub = cls.keywords[0] ?? 'greeting'
+    const botSpokeBefore = history.some((h) => h.role === 'bot')
+    const reply =
+      (botSpokeBefore && SMALLTALK_REPLIES_REPEAT[sub]) ||
+      SMALLTALK_REPLIES[sub] ||
+      SMALLTALK_REPLIES.greeting
+    console.log('[accessories-bot] smalltalk:', sub, botSpokeBefore ? '(repeat)' : '')
     return reply
   }
 
   // Вопрос про сайт — ответ по памятке (CLIENT_FAQ), без Supabase.
   if (cls.intent === 'site_help') {
-    const answer = await composeSiteHelp(message)
+    const answer = await composeSiteHelp(message, history)
     console.log('[accessories-bot] site_help:', answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
     return answer
   }
@@ -238,7 +279,7 @@ export async function getAccessoriesReply(message: string): Promise<string | nul
   console.log(`[accessories-bot] search: ${rows.length} товаров по`, JSON.stringify(cls.keywords))
   if (rows.length === 0) return null
 
-  const answer = await composeAnswer(message, rows)
+  const answer = await composeAnswer(message, rows, history)
   console.log('[accessories-bot] compose:', answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
   return answer
 }
