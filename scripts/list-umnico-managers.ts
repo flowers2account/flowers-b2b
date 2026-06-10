@@ -37,3 +37,5 @@ const rows = list.map((m) => ({
 
 console.table(rows)
 console.log(`\nВсего: ${rows.length}. Скопируйте id бота в UMNICO_BOT_USER_ID.`)
+
+export {}
