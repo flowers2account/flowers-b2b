@@ -3,6 +3,12 @@
 
 const UMNICO_BASE = 'https://api.umnico.com/v1.3'
 
+/** Приводит числовую строку к number (Umnico требует integer); нечисловое отдаёт как есть. */
+function toNum(v: string | number): number | string {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : v
+}
+
 function authHeaders(): HeadersInit {
   const token = process.env.UMNICO_API_TOKEN
   if (!token) throw new Error('UMNICO_API_TOKEN not set')
@@ -59,12 +65,13 @@ export async function sendMessage(
     return false
   }
 
-  const userId = process.env.UMNICO_BOT_USER_ID
+  // Umnico ждёт integer в body.userId/source — env и payload приходят строками.
   const body: Record<string, unknown> = {
     message: { text },
-    source: target.realId,
+    source: toNum(target.realId),
   }
-  if (userId) body.userId = userId
+  const userIdRaw = process.env.UMNICO_BOT_USER_ID
+  if (userIdRaw) body.userId = toNum(userIdRaw)
 
   const res = await fetch(`${UMNICO_BASE}/messaging/${leadId}/send`, {
     method: 'POST',
