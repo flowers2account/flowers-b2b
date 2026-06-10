@@ -13,11 +13,20 @@ export default function Header() {
   const { isAuthed, phone, role, init, logout } = useAuthStore()
   const { items, total } = useCart()
   const [showAuth, setShowAuth] = useState(false)
+  const [drawer, setDrawer] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { category, setGroup, setCategory } = useFilters()
 
   useEffect(() => { init() }, [])
+  // блокируем скролл body при открытом мобильном меню
+  useEffect(() => {
+    if (drawer) { document.body.style.overflow = 'hidden' }
+    else { document.body.style.overflow = '' }
+    return () => { document.body.style.overflow = '' }
+  }, [drawer])
+  // закрываем меню при смене маршрута
+  useEffect(() => { setDrawer(false) }, [pathname])
 
   // «Каталог» — нейтральный вход: режим «Все» (комбинируемые фильтры по всем разделам)
   const goCatalogAll = () => {
@@ -45,10 +54,20 @@ export default function Header() {
     <header className="sticky top-0 z-[100]">
       {/* L1 — белая 58px */}
       <div data-header-l1 className="bg-white border-b border-[#e8e8e8] flex items-center" style={{ height: 58, overflow: 'hidden' }}>
-        <div className="max-w-[1480px] w-full mx-auto px-[22px] flex items-center" style={{ height: 58 }}>
+        <div className="max-w-[1480px] w-full mx-auto px-[16px] md:px-[22px] flex items-center" style={{ height: 58 }}>
+
+          {/* Бургер — только мобильный */}
+          <button
+            onClick={() => setDrawer(true)}
+            aria-label="Меню"
+            className="md:hidden flex items-center justify-center mr-3 shrink-0"
+            style={{ width: 40, height: 40, borderRadius: 11, border: '1px solid #E6DFD9', background: '#fff', color: 'var(--accent)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          </button>
 
           {/* Логотип */}
-          <Link href="/" className="flex items-center gap-[8px] mr-9 shrink-0 no-underline">
+          <Link href="/" className="flex items-center gap-[8px] md:mr-9 mr-auto shrink-0 no-underline">
             <img
               src="/logo.png"
               alt="Цветы Уральска"
@@ -203,6 +222,82 @@ export default function Header() {
             )}
           </Link>
         </div>
+      </div>
+
+      {/* Мобильное выезжающее меню */}
+      <div className="md:hidden" aria-hidden={!drawer}>
+        <div
+          onClick={() => setDrawer(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(28,18,22,.45)', zIndex: 200, opacity: drawer ? 1 : 0, pointerEvents: drawer ? 'auto' : 'none', transition: 'opacity .2s' }}
+        />
+        <aside
+          style={{
+            position: 'fixed', top: 0, bottom: 0, left: 0, width: '82%', maxWidth: 300, background: '#fff', zIndex: 201,
+            display: 'flex', flexDirection: 'column',
+            transform: drawer ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform .26s cubic-bezier(.4,0,.2,1)', boxShadow: '0 0 40px rgba(0,0,0,.2)',
+          }}
+        >
+          {/* Шапка меню */}
+          <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', color: '#fff', padding: '20px 18px' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img src="/logo.png" alt="" width={38} height={38} style={{ borderRadius: '50%', objectFit: 'cover' }} />
+                <div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 15, lineHeight: 1.1 }}>Цветы Уральска</div>
+                  <span style={{ display: 'block', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: .85, lineHeight: 1.6 }}>оптовая база</span>
+                </div>
+              </div>
+              <button onClick={() => setDrawer(false)} aria-label="Закрыть" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', background: 'rgba(255,255,255,.15)', borderRadius: 8, border: 'none' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            {isAuthed && phone && (
+              <div style={{ marginTop: 14, fontSize: 12.5, opacity: .9, fontFamily: 'var(--font-jetbrains), monospace' }}>{phone}</div>
+            )}
+          </div>
+
+          {/* Пункты меню */}
+          <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 6px' }}>
+            {([
+              { label: 'О нас', href: '/' },
+              { label: 'Категории', href: '/categories' },
+              { label: 'Каталог', action: goCatalogAll },
+              { label: 'Избранное', href: '/favorites', badge: favCount },
+              { label: 'Корзина', href: '/cart', badge: cartCount },
+              ...(isAuthed && !isAdminRole ? [{ label: 'Личный кабинет', href: '/cabinet' }] : []),
+              ...(isAdminRole ? [{ label: 'Заказы', href: '/admin/orders' }, { label: 'Админка', href: '/admin' }] : []),
+            ] as { label: string; href?: string; action?: () => void; badge?: number }[]).map(it => {
+              const active = it.href ? (it.href === '/' ? pathname === '/' : pathname.startsWith(it.href)) : false
+              const inner = (
+                <>
+                  <span style={{ flex: 1 }}>{it.label}</span>
+                  {it.badge != null && it.badge > 0 && (
+                    <span style={{ minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999, background: active ? '#fff' : 'var(--accent)', color: active ? 'var(--accent)' : '#fff', fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{it.badge > 99 ? '99+' : it.badge}</span>
+                  )}
+                </>
+              )
+              const st: React.CSSProperties = {
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                padding: '13px 14px', borderRadius: 10, fontSize: 14.5, fontWeight: active ? 600 : 500,
+                color: active ? 'var(--accent)' : '#333', background: active ? 'var(--accent-light, #F7EEF2)' : 'transparent',
+                border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none',
+              }
+              return it.href
+                ? <Link key={it.label} href={it.href} style={st} onClick={() => setDrawer(false)}>{inner}</Link>
+                : <button key={it.label} style={st} onClick={() => { setDrawer(false); it.action?.() }}>{inner}</button>
+            })}
+          </nav>
+
+          {/* Низ меню — вход/выход */}
+          <div style={{ borderTop: '1px solid #eee', padding: 12 }}>
+            {isAuthed ? (
+              <button onClick={() => { setDrawer(false); logout() }} style={{ width: '100%', padding: '13px', borderRadius: 10, border: '1px solid #E6DFD9', background: '#fff', color: '#7A7780', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Выйти</button>
+            ) : (
+              <button onClick={() => { setDrawer(false); setShowAuth(true) }} style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Войти</button>
+            )}
+          </div>
+        </aside>
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}

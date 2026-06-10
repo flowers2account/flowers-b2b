@@ -6,6 +6,7 @@ import './globals.css'
 import Header from '@/components/catalog/Header'
 import SiteFooter from '@/components/SiteFooter'
 import FavoritesGate from '@/components/FavoritesGate'
+import MobileTabBar from '@/components/MobileTabBar'
 
 const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         {children}
         <SiteFooter />
+        <MobileTabBar />
         <FavoritesGate />
         <Script id="umnico-widget" strategy="afterInteractive">{`
 (function(){
