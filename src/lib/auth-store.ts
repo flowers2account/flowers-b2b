@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePhone } from '@/lib/phone'
+import { useCart } from '@/lib/cart-store'
+import { useFavorites } from '@/lib/favorites-store'
 
 type Role = 'admin' | 'manager' | 'client' | null
 
@@ -90,6 +92,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     await createClient().auth.signOut()
     _initialized = false
     set({ user: null, role: null, phone: null, isAuthed: false })
+    // Чистим персональные данные, чтобы не утекли следующему пользователю
+    useCart.getState().clear()
+    useFavorites.getState().loadForPhone('')
   },
 }))
 
