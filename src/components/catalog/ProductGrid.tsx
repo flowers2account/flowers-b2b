@@ -201,6 +201,7 @@ export function GridCard({
   return (
     <div
       onClick={onCardClick}
+      className="cat-card"
       style={{
         background: '#fff', border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
         borderRadius: 12,

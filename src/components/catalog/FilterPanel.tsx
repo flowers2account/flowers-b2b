@@ -512,7 +512,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
       <div key={node.key}>
         <div
           onClick={() => handleParent(node)}
-          className={parentSel || hasActiveCh ? '' : 'hover:bg-[var(--bg2)]'}
+          className={parentSel || hasActiveCh ? '' : 'hover:bg-white'}
           style={{
             ...rowBase,
             background: parentSel ? 'var(--accent)' : hasActiveCh ? 'var(--bg2)' : undefined,
@@ -534,7 +534,7 @@ function AccordionSubcats({ products }: { products: Product[] }) {
               <div
                 key={child.varietyType}
                 onClick={() => handleChild(node.key, child)}
-                className={childActive ? '' : 'hover:bg-[var(--bg2)]'}
+                className={childActive ? '' : 'hover:bg-white'}
                 style={{
                   ...rowBase,
                   paddingLeft: 22,
@@ -613,7 +613,7 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
       <div
         key={leaf.slug}
         onClick={() => toggleLeaf(leaf.slug)}
-        className="hover:bg-[var(--bg2)]"
+        className="hover:bg-white"
         style={{
           ...rowBase,
           color: checked ? 'var(--accent)' : 'var(--text-mid)',
