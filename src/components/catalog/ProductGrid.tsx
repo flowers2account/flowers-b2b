@@ -115,30 +115,33 @@ function QtyBadge({ qty, unit = 'шт' }: { qty: number; unit?: string }) {
 // ── stepper ─────────────────────────────────────────────────────────────────
 
 function Stepper({
-  qty, available, packSize, onDec, onInc,
+  qty, available, packSize, onDec, onInc, big,
 }: {
   qty: number; available: number; packSize: number
-  onDec: () => void; onInc: () => void
+  onDec: () => void; onInc: () => void; big?: boolean
 }) {
+  const h = big ? 40 : 28
+  const bw = big ? 42 : 28
+  const fs = big ? 18 : 14
   return (
     <div style={{
       display: 'flex', alignItems: 'center',
       border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)',
-      overflow: 'hidden', marginTop: 8,
+      overflow: 'hidden', marginTop: big ? 12 : 8,
     }}>
       <button
         onClick={onDec}
         disabled={qty === 0}
         style={{
-          width: 28, height: 28, border: 'none',
+          width: bw, height: h, border: 'none',
           background: 'var(--bg2)', color: 'var(--accent)',
-          fontSize: 14, fontWeight: 700, cursor: qty === 0 ? 'default' : 'pointer',
+          fontSize: fs, fontWeight: 700, cursor: qty === 0 ? 'default' : 'pointer',
           opacity: qty === 0 ? 0.35 : 1,
         }}
       >−</button>
       <span style={{
-        flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 700,
-        padding: '6px 0',
+        flex: 1, textAlign: 'center', fontSize: big ? 14 : 12, fontWeight: 700,
+        padding: '6px 0', fontFamily: big ? 'var(--font-jetbrains, monospace)' : 'inherit',
         borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
       }}>
         {qty}
@@ -147,9 +150,9 @@ function Stepper({
         onClick={onInc}
         disabled={qty >= available}
         style={{
-          width: 28, height: 28, border: 'none',
+          width: bw, height: h, border: 'none',
           background: 'var(--bg2)', color: 'var(--accent)',
-          fontSize: 14, fontWeight: 700, cursor: qty >= available ? 'default' : 'pointer',
+          fontSize: fs, fontWeight: 700, cursor: qty >= available ? 'default' : 'pointer',
           opacity: qty >= available ? 0.35 : 1,
         }}
       >+</button>
@@ -304,12 +307,13 @@ export function GridCard({
             return 'цветов'
           }
           return (
-            <div style={{ display: 'flex', gap: 5, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 7, marginTop: 7, flexWrap: 'wrap', alignItems: 'center' }}>
               {keys.map(c => {
                 const col = COLORS.find(x => x.key === c)
                 return (
                   <div key={c} title={col?.label ?? c} style={{
-                    width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
+                    width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                    boxShadow: '0 0 0 1px var(--border) inset',
                     background: col
                       ? (('gradient' in col ? col.gradient : col.bg) as string)
                       : '#ccc',
@@ -358,9 +362,9 @@ export function GridCard({
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 {(isAuthed || product.category === 'accessories') ? (
                   <>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>
+                    <span style={{ fontFamily: 'var(--font-serif), serif', fontSize: 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
                       {price.toLocaleString('ru-RU')} ₸
-                      {' '}<span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-mid)' }}>/ {unit}</span>
+                      {' '}<span style={{ fontFamily: 'var(--font-golos)', fontSize: 11, fontWeight: 500, color: 'var(--text-mid)' }}>/ {unit}</span>
                     </span>
                     {hasDiscount && (
                       <span style={{ fontSize: 10, color: 'var(--text-mid)', textDecoration: 'line-through' }}>
@@ -389,7 +393,7 @@ export function GridCard({
 
         {/* stop propagation so stepper click doesn't open detail */}
         <div onClick={e => e.stopPropagation()}>
-          <Stepper qty={qty} available={available} packSize={product.stems_per_pack || product.pack_size || 1} onDec={onDec} onInc={onInc} />
+          <Stepper qty={qty} available={available} packSize={product.stems_per_pack || product.pack_size || 1} onDec={onDec} onInc={onInc} big />
         </div>
       </div>
     </div>
@@ -991,8 +995,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           (() => {
             const gridStyle: React.CSSProperties = {
               display: 'grid',
-              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-              gap: 12,
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+              gap: isMobile ? 12 : 16,
             }
             const renderCard = (p: Product) => {
               const qty = getQty(p.id)

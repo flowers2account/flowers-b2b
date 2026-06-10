@@ -209,7 +209,7 @@ export default function CatalogLayout({
     return (
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '200px 1fr 280px',
+        gridTemplateColumns: '236px 1fr 372px',
         height: `calc(100vh - ${HEADER_H}px)`,
       }}>
         <aside className="overflow-y-auto bg-white" style={{ borderRight: '1px solid var(--border)' }}>
