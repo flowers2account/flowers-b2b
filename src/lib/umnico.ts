@@ -41,12 +41,20 @@ export function pickMessageSource(sources: UmnicoSource[]): UmnicoSource | null 
 
 /**
  * POST /messaging/{leadId}/send — отправить текст в чат лида.
- * Сам резолвит source (type='message') и подставляет userId бота.
+ * Если source (type='message') пришёл в вебхуке — используем его и не дёргаем
+ * GET /sources. Иначе резолвим сами. Подставляет userId бота.
  */
-export async function sendMessage(leadId: string | number, text: string): Promise<boolean> {
-  const sources = await getSources(leadId)
-  const source = pickMessageSource(sources)
-  if (!source) {
+export async function sendMessage(
+  leadId: string | number,
+  text: string,
+  source?: UmnicoSource,
+): Promise<boolean> {
+  let target = source && source.type === 'message' ? source : null
+  if (!target) {
+    const sources = await getSources(leadId)
+    target = pickMessageSource(sources)
+  }
+  if (!target) {
     console.error('[umnico] sendMessage: no source with type=message for lead', leadId)
     return false
   }
@@ -54,7 +62,7 @@ export async function sendMessage(leadId: string | number, text: string): Promis
   const userId = process.env.UMNICO_BOT_USER_ID
   const body: Record<string, unknown> = {
     message: { text },
-    source: source.realId,
+    source: target.realId,
   }
   if (userId) body.userId = userId
 

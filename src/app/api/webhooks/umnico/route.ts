@@ -55,14 +55,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const d = (body.data ?? body.payload ?? body) as Record<string, unknown>
+    // Реальная структура payload Umnico:
+    //   { type, leadId, message: { messageId, message: { text }, source: { realId, type } } }
+    // Совместимость: leadId/type — верхний уровень; текст/id/source — внутри body.message.
+    const top = body as Record<string, unknown>
+    const msg = (body.message ?? body.data ?? body.payload ?? body) as Record<string, unknown>
+    const inner = (msg.message ?? msg) as Record<string, unknown>
+    const srcObj = (msg.source ?? {}) as Record<string, unknown>
 
-    const leadId = pick<string | number>(d, 'leadId', 'lead_id', 'dialogId', 'dialog_id')
-    const messageId = pick<string | number>(d, 'messageId', 'message_id', 'id')
-    const text = pick<string>(d, 'text', 'message', 'body')
+    const leadId = pick<string | number>(top, 'leadId', 'lead_id', 'dialogId', 'dialog_id')
+    const messageId = pick<string | number>(msg, 'messageId', 'message_id', 'id')
+    const text = pick<string>(inner, 'text', 'message', 'body')
+
+    // source из вебхука — чтобы не дёргать GET /sources при отправке.
+    const srcRealId = pick<string | number>(srcObj, 'realId', 'real_id')
+    const payloadSource =
+      srcRealId !== undefined
+        ? { realId: srcRealId, type: String(pick<string>(srcObj, 'type') ?? 'message') }
+        : undefined
 
     // Шаг 1: распарсенный payload
-    console.log('[umnico webhook] incoming:', JSON.stringify({ leadId, messageId, text }))
+    console.log('[umnico webhook] incoming:', JSON.stringify({ leadId, messageId, text, source: payloadSource }))
 
     if (!leadId) {
       console.log('[umnico webhook] skip: no leadId')
@@ -83,9 +96,9 @@ export async function POST(req: NextRequest) {
     const reply = await getAccessoriesReply(text)
     console.log('[umnico webhook] reply:', reply ? `len=${reply.length}` : 'none (менеджеру)')
 
-    // Шаг 3: отправка в Umnico
+    // Шаг 3: отправка в Umnico (source из payload, fallback внутри sendMessage)
     if (reply) {
-      const sent = await sendMessage(leadId, reply)
+      const sent = await sendMessage(leadId, reply, payloadSource)
       console.log('[umnico webhook] umnico send:', sent ? 'ok' : 'failed')
       if (sent) {
         await addTag(leadId, 'отвечено-ботом')
