@@ -563,6 +563,12 @@ function AccordionSubcats({ products }: { products: Product[] }) {
 
 // ── accessories: мульти-выбор листьев из category-tree.ts ─────────────────────
 
+// Цвет раздела (маркер у заголовка группы) — как в мокапе Каталог.html
+const GROUP_COLORS: Record<string, string> = {
+  packaging: '#D26AA0', pots: '#C45A38', vases: '#B0822E',
+  decor: '#8A57B8', garden: '#5A9E3A', lawn: '#2E9E8F',
+}
+
 function AccessoriesLeaves({ products }: { products: Product[] }) {
   const { group, selectedLeaves, toggleLeaf, facets } = useFilters()
   const allMode = group === 'all'  // «Все» — мультивыбор листьев сразу по всем разделам
@@ -607,20 +613,23 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
       <div
         key={leaf.slug}
         onClick={() => toggleLeaf(leaf.slug)}
-        className={checked ? '' : 'hover:bg-[var(--bg2)]'}
+        className="hover:bg-[var(--bg2)]"
         style={{
           ...rowBase,
-          background: checked ? 'var(--accent)' : undefined,
-          color: checked ? '#fff' : 'var(--text)',
+          color: checked ? 'var(--accent)' : 'var(--text-mid)',
           fontWeight: checked ? 600 : 400,
         }}
       >
-        <input
-          type="checkbox" checked={checked} onChange={() => toggleLeaf(leaf.slug)}
-          style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
-        />
+        <span style={{
+          width: 17, height: 17, borderRadius: 5, flexShrink: 0,
+          border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border)'}`,
+          background: checked ? 'var(--accent)' : '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {checked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+        </span>
         <span style={{ flex: 1 }}>{leaf.label}</span>
-        {countBadge(leafCount(leaf.slug), checked)}
+        <span style={{ fontFamily: 'var(--font-jetbrains, monospace)', fontSize: 11, color: checked ? 'var(--accent-mid)' : 'var(--text-mid)' }}>{leafCount(leaf.slug)}</span>
       </div>
     )
   }
@@ -673,7 +682,10 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
               }}
             >
               <Chevron open={open} />
-              <span style={{ flex: 1, textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{g.label}</span>
+              <span style={{ flex: 1, textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: GROUP_COLORS[g.id] ?? 'var(--accent)', flexShrink: 0 }} />
+                {g.label}
+              </span>
               {!open && total > 0 && countBadge(total, false)}
             </button>
             {open && <div style={{ paddingLeft: 4 }}>{renderList(leaves)}</div>}

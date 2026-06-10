@@ -203,7 +203,7 @@ export function GridCard({
       onClick={onCardClick}
       style={{
         background: '#fff', border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 'var(--radius-card)',
+        borderRadius: 12,
         boxShadow: qty > 0 ? '0 0 0 2px var(--accent-light)' : 'none',
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
         cursor: 'pointer',
@@ -211,7 +211,7 @@ export function GridCard({
     >
       {/* Фото */}
       <div
-        style={{ aspectRatio: '1/1', position: 'relative', background: 'var(--accent-light)', overflow: 'hidden' }}
+        style={{ aspectRatio: '1 / 0.92', position: 'relative', background: 'var(--accent-light)', overflow: 'hidden' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setActivePhoto(0)}
       >
@@ -272,10 +272,10 @@ export function GridCard({
       </div>
 
       {/* Тело */}
-      <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', flex: 1, gap: 2 }}>
+      <div style={{ padding: '13px 14px 14px', display: 'flex', flexDirection: 'column', flex: 1, gap: 2 }}>
         <div style={{
-          fontFamily: 'var(--font-golos)', fontSize: 14, fontWeight: 600,
-          lineHeight: 1.25, color: 'var(--text)',
+          fontFamily: 'var(--font-golos)', fontSize: 13.5, fontWeight: 600,
+          lineHeight: 1.32, color: 'var(--text)', minHeight: 36,
         }}>
           {displayName}
         </div>
@@ -940,12 +940,10 @@ export default function ProductGrid({ products: initialProducts }: { products: P
             ))}
           </div>
 
-          {/* счётчик перенесён в CtxBar — здесь не дублируем */}
-          {search && (
-            <span style={{ fontSize: 11, color: 'var(--accent)', whiteSpace: 'nowrap', fontWeight: 600 }}>
-              {filtered.length} поз.
-            </span>
-          )}
+          {/* счётчик результатов — всегда справа (как в мокапе) */}
+          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-jetbrains, monospace)', fontSize: 13, color: 'var(--text-mid)', whiteSpace: 'nowrap' }}>
+            {filtered.length} {(() => { const a = filtered.length % 10, b = filtered.length % 100; if (a === 1 && b !== 11) return 'позиция'; if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return 'позиции'; return 'позиций' })()}
+          </span>
         </div>
       </div>
 

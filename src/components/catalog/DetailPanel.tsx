@@ -187,6 +187,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   const { isAuthed } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
+  const [lbOpen, setLbOpen] = useState(false)
 
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
@@ -272,7 +273,8 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
       {/* Gallery */}
       <div style={{ flexShrink: 0, padding: '12px 12px 0' }}>
         <div
-          style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative', cursor: images.length > 1 ? 'crosshair' : 'default' }}
+          style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative', borderRadius: 12, cursor: mainPhoto ? 'zoom-in' : 'default' }}
+          onClick={() => mainPhoto && setLbOpen(true)}
           onMouseMove={images.length > 1 ? (e) => {
             const { left, width } = e.currentTarget.getBoundingClientRect()
             setPhotoIdx(e.clientX - left > width / 2 ? 1 : 0)
@@ -537,6 +539,26 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
       {showAuth && (
         <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />
+      )}
+
+      {/* Лайтбокс — увеличенный просмотр фото по клику */}
+      {lbOpen && mainPhoto && (
+        <div onClick={() => setLbOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setLbOpen(false)}
+            style={{ position: 'absolute', top: 16, right: 16, width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          {images.length > 1 && (
+            <>
+              <button onClick={e => { e.stopPropagation(); setPhotoIdx(i => (i - 1 + images.length) % images.length) }}
+                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer' }}>‹</button>
+              <button onClick={e => { e.stopPropagation(); setPhotoIdx(i => (i + 1) % images.length) }}
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer' }}>›</button>
+            </>
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={mainPhoto} alt={displayName} onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '94vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }} />
+        </div>
       )}
     </div>
   )
