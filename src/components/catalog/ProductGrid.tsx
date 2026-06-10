@@ -987,9 +987,12 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         onScroll={(e) => {
           if (isMobile) return
           const y = (e.currentTarget as HTMLDivElement).scrollTop
-          // Белая полоса видна только в самом верху ленты; при любом отступе вниз — скрыта
-          if (y > 10) document.documentElement.dataset.catScroll = 'down'
-          else delete document.documentElement.dataset.catScroll
+          // Гистерезис: сворачиваем только при отступе > высоты полосы (58px) + запас,
+          // разворачиваем только у самого верха. Между порогами состояние не трогаем —
+          // иначе на «приграничном» контенте сворачивание само убирает переполнение и
+          // начинается дёрганье (петля свернул→вырос→развернул→…).
+          if (y > 80) document.documentElement.dataset.catScroll = 'down'
+          else if (y < 8) delete document.documentElement.dataset.catScroll
         }}
       >
         {filtered.length === 0 ? (
