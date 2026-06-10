@@ -114,6 +114,12 @@ export default function CatalogLayout({
 
   const isDetailOpen = isMobile && panel !== 'empty'
   const mainRef = useRef<HTMLElement>(null)
+  const lastScrollY = useRef(0)
+
+  // Сбрасываем «свёрнутую шапку» при уходе с каталога
+  useEffect(() => {
+    return () => { delete document.documentElement.dataset.catScroll }
+  }, [])
 
   // ── Shareable URL ⇄ выбранные листья accessories ──────────────────────────
   // Менеджер подбирает набор → копирует ссылку (?category=accessories&leaves=film,paper)
@@ -210,7 +216,7 @@ export default function CatalogLayout({
       <div style={{
         display: 'grid',
         gridTemplateColumns: '236px 1fr 372px',
-        height: `calc(100vh - ${HEADER_H}px)`,
+        height: 'calc(100vh - var(--header-h, 104px))',
       }}>
         <aside className="overflow-y-auto" style={{ background: '#F6F2EF', borderRight: '1px solid var(--border-soft, #EFEAE5)' }}>
           {left}
@@ -219,7 +225,15 @@ export default function CatalogLayout({
           ref={mainRef}
           className="overflow-y-auto bg-white"
           onScroll={() => {
-            try { sessionStorage.setItem('catalog-scroll', String(mainRef.current?.scrollTop ?? 0)) } catch {}
+            const el = mainRef.current
+            if (!el) return
+            const y = el.scrollTop
+            if (!isMobile) {
+              if (y > 80 && y > lastScrollY.current + 4) document.documentElement.dataset.catScroll = 'down'
+              else if (y < lastScrollY.current - 4 || y < 40) delete document.documentElement.dataset.catScroll
+            }
+            lastScrollY.current = y
+            try { sessionStorage.setItem('catalog-scroll', String(y)) } catch {}
           }}
         >
           {center}

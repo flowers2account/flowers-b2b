@@ -44,7 +44,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-[100]">
       {/* L1 — белая 58px */}
-      <div className="bg-white border-b border-[#e8e8e8] flex items-center" style={{ height: 58 }}>
+      <div data-header-l1 className="bg-white border-b border-[#e8e8e8] flex items-center" style={{ height: 58, overflow: 'hidden' }}>
         <div className="max-w-[1480px] w-full mx-auto px-[22px] flex items-center" style={{ height: 58 }}>
 
           {/* Логотип */}

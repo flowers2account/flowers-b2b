@@ -145,3 +145,14 @@ body {
 .animate-fade-in {
   animation: fade-in 0.25s ease-out;
 }
+
+/* Каталог: при скролле ленты вниз белая полоса шапки (лого+меню) сворачивается,
+   остаются бордовые вкладки. Высоту шапки отдаём раскладке через переменную. */
+:root { --header-h: 104px; }
+[data-header-l1] { transition: height 0.22s ease, opacity 0.18s ease; }
+html[data-cat-scroll='down'] { --header-h: 46px; }
+html[data-cat-scroll='down'] [data-header-l1] {
+  height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}

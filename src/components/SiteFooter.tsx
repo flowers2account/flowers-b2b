@@ -1,4 +1,6 @@
+'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { company } from '@/config/company'
 
 const ArrowIcon = () => (
@@ -28,6 +30,9 @@ const DOCS = [
 ]
 
 export default function SiteFooter() {
+  const pathname = usePathname()
+  // Каталог — рабочий инструмент на весь экран, подвал на нём не показываем
+  if (pathname === '/catalog') return null
   return (
     <footer style={{
       background: '#211A1E',
