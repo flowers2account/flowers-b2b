@@ -14,10 +14,21 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
    оплату, скидки или это жалоба — верни ровно NO_ANSWER и больше ничего.
 3) Отвечай кратко и по-деловому, на русском. Указывай название, цену в тенге
    и есть ли в наличии (qty>0 — да). Единицы и фасовку не додумывай — называй как в карточке.
-4) Оформление заказа не предлагай: для заказа клиент пишет менеджеру.`
+4) Оформление заказа не предлагай: для заказа клиент пишет менеджеру.
+5) Отвечай дружелюбно и живо, но коротко; можно одно уместное приветствие или пожелание, без лишней болтовни.`
 
-interface ScopeResult {
-  in_scope: boolean
+// Готовые ответы на small talk — правятся здесь (Цвет). Без похода в Supabase/Gemini.
+const SMALLTALK_REPLIES: Record<string, string> = {
+  greeting: 'Здравствуйте! Я помощник «Цветы Уральска» 🌸 Подскажу цены и наличие по расходным материалам — горшки, упаковка, удобрения, ленты и др. По цветам и оформлению заказа вам ответит менеджер.',
+  thanks: 'Пожалуйста! Обращайтесь 🌸',
+  farewell: 'Хорошего дня! Будем рады помочь снова.',
+}
+
+type Intent = 'smalltalk' | 'accessories' | 'other'
+
+interface ClassifyResult {
+  intent: Intent
+  /** Для accessories — ключевые слова поиска; для smalltalk — подтип (greeting/thanks/farewell). */
   keywords: string[]
 }
 
@@ -31,41 +42,50 @@ interface AccessoryRow {
   pack_size: number | null
 }
 
-/** Шаг A: классификация сообщения — расходка ли это, и какие ключевые слова искать. */
-async function classifyMessage(message: string): Promise<ScopeResult> {
+/** Шаг A: классификация — small talk / расходка / прочее + ключевые слова. */
+async function classifyMessage(message: string): Promise<ClassifyResult> {
   const prompt = `Ты классификатор сообщений клиента оптовой базы цветов.
-Определи, относится ли вопрос к РАСХОДНЫМ МАТЕРИАЛАМ (горшки, кашпо, удобрения, грунт,
-плёнка, ленты, упаковка, бумага, коробки, корзины, средства защиты растений, инструменты,
-сопутствующие товары). Вопросы про сами цветы, заказ, доставку, оплату, скидки, жалобы —
-НЕ в этой области.
+Определи intent сообщения:
+- "smalltalk" — приветствие, благодарность или прощание (без конкретного вопроса).
+- "accessories" — вопрос про РАСХОДНЫЕ МАТЕРИАЛЫ (горшки, кашпо, удобрения, грунт,
+  плёнка, ленты, упаковка, бумага, коробки, корзины, средства защиты растений,
+  инструменты, сопутствующие товары).
+- "other" — всё остальное: вопросы про сами цветы, заказ, доставку, оплату, скидки, жалобы.
 
 Верни ТОЛЬКО JSON-объект без markdown:
-{ "in_scope": boolean, "keywords": string[] }
+{ "intent": "smalltalk" | "accessories" | "other", "keywords": string[] }
 
-- in_scope=true только если вопрос про расходку.
-- keywords: 1–5 коротких ключевых слов (на русском, в нижнем регистре, без чисел и единиц),
-  по которым искать товар в каталоге. Если in_scope=false — пустой массив.
+- Для "accessories": keywords — 1–5 коротких ключевых слов (на русском, в нижнем
+  регистре, без чисел и единиц), по которым искать товар в каталоге.
+- Для "smalltalk": keywords — ровно один подтип: "greeting" (привет/здравствуйте),
+  "thanks" (спасибо/благодарю) или "farewell" (пока/до свидания/всего доброго).
+- Для "other": keywords — пустой массив.
 
 Примеры:
-"есть удобрение для роз и почём" → {"in_scope":true,"keywords":["удобрение"]}
-"нужна плёнка матовая для букетов" → {"in_scope":true,"keywords":["плёнка","матовая"]}
-"когда привезёте розы?" → {"in_scope":false,"keywords":[]}
-"как оформить заказ?" → {"in_scope":false,"keywords":[]}
+"есть удобрение для роз и почём" → {"intent":"accessories","keywords":["удобрение"]}
+"нужна плёнка матовая для букетов" → {"intent":"accessories","keywords":["плёнка","матовая"]}
+"здравствуйте" → {"intent":"smalltalk","keywords":["greeting"]}
+"спасибо большое" → {"intent":"smalltalk","keywords":["thanks"]}
+"до свидания" → {"intent":"smalltalk","keywords":["farewell"]}
+"когда привезёте розы?" → {"intent":"other","keywords":[]}
+"как оформить заказ?" → {"intent":"other","keywords":[]}
 
 Сообщение клиента: ${JSON.stringify(message)}`
 
   const text = await callGemini(prompt, { json: true, temperature: 0.1 })
-  if (!text) return { in_scope: false, keywords: [] }
+  if (!text) return { intent: 'other', keywords: [] }
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const parsed = JSON.parse(cleaned) as Partial<ScopeResult>
+    const parsed = JSON.parse(cleaned) as { intent?: unknown; keywords?: unknown }
+    const intent: Intent =
+      parsed.intent === 'smalltalk' || parsed.intent === 'accessories' ? parsed.intent : 'other'
     const keywords = Array.isArray(parsed.keywords)
       ? parsed.keywords.filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
       : []
-    return { in_scope: Boolean(parsed.in_scope) && keywords.length > 0, keywords }
+    return { intent, keywords }
   } catch (err) {
     console.error('[accessories-bot] classify parse failed:', err, text)
-    return { in_scope: false, keywords: [] }
+    return { intent: 'other', keywords: [] }
   }
 }
 
@@ -126,12 +146,21 @@ async function composeAnswer(message: string, rows: AccessoryRow[]): Promise<str
 export async function getAccessoriesReply(message: string): Promise<string | null> {
   if (!message || !message.trim()) return null
 
-  const scope = await classifyMessage(message)
-  console.log('[accessories-bot] classify:', JSON.stringify(scope))
-  if (!scope.in_scope) return null
+  const cls = await classifyMessage(message)
+  console.log('[accessories-bot] classify:', JSON.stringify(cls))
 
-  const rows = await searchAccessories(scope.keywords)
-  console.log(`[accessories-bot] search: ${rows.length} товаров по`, JSON.stringify(scope.keywords))
+  // Small talk — готовый шаблон, без Supabase и Gemini-compose.
+  if (cls.intent === 'smalltalk') {
+    const reply = SMALLTALK_REPLIES[cls.keywords[0]] ?? SMALLTALK_REPLIES.greeting
+    console.log('[accessories-bot] smalltalk:', cls.keywords[0] ?? 'greeting')
+    return reply
+  }
+
+  // Прочее (цветы/заказ/доставка/жалоба) — молчим, диалог менеджеру.
+  if (cls.intent !== 'accessories') return null
+
+  const rows = await searchAccessories(cls.keywords)
+  console.log(`[accessories-bot] search: ${rows.length} товаров по`, JSON.stringify(cls.keywords))
   if (rows.length === 0) return null
 
   const answer = await composeAnswer(message, rows)
