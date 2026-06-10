@@ -47,5 +47,3 @@ if (id !== undefined) console.log('webhook id:', id)
 console.log('Ответ:', typeof data === 'string' ? data : JSON.stringify(data, null, 2))
 
 if (!res.ok) process.exit(1)
-
-export {}
