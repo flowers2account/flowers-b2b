@@ -590,6 +590,7 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 | `docs/STOCK_MANAGEMENT.md` | Архитектура остатков |
 | `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
 | `docs/UMNICO_BOT.md` | ИИ-бот поддержки в Umnico (расходка): трёхуровневое управление (env→каналы→команды), поток, ENV, настройка |
+| `docs/CLIENT_FAQ.md` | Памятка клиента (регистрация, вход, заказ, доставка, оплата). Генерится из `src/lib/bot/site-faq.ts` — правь там |
 | `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
 | `docs/KNOWN_ISSUES.md` | Известные баги |
 | `docs/ROADMAP.md` | Планы развития |
@@ -682,7 +683,7 @@ src/
 3. Только `message.incoming` дальше; нет `leadId`/`text` → скип.
 4. Канальная политика: `off` → скип; `manual` → проверка `bot_enabled_leads`; `auto` → дальше.
 5. Дедуп по `messageId`.
-6. Gemini-классификация → `{intent: smalltalk|accessories|other, keywords}`. `smalltalk` → шаблон `SMALLTALK_REPLIES`; `other` → менеджеру; `accessories` → поиск.
+6. Gemini-классификация → `{intent: smalltalk|accessories|site_help|other, keywords}`. `smalltalk` → шаблон `SMALLTALK_REPLIES`; `site_help` (регистрация/вход/PIN/заказ/доставка/оплата/график/контакты) → ответ по памятке `CLIENT_FAQ` (`src/lib/bot/site-faq.ts`, единый источник → `docs/CLIENT_FAQ.md`); `other` → менеджеру; `accessories` → поиск.
 7. Supabase: `products` WHERE `category='accessories' AND is_active AND price>0 AND hidden_for_demo=false` + OR ILIKE по `name`/`display_name`, limit 20.
 8. Gemini с `SYSTEM_PROMPT` (товары + готовые `url`/`catalog_url`) → ответ **или** `NO_ANSWER`.
 9. Ответ ≠ `NO_ANSWER` → Umnico (source из вебхука, fallback `getSources`) + тег `отвечено-ботом`.

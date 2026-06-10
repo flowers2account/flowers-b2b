@@ -3,6 +3,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { callGemini } from '@/lib/gemini'
+import { CLIENT_FAQ } from '@/lib/bot/site-faq'
 
 // Системный промпт для шага C — правится здесь (Цвет).
 const SYSTEM_PROMPT = `Ты — консультант оптовой базы «Цветы Уральска». Отвечаешь ТОЛЬКО по расходным
@@ -21,10 +22,28 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
 
 // Готовые ответы на small talk — правятся здесь (Цвет). Без похода в Supabase/Gemini.
 const SMALLTALK_REPLIES: Record<string, string> = {
-  greeting: 'Здравствуйте! Я помощник «Цветы Уральска» 🌸 Подскажу цены и наличие по расходным материалам — горшки, упаковка, удобрения, ленты и др. По цветам и оформлению заказа вам ответит менеджер.',
+  greeting: 'Здравствуйте! Я помощник «Цветы Уральска» 🌸 Подскажу по ценам на расходные материалы, регистрации и работе сайта. По цветам и оформлению конкретного заказа ответит менеджер.',
   thanks: 'Пожалуйста! Обращайтесь 🌸',
   farewell: 'Хорошего дня! Будем рады помочь снова.',
 }
+
+// Промпт для вопросов про сайт (регистрация/вход/PIN/заказ/доставка/оплата/график/контакты).
+// Факты — строго из CLIENT_FAQ (единый источник, src/lib/bot/site-faq.ts).
+const SITE_HELP_PROMPT = `Ты — помощник по сайту оптовой базы «Цветы Уральска». Отвечаешь на вопросы про
+регистрацию, вход и PIN, оформление заказа, доставку, оплату, график, адрес и контакты —
+СТРОГО по памятке ниже.
+Правила:
+1) Используй ТОЛЬКО факты из памятки. Чего в памятке нет — верни ровно NO_ANSWER и больше ничего.
+2) Отвечай коротко и дружелюбно, на русском.
+3) НИКОГДА не обещай: оплату по счёту (пока недоступна), оплату наличными, конкретную
+   стоимость доставки (она индивидуальна), точное время выдачи PIN сверх формулировки
+   «обычно несколько минут в рабочие часы».
+4) Вопросы про КОНКРЕТНЫЙ заказ клиента («где мой заказ», «не пришла оплата», «когда привезёте
+   моё») — это к менеджеру: верни ровно NO_ANSWER.
+5) Уместно завершить ответ контактом: WhatsApp +7 700 757 5243.
+
+ПАМЯТКА:
+${CLIENT_FAQ}`
 
 // Канальная политика — правится здесь (Цвет). channelType = body.message.sa.type.
 //   'auto'   → бот отвечает сам (полный конвейер)
@@ -37,7 +56,7 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
   whatsapp2: 'off',
 }
 
-type Intent = 'smalltalk' | 'accessories' | 'other'
+type Intent = 'smalltalk' | 'accessories' | 'site_help' | 'other'
 
 interface ClassifyResult {
   intent: Intent
@@ -63,16 +82,20 @@ async function classifyMessage(message: string): Promise<ClassifyResult> {
 - "accessories" — вопрос про РАСХОДНЫЕ МАТЕРИАЛЫ (горшки, кашпо, удобрения, грунт,
   плёнка, ленты, упаковка, бумага, коробки, корзины, средства защиты растений,
   инструменты, сопутствующие товары).
-- "other" — всё остальное: вопросы про сами цветы, заказ, доставку, оплату, скидки, жалобы.
+- "site_help" — вопрос про РАБОТУ САЙТА: регистрация, доступ, вход, PIN, как оформить
+  заказ, доставка (самовывоз/города/сроки/стоимость), оплата (карта/счёт/наличные),
+  минимальный заказ, скидки, график работы, адрес склада, контакты.
+- "other" — всё остальное: вопросы про сами цветы (сорта/наличие цветов), статус
+  конкретного заказа клиента, жалобы.
 
 Верни ТОЛЬКО JSON-объект без markdown:
-{ "intent": "smalltalk" | "accessories" | "other", "keywords": string[] }
+{ "intent": "smalltalk" | "accessories" | "site_help" | "other", "keywords": string[] }
 
 - Для "accessories": keywords — 1–5 коротких ключевых слов (на русском, в нижнем
   регистре, без чисел и единиц), по которым искать товар в каталоге.
 - Для "smalltalk": keywords — ровно один подтип: "greeting" (привет/здравствуйте),
   "thanks" (спасибо/благодарю) или "farewell" (пока/до свидания/всего доброго).
-- Для "other": keywords — пустой массив.
+- Для "site_help" и "other": keywords — пустой массив.
 
 Примеры:
 "есть удобрение для роз и почём" → {"intent":"accessories","keywords":["удобрение"]}
@@ -80,8 +103,14 @@ async function classifyMessage(message: string): Promise<ClassifyResult> {
 "здравствуйте" → {"intent":"smalltalk","keywords":["greeting"]}
 "спасибо большое" → {"intent":"smalltalk","keywords":["thanks"]}
 "до свидания" → {"intent":"smalltalk","keywords":["farewell"]}
+"как зарегистрироваться?" → {"intent":"site_help","keywords":[]}
+"забыл пин, что делать" → {"intent":"site_help","keywords":[]}
+"как оформить заказ?" → {"intent":"site_help","keywords":[]}
+"доставляете в актобе?" → {"intent":"site_help","keywords":[]}
+"можно оплатить наличными?" → {"intent":"site_help","keywords":[]}
+"во сколько работаете?" → {"intent":"site_help","keywords":[]}
 "когда привезёте розы?" → {"intent":"other","keywords":[]}
-"как оформить заказ?" → {"intent":"other","keywords":[]}
+"где мой заказ?" → {"intent":"other","keywords":[]}
 
 Сообщение клиента: ${JSON.stringify(message)}`
 
@@ -91,7 +120,9 @@ async function classifyMessage(message: string): Promise<ClassifyResult> {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const parsed = JSON.parse(cleaned) as { intent?: unknown; keywords?: unknown }
     const intent: Intent =
-      parsed.intent === 'smalltalk' || parsed.intent === 'accessories' ? parsed.intent : 'other'
+      parsed.intent === 'smalltalk' || parsed.intent === 'accessories' || parsed.intent === 'site_help'
+        ? parsed.intent
+        : 'other'
     const keywords = Array.isArray(parsed.keywords)
       ? parsed.keywords.filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
       : []
@@ -163,6 +194,19 @@ async function composeAnswer(message: string, rows: AccessoryRow[]): Promise<str
   return answer
 }
 
+/** Ответ на вопрос про сайт по памятке (CLIENT_FAQ) или NO_ANSWER. */
+async function composeSiteHelp(message: string): Promise<string | null> {
+  const prompt = `${SITE_HELP_PROMPT}
+
+Сообщение клиента: ${message}`
+
+  const text = await callGemini(prompt, { temperature: 0.2 })
+  if (!text) return null
+  const answer = text.trim()
+  if (!answer || answer === 'NO_ANSWER' || answer.includes('NO_ANSWER')) return null
+  return answer
+}
+
 /**
  * Главный конвейер. Возвращает текст ответа клиенту либо null
  * (если вне области / нет данных / ошибка — менеджер обрабатывает сам).
@@ -180,7 +224,14 @@ export async function getAccessoriesReply(message: string): Promise<string | nul
     return reply
   }
 
-  // Прочее (цветы/заказ/доставка/жалоба) — молчим, диалог менеджеру.
+  // Вопрос про сайт — ответ по памятке (CLIENT_FAQ), без Supabase.
+  if (cls.intent === 'site_help') {
+    const answer = await composeSiteHelp(message)
+    console.log('[accessories-bot] site_help:', answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
+    return answer
+  }
+
+  // Прочее (цветы/статус заказа/жалоба) — молчим, диалог менеджеру.
   if (cls.intent !== 'accessories') return null
 
   const rows = await searchAccessories(cls.keywords)

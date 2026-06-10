@@ -15,7 +15,8 @@
 | `src/app/api/webhooks/umnico/route.ts` | Приёмник вебхука (POST). Kill-switch, канальная политика, команды, дедуп, всегда 200 |
 | `src/lib/umnico.ts` | Клиент Umnico API: `getSources`, `sendMessage`, `addTag` |
 | `src/lib/gemini.ts` | Общий клиент Gemini (тот же вызов, что в `/api/translations/batch`) |
-| `src/lib/bot/accessories-bot.ts` | Логика бота: классификация → поиск → ответ. **Системный промпт, small talk и канальная политика правятся здесь** |
+| `src/lib/bot/accessories-bot.ts` | Логика бота: классификация → поиск → ответ. **Системный промпт, small talk, site-help и канальная политика правятся здесь** |
+| `src/lib/bot/site-faq.ts` | Памятка клиента (`CLIENT_FAQ`) — единый источник для бота (intent=site_help) и `docs/CLIENT_FAQ.md` |
 | `src/lib/bot/lead-gate.ts` | Гейт диалогов для режима `manual` (таблица `bot_enabled_leads`) |
 
 ## Трёхуровневое управление
@@ -68,8 +69,11 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
 4. Только `message.incoming` идёт дальше. Нет `leadId`/`text` → скип.
 5. Канальная политика (`off` / `manual`-гейт / `auto`).
 6. Дедуп по `messageId` (in-memory Set).
-7. **Классификация** (Gemini, JSON): `{ intent: 'smalltalk' | 'accessories' | 'other', keywords }`.
+7. **Классификация** (Gemini, JSON): `{ intent: 'smalltalk' | 'accessories' | 'site_help' | 'other', keywords }`.
    - `smalltalk` → готовый шаблон из `SMALLTALK_REPLIES` (без Supabase/Gemini).
+   - `site_help` (регистрация / вход / PIN / заказ / доставка / оплата / график / контакты)
+     → ответ по памятке `CLIENT_FAQ` (без Supabase). Чего в памятке нет / вопрос про
+     конкретный заказ клиента → `NO_ANSWER`, менеджеру.
    - `other` → молчание, диалог менеджеру.
    - `accessories` → поиск + ответ.
 8. **Поиск** (Supabase): `keywords` ILIKE по `name`/`display_name`:
@@ -138,6 +142,7 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
 | `scripts/list-umnico-managers.ts` | `GET /v1.3/managers` → таблица `id / name / login` (найти userId бота) | `node --env-file=.env.local scripts/list-umnico-managers.ts` |
 | `scripts/register-umnico-webhook.ts` | `POST /v1.3/webhooks` → регистрация вебхука, печатает id | `node --env-file=.env.local scripts/register-umnico-webhook.ts <url>` |
 | `scripts/unregister-umnico-webhook.ts` | `GET /v1.3/webhooks` (список) или `DELETE /v1.3/webhooks/<id>` (удаление) | `node --env-file=.env.local scripts/unregister-umnico-webhook.ts [id]` |
+| `scripts/gen-client-faq.ts` | Генерирует `docs/CLIENT_FAQ.md` из `src/lib/bot/site-faq.ts` | `node scripts/gen-client-faq.ts` |
 
 > Node 24 исполняет `.ts` напрямую (стрип типов). Папка `scripts/` исключена из
 > tsconfig (не участвует в сборке Next). Скрипты падают с понятной ошибкой, если
@@ -148,6 +153,7 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
 - **Общий вкл/выкл** — env `UMNICO_BOT_ENABLED` на Vercel.
 - **Какие каналы и как** — `CHANNEL_POLICY` в `src/lib/bot/accessories-bot.ts`.
 - **Включить бота в конкретном диалоге** (manual-канал) — команда `/бот` в чате; `/стоп` — выключить.
-- **Тон/правила ответа** — `SYSTEM_PROMPT` в `accessories-bot.ts`.
+- **Тон/правила ответа по товарам** — `SYSTEM_PROMPT` в `accessories-bot.ts`.
 - **Ответы на приветствие/спасибо/прощание** — `SMALLTALK_REPLIES` там же.
-- **Что считать расходкой / ключевые слова** — промпт `classifyMessage` там же.
+- **Ответы про сайт (FAQ)** — текст в `src/lib/bot/site-faq.ts` (`CLIENT_FAQ`); правила — `SITE_HELP_PROMPT` в `accessories-bot.ts`. После правки `site-faq.ts` обновить md: `node scripts/gen-client-faq.ts`.
+- **Что считать расходкой / сайтом / ключевые слова** — промпт `classifyMessage` там же.
