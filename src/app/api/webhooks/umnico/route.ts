@@ -44,10 +44,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // Сырой payload целиком — чтобы сверить реальные имена полей Umnico с парсером.
+  console.log('[umnico webhook] raw:', JSON.stringify(body))
+
   try {
     const type = body.type ?? body.event
     // Обрабатываем ТОЛЬКО входящие сообщения. message.outgoing и пр. — игнор (защита от петли).
     if (type !== 'message.incoming') {
+      console.log('[umnico webhook] skip: not message.incoming (type=' + String(type) + ')')
       return NextResponse.json({ ok: true })
     }
 
@@ -60,8 +64,12 @@ export async function POST(req: NextRequest) {
     // Шаг 1: распарсенный payload
     console.log('[umnico webhook] incoming:', JSON.stringify({ leadId, messageId, text }))
 
-    if (!leadId || !text) {
-      console.log('[umnico webhook] skip: no leadId/text')
+    if (!leadId) {
+      console.log('[umnico webhook] skip: no leadId')
+      return NextResponse.json({ ok: true })
+    }
+    if (!text) {
+      console.log('[umnico webhook] skip: no text')
       return NextResponse.json({ ok: true })
     }
 
