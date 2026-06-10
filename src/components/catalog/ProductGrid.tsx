@@ -616,7 +616,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
   const [sort, setSort] = useState<SortKey>('popular')
   const [viewMode, setViewMode] = useState<'compact' | 'list'>('compact')
-  const lastScrollY = useRef(0)
 
   const router = useRouter()
   const { items, add, update } = useCart()
@@ -988,9 +987,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         onScroll={(e) => {
           if (isMobile) return
           const y = (e.currentTarget as HTMLDivElement).scrollTop
-          if (y > 80 && y > lastScrollY.current + 4) document.documentElement.dataset.catScroll = 'down'
-          else if (y < lastScrollY.current - 4 || y < 40) delete document.documentElement.dataset.catScroll
-          lastScrollY.current = y
+          // Белая полоса видна только в самом верху ленты; при любом отступе вниз — скрыта
+          if (y > 10) document.documentElement.dataset.catScroll = 'down'
+          else delete document.documentElement.dataset.catScroll
         }}
       >
         {filtered.length === 0 ? (
