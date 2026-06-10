@@ -87,7 +87,7 @@ export default function CheckoutPage() {
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link href="/cabinet" className={s.stateBtn}>Мои заказы</Link>
-            <Link href="/" className={`${s.stateBtn} ${s.ghost}`}>В каталог</Link>
+            <Link href="/catalog" className={`${s.stateBtn} ${s.ghost}`}>В каталог</Link>
           </div>
         </div>
       </div></main>
@@ -130,7 +130,7 @@ export default function CheckoutPage() {
           <div className={s.stateIc}>🛒</div>
           <div className={s.stateH}>Корзина пуста</div>
           <p className={s.stateP}>Добавьте товары из каталога, чтобы оформить заказ.</p>
-          <Link href="/" className={s.stateBtn}>Перейти в каталог</Link>
+          <Link href="/catalog" className={s.stateBtn}>Перейти в каталог</Link>
         </div>
       </div></main>
     )
@@ -144,7 +144,7 @@ export default function CheckoutPage() {
         {/* PAGE HEAD */}
         <div className={s.phead}>
           <nav className={s.crumbs}>
-            <a onClick={() => router.push('/')}>Каталог</a>
+            <a onClick={() => router.push('/catalog')}>Каталог</a>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
             <span className={s.cur}>Оформление</span>
           </nav>

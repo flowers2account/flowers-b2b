@@ -24,7 +24,7 @@ export default function CategoryTabs() {
   const open = (id: string) => {
     if (category !== 'accessories') setCategory('accessories') // setCategory сбросит group → ставим после
     setGroup(id)                    // меняет раздел, очищает selectedLeaves
-    router.push(`/?category=accessories&group=${id}`)
+    router.push(`/catalog?category=accessories&group=${id}`)
   }
 
   return (

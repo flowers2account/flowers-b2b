@@ -259,7 +259,7 @@ export default function CabinetPage() {
         <div className="text-center py-12 text-gray-400">
           <p className="text-4xl mb-3">🌸</p>
           <p>У вас пока нет заказов</p>
-          <Link href="/" className="mt-4 inline-block text-pink-500 hover:underline">Перейти в каталог</Link>
+          <Link href="/catalog" className="mt-4 inline-block text-pink-500 hover:underline">Перейти в каталог</Link>
         </div>
       ) : (
         <div className="space-y-4">
@@ -473,7 +473,7 @@ export default function CabinetPage() {
             <p className="text-sm text-gray-500 truncate">📞 {phone}</p>
           </div>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 shrink-0">← Каталог</Link>
+        <Link href="/catalog" className="text-sm text-gray-400 hover:text-gray-600 shrink-0">← Каталог</Link>
       </div>
 
       <div className="grid md:grid-cols-[220px_1fr] gap-6 items-start">

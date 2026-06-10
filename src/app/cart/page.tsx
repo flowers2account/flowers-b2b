@@ -32,7 +32,7 @@ export default function CartPage() {
           </div>
           <h2>Корзина пуста</h2>
           <p>Выберите товары в каталоге — упаковка, горшки, вазы, декор, сад. Большинство позиций есть на складе.</p>
-          <Link href="/" className={s.go}>
+          <Link href="/catalog" className={s.go}>
             Перейти в каталог
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </Link>
@@ -46,7 +46,7 @@ export default function CartPage() {
       <div className={s.shell}>
         <div className={s.phead}>
           <nav className={s.crumbs}>
-            <a onClick={() => router.push('/')}>Каталог</a>
+            <a onClick={() => router.push('/catalog')}>Каталог</a>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
             <span className={s.cur}>Корзина</span>
           </nav>
@@ -84,7 +84,7 @@ export default function CartPage() {
               ))}
             </div>
             <div className={s.itemsFoot}>
-              <Link href="/" className={s.link}>
+              <Link href="/catalog" className={s.link}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
                 Продолжить покупки
               </Link>

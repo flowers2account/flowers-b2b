@@ -9,9 +9,9 @@ const ArrowIcon = () => (
 )
 
 const SECTIONS = [
-  { href: '/',           label: 'Каталог' },
+  { href: '/',           label: 'О нас' },
   { href: '/categories', label: 'Категории' },
-  { href: '/about',      label: 'О нас' },
+  { href: '/catalog',    label: 'Каталог' },
 ]
 
 const BUYERS = [

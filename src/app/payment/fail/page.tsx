@@ -26,7 +26,7 @@ function FailContent() {
         </p>
       )}
       <p style={{ color: '#6b7280', marginBottom: 20 }}>Вернитесь в корзину и повторите оплату.</p>
-      <Link href="/" style={{
+      <Link href="/catalog" style={{
         display: 'inline-block',
         padding: '10px 24px', background: '#8B3A5A', color: '#fff',
         borderRadius: 8, textDecoration: 'none', fontWeight: 600,

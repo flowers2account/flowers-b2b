@@ -177,7 +177,7 @@ export default function ProductPage() {
   const productId = Number(params.id)
 
   useEffect(() => {
-    if (!productId) { router.replace('/'); return }
+    if (!productId) { router.replace('/catalog'); return }
     setRelated([]); relOffsetRef.current = 0; relLoadingRef.current = false; relHasMoreRef.current = true
     setRelCanLeft(false); setRelCanRight(true)
     const supabase = createClient()
@@ -193,7 +193,7 @@ export default function ProductPage() {
       .eq('is_active', true)
       .single()
       .then(({ data, error }: { data: any; error: any }) => {
-        if (error || !data) { router.replace('/'); return }
+        if (error || !data) { router.replace('/catalog'); return }
         setProduct(data as ProductData)
         setQuantity(data.pack_size || 1)
         setLoading(false)
@@ -241,7 +241,7 @@ export default function ProductPage() {
     const store = useFilters.getState()
     store.setCategory(product!.category as FilterCategory) // сбрасывает subcat
     saveScroll()
-    router.push('/')
+    router.push('/catalog')
   }
 
   function goToSubcat() {
@@ -250,7 +250,7 @@ export default function ProductPage() {
     if (store.category !== cat) store.setCategory(cat)
     store.setSubcat(product!.subcategory ?? '')
     saveScroll()
-    router.push('/')
+    router.push('/catalog')
   }
 
   function goToCatalog() {
@@ -264,7 +264,7 @@ export default function ProductPage() {
       stored.state = { ...stored.state, panel: 'cart' }
       sessionStorage.setItem('catalog-detail', JSON.stringify(stored))
     } catch {}
-    router.push('/')
+    router.push('/catalog')
   }
 
   const cartQty = items.find(i => i.id === productId)?.qty ?? 0
@@ -371,7 +371,7 @@ export default function ProductPage() {
             Назад
           </button>
           <span style={{ color: C.ink4 }}>/</span>
-          <button onClick={() => { useFilters.getState().reset(); router.push('/') }}
+          <button onClick={() => { useFilters.getState().reset(); router.push('/catalog') }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.ink3, fontSize: 12, padding: 0, fontFamily: 'inherit' }}>
             Каталог
           </button>

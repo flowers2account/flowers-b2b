@@ -23,7 +23,7 @@ export default function Header() {
   const goCatalogAll = () => {
     if (category !== 'accessories') setCategory('accessories')
     setGroup('all')
-    router.push('/?category=accessories&group=all')
+    router.push('/catalog?category=accessories&group=all')
   }
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -32,9 +32,9 @@ export default function Header() {
 
   const isAdminRole = role === 'admin' || role === 'manager'
   const NAV = [
-    { href: '/about', label: 'О нас' },
+    { href: '/', label: 'О нас' },
     { href: '/categories', label: 'Категории' },
-    { href: '/', label: 'Каталог' },
+    { href: '/catalog', label: 'Каталог' },
     ...(isAuthed ? [{
       href: isAdminRole ? '/admin/orders' : '/cabinet',
       label: isAdminRole ? 'Заказы' : 'Личный кабинет / Мои заказы',
@@ -70,6 +70,7 @@ export default function Header() {
           <nav className="hidden md:flex items-center flex-1" style={{ height: 58 }}>
             {NAV.map(({ href, label }) => {
               const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href)
+              // «Каталог» (/catalog) — спец-кнопка ниже; остальные — обычные ссылки
               const navStyle: React.CSSProperties = {
                 height: 58,
                 fontWeight: isActive ? 700 : 500,
@@ -77,8 +78,8 @@ export default function Header() {
                 borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
               }
               const cls = 'flex items-center px-4 text-[13px] no-underline transition-colors'
-              // «Каталог» → режим «Все» через обработчик (работает и когда уже на /)
-              if (href === '/') {
+              // «Каталог» → режим «Все» через обработчик (работает и когда уже на /catalog)
+              if (href === '/catalog') {
                 return (
                   <button key={label} onClick={goCatalogAll}
                     className={cls} style={{ ...navStyle, background: 'none', border: 'none', borderBottom: navStyle.borderBottom, cursor: 'pointer', fontFamily: 'inherit' }}>
