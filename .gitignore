@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 deploy_vps.key
+
+# Umnico history dumps (содержат PII клиентов — не коммитим)
+/exports/

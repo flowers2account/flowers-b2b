@@ -149,6 +149,7 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
 | `scripts/register-umnico-webhook.ts` | `POST /v1.3/webhooks` → регистрация вебхука, печатает id | `node --env-file=.env.local scripts/register-umnico-webhook.ts <url>` |
 | `scripts/unregister-umnico-webhook.ts` | `GET /v1.3/webhooks` (список) или `DELETE /v1.3/webhooks/<id>` (удаление) | `node --env-file=.env.local scripts/unregister-umnico-webhook.ts [id]` |
 | `scripts/gen-client-faq.ts` | Генерирует `docs/CLIENT_FAQ.md` из `src/lib/bot/site-faq.ts` | `node scripts/gen-client-faq.ts` |
+| `scripts/export-umnico-history.ts` | Выгрузка переписки за период в `exports/*.jsonl` (анализ). `--days N` / `--from --to`, `--sample N` | `node --env-file=.env.local scripts/export-umnico-history.ts --days 30` |
 
 > Node 24 исполняет `.ts` напрямую (стрип типов). Папка `scripts/` исключена из
 > tsconfig (не участвует в сборке Next). Скрипты падают с понятной ошибкой, если
