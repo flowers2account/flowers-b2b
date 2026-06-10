@@ -418,7 +418,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           )}
 
           {isAuthed && (
-            <Row label="Остаток">
+            <Row label="Наличие на складе">
               <span style={{ color: availColor, fontWeight: 700 }}>{available} {unitForProduct(product as any)}</span>
             </Row>
           )}

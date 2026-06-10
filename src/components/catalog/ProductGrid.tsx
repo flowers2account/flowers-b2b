@@ -86,16 +86,28 @@ function TagBadge({ type }: { type: 'hit' | 'sale' | 'new' }) {
 // ── qty badge on photo ──────────────────────────────────────────────────────
 
 function QtyBadge({ qty, unit = 'шт' }: { qty: number; unit?: string }) {
-  const isLow = qty > 0 && qty <= 30
+  if (qty === 0) {
+    return (
+      <span style={{
+        position: 'absolute', bottom: 8, left: 8,
+        background: 'rgba(200,50,50,0.85)', color: '#fff',
+        fontFamily: 'var(--font-jetbrains, monospace)', fontSize: 10.5, fontWeight: 500,
+        padding: '3px 9px', borderRadius: 'var(--radius-btn)', backdropFilter: 'blur(4px)',
+      }}>
+        Нет в наличии
+      </span>
+    )
+  }
   return (
     <span style={{
       position: 'absolute', bottom: 8, left: 8,
-      background: qty === 0 ? 'rgba(200,50,50,0.85)' : isLow ? 'rgba(217,83,79,0.85)' : 'rgba(0,0,0,0.55)',
-      color: '#fff', fontSize: 10, fontWeight: 700,
-      padding: '3px 7px', borderRadius: 'var(--radius-btn)',
-      backdropFilter: 'blur(4px)',
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      background: 'rgba(33,26,30,0.8)', color: '#fff',
+      fontFamily: 'var(--font-jetbrains, monospace)', fontSize: 10.5, fontWeight: 500,
+      padding: '3px 9px 3px 8px', borderRadius: 'var(--radius-btn)', backdropFilter: 'blur(4px)',
     }}>
-      {qty === 0 ? 'Нет' : `${qty} ${unit}`}
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5ED39A', boxShadow: '0 0 0 2px rgba(94,211,154,0.25)', flexShrink: 0 }} />
+      {qty} {unit} в наличии
     </span>
   )
 }
@@ -285,13 +297,19 @@ export function GridCard({
         {(() => {
           const keys = product.colors?.length ? product.colors : product.color ? [product.color] : []
           if (!keys.length) return null
+          const colorWord = (n: number) => {
+            const a = n % 10, b = n % 100
+            if (a === 1 && b !== 11) return 'цвет'
+            if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return 'цвета'
+            return 'цветов'
+          }
           return (
-            <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 5, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
               {keys.map(c => {
                 const col = COLORS.find(x => x.key === c)
                 return (
                   <div key={c} title={col?.label ?? c} style={{
-                    width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                    width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
                     background: col
                       ? (('gradient' in col ? col.gradient : col.bg) as string)
                       : '#ccc',
@@ -299,6 +317,9 @@ export function GridCard({
                   }} />
                 )
               })}
+              {keys.length > 1 && (
+                <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{keys.length} {colorWord(keys.length)}</span>
+              )}
             </div>
           )
         })()}
@@ -434,8 +455,10 @@ function ListRow({
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-          <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>
-            {available === 0 ? 'Нет в наличии' : `${available} ${unitForProduct(product as any)}`}
+          <span style={{ fontSize: 10, color: 'var(--text-mid)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {available === 0
+              ? 'Нет в наличии'
+              : <><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3DAE72', flexShrink: 0 }} />{available} {unitForProduct(product as any)} в наличии</>}
           </span>
           {product.country_iso && <CountryBadge iso={product.country_iso} />}
           {hasDiscount && <TagBadge type="sale" />}
