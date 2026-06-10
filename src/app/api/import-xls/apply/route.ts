@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
 
     categoriesSet.add(product.category)
 
+    // ⚠️ Аллоулист обновляемых полей. НАМЕРЕННО не трогаем ручные поля:
+    // pack_size (кратность), unit, length_cm, image_url, tags и т.п. — импорт
+    // обновляет только остаток/цену/активность (+ обогащает пустые поля ниже).
+    // Кратность рулонных расходников (спанбонд 150 пог. м и др.) задаётся вручную
+    // и НЕ должна сбрасываться при повторной загрузке прайса.
     const payload: Record<string, unknown> = {
       qty: row.qty,
       price: row.price,
