@@ -616,6 +616,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
   const [sort, setSort] = useState<SortKey>('popular')
   const [viewMode, setViewMode] = useState<'compact' | 'list'>('compact')
+  const lastScrollY = useRef(0)
 
   const router = useRouter()
   const { items, add, update } = useCart()
@@ -982,7 +983,16 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       )}
 
       {/* Products */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', paddingBottom: isMobile ? 80 : 14 }}>
+      <div
+        style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', paddingBottom: isMobile ? 80 : 14 }}
+        onScroll={(e) => {
+          if (isMobile) return
+          const y = (e.currentTarget as HTMLDivElement).scrollTop
+          if (y > 80 && y > lastScrollY.current + 4) document.documentElement.dataset.catScroll = 'down'
+          else if (y < lastScrollY.current - 4 || y < 40) delete document.documentElement.dataset.catScroll
+          lastScrollY.current = y
+        }}
+      >
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-mid)', paddingTop: 64, fontSize: 13 }}>
             Ничего не найдено

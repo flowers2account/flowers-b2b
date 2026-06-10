@@ -273,7 +273,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
       {/* Gallery */}
       <div style={{ flexShrink: 0, padding: '12px 12px 0' }}>
         <div
-          style={{ aspectRatio: '3/2', background: 'var(--bg2)', overflow: 'hidden', position: 'relative', borderRadius: 12, cursor: mainPhoto ? 'zoom-in' : 'default' }}
+          style={{ aspectRatio: '1/1', background: 'var(--bg2)', overflow: 'hidden', position: 'relative', borderRadius: 12, cursor: mainPhoto ? 'zoom-in' : 'default' }}
           onClick={() => mainPhoto && setLbOpen(true)}
           onMouseMove={images.length > 1 ? (e) => {
             const { left, width } = e.currentTarget.getBoundingClientRect()

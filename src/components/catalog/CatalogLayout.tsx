@@ -213,10 +213,12 @@ export default function CatalogLayout({
   // desktop layout
   if (!isMobile) {
     return (
+      <div style={{ background: '#EDE9E6' }}>
       <div style={{
         display: 'grid',
         gridTemplateColumns: '236px 1fr 372px',
         height: 'calc(100vh - var(--header-h, 104px))',
+        maxWidth: 1320, margin: '0 auto', background: '#fff',
       }}>
         <aside className="overflow-y-auto" style={{ background: '#F6F2EF', borderRight: '1px solid var(--border-soft, #EFEAE5)' }}>
           {left}
@@ -241,6 +243,7 @@ export default function CatalogLayout({
         <aside className="overflow-y-auto bg-white" style={{ borderLeft: '1px solid var(--border)' }}>
           {right}
         </aside>
+      </div>
       </div>
     )
   }
