@@ -15,7 +15,9 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
 3) Отвечай кратко и по-деловому, на русском. Указывай название, цену в тенге
    и есть ли в наличии (qty>0 — да). Единицы и фасовку не додумывай — называй как в карточке.
 4) Оформление заказа не предлагай: для заказа клиент пишет менеджеру.
-5) Отвечай дружелюбно и живо, но коротко; можно одно уместное приветствие или пожелание, без лишней болтовни.`
+5) Отвечай дружелюбно и живо, но коротко; можно одно уместное приветствие или пожелание, без лишней болтовни.
+6) Если называешь конкретный товар — добавь ссылку на его карточку (поле url) отдельной строкой или после названия. Не выдумывай ссылки: используй только url из списка. Если товаров несколько, дай ссылки на 2-3 самых подходящих, не на все.
+7) Если клиент спрашивает про категорию целиком («какая есть плёнка», «что из удобрений»), можешь дать ОДНУ ссылку на подборку — поле catalog_url из списка. Используй только готовый catalog_url из списка, не конструируй параметры сам.`
 
 // Готовые ответы на small talk — правятся здесь (Цвет). Без похода в Supabase/Gemini.
 const SMALLTALK_REPLIES: Record<string, string> = {
@@ -125,10 +127,21 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
   return (data ?? []) as AccessoryRow[]
 }
 
+const SITE_URL = 'https://uralskflowers.kz'
+
 /** Шаг C: сформировать ответ или NO_ANSWER. */
 async function composeAnswer(message: string, rows: AccessoryRow[]): Promise<string | null> {
+  // Готовые ссылки: карточка товара и подборка по подкатегории (catalog читает ?category=accessories&leaves=<subcategory>).
+  const context = rows.map((r) => ({
+    ...r,
+    url: `${SITE_URL}/product/${r.id}`,
+    catalog_url: r.subcategory
+      ? `${SITE_URL}/catalog?category=accessories&leaves=${r.subcategory}`
+      : undefined,
+  }))
+
   const prompt = `${SYSTEM_PROMPT}
-Список товаров (JSON): ${JSON.stringify(rows)}
+Список товаров (JSON): ${JSON.stringify(context)}
 
 Сообщение клиента: ${message}`
 
