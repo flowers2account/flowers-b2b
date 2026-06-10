@@ -61,13 +61,18 @@ export default function FavoritesPage() {
     update(p.id, packSize)
   }
   function addAll() {
+    const cart = useCart.getState()
+    let addedAny = false
     for (const p of products) {
-      if (getAvailable(p.stock) > 0 && getQty(p.id) === 0) {
-        const packSize = p.stems_per_pack || p.pack_size || 1
-        add({ id: p.id, name: p.display_name || p.name, price: getPrice(p.stock), available: getAvailable(p.stock), category: p.category, image_url: p.image_url, unit: (p as any).unit ?? null, subcategory: p.subcategory ?? null })
-        update(p.id, packSize)
-      }
+      if (getAvailable(p.stock) <= 0) continue
+      if (cart.items.some(i => i.id === p.id)) continue
+      const packSize = p.stems_per_pack || p.pack_size || 1
+      cart.add({ id: p.id, name: p.display_name || p.name, price: getPrice(p.stock), available: getAvailable(p.stock), category: p.category, image_url: p.image_url, unit: (p as any).unit ?? null, subcategory: p.subcategory ?? null })
+      cart.update(p.id, packSize)
+      addedAny = true
     }
+    // всё уже в корзине / нечего добавлять → даём фидбек переходом в корзину
+    if (!addedAny) router.push('/cart')
   }
 
   // Гость
@@ -100,7 +105,7 @@ export default function FavoritesPage() {
           {!empty && <div className={s.sub}>Сохранённые товары. Добавьте в корзину, когда будете готовы заказать.</div>}
           {!empty && (
             <div className={s.bar}>
-              <button className={s.allcart} onClick={addAll}>
+              <button type="button" className={s.allcart} onClick={addAll}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
                 Добавить всё в корзину
               </button>

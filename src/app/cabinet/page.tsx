@@ -7,152 +7,49 @@ import ChangePinModal from '@/components/cabinet/ChangePinModal'
 import EditProfileModal from '@/components/cabinet/EditProfileModal'
 import { createClient } from '@/lib/supabase/client'
 import { authHeaders } from '@/lib/api-token'
+import { useCart } from '@/lib/cart-store'
+import s from './cabinet.module.css'
 
-type CampaignOrderItem = {
-  id: number
-  qty: number
-  price: number
-  name: string
-  delivery_date: string | null
-}
-
+type CampaignOrderItem = { id: number; qty: number; price: number; name: string; delivery_date: string | null }
 type CampaignOrder = {
-  id: number
-  campaign_id: number
-  campaign_title: string | null
-  campaign_type: string | null
-  delivery_date: string | null
-  status: string
-  total: number
-  items_count: number
-  converted_to_order_id: number | null
-  items: CampaignOrderItem[]
+  id: number; campaign_id: number; campaign_title: string | null; campaign_type: string | null
+  delivery_date: string | null; status: string; total: number; items_count: number
+  converted_to_order_id: number | null; items: CampaignOrderItem[]
 }
-
-const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
-  pending:   'Ожидает поставки',
-  confirmed: 'Подтверждён',
-  delivered: 'Доставлен',
-  cancelled: 'Отменён',
-}
-
-const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
-  pending:   'bg-blue-100 text-blue-800',
-  confirmed: 'bg-green-100 text-green-800',
-  delivered: 'bg-gray-100 text-gray-700',
-  cancelled: 'bg-red-100 text-red-800',
-}
-
 type OrderItem = {
-  id: string
-  qty: number
-  qty_ordered: number
-  qty_actual: number | null
-  is_removed: boolean
-  price: number
-  product: { name: string; display_name?: string | null } | null
+  id: string; qty: number; qty_ordered: number; qty_actual: number | null; is_removed: boolean
+  price: number; product: { id: number; name: string; display_name?: string | null } | null
 }
-
 type Order = {
-  id: string
-  status: string
-  created_at: string
-  assembly_photo_url: string | null
-  order_items: OrderItem[]
+  id: string; status: string; created_at: string; payment_status?: string | null; total?: number | null
+  assembly_photo_url: string | null; order_items: OrderItem[]
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: '⏳ Обрабатывается',
-  reserved: '⏳ Обрабатывается',
-  confirmed: '✅ Подтверждён',
-  assembling: '🔧 Собирается на складе',
-  assembled: '📦 Готов к выдаче!',
-  delivered: '✅ Выдан',
-  cancelled: '❌ Отменён',
+const CAMPAIGN_STATUS: Record<string, { label: string; cls: string }> = {
+  pending:   { label: 'Ожидает поставки', cls: 'proc' },
+  confirmed: { label: 'Подтверждён', cls: 'new' },
+  delivered: { label: 'Доставлен', cls: 'done' },
+  cancelled: { label: 'Отменён', cls: 'cancelled' },
+}
+const ORDER_ST: Record<string, { label: string; cls: string }> = {
+  pending:   { label: 'В обработке', cls: 'proc' },
+  reserved:  { label: 'В обработке', cls: 'proc' },
+  confirmed: { label: 'Подтверждён', cls: 'new' },
+  assembling:{ label: 'Собирается', cls: 'proc' },
+  assembled: { label: 'Готов к выдаче', cls: 'new' },
+  delivered: { label: 'Выдан', cls: 'done' },
+  cancelled: { label: 'Отменён', cls: 'cancelled' },
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  reserved: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-green-100 text-green-800',
-  assembling: 'bg-orange-100 text-orange-800',
-  assembled: 'bg-teal-100 text-teal-900 font-bold',
-  delivered: 'bg-gray-100 text-gray-800',
-  cancelled: 'bg-red-100 text-red-800',
-}
+const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
+const dateFmt = (v: string) => new Date(v).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+const THUMB = <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" /></svg>
 
-const STEP_ORDER = ['pending', 'confirmed', 'assembling', 'assembled', 'delivered']
-
-const TIMELINE_STEPS = [
-  { key: 'pending', label: 'Создан' },
-  { key: 'confirmed', label: 'Подтверждён' },
-  { key: 'assembling', label: 'Собирается' },
-  { key: 'assembled', label: 'Готов' },
-  { key: 'delivered', label: 'Выдан' },
+const MENU = [
+  { id: 'orders' as const, label: 'Мои заказы', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg> },
+  { id: 'profile' as const, label: 'Профиль и доставка', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg> },
+  { id: 'security' as const, label: 'Безопасность · PIN', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg> },
 ]
-
-function normalizeStep(status: string): string {
-  if (status === 'reserved') return 'pending'
-  return status
-}
-
-function StatusTimeline({ status }: { status: string }) {
-  if (status === 'cancelled') return null
-  const normalized = normalizeStep(status)
-  const currentIdx = STEP_ORDER.indexOf(normalized)
-  if (currentIdx === -1) return null
-
-  return (
-    <div className="flex items-center mt-3 mb-1">
-      {TIMELINE_STEPS.map((step, idx) => {
-        const done = idx < currentIdx
-        const active = idx === currentIdx
-        return (
-          <div key={step.key} className="flex items-center flex-1 last:flex-none">
-            <div className="flex flex-col items-center">
-              <span className={`text-base leading-none ${done || active ? 'opacity-100' : 'opacity-25'}`}>
-                {done ? '✅' : active ? '🔵' : '⬜'}
-              </span>
-              <span className={`text-[10px] mt-0.5 whitespace-nowrap ${active ? 'text-gray-800 font-medium' : done ? 'text-gray-500' : 'text-gray-300'}`}>
-                {step.label}
-              </span>
-            </div>
-            {idx < TIMELINE_STEPS.length - 1 && (
-              <div className={`h-px flex-1 mx-1 mb-3 ${idx < currentIdx ? 'bg-green-400' : 'bg-gray-200'}`} />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function AssemblyChanges({ items }: { items: OrderItem[] }) {
-  const removed = items.filter(i => i.is_removed)
-  const changed = items.filter(i => !i.is_removed && i.qty_actual !== null && i.qty_actual !== (i.qty_ordered ?? i.qty))
-  if (!removed.length && !changed.length) return null
-
-  const actualTotal = items
-    .filter(i => !i.is_removed)
-    .reduce((s, i) => s + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0)
-
-  return (
-    <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
-      <p className="font-medium text-amber-800 mb-1.5">Изменения в заказе</p>
-      {removed.map(i => (
-        <p key={i.id} className="text-amber-700">• {i.product?.name ?? '—'}: позиция снята</p>
-      ))}
-      {changed.map(i => (
-        <p key={i.id} className="text-amber-700">
-          • {i.product?.name ?? '—'}: заказано {i.qty_ordered ?? i.qty} шт, выдаётся {i.qty_actual} шт
-        </p>
-      ))}
-      <p className="font-semibold text-amber-800 mt-2 pt-2 border-t border-amber-200">
-        Итоговая сумма: {actualTotal.toLocaleString()} ₸
-      </p>
-    </div>
-  )
-}
 
 export default function CabinetPage() {
   const { isAuthed, phone, user, init, logout } = useAuthStore()
@@ -165,9 +62,7 @@ export default function CabinetPage() {
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [clientInfo, setClientInfo] = useState<{ name: string | null; company_name: string | null } | null>(null)
 
-  useEffect(() => {
-    init()
-  }, [])
+  useEffect(() => { init() }, [])
 
   async function loadClientInfo() {
     if (!phone) return
@@ -181,320 +76,191 @@ export default function CabinetPage() {
   }
 
   useEffect(() => {
-    if (!isAuthed || !phone) {
-      router.push('/')
-      return
-    }
-
+    if (!isAuthed || !phone) { router.push('/'); return }
     loadClientInfo()
-
     ;(async () => {
-      const headers = await authHeaders()  // владелец резолвится из токена на сервере
-      const fetches: Promise<void>[] = [
-        fetch('/api/cabinet', { headers })
-          .then(r => r.json())
-          .then(data => setOrders(data.orders ?? []))
-          .catch(() => {}),
-        fetch('/api/campaigns/orders', { headers })
-          .then(r => r.json())
-          .then(data => {
-            const list: CampaignOrder[] = (data.orders ?? []).map((o: any) => ({
-                  ...o, items: o.items ?? [], converted_to_order_id: o.converted_to_order_id ?? null,
-                }))
-            list.sort((a, b) => {
-              if (a.status === 'pending' && b.status !== 'pending') return -1
-              if (b.status === 'pending' && a.status !== 'pending') return 1
-              return new Date(a.delivery_date ?? 0).getTime() - new Date(b.delivery_date ?? 0).getTime()
-            })
-            setCampaignOrders(list)
+      const headers = await authHeaders()
+      await Promise.allSettled([
+        fetch('/api/cabinet', { headers }).then(r => r.json()).then(d => setOrders(d.orders ?? [])).catch(() => {}),
+        fetch('/api/campaigns/orders', { headers }).then(r => r.json()).then(d => {
+          const list: CampaignOrder[] = (d.orders ?? []).map((o: any) => ({ ...o, items: o.items ?? [], converted_to_order_id: o.converted_to_order_id ?? null }))
+          list.sort((a, b) => {
+            if (a.status === 'pending' && b.status !== 'pending') return -1
+            if (b.status === 'pending' && a.status !== 'pending') return 1
+            return new Date(a.delivery_date ?? 0).getTime() - new Date(b.delivery_date ?? 0).getTime()
           })
-          .catch(() => {}),
-      ]
-      await Promise.allSettled(fetches)
+          setCampaignOrders(list)
+        }).catch(() => {}),
+      ])
       setLoading(false)
     })()
   }, [isAuthed, phone, user?.id, router])
 
   if (!isAuthed) return null
 
-  const initials = (clientInfo?.name || '').split(' ').filter(Boolean).slice(0, 2)
-    .map(w => w[0]?.toUpperCase()).join('') || '👤'
+  const initials = (clientInfo?.name || '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || '👤'
+  const totalOrders = orders.length + campaignOrders.length
 
-  const MENU = [
-    { id: 'orders' as const, label: 'Мои заказы' },
-    { id: 'profile' as const, label: 'Профиль и доставка' },
-    { id: 'security' as const, label: 'Безопасность · PIN' },
-  ]
+  function repeat(order: Order) {
+    const cart = useCart.getState()
+    for (const it of order.order_items) {
+      if (it.is_removed || !it.product) continue
+      const q = it.qty_actual ?? it.qty_ordered ?? it.qty
+      cart.add({ id: it.product.id, name: it.product.display_name || it.product.name, price: it.price, available: Math.max(q, 1), category: 'accessories' })
+      cart.update(it.product.id, q)
+    }
+    router.push('/cart')
+  }
 
+  // ── ORDERS ──────────────────────────────────────────────────────────────
   const ordersPane = (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-lg font-bold text-gray-800">Мои заказы</h2>
-        {(() => {
-          const active = orders.filter(o =>
-            (o as any).payment_status === 'paid' &&
-            !['cancelled', 'delivered'].includes(o.status)
-          )
-          if (!active.length) return null
-          const sum = active.reduce((s, o) => s + Number((o as any).total ?? 0), 0)
-          return (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: '#F7EEF2', border: '1px solid #C97A92',
-              borderRadius: 20, padding: '3px 12px',
-              fontSize: 13, fontWeight: 600, color: '#8B3A5A',
-            }}>
-              {active.length} активн.
-              <span style={{ opacity: 0.6, fontSize: 11 }}>·</span>
-              {sum.toLocaleString('ru-RU')} ₸
-            </span>
-          )
-        })()}
-      </div>
-      <p className="text-sm text-gray-500 -mt-2">История заказов и быстрый повтор.</p>
+    <>
+      <div className={s.secTitle}>Мои заказы</div>
+      <div className={s.secSub}>История заказов и быстрый повтор. Документы и детали — внутри заказа.</div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Загрузка...</div>
-      ) : orders.length === 0 && campaignOrders.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <p className="text-4xl mb-3">🌸</p>
+        <div className={s.empty}>Загрузка…</div>
+      ) : totalOrders === 0 ? (
+        <div className={s.empty}>
           <p>У вас пока нет заказов</p>
-          <Link href="/catalog" className="mt-4 inline-block text-pink-500 hover:underline">Перейти в каталог</Link>
+          <Link href="/catalog" className={s.go}>Перейти в каталог →</Link>
         </div>
       ) : (
-        <div className="space-y-4">
+        <>
+          {orders.map(order => {
+            const visible = order.order_items.filter(i => !i.is_removed)
+            const qtyTotal = visible.reduce((sum, i) => sum + (i.qty_actual ?? i.qty_ordered ?? i.qty), 0)
+            const total = Number(order.total ?? visible.reduce((sum, i) => sum + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0))
+            const st = ORDER_ST[order.status] ?? { label: order.status, cls: 'proc' }
+            const shown = Math.min(visible.length, 4)
+            const more = visible.length - shown
+            const hasChanges = order.order_items.some(i => i.is_removed || (i.qty_actual !== null && i.qty_actual !== (i.qty_ordered ?? i.qty)))
+            return (
+              <div key={order.id} className={s.order}>
+                <div className={s.oHead}>
+                  <span className={s.num}>№ {order.id}</span>
+                  <span className={s.date}>от {dateFmt(order.created_at)}</span>
+                  {order.payment_status === 'unpaid' && <span className={s.unpaid}>💳 Не оплачен</span>}
+                  <span className={`${s.st} ${s[st.cls]}`}><span className={s.d} />{st.label}</span>
+                  <span className={s.sum}>{fmt(total)}</span>
+                </div>
+                <div className={s.oBody}>
+                  <div className={s.oThumbs}>
+                    {Array.from({ length: shown }).map((_, i) => <span key={i} className={s.t}>{THUMB}</span>)}
+                    {more > 0 && <span className={s.more}>+{more}</span>}
+                  </div>
+                  <div className={s.oInfo}><b>{visible.length}</b> наимен. · <b>{qtyTotal}</b> шт</div>
+                  <div className={s.oActs}>
+                    <Link href={`/order/${order.id}`} className={s.btn}>Подробнее</Link>
+                    <button className={`${s.btn} ${s.solid}`} onClick={() => repeat(order)}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6" /><path d="M3.5 9a9 9 0 0 1 14.8-3.4L23 10M1 14l4.7 4.4A9 9 0 0 0 20.5 15" /></svg>
+                      Повторить
+                    </button>
+                  </div>
+                </div>
+                {(order.status === 'assembled' || order.status === 'delivered') && hasChanges && (
+                  <div className={s.changes}>Часть позиций скорректирована при сборке — подробности в заказе.</div>
+                )}
+              </div>
+            )
+          })}
 
-          {/* Предзаказы */}
           {campaignOrders.length > 0 && (
             <>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide pt-2">
-                📅 Мои предзаказы
-              </h2>
+              <div className={s.subhead}>Предзаказы</div>
               {campaignOrders.map(co => {
-                const delivery = co.delivery_date
-                  ? new Date(co.delivery_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
-                  : null
+                const cst = CAMPAIGN_STATUS[co.status] ?? { label: co.status, cls: 'proc' }
                 return (
-                  <div key={co.id} className="border rounded-xl p-4 bg-white shadow-sm">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-lg shrink-0">📅</span>
-                        <span className="font-medium text-gray-800 leading-tight">
-                          {co.campaign_title ?? `Предзаказ #${co.id}`}
-                        </span>
-                      </div>
-                      <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${CAMPAIGN_STATUS_COLORS[co.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {CAMPAIGN_STATUS_LABELS[co.status] ?? co.status}
-                      </span>
+                  <div key={co.id} className={s.order}>
+                    <div className={s.oHead}>
+                      <span className={s.num}>{co.campaign_title ?? `Предзаказ #${co.id}`}</span>
+                      {co.delivery_date && <span className={s.date}>поставка {dateFmt(co.delivery_date)}</span>}
+                      <span className={`${s.st} ${s[cst.cls]}`}><span className={s.d} />{cst.label}</span>
+                      <span className={s.sum}>{fmt(co.total)}</span>
                     </div>
-
-                    {delivery && (
-                      <p className="text-sm text-gray-500 mb-2">Поставка: {delivery}</p>
-                    )}
-
-                    {/* Позиции */}
-                    {co.items.length > 0 && (
-                      <div className="space-y-1 mb-2">
-                        {co.items.map(item => (
-                          <div key={item.id} className="flex justify-between text-sm">
-                            <span className="text-gray-700 truncate flex-1 mr-2">{item.name}</span>
-                            <span className="text-gray-500 shrink-0">
-                              {item.qty} шт · {(item.qty * item.price).toLocaleString()} ₸
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {co.converted_to_order_id && (
-                      <p className="text-xs text-green-700 bg-green-50 rounded px-2 py-1 mb-2">
-                        ✅ Переведён в заказ #{co.converted_to_order_id}
-                      </p>
-                    )}
-
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <span className="text-sm text-gray-500">{co.items_count} поз.</span>
-                      <span className="font-semibold text-sm">{co.total.toLocaleString()} ₸</span>
+                    <div className={s.oBody}>
+                      <div className={s.oInfo}><b>{co.items_count}</b> поз.{co.converted_to_order_id ? ` · переведён в заказ №${co.converted_to_order_id}` : ''}</div>
                     </div>
                   </div>
                 )
               })}
-              {orders.length > 0 && (
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide pt-2">
-                  Обычные заказы
-                </h2>
-              )}
             </>
           )}
-
-          {orders.map(order => {
-            const visibleItems = order.order_items.filter(i => !i.is_removed)
-            const total = visibleItems.reduce((s, i) => s + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0)
-            const date = new Date(order.created_at).toLocaleString('ru-RU', {
-              timeZone: 'Asia/Oral', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
-            })
-            const isAssembled = order.status === 'assembled'
-            const hasChanges = order.order_items.some(
-              i => i.is_removed || (i.qty_actual !== null && i.qty_actual !== (i.qty_ordered ?? i.qty))
-            )
-
-            return (
-              <div key={order.id} className={`border rounded-xl p-4 bg-white shadow-sm ${isAssembled ? 'border-teal-400 ring-1 ring-teal-300' : ''}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-400">{date}</span>
-                  <div className="flex items-center gap-2">
-                    {(order as any).payment_status === 'paid' && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                        ✅ Оплачен
-                      </span>
-                    )}
-                    {(order as any).payment_status === 'unpaid' && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                        💳 Не оплачен
-                      </span>
-                    )}
-                    <span className={`text-xs px-2 py-1 rounded-full ${STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {STATUS_LABELS[order.status] ?? order.status}
-                    </span>
-                  </div>
-                </div>
-
-                {isAssembled && (
-                  <div className="mt-2 mb-1 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
-                    <p className="text-sm text-teal-800 font-medium">Ваш заказ собран и готов к выдаче</p>
-                    {order.assembly_photo_url && (
-                      <a href={order.assembly_photo_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-2">
-                        <img
-                          src={order.assembly_photo_url}
-                          alt="Фото заказа"
-                          style={{ width: 200, height: 150, objectFit: 'cover' }}
-                          className="rounded border border-teal-300 hover:opacity-90 transition-opacity"
-                        />
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                <StatusTimeline status={order.status} />
-
-                <div className="space-y-1 mt-2">
-                  {visibleItems.map(item => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-gray-700">
-                        {(item.product?.display_name || item.product?.name) ?? '—'} × {item.qty_actual ?? item.qty_ordered ?? item.qty}
-                      </span>
-                      <span className="text-gray-500">
-                        {((item.qty_actual ?? item.qty_ordered ?? item.qty) * item.price).toLocaleString()} ₸
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t mt-3 pt-2 flex justify-between text-sm font-semibold">
-                  <span>Итого</span>
-                  <span>{total.toLocaleString()} ₸</span>
-                </div>
-
-                {(isAssembled || order.status === 'delivered') && hasChanges && (
-                  <AssemblyChanges items={order.order_items} />
-                )}
-
-                <Link href={`/order/${order.id}`}
-                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#8B3A5A] hover:underline">
-                  Подробнее →
-                </Link>
-              </div>
-            )
-          })}
-        </div>
+        </>
       )}
-    </div>
+    </>
   )
 
+  // ── PROFILE ─────────────────────────────────────────────────────────────
   const profilePane = (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-gray-800">Профиль и доставка</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Контакты и реквизиты для документов и доставки.</p>
-      </div>
-      <div className="border rounded-xl bg-white p-5 space-y-4">
-        <h3 className="font-semibold text-gray-800">Контактные данные</h3>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs font-semibold text-gray-400 mb-1">Имя / организация</div>
-            <div className="text-sm text-gray-800">{clientInfo?.name || '—'}</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-gray-400 mb-1">Телефон (логин)</div>
-            <div className="text-sm text-gray-800">{phone || '—'}</div>
-            <div className="text-xs text-gray-400 mt-1">Номер — ваш логин. Для смены обратитесь к менеджеру.</div>
-          </div>
+    <>
+      <div className={s.secTitle}>Профиль и доставка</div>
+      <div className={s.secSub}>Контакты и реквизиты для документов и доставки.</div>
+      <div className={s.cardBox}>
+        <h3>Контактные данные</h3>
+        <div className={s.kv}><div className={s.k}>Имя / организация</div><div className={s.v}>{clientInfo?.name || '—'}</div></div>
+        <div className={s.kv}>
+          <div className={s.k}>Телефон (логин)</div>
+          <div className={s.v}>{phone || '—'}</div>
+          <div className={s.hint}>Номер — ваш логин. Для смены обратитесь к менеджеру.</div>
         </div>
         {clientInfo?.company_name && (
-          <div>
-            <div className="text-xs font-semibold text-gray-400 mb-1">Реквизиты / организация</div>
-            <div className="text-sm text-gray-800">{clientInfo.company_name}</div>
-          </div>
+          <div className={s.kv}><div className={s.k}>Реквизиты / организация</div><div className={s.v}>{clientInfo.company_name}</div></div>
         )}
-        <button onClick={() => setEditProfileOpen(true)}
-          className="h-10 px-5 rounded-lg bg-[#8B3A5A] hover:bg-[#6E2A45] text-white text-sm font-semibold transition-colors">
-          Редактировать профиль
-        </button>
+        <button className={s.save} onClick={() => setEditProfileOpen(true)}>Редактировать профиль</button>
       </div>
-    </div>
+    </>
   )
 
+  // ── SECURITY ────────────────────────────────────────────────────────────
   const securityPane = (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-gray-800">Безопасность · PIN-код</h2>
-        <p className="text-sm text-gray-500 mt-0.5">PIN-код используется для входа в магазин по номеру телефона.</p>
-      </div>
-      <div className="border rounded-xl bg-white p-5 space-y-4">
-        <div className="flex gap-2 items-start bg-[#F7EEF2] border border-[#E6DFD9] rounded-lg p-3 text-sm text-[#8B3A5A]">
-          <span>🔑</span>
+    <>
+      <div className={s.secTitle}>Безопасность · PIN-код</div>
+      <div className={s.secSub}>PIN-код используется для входа в магазин по номеру телефона.</div>
+      <div className={s.cardBox}>
+        <div className={s.pininfo}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
           <span>При регистрации менеджер прислал вам PIN-код. Здесь его можно сменить на удобный — минимум 4 цифры.</span>
         </div>
-        <button onClick={() => setPinModalOpen(true)}
-          className="h-10 px-5 rounded-lg bg-[#8B3A5A] hover:bg-[#6E2A45] text-white text-sm font-semibold transition-colors">
-          Сменить PIN
-        </button>
+        <button className={s.save} onClick={() => setPinModalOpen(true)}>Сменить PIN</button>
       </div>
-    </div>
+    </>
   )
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="w-11 h-11 rounded-full bg-[#8B3A5A] text-white flex items-center justify-center font-semibold shrink-0">{initials}</span>
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-gray-800 truncate">{clientInfo?.name || 'Личный кабинет'}</h1>
-            <p className="text-sm text-gray-500 truncate">📞 {phone}</p>
+    <main className={s.page}>
+      <div className={s.shell}>
+        <div className={s.frame}>
+          <div className={s.lk}>
+            <aside className={s.side}>
+              <div className={s.user}>
+                <span className={s.ava}>{initials}</span>
+                <span className={s.who}>
+                  <span className={s.nm}>{clientInfo?.name || 'Личный кабинет'}</span>
+                  <span className={s.ph}>{phone}</span>
+                </span>
+              </div>
+              <div className={s.menu}>
+                {MENU.map(m => (
+                  <button key={m.id} className={`${s.mi} ${tab === m.id ? s.on : ''}`} onClick={() => setTab(m.id)}>
+                    {m.icon}{m.label}
+                    {m.id === 'orders' && totalOrders > 0 && <span className={s.badge}>{totalOrders}</span>}
+                  </button>
+                ))}
+                <button className={`${s.mi} ${s.exit}`} onClick={() => { logout(); router.push('/') }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+                  Выйти
+                </button>
+              </div>
+            </aside>
+
+            <main className={s.content}>
+              {tab === 'orders' && ordersPane}
+              {tab === 'profile' && profilePane}
+              {tab === 'security' && securityPane}
+            </main>
           </div>
         </div>
-        <Link href="/catalog" className="text-sm text-gray-400 hover:text-gray-600 shrink-0">← Каталог</Link>
-      </div>
-
-      <div className="grid md:grid-cols-[220px_1fr] gap-6 items-start">
-        <aside className="border rounded-xl bg-white p-2 flex md:flex-col gap-1 overflow-x-auto">
-          {MENU.map(m => (
-            <button key={m.id} onClick={() => setTab(m.id)}
-              className={`px-3.5 py-2.5 rounded-lg text-sm font-medium text-left whitespace-nowrap transition-colors ${tab === m.id ? 'bg-[#8B3A5A] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-              {m.label}
-            </button>
-          ))}
-          <button onClick={() => { logout(); router.push('/') }}
-            className="px-3.5 py-2.5 rounded-lg text-sm font-medium text-left whitespace-nowrap text-gray-400 hover:bg-gray-50 md:mt-1 md:border-t md:pt-3">
-            Выйти
-          </button>
-        </aside>
-
-        <main className="min-w-0">
-          {tab === 'orders' && ordersPane}
-          {tab === 'profile' && profilePane}
-          {tab === 'security' && securityPane}
-        </main>
       </div>
 
       <ChangePinModal isOpen={pinModalOpen} onClose={() => setPinModalOpen(false)} />
@@ -505,6 +271,6 @@ export default function CabinetPage() {
         currentCompany={clientInfo?.company_name || ''}
         onSuccess={() => { loadClientInfo(); setEditProfileOpen(false) }}
       />
-    </div>
+    </main>
   )
 }
