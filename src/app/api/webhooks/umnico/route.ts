@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getAccessoriesReply } from '@/lib/bot/accessories-bot'
+import { getAccessoriesReply, CHANNEL_POLICY, type ChannelMode } from '@/lib/bot/accessories-bot'
+import { isLeadEnabled, enableLead, disableLead } from '@/lib/bot/lead-gate'
 import { sendMessage, addTag } from '@/lib/umnico'
 
 // Дедуп доставок одного messageId. In-memory — переживает только тёплый инстанс,
@@ -58,23 +59,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const type = body.type ?? body.event
-    // Обрабатываем ТОЛЬКО входящие сообщения. message.outgoing и пр. — игнор (защита от петли).
-    if (type !== 'message.incoming') {
-      console.log('[umnico webhook] skip: not message.incoming (type=' + String(type) + ')')
-      return NextResponse.json({ ok: true })
-    }
 
     // Реальная структура payload Umnico:
-    //   { type, leadId, message: { messageId, message: { text }, source: { realId, type } } }
-    // Совместимость: leadId/type — верхний уровень; текст/id/source — внутри body.message.
+    //   { type, leadId, message: { messageId, message: { text }, source: {...}, sa: { type } } }
+    // Совместимость: leadId/type — верхний уровень; текст/id/source/канал — внутри body.message.
     const top = body as Record<string, unknown>
     const msg = (body.message ?? body.data ?? body.payload ?? body) as Record<string, unknown>
     const inner = (msg.message ?? msg) as Record<string, unknown>
     const srcObj = (msg.source ?? {}) as Record<string, unknown>
+    const saObj = (msg.sa ?? {}) as Record<string, unknown>
 
     const leadId = pick<string | number>(top, 'leadId', 'lead_id', 'dialogId', 'dialog_id')
     const messageId = pick<string | number>(msg, 'messageId', 'message_id', 'id')
     const text = pick<string>(inner, 'text', 'message', 'body')
+    const channelType = pick<string>(saObj, 'type')
 
     // source из вебхука — чтобы не дёргать GET /sources при отправке.
     const srcRealId = pick<string | number>(srcObj, 'realId', 'real_id')
@@ -83,8 +81,40 @@ export async function POST(req: NextRequest) {
         ? { realId: srcRealId, type: String(pick<string>(srcObj, 'type') ?? 'message') }
         : undefined
 
+    // ── message.outgoing: команды менеджера на диалог (для manual-каналов) ──
+    if (type === 'message.outgoing') {
+      if (!leadId) return NextResponse.json({ ok: true })
+
+      // Сообщения самого бота игнорируем всегда (анти-петля).
+      const senderId = pick<string | number>(msg, 'userId', 'user_id', 'managerId', 'employeeId')
+      const botUserId = process.env.UMNICO_BOT_USER_ID
+      if (botUserId && senderId !== undefined && String(senderId) === String(botUserId)) {
+        console.log('[umnico webhook] skip: own (bot) outgoing')
+        return NextResponse.json({ ok: true })
+      }
+
+      const cmd = (text ?? '').trim().toLowerCase()
+      if (cmd.startsWith('/бот')) {
+        await enableLead(leadId, String(senderId ?? 'manager'))
+        await sendMessage(leadId, 'Бот включён для этого диалога 🌸', payloadSource)
+        console.log('[umnico webhook] manual: enabled lead', String(leadId))
+      } else if (cmd.startsWith('/стоп')) {
+        await disableLead(leadId)
+        console.log('[umnico webhook] manual: disabled lead', String(leadId))
+      } else {
+        console.log('[umnico webhook] skip: outgoing without command')
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── дальше только message.incoming ──
+    if (type !== 'message.incoming') {
+      console.log('[umnico webhook] skip: not message.incoming/outgoing (type=' + String(type) + ')')
+      return NextResponse.json({ ok: true })
+    }
+
     // Шаг 1: распарсенный payload
-    console.log('[umnico webhook] incoming:', JSON.stringify({ leadId, messageId, text, source: payloadSource }))
+    console.log('[umnico webhook] incoming:', JSON.stringify({ leadId, messageId, text, channel: channelType, source: payloadSource }))
 
     if (!leadId) {
       console.log('[umnico webhook] skip: no leadId')
@@ -93,6 +123,20 @@ export async function POST(req: NextRequest) {
     if (!text) {
       console.log('[umnico webhook] skip: no text')
       return NextResponse.json({ ok: true })
+    }
+
+    // Канальная политика: off / manual / auto. Неизвестный канал → off.
+    const mode: ChannelMode = channelType ? (CHANNEL_POLICY[channelType] ?? 'off') : 'off'
+    if (mode === 'off') {
+      console.log('[umnico webhook] skip: channel off (' + String(channelType) + ')')
+      return NextResponse.json({ ok: true })
+    }
+    if (mode === 'manual') {
+      const enabled = await isLeadEnabled(leadId)
+      if (!enabled) {
+        console.log('[umnico webhook] skip: manual channel, lead not enabled', String(leadId))
+        return NextResponse.json({ ok: true })
+      }
     }
 
     // Дедуп повторных доставок

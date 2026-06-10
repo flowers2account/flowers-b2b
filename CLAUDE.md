@@ -589,7 +589,7 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 | `docs/IMPORT_SYSTEM.md` | Импорт XLS из 1С — ⚠️ устарело (описывает batches/stock до 25.05.2026) |
 | `docs/STOCK_MANAGEMENT.md` | Архитектура остатков |
 | `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
-| `docs/UMNICO_BOT.md` | ИИ-бот поддержки в Umnico (расходка): поток, ENV, разовая настройка, правка промптов |
+| `docs/UMNICO_BOT.md` | ИИ-бот поддержки в Umnico (расходка): трёхуровневое управление (env→каналы→команды), поток, ENV, настройка |
 | `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
 | `docs/KNOWN_ISSUES.md` | Известные баги |
 | `docs/ROADMAP.md` | Планы развития |
@@ -662,25 +662,41 @@ src/
 
 | Файл | Назначение |
 |------|-----------|
-| `src/app/api/webhooks/umnico/route.ts` | Приёмник вебхука (POST): фильтр `message.incoming`, дедуп по `messageId`, всегда 200 |
+| `src/app/api/webhooks/umnico/route.ts` | Приёмник вебхука (POST): kill-switch, канальная политика, команды, дедуп, всегда 200 |
 | `src/lib/umnico.ts` | Клиент Umnico API v1.3: `getSources`, `sendMessage`, `addTag` |
-| `src/lib/bot/accessories-bot.ts` | Логика: классификация (Gemini JSON) → поиск (Supabase ILIKE) → ответ. **Системный промпт правится здесь** (`SYSTEM_PROMPT`) |
+| `src/lib/gemini.ts` | Общий клиент Gemini (как в `/api/translations/batch`) |
+| `src/lib/bot/accessories-bot.ts` | Логика: классификация (intent) → поиск (Supabase ILIKE) → ответ. **`SYSTEM_PROMPT`, `SMALLTALK_REPLIES`, `CHANNEL_POLICY` правятся здесь** |
+| `src/lib/bot/lead-gate.ts` | Гейт диалогов для режима `manual` (таблица `bot_enabled_leads`) |
+
+### Трёхуровневое управление
+
+Бот отвечает только при совпадении всех трёх уровней:
+1. **Env-рубильник** `UMNICO_BOT_ENABLED=true` на Vercel (по умолчанию ВЫКЛ → вебхук сразу 200). Аварийный стоп — убрать переменную + redeploy, или снять вебхук (`scripts/unregister-umnico-webhook.ts`).
+2. **Карта каналов** `CHANNEL_POLICY` в `accessories-bot.ts` — канал из `body.message.sa.type`: `auto` (отвечает сам) / `manual` (только включённые диалоги) / `off` (молчит). Неизвестный канал = `off`. Сейчас: `{ widget: 'auto', whatsapp2: 'off' }`.
+3. **Команды на диалог** (для `manual`): в `message.outgoing` менеджера — `/бот` (включить лид + подтверждение в чат), `/стоп` (выключить молча). Свои сообщения бота (`userId === UMNICO_BOT_USER_ID`) игнорируются. Хранилище — `bot_enabled_leads`.
 
 ### Поток
 
-1. Обрабатывается **только** `type==='message.incoming'` (всё остальное, особенно `message.outgoing`, → сразу 200 — анти-петля).
-2. Дедуп повторных доставок по `messageId`.
-3. Gemini-классификация → `{in_scope, keywords}`; вне области → ничего не шлём.
-4. Supabase: `products` WHERE `category='accessories' AND is_active AND price>0 AND hidden_for_demo=false` + OR ILIKE по `name`/`display_name`, limit 20.
-5. Gemini с системным промптом → короткий ответ **или** ровно `NO_ANSWER`.
-6. Ответ ≠ `NO_ANSWER` → Umnico (`source` с `type='message'`) + тег `отвечено-ботом`. Иначе — менеджеру.
+1. `UMNICO_BOT_ENABLED ≠ true` → 200, ничего.
+2. `message.outgoing` → ветка команд (`/бот` / `/стоп`), иначе скип.
+3. Только `message.incoming` дальше; нет `leadId`/`text` → скип.
+4. Канальная политика: `off` → скип; `manual` → проверка `bot_enabled_leads`; `auto` → дальше.
+5. Дедуп по `messageId`.
+6. Gemini-классификация → `{intent: smalltalk|accessories|other, keywords}`. `smalltalk` → шаблон `SMALLTALK_REPLIES`; `other` → менеджеру; `accessories` → поиск.
+7. Supabase: `products` WHERE `category='accessories' AND is_active AND price>0 AND hidden_for_demo=false` + OR ILIKE по `name`/`display_name`, limit 20.
+8. Gemini с `SYSTEM_PROMPT` (товары + готовые `url`/`catalog_url`) → ответ **или** `NO_ANSWER`.
+9. Ответ ≠ `NO_ANSWER` → Umnico (source из вебхука, fallback `getSources`) + тег `отвечено-ботом`.
+
+**Ссылки**: в контекст товара кладутся `url` (`/product/{id}`) и `catalog_url` (`/catalog?category=accessories&leaves={subcategory}`) — бот их только цитирует. Каталог читает эти параметры в `CatalogLayout.tsx`.
 
 **Гардрейлы**: не обещает резерв/заказ/доставку; не отвечает на исходящие; дедуп; любая ошибка → 200.
 
-**ENV**: `UMNICO_API_TOKEN`, `UMNICO_BOT_USER_ID` (плюс уже существующие `GOOGLE_GEMINI_API_KEY`, `NEXT_PUBLIC_GEMINI_MODEL`, `SUPABASE_SERVICE_ROLE_KEY`).
+**Миграция**: `supabase/migrations/20260610_bot_enabled_leads.sql` — применить до включения `manual`-канала.
 
-**Разовая настройка** (создание сотрудника-бота, регистрация вебхука, проверка) и правка
-промптов — подробно в `docs/UMNICO_BOT.md`. Регистрация вебхука: `scripts/register-umnico-webhook.ts`.
+**ENV**: `UMNICO_BOT_ENABLED`, `UMNICO_API_TOKEN`, `UMNICO_BOT_USER_ID` (плюс `GOOGLE_GEMINI_API_KEY`, `NEXT_PUBLIC_GEMINI_MODEL`, `SUPABASE_SERVICE_ROLE_KEY`).
+
+**Разовая настройка** (сотрудник-бот, регистрация вебхука, включение, проверка) и правка
+промптов — подробно в `docs/UMNICO_BOT.md`.
 
 ## amoCRM интеграция — актуально с 04.06.2026
 

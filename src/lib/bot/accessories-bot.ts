@@ -26,6 +26,17 @@ const SMALLTALK_REPLIES: Record<string, string> = {
   farewell: 'Хорошего дня! Будем рады помочь снова.',
 }
 
+// Канальная политика — правится здесь (Цвет). channelType = body.message.sa.type.
+//   'auto'   → бот отвечает сам (полный конвейер)
+//   'manual' → отвечает только в диалогах, включённых командой /бот (таблица bot_enabled_leads)
+//   'off'    → полное молчание
+// Каналы, не указанные тут, трактуются как 'off'.
+export type ChannelMode = 'auto' | 'manual' | 'off'
+export const CHANNEL_POLICY: Record<string, ChannelMode> = {
+  widget: 'auto',
+  whatsapp2: 'off',
+}
+
 type Intent = 'smalltalk' | 'accessories' | 'other'
 
 interface ClassifyResult {
