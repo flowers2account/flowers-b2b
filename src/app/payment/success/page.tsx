@@ -2,6 +2,9 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import s from './success.module.css'
+
+const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
 
 function SuccessContent() {
   const params = useSearchParams()
@@ -9,6 +12,7 @@ function SuccessContent() {
   const [status, setStatus] = useState<string | null>(null)
   const [orderId, setOrderId] = useState<number | null>(null)
   const [cardMask, setCardMask] = useState<string | null>(null)
+  const [amount, setAmount] = useState<number | null>(null)
 
   useEffect(() => {
     if (!invoice) return
@@ -17,7 +21,7 @@ function SuccessContent() {
       const res = await fetch(`/api/payments/status?invoice=${invoice}`)
       if (res.ok) {
         const d = await res.json()
-        setStatus(d.status); setOrderId(d.orderId); setCardMask(d.cardMask)
+        setStatus(d.status); setOrderId(d.orderId); setCardMask(d.cardMask); setAmount(d.amount ?? null)
         if (d.status === 'success' || d.status === 'failed' || tries > 15) return
       }
       tries++
@@ -26,45 +30,91 @@ function SuccessContent() {
     poll()
   }, [invoice])
 
+  // ── проверяем / неуспех ──────────────────────────────────────────────
+  if (status !== 'success') {
+    const failed = status === 'failed'
+    return (
+      <div className={s.wrap}>
+        {failed
+          ? <div className={s.checkmark} style={{ background: '#FBE9E7', color: '#C0392B' }}>
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </div>
+          : <div className={s.spin} />}
+        <div className={s.title}>{failed ? 'Оплата не прошла' : 'Проверяем оплату…'}</div>
+        <div className={s.lead}>
+          {failed
+            ? <>Заказ {orderId ? `№${orderId} создан, но ` : ''}не оплачен. Товары зарезервированы — можно повторить оплату из корзины.</>
+            : 'Обычно занимает несколько секунд. Не закрывайте страницу.'}
+        </div>
+        <div className={s.actions}>
+          <Link href="/cabinet" className={`${s.btn} ${s.solid}`}>Мои заказы</Link>
+          <Link href="/catalog" className={s.btn}>В каталог</Link>
+        </div>
+      </div>
+    )
+  }
+
+  // ── успех ────────────────────────────────────────────────────────────
   return (
-    <div style={{ textAlign: 'center' }}>
-      {status === 'success' ? (
-        <>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Оплата прошла успешно</h1>
-          {orderId && <p style={{ color: '#6b7280', marginBottom: 8 }}>Заказ №{orderId}</p>}
-          {cardMask && <p style={{ color: '#6b7280', marginBottom: 16 }}>Оплачено картой {cardMask}</p>}
-        </>
-      ) : status === 'failed' ? (
-        <>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>⚠️</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Оплата не прошла</h1>
-          <p style={{ color: '#6b7280', marginBottom: 16 }}>Заказ {orderId ? `№${orderId} создан, но` : ''} не оплачен.</p>
-        </>
-      ) : (
-        <>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>⏳</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Проверяем оплату…</h1>
-          <p style={{ color: '#6b7280' }}>Подождите несколько секунд</p>
-        </>
+    <div className={s.wrap}>
+      <div className={s.checkmark}>
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+      </div>
+      <div className={s.title}>Заказ оплачен</div>
+      <div className={s.lead}>Спасибо! Оплата прошла успешно. Мы уже начали собирать ваш заказ и сообщим в WhatsApp, когда он будет готов.</div>
+      {orderId && (
+        <div className={s.ordno}>
+          Заказ № {orderId}
+          <span className={s.paidChip}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+            Оплачено
+          </span>
+        </div>
       )}
-      <Link href="/cabinet" style={{
-        display: 'inline-block', marginTop: 20,
-        padding: '10px 24px', background: '#8B3A5A', color: '#fff',
-        borderRadius: 8, textDecoration: 'none', fontWeight: 600,
-      }}>Мои заказы</Link>
+
+      <div className={s.card}>
+        <div className={s.cardH}>Детали оплаты</div>
+        <div className={s.cardB}>
+          <div className={s.kv}>
+            <span className={s.k}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
+              Способ оплаты
+            </span>
+            <span className={s.v}>Картой онлайн{cardMask ? ` ${cardMask}` : ''}<span className={s.sub}>Halyk Bank · ePay</span></span>
+          </div>
+          {amount != null && (
+            <div className={s.kv}>
+              <span className={s.k}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                Оплачено
+              </span>
+              <span className={`${s.v} ${s.sum}`}>{fmt(Number(amount))}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className={s.next}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+        <span><b>Что дальше:</b> заказ собирается в день оплаты. Как только он будет готов к выдаче, придёт уведомление в WhatsApp. Статус и детали — в личном кабинете.</span>
+      </div>
+
+      <div className={s.actions}>
+        {orderId
+          ? <Link href={`/order/${orderId}`} className={`${s.btn} ${s.solid}`}>Перейти к заказу<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></Link>
+          : <Link href="/cabinet" className={`${s.btn} ${s.solid}`}>Мои заказы</Link>}
+        <Link href="/catalog" className={s.btn}>Продолжить покупки</Link>
+      </div>
     </div>
   )
 }
 
 export default function PaymentSuccessPage() {
   return (
-    <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
-      <div style={{ maxWidth: 400, width: '100%' }}>
-        <Suspense fallback={<p style={{ textAlign: 'center' }}>Загрузка…</p>}>
-          <SuccessContent />
-        </Suspense>
-      </div>
-    </div>
+    <main className={s.page}>
+      <Suspense fallback={<div className={s.wrap}><div className={s.spin} /></div>}>
+        <SuccessContent />
+      </Suspense>
+    </main>
   )
 }

@@ -11,6 +11,7 @@ import { useIsMobile } from '@/lib/use-mobile'
 import { COUNTRY_LABELS } from '@/lib/countries'
 import { leafForSubcat, unitForProduct } from '@/lib/category-tree'
 import FavHeart from '@/components/catalog/FavHeart'
+import { company } from '@/config/company'
 
 const SUBCAT_RU: Record<string, string> = {
   anthuriums: 'Антуриумы', orchids: 'Орхидеи', kalanchoe: 'Каланхоэ',
@@ -429,7 +430,7 @@ export default function ProductPage() {
               {/* qty badge */}
               <span style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(26,26,31,0.78)', color: '#fff', fontSize: 12, fontWeight: 600, padding: '5px 11px', borderRadius: 999, backdropFilter: 'blur(8px)', display: 'inline-flex', alignItems: 'center', gap: 6, zIndex: 2 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, flexShrink: 0 }} />
-                {product.qty} {unit}
+                {product.qty} {unit} в наличии
               </span>
               {/* избранное — top-right of photo */}
               <FavHeart productId={product.id} size={36} style={{ position: 'absolute', top: 12, right: 12, zIndex: 3 }} />
@@ -542,6 +543,22 @@ export default function ProductPage() {
                     🛒 Корзина ({cartCount}) · {cartTotal.toLocaleString('ru-RU')} ₸ →
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* perks (самовывоз / доставка / оплата) — из мокапа Товар.html */}
+            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 11, paddingTop: 18, borderTop: `1px solid ${C.borderSoft}` }}>
+              <div style={{ display: 'flex', gap: 11, fontSize: 13, color: C.ink2 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C97A92" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M3 9l1-5h16l1 5M4 9h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM9 13h6" /></svg>
+                <div><b style={{ color: C.ink, fontWeight: 600 }}>Самовывоз в день оплаты</b> — склад в Уральске, {company.address.replace('Западно-Казахстанская область, ', '')}.</div>
+              </div>
+              <div style={{ display: 'flex', gap: 11, fontSize: 13, color: C.ink2 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C97A92" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>
+                <div><b style={{ color: C.ink, fontWeight: 600 }}>Доставка</b> по Уральску, в Актобе и Атырау — по согласованию.</div>
+              </div>
+              <div style={{ display: 'flex', gap: 11, fontSize: 13, color: C.ink2 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C97A92" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                <div>Оплата картой онлайн (Halyk ePay) или по счёту для организаций.</div>
               </div>
             </div>
 

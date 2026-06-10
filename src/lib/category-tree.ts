@@ -11,7 +11,7 @@ export const ACCESSORIES_LABEL_SHORT = '📦 Уход · Упак. · Декор
 
 export const CATEGORY_TREE: Group[] = [
   { id: 'packaging', label: 'Упаковка и флористика', leaves: [
-    { slug: 'film',       label: 'Плёнка',             members: ['film'], unit: 'пог. м' },
+    { slug: 'film',       label: 'Плёнка',             members: ['film'] },
     { slug: 'paper',      label: 'Бумага',             members: ['paper'] },
     { slug: 'film_bags',  label: 'Пакеты',             members: ['film_bags','bags'] },
     { slug: 'gift_boxes', label: 'Подарочные коробки', members: ['gift_boxes'], variant: 'Размер' },

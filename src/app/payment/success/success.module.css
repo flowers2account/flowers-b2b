@@ -1,0 +1,40 @@
+/* «Заказ оплачен» — перенос из design_handoff_pages (zip10). Шапка/футер глобальные. */
+.page {
+  --accent: #8B3A5A; --accent-deep: #6E2A45; --accent-mid: #C97A92;
+  --accent-light: #F7EEF2; --accent-tint: #FBF6F8;
+  --fern: #3D6B50; --fern-deep: #2E5640; --fern-light: #E8F0EA;
+  --ink: #1A1A1F; --ink-2: #494950; --ink-3: #7A7780; --ink-4: #A8A4AD;
+  --bg-app: #F6F2EF; --bg-card: #FFFFFF; --bg-soft: #F7F4F1;
+  --border: #E6DFD9; --border-soft: #EFEAE5;
+  --r-sm: 8px; --r-md: 12px; --r-pill: 999px;
+  --sh-card: 0 1px 2px rgba(40,20,30,.04), 0 2px 6px rgba(40,20,30,.04);
+  background: var(--bg-app); color: var(--ink);
+  font-family: var(--font-golos), system-ui, sans-serif; font-size: 14px;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 48px 20px 56px; display: flex; flex-direction: column; align-items: center; }
+.checkmark { width: 96px; height: 96px; border-radius: 50%; background: var(--fern-light); display: flex; align-items: center; justify-content: center; margin-bottom: 24px; position: relative; color: var(--fern-deep); }
+.checkmark::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--fern); opacity: .25; }
+.spin { width: 96px; height: 96px; border-radius: 50%; border: 4px solid var(--border-soft); border-top-color: var(--accent); animation: sp .8s linear infinite; margin-bottom: 24px; }
+@keyframes sp { to { transform: rotate(360deg); } }
+.title { font-family: var(--font-serif), serif; font-weight: 600; font-size: 30px; letter-spacing: -.01em; text-align: center; }
+.lead { font-size: 15px; color: var(--ink-2); text-align: center; margin-top: 10px; max-width: 46ch; line-height: 1.55; }
+.ordno { display: inline-flex; align-items: center; gap: 9px; margin-top: 18px; background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent-mid) 35%, transparent); color: var(--accent); font-weight: 600; font-size: 14.5px; padding: 9px 18px; border-radius: var(--r-pill); }
+.paidChip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--fern-deep); background: var(--fern-light); padding: 3px 9px; border-radius: var(--r-pill); }
+.card { width: 100%; max-width: 620px; margin-top: 30px; border: 1px solid var(--border); border-radius: var(--r-md); background: #fff; box-shadow: var(--sh-card); overflow: hidden; }
+.cardH { padding: 15px 20px; border-bottom: 1px solid var(--border-soft); background: var(--bg-soft); font-family: var(--font-jetbrains), monospace; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.cardB { padding: 6px 20px; }
+.kv { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--border-soft); }
+.kv:last-child { border-bottom: none; }
+.kv .k { font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 9px; }
+.kv .k svg { color: var(--accent-mid); flex: none; }
+.kv .v { font-size: 13.5px; font-weight: 600; color: var(--ink); text-align: right; }
+.kv .v .sub { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; margin-top: 2px; }
+.kv .v.sum { font-family: var(--font-serif), serif; font-size: 18px; color: var(--accent); }
+.next { width: 100%; max-width: 620px; margin-top: 18px; background: var(--accent-tint); border: 1px solid var(--border-soft); border-radius: var(--r-md); padding: 16px 18px; display: flex; gap: 11px; font-size: 13.5px; color: var(--ink-2); line-height: 1.55; }
+.next svg { flex: none; color: var(--accent-mid); margin-top: 2px; }
+.next b { color: var(--ink); font-weight: 600; }
+.actions { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; justify-content: center; }
+.btn { height: 50px; padding: 0 24px; border-radius: var(--r-sm); font-family: inherit; font-weight: 600; font-size: 14.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; text-decoration: none; border: 1px solid var(--border); background: #fff; color: var(--ink-2); }
+.btn:hover { border-color: var(--accent-mid); color: var(--accent); }
+.btn.solid { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.solid:hover { background: var(--accent-deep); color: #fff; }
