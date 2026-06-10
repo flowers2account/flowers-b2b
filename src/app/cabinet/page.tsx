@@ -6,6 +6,7 @@ import Link from 'next/link'
 import ChangePinModal from '@/components/cabinet/ChangePinModal'
 import EditProfileModal from '@/components/cabinet/EditProfileModal'
 import { createClient } from '@/lib/supabase/client'
+import { authHeaders } from '@/lib/api-token'
 
 type CampaignOrderItem = {
   id: number
@@ -187,15 +188,14 @@ export default function CabinetPage() {
 
     loadClientInfo()
 
-    const fetches: Promise<void>[] = [
-      fetch(`/api/cabinet?phone=${encodeURIComponent(phone)}`)
-        .then(r => r.json())
-        .then(data => setOrders(data.orders ?? [])),
-    ]
-
-    if (phone) {
-      fetches.push(
-        fetch(`/api/campaigns/orders?phone=${encodeURIComponent(phone)}`)
+    ;(async () => {
+      const headers = await authHeaders()  // владелец резолвится из токена на сервере
+      const fetches: Promise<void>[] = [
+        fetch('/api/cabinet', { headers })
+          .then(r => r.json())
+          .then(data => setOrders(data.orders ?? []))
+          .catch(() => {}),
+        fetch('/api/campaigns/orders', { headers })
           .then(r => r.json())
           .then(data => {
             const list: CampaignOrder[] = (data.orders ?? []).map((o: any) => ({
@@ -208,11 +208,11 @@ export default function CabinetPage() {
             })
             setCampaignOrders(list)
           })
-          .catch(() => {})
-      )
-    }
-
-    Promise.all(fetches).finally(() => setLoading(false))
+          .catch(() => {}),
+      ]
+      await Promise.allSettled(fetches)
+      setLoading(false)
+    })()
   }, [isAuthed, phone, user?.id, router])
 
   if (!isAuthed) return null

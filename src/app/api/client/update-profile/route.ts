@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
+import { getAuthedUser } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const { phone, name, company_name } = await req.json().catch(() => ({}))
+  const { name, company_name } = await req.json().catch(() => ({}))
 
-  if (!phone) return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 })
+  // Менять можно только свой профиль — владелец берётся из токена, не из тела
+  const authed = await getAuthedUser(req)
+  if (!authed?.phone) return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 })
   if (!name?.trim()) return NextResponse.json({ success: false, error: 'Укажите имя' }, { status: 400 })
 
-  const normalized = normalizePhone(String(phone))
+  const normalized = normalizePhone(authed.phone)
   const admin = createAdminClient()
 
   const { data: client, error: clientError } = await admin

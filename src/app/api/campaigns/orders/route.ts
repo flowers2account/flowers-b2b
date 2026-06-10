@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePhone } from '@/lib/phone';
+import { getAuthedUser } from '@/lib/api-auth';
 
-// GET /api/campaigns/orders?phone=<+7...> — предзаказы клиента
-// Резолвит clients.id по телефону (тот же FK, что и orders.client_id).
+// GET /api/campaigns/orders — предзаказы текущего клиента (по токену).
+// Владелец резолвится ИЗ токена, phone из query игнорируется (защита от IDOR).
 export async function GET(request: NextRequest) {
-  const rawPhone = request.nextUrl.searchParams.get('phone');
-  if (!rawPhone) {
-    return NextResponse.json({ error: 'phone is required' }, { status: 400 });
+  const authed = await getAuthedUser(request);
+  if (!authed?.phone) {
+    return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
   }
 
   const supabase = createAdminClient();
 
-  // Resolve clients.id by phone — same pattern as /api/my-orders
-  const normalizedPhone = normalizePhone(rawPhone);
+  // Resolve clients.id by phone (из токена)
+  const normalizedPhone = normalizePhone(authed.phone);
   const { data: clientRow } = await supabase
     .from('clients')
     .select('id')

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
+import { authHeaders } from '@/lib/api-token'
 import { company } from '@/config/company'
 import s from './order.module.css'
 
@@ -56,13 +57,16 @@ export default function OrderPage() {
 
   useEffect(() => {
     if (!isAuthed || !phone) { router.push('/'); return }
-    fetch(`/api/cabinet?phone=${encodeURIComponent(phone)}`)
-      .then(r => r.json())
-      .then(data => {
+    ;(async () => {
+      const headers = await authHeaders()  // владелец резолвится из токена на сервере
+      try {
+        const r = await fetch('/api/cabinet', { headers })
+        const data = await r.json()
         const found = (data.orders ?? []).find((o: Order) => String(o.id) === String(params.id))
         setOrder(found ?? null)
-      })
-      .finally(() => setLoading(false))
+      } catch { setOrder(null) }
+      finally { setLoading(false) }
+    })()
   }, [isAuthed, phone, params.id, router])
 
   if (!isAuthed) return null

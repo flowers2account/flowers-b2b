@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/auth-store'
+import { authHeaders } from '@/lib/api-token'
 import NewOrderModal from './NewOrderModal'
 import AssemblyModal from './AssemblyModal'
 import OrderEditModal from './OrderEditModal'
@@ -128,7 +129,7 @@ export default function OrdersPanel() {
     return result
   }, [orders, datePreset, customFrom, customTo, selectedStatuses])
 
-  function handleExport() {
+  async function handleExport() {
     const params = new URLSearchParams()
     const now = new Date()
     const todayStr = now.toISOString().split('T')[0]
@@ -144,7 +145,20 @@ export default function OrdersPanel() {
 
     if (selectedStatuses.length > 0) params.set('status', selectedStatuses.join(','))
 
-    window.open(`/api/export-orders?${params.toString()}`, '_blank')
+    // Экспорт закрыт под роль admin/manager → шлём токен в заголовке (window.open его не несёт)
+    try {
+      const res = await fetch(`/api/export-orders?${params.toString()}`, { headers: await authHeaders() })
+      if (!res.ok) { alert(res.status === 403 ? 'Нет прав на экспорт' : 'Не удалось выгрузить'); return }
+      const blob = await res.blob()
+      const cd = res.headers.get('content-disposition') || ''
+      const m = cd.match(/filename="?([^"]+)"?/)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = m?.[1] || `orders-${todayStr}.xlsx`
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch { alert('Ошибка сети при экспорте') }
   }
   const supabase = createClient()
 
