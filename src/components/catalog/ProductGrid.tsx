@@ -292,11 +292,6 @@ export function GridCard({
             {(product as any).variant}
           </div>
         )}
-        {(product as any).short_description && (
-          <div style={{ fontSize: 10, color: 'var(--text-mid)', lineHeight: 1.4, marginTop: 2 }}>
-            {(product as any).short_description}
-          </div>
-        )}
 
         {/* Кружки цветов — colors[] или fallback на color */}
         {(() => {
