@@ -2,9 +2,7 @@
 // Переиспользует Gemini (GOOGLE_GEMINI_API_KEY) и Supabase service-role клиент.
 
 import { createAdminClient } from '@/lib/supabase/admin'
-
-const GEMINI_MODEL = process.env.NEXT_PUBLIC_GEMINI_MODEL || 'models/gemini-flash-lite-latest'
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/${GEMINI_MODEL}:generateContent`
+import { callGemini } from '@/lib/gemini'
 
 // Системный промпт для шага C — правится здесь (Цвет).
 const SYSTEM_PROMPT = `Ты — консультант оптовой базы «Цветы Уральска». Отвечаешь ТОЛЬКО по расходным
@@ -33,37 +31,6 @@ interface AccessoryRow {
   pack_size: number | null
 }
 
-async function callGemini(prompt: string, jsonMode: boolean): Promise<string | null> {
-  const apiKey = process.env.GOOGLE_GEMINI_API_KEY
-  if (!apiKey) {
-    console.error('[accessories-bot] GOOGLE_GEMINI_API_KEY not set')
-    return null
-  }
-  try {
-    const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
-        },
-      }),
-    })
-    if (!res.ok) {
-      console.error('[accessories-bot] Gemini HTTP error:', res.status, await res.text().catch(() => ''))
-      return null
-    }
-    const data = await res.json()
-    const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text
-    return text ?? null
-  } catch (err) {
-    console.error('[accessories-bot] Gemini call failed:', err)
-    return null
-  }
-}
-
 /** Шаг A: классификация сообщения — расходка ли это, и какие ключевые слова искать. */
 async function classifyMessage(message: string): Promise<ScopeResult> {
   const prompt = `Ты классификатор сообщений клиента оптовой базы цветов.
@@ -87,7 +54,7 @@ async function classifyMessage(message: string): Promise<ScopeResult> {
 
 Сообщение клиента: ${JSON.stringify(message)}`
 
-  const text = await callGemini(prompt, true)
+  const text = await callGemini(prompt, { json: true, temperature: 0.1 })
   if (!text) return { in_scope: false, keywords: [] }
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
@@ -105,6 +72,10 @@ async function classifyMessage(message: string): Promise<ScopeResult> {
 /** Шаг B: поиск по расходке (ILIKE по name/display_name). */
 async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
   if (keywords.length === 0) return []
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[accessories-bot] SUPABASE_SERVICE_ROLE_KEY not set')
+    return []
+  }
   const supabase = createAdminClient()
 
   // Собираем OR-фильтр PostgREST: name.ilike.%kw%,display_name.ilike.%kw%,...
@@ -141,7 +112,7 @@ async function composeAnswer(message: string, rows: AccessoryRow[]): Promise<str
 
 Сообщение клиента: ${message}`
 
-  const text = await callGemini(prompt, false)
+  const text = await callGemini(prompt, { temperature: 0.1 })
   if (!text) return null
   const answer = text.trim()
   if (!answer || answer === 'NO_ANSWER' || answer.includes('NO_ANSWER')) return null
@@ -156,10 +127,14 @@ export async function getAccessoriesReply(message: string): Promise<string | nul
   if (!message || !message.trim()) return null
 
   const scope = await classifyMessage(message)
+  console.log('[accessories-bot] classify:', JSON.stringify(scope))
   if (!scope.in_scope) return null
 
   const rows = await searchAccessories(scope.keywords)
+  console.log(`[accessories-bot] search: ${rows.length} товаров по`, JSON.stringify(scope.keywords))
   if (rows.length === 0) return null
 
-  return composeAnswer(message, rows)
+  const answer = await composeAnswer(message, rows)
+  console.log('[accessories-bot] compose:', answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
+  return answer
 }
