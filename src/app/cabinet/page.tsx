@@ -154,8 +154,9 @@ function AssemblyChanges({ items }: { items: OrderItem[] }) {
 }
 
 export default function CabinetPage() {
-  const { isAuthed, phone, user, init } = useAuthStore()
+  const { isAuthed, phone, user, init, logout } = useAuthStore()
   const router = useRouter()
+  const [tab, setTab] = useState<'orders' | 'profile' | 'security'>('orders')
   const [orders, setOrders] = useState<Order[]>([])
   const [campaignOrders, setCampaignOrders] = useState<CampaignOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -216,68 +217,41 @@ export default function CabinetPage() {
 
   if (!isAuthed) return null
 
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-800">Мои заказы</h1>
-            {(() => {
-              const active = orders.filter(o =>
-                (o as any).payment_status === 'paid' &&
-                !['cancelled', 'delivered'].includes(o.status)
-              )
-              if (!active.length) return null
-              const sum = active.reduce((s, o) => s + Number((o as any).total ?? 0), 0)
-              return (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  background: '#F7EEF2', border: '1px solid #C97A92',
-                  borderRadius: 20, padding: '3px 12px',
-                  fontSize: 13, fontWeight: 600, color: '#8B3A5A',
-                }}>
-                  {active.length} активн.
-                  <span style={{ opacity: 0.6, fontSize: 11 }}>·</span>
-                  {sum.toLocaleString('ru-RU')} ₸
-                </span>
-              )
-            })()}
-          </div>
-          <p className="text-sm text-gray-500 mt-1">📞 {phone}</p>
-        </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Каталог</Link>
-      </div>
+  const initials = (clientInfo?.name || '').split(' ').filter(Boolean).slice(0, 2)
+    .map(w => w[0]?.toUpperCase()).join('') || '👤'
 
-      {/* Профиль */}
-      <div className="border rounded-xl bg-white px-4 py-3 mb-5 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-800 truncate">
-            {clientInfo?.name || 'Имя не указано'}
-          </p>
-          {clientInfo?.company_name && (
-            <p className="text-xs text-gray-500 truncate">{clientInfo.company_name}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => setEditProfileOpen(true)}
-            className="text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
-            ✏️ Профиль
-          </button>
-          <button onClick={() => setPinModalOpen(true)}
-            className="text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
-            🔑 PIN
-          </button>
-        </div>
-      </div>
+  const MENU = [
+    { id: 'orders' as const, label: 'Мои заказы' },
+    { id: 'profile' as const, label: 'Профиль и доставка' },
+    { id: 'security' as const, label: 'Безопасность · PIN' },
+  ]
 
-      <ChangePinModal isOpen={pinModalOpen} onClose={() => setPinModalOpen(false)} />
-      <EditProfileModal
-        isOpen={editProfileOpen}
-        onClose={() => setEditProfileOpen(false)}
-        currentName={clientInfo?.name || ''}
-        currentCompany={clientInfo?.company_name || ''}
-        onSuccess={() => { loadClientInfo(); setEditProfileOpen(false) }}
-      />
+  const ordersPane = (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <h2 className="text-lg font-bold text-gray-800">Мои заказы</h2>
+        {(() => {
+          const active = orders.filter(o =>
+            (o as any).payment_status === 'paid' &&
+            !['cancelled', 'delivered'].includes(o.status)
+          )
+          if (!active.length) return null
+          const sum = active.reduce((s, o) => s + Number((o as any).total ?? 0), 0)
+          return (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: '#F7EEF2', border: '1px solid #C97A92',
+              borderRadius: 20, padding: '3px 12px',
+              fontSize: 13, fontWeight: 600, color: '#8B3A5A',
+            }}>
+              {active.length} активн.
+              <span style={{ opacity: 0.6, fontSize: 11 }}>·</span>
+              {sum.toLocaleString('ru-RU')} ₸
+            </span>
+          )
+        })()}
+      </div>
+      <p className="text-sm text-gray-500 -mt-2">История заказов и быстрый повтор.</p>
 
       {loading ? (
         <div className="text-center py-12 text-gray-400">Загрузка...</div>
@@ -429,6 +403,103 @@ export default function CabinetPage() {
           })}
         </div>
       )}
+    </div>
+  )
+
+  const profilePane = (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-gray-800">Профиль и доставка</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Контакты и реквизиты для документов и доставки.</p>
+      </div>
+      <div className="border rounded-xl bg-white p-5 space-y-4">
+        <h3 className="font-semibold text-gray-800">Контактные данные</h3>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <div className="text-xs font-semibold text-gray-400 mb-1">Имя / организация</div>
+            <div className="text-sm text-gray-800">{clientInfo?.name || '—'}</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-400 mb-1">Телефон (логин)</div>
+            <div className="text-sm text-gray-800">{phone || '—'}</div>
+            <div className="text-xs text-gray-400 mt-1">Номер — ваш логин. Для смены обратитесь к менеджеру.</div>
+          </div>
+        </div>
+        {clientInfo?.company_name && (
+          <div>
+            <div className="text-xs font-semibold text-gray-400 mb-1">Реквизиты / организация</div>
+            <div className="text-sm text-gray-800">{clientInfo.company_name}</div>
+          </div>
+        )}
+        <button onClick={() => setEditProfileOpen(true)}
+          className="h-10 px-5 rounded-lg bg-[#8B3A5A] hover:bg-[#6E2A45] text-white text-sm font-semibold transition-colors">
+          Редактировать профиль
+        </button>
+      </div>
+    </div>
+  )
+
+  const securityPane = (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-gray-800">Безопасность · PIN-код</h2>
+        <p className="text-sm text-gray-500 mt-0.5">PIN-код используется для входа в магазин по номеру телефона.</p>
+      </div>
+      <div className="border rounded-xl bg-white p-5 space-y-4">
+        <div className="flex gap-2 items-start bg-[#F7EEF2] border border-[#E6DFD9] rounded-lg p-3 text-sm text-[#8B3A5A]">
+          <span>🔑</span>
+          <span>При регистрации менеджер прислал вам PIN-код. Здесь его можно сменить на удобный — минимум 4 цифры.</span>
+        </div>
+        <button onClick={() => setPinModalOpen(true)}
+          className="h-10 px-5 rounded-lg bg-[#8B3A5A] hover:bg-[#6E2A45] text-white text-sm font-semibold transition-colors">
+          Сменить PIN
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-11 h-11 rounded-full bg-[#8B3A5A] text-white flex items-center justify-center font-semibold shrink-0">{initials}</span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-800 truncate">{clientInfo?.name || 'Личный кабинет'}</h1>
+            <p className="text-sm text-gray-500 truncate">📞 {phone}</p>
+          </div>
+        </div>
+        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 shrink-0">← Каталог</Link>
+      </div>
+
+      <div className="grid md:grid-cols-[220px_1fr] gap-6 items-start">
+        <aside className="border rounded-xl bg-white p-2 flex md:flex-col gap-1 overflow-x-auto">
+          {MENU.map(m => (
+            <button key={m.id} onClick={() => setTab(m.id)}
+              className={`px-3.5 py-2.5 rounded-lg text-sm font-medium text-left whitespace-nowrap transition-colors ${tab === m.id ? 'bg-[#8B3A5A] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              {m.label}
+            </button>
+          ))}
+          <button onClick={() => { logout(); router.push('/') }}
+            className="px-3.5 py-2.5 rounded-lg text-sm font-medium text-left whitespace-nowrap text-gray-400 hover:bg-gray-50 md:mt-1 md:border-t md:pt-3">
+            Выйти
+          </button>
+        </aside>
+
+        <main className="min-w-0">
+          {tab === 'orders' && ordersPane}
+          {tab === 'profile' && profilePane}
+          {tab === 'security' && securityPane}
+        </main>
+      </div>
+
+      <ChangePinModal isOpen={pinModalOpen} onClose={() => setPinModalOpen(false)} />
+      <EditProfileModal
+        isOpen={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+        currentName={clientInfo?.name || ''}
+        currentCompany={clientInfo?.company_name || ''}
+        onSuccess={() => { loadClientInfo(); setEditProfileOpen(false) }}
+      />
     </div>
   )
 }
