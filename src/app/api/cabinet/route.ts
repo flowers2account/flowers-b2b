@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
       status,
       payment_status,
       total,
+      notes,
+      payment_method,
       created_at,
+      paid_at,
+      confirmed_at,
+      assembled_at,
       assembly_photo_url,
       order_items (
         id,
@@ -33,7 +38,7 @@ export async function GET(req: NextRequest) {
         qty_actual,
         is_removed,
         price,
-        product:products ( name, display_name )
+        product:products ( id, name, display_name )
       )
     `)
     .eq('client_id', client.id)

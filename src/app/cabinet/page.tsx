@@ -398,6 +398,11 @@ export default function CabinetPage() {
                 {(isAssembled || order.status === 'delivered') && hasChanges && (
                   <AssemblyChanges items={order.order_items} />
                 )}
+
+                <Link href={`/order/${order.id}`}
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#8B3A5A] hover:underline">
+                  Подробнее →
+                </Link>
               </div>
             )
           })}
