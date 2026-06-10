@@ -212,12 +212,12 @@ export default function CatalogLayout({
         gridTemplateColumns: '236px 1fr 372px',
         height: `calc(100vh - ${HEADER_H}px)`,
       }}>
-        <aside className="overflow-y-auto bg-white" style={{ borderRight: '1px solid var(--border)' }}>
+        <aside className="overflow-y-auto" style={{ background: '#F6F2EF', borderRight: '1px solid var(--border-soft, #EFEAE5)' }}>
           {left}
         </aside>
         <main
           ref={mainRef}
-          className="overflow-y-auto bg-[#fafafa]"
+          className="overflow-y-auto bg-white"
           onScroll={() => {
             try { sessionStorage.setItem('catalog-scroll', String(mainRef.current?.scrollTop ?? 0)) } catch {}
           }}

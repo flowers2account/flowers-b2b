@@ -204,7 +204,7 @@ export function GridCard({
       style={{
         background: '#fff', border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
         borderRadius: 12,
-        boxShadow: qty > 0 ? '0 0 0 2px var(--accent-light)' : 'none',
+        boxShadow: qty > 0 ? '0 0 0 1px var(--accent)' : 'none',
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
         cursor: 'pointer',
       }}
@@ -233,10 +233,12 @@ export function GridCard({
         ) : (
           <div style={{
             width: '100%', height: '100%', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 38, opacity: 0.4,
-            background: 'repeating-linear-gradient(-45deg,transparent 0 8px,rgba(139,58,90,0.04) 8px 16px)',
+            justifyContent: 'center', color: '#A8A4AD',
+            background: 'linear-gradient(150deg,#F1ECE8,#E6DED7)',
           }}>
-            🌸
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
+              <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" />
+            </svg>
           </div>
         )}
         {/* Точки — по количеству фото */}
@@ -438,7 +440,7 @@ function ListRow({
       <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-card)', background: 'var(--accent-light)', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
         {product.image_url
           ? <Image src={product.image_url} alt={displayName} width={56} height={56} sizes="56px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, opacity: 0.5 }}>🌸</div>
+          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8A4AD', background: 'linear-gradient(150deg,#F1ECE8,#E6DED7)' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" /></svg></div>
         }
       </div>
 
@@ -819,40 +821,83 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Toolbar */}
       <div style={{ background: '#fff', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-        {/* Row 1: search — full width, prominent */}
-        <div style={{ padding: '10px 16px 6px', position: 'relative' }}>
-          <svg
-            width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round"
-            style={{ position: 'absolute', left: 28, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
-          >
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Поиск по сорту, цвету, ферме..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            autoFocus={!isMobile}
-            style={{
-              width: '100%', padding: '8px 36px 8px 34px',
-              border: `1.5px solid ${search ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 'var(--radius-input)', fontSize: 13,
-              fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-              color: 'var(--text)', background: '#fff',
-              transition: 'border-color 0.15s',
-            }}
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
+        {/* Row 1: поиск + сортировка + вид + счётчик — одна строка */}
+        <div style={{ padding: '10px 16px 8px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* search */}
+          <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+            <svg
+              width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round"
+              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            >
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Поиск по сорту, цвету, ферме..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus={!isMobile}
               style={{
-                position: 'absolute', right: 28, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--text-mid)', fontSize: 16, lineHeight: 1, padding: 2,
+                width: '100%', height: 42, padding: '0 32px 0 34px',
+                border: `1.5px solid ${search ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-input)', fontSize: 13,
+                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                color: 'var(--text)', background: '#fff',
+                transition: 'border-color 0.15s',
               }}
-            >×</button>
-          )}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                style={{
+                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-mid)', fontSize: 16, lineHeight: 1, padding: 2,
+                }}
+              >×</button>
+            )}
+          </div>
+
+          {/* sort */}
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value as SortKey)}
+            style={{
+              height: 42, padding: '0 28px 0 12px', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-input)', fontSize: 12.5,
+              background: '#fff', fontFamily: 'inherit', color: 'var(--text)',
+              backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B7570' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>\")",
+              backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', appearance: 'none',
+              cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          {/* view toggle */}
+          <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden', flexShrink: 0 }}>
+            {(['compact', 'list'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                title={v === 'compact' ? 'Сетка' : 'Список'}
+                style={{
+                  width: 38, height: 42, border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: viewMode === v ? 'var(--accent)' : '#fff',
+                  color: viewMode === v ? '#fff' : '#b8b0b4',
+                }}
+              >
+                {v === 'compact' ? <CompactIcon /> : <ListIcon />}
+              </button>
+            ))}
+          </div>
+
+          {/* count */}
+          <span style={{ fontFamily: 'var(--font-jetbrains, monospace)', fontSize: 13, color: 'var(--text-mid)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {filtered.length} {(() => { const a = filtered.length % 10, b = filtered.length % 100; if (a === 1 && b !== 11) return 'позиция'; if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return 'позиции'; return 'позиций' })()}
+          </span>
         </div>
 
         {/* Row 1b: smart search suggestions */}
@@ -902,49 +947,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           </div>
         )}
 
-        {/* Row 2: sort + view toggle + count */}
-        <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <select
-            value={sort}
-            onChange={e => setSort(e.target.value as SortKey)}
-            style={{
-              padding: '6px 28px 6px 10px', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-input)', fontSize: 12,
-              background: '#fff', fontFamily: 'inherit', color: 'var(--text)',
-              backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B7570' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>\")",
-              backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', appearance: 'none',
-              cursor: 'pointer', flexShrink: 0,
-            }}
-          >
-            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-
-          <div style={{
-            display: 'flex', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-btn)', overflow: 'hidden',
-          }}>
-            {(['compact', 'list'] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                title={v === 'compact' ? 'Сетка' : 'Список'}
-                style={{
-                  width: 30, height: 30, border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: viewMode === v ? 'var(--accent)' : '#fff',
-                  color: viewMode === v ? '#fff' : '#b8b0b4',
-                }}
-              >
-                {v === 'compact' ? <CompactIcon /> : <ListIcon />}
-              </button>
-            ))}
-          </div>
-
-          {/* счётчик результатов — всегда справа (как в мокапе) */}
-          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-jetbrains, monospace)', fontSize: 13, color: 'var(--text-mid)', whiteSpace: 'nowrap' }}>
-            {filtered.length} {(() => { const a = filtered.length % 10, b = filtered.length % 100; if (a === 1 && b !== 11) return 'позиция'; if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return 'позиции'; return 'позиций' })()}
-          </span>
-        </div>
       </div>
 
       {/* Active filter chips */}

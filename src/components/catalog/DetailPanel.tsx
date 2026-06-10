@@ -287,10 +287,11 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             <div style={{
               width: '100%', height: '100%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 64, opacity: 0.18,
-              background: 'repeating-linear-gradient(-45deg,transparent 0 8px,rgba(139,58,90,0.04) 8px 16px)',
+              color: '#A8A4AD', background: 'linear-gradient(150deg,#F1ECE8,#E6DED7)',
             }}>
-              🌸
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.55 }}>
+                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" />
+              </svg>
             </div>
           )}
           {images.length > 1 && (
