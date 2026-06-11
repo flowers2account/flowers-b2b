@@ -76,13 +76,12 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
    повторно, отвечать как продолжение). Повторное приветствие, если бот уже писал →
    короткий `SMALLTALK_REPLIES_REPEAT`.
 7. **Классификация** (Gemini, JSON): `{ intent: 'smalltalk' | 'accessories' | 'site_help' | 'other', keywords }`.
-   - `smalltalk` → готовый шаблон из `SMALLTALK_REPLIES` (без Supabase/Gemini).
-   - `site_help` (регистрация / вход / PIN / заказ / доставка / оплата / график / контакты)
-     → ответ по памятке `CLIENT_FAQ` (без Supabase). Чего в памятке нет / вопрос про
-     конкретный заказ клиента → `NO_ANSWER`, менеджеру.
-   - `other` → молчание, диалог менеджеру.
-   - `accessories` → поиск + ответ.
-8. **Поиск** (Supabase): `keywords` ILIKE по `name`/`display_name`:
+   - `smalltalk` → готовый шаблон из `SMALLTALK_REPLIES` (подтипы `greeting`/`thanks`/
+     `farewell`/`chitchat`; «как дела», «салам», «қалайсың» → `chitchat`).
+   - `other` (живые цветы/букеты, статус конкретного заказа, жалобы) → молчание, менеджеру.
+   - `accessories` → поиск товаров + единый compose.
+   - `site_help` → единый compose с пустым списком товаров (отвечает по памятке).
+8. **Поиск** (только для `accessories`, Supabase): `keywords` ILIKE по `name`/`display_name`:
    ```sql
    select id, display_name, subcategory, price, unit, qty, pack_size
    from products
@@ -90,8 +89,11 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
      and (name ilike '%kw%' or display_name ilike '%kw%' ...)
    limit 20;
    ```
-9. **Ответ** (Gemini): сообщение + строки (с готовыми `url`/`catalog_url`) + системный
-   промпт → короткий ответ **или** ровно `NO_ANSWER`.
+   Если товаров 0 → fallback: `matchLeafByKeywords` подбирает раздел таксономии
+   (`category-tree.ts`) и предлагает подборку (`CATEGORY_SUGGESTION`). Если и раздел
+   не угадан → `NOT_FOUND_REPLY` (менеджер + кнопка WhatsApp).
+9. **Единый ответ** (Gemini, `composeAnswer`): один `SYSTEM_PROMPT` + два источника —
+   СПИСОК ТОВАРОВ (с `url`/`catalog_url`) и ПАМЯТКА (`CLIENT_FAQ`) → ответ **или** `NO_ANSWER`.
 10. Ответ ≠ `NO_ANSWER` → отправка в Umnico (source из вебхука, fallback `getSources`)
     + тег `отвечено-ботом`. Иначе — ничего.
 
@@ -99,8 +101,9 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
 
 В контекст каждого товара кладутся готовые ссылки, бот их только цитирует (не конструирует):
 - `url` = `https://uralskflowers.kz/product/{id}` — карточка товара;
-- `catalog_url` = `https://uralskflowers.kz/catalog?category=accessories&leaves={subcategory}` —
-  подборка по подкатегории. Каталог читает эти параметры в `CatalogLayout.tsx`
+- `catalog_url` = `https://uralskflowers.kz/catalog?category=accessories&leaves={leaf.slug}` —
+  подборка по разделу (slug ЛИСТА таксономии `category-tree.ts`, не сырой subcategory).
+  Каталог читает эти параметры в `CatalogLayout.tsx`
   (`category` / `group` / `leaves` / `search`).
 
 ### Гардрейлы
