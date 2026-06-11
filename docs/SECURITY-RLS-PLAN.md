@@ -1,8 +1,33 @@
 # План RLS-защиты: clients / orders / order_items
 
-**Статус: ПЛАН, не внедрено.** Дата аудита: 11.06.2026. БД: flower-stock (jwastcmasactymmzojhi).
-Цель — закрыть прямой доступ браузерным anon-ключом к `clients`, `orders`, `order_items`
-(сейчас любой посетитель с публичным ключом читает **все** заказы и клиентов и может **UPDATE любого клиента** — см. §1.3).
+**Статус: ✅ ВНЕДРЕНО ПОЛНОСТЬЮ (шаги 1–4) — 11.06.2026.** БД: flower-stock (jwastcmasactymmzojhi).
+Цель достигнута — прямой доступ браузерным anon-ключом к `clients`, `orders`, `order_items` закрыт.
+
+## Журнал внедрения (11.06.2026)
+
+| Шаг | Что сделано | Статус |
+|---|---|---|
+| 1 | 12 серверных роутов с anon-клиента на `createAdminClient()` (+ фикс печати origin→country_iso). Merge `fc7764d`, на проде | ✅ |
+| 2 | `/api/cabinet` (+id, company_name), новый `/api/client/resolve`; cabinet/page + favorites-store без прямого select из clients. Merge `3001372`, на проде | ✅ |
+| 3 | DROP 16 мёртвых/опасных политик (миграция `rls_step3_drop_dead_policies`). Остались только admin-политики: clients=2, orders=1, order_items=1, inventory_ledger=2, order_history=1 | ✅ |
+| 4 | ENABLE RLS на 5 таблицах + REVOKE (anon→ALL; authenticated→TRUNCATE/REFERENCES/TRIGGER). Миграция `rls_step4_enable_and_revoke` | ✅ |
+
+**Проверено после включения (11.06.2026):** RLS on на clients/orders/order_items/inventory_ledger/order_history (products off); anon→эти таблицы `42501 permission denied`; anon→products OK; authenticated-manager читает orders/clients через `is_admin_or_manager()`; service-role роуты (прод `/api/cabinet`) отдают заказы; `https://uralskflowers.kz/catalog` — 200, ~400 товаров. Владелец прокликал сайт — OK.
+
+**Предохранители:** git tag `pre-rls-enable` (main `a97faad`) + `pre-rls`; дамп `supabase_2026-06-11_091446.dump` на VPS (`/srv/backups/supabase/`).
+
+### ⚠️ ОТКАТ (если всплывут проблемы) — мгновенно, без деплоя
+```sql
+ALTER TABLE public.clients          DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders           DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items      DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_ledger DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_history    DISABLE ROW LEVEL SECURITY;
+-- Гранты anon отозваны намеренно (приложению не нужны после шагов 1–2).
+-- Если потребуется байт-в-байт прежнее состояние: GRANT SELECT,INSERT,UPDATE,DELETE ON <таблицы> TO anon;
+```
+
+**Незакрытый бэклог (см. §6):** favorites (RLS off, браузер пишет напрямую); строгий deny-all для админки (фаза 2); ужесточение `reservations`; RLS на `products` (INSERT/UPDATE открыты anon).
 
 ---
 
