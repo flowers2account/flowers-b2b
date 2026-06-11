@@ -2,8 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthedWithRole } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
+  const authed = await getAuthedWithRole(req, ['admin', 'manager'])
+  if (!authed) return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
+
   const body = await req.json().catch(() => ({}))
   const { importId, userId } = body
 
@@ -13,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const { data: rows, error: rowsErr } = await supabase
     .from('stock_import_rows')
-    .select('id, raw_name, matched_product_id, qty, price, enriched_country_iso, enriched_display_name, enriched_colors')
+    .select('id, raw_name, matched_product_id, qty, price, source, enriched_country_iso, enriched_display_name, enriched_colors')
     .eq('import_id', importId)
     .eq('status', 'matched')
 
@@ -112,10 +116,15 @@ export async function POST(req: NextRequest) {
 
   const applied = importedIds.length - errorLog.length
 
+  // 1С-импорт (строки с source) — это снимок одного источника, НЕ полный срез категории.
+  // categories: [] блокирует finalize на клиенте → деактивация отсутствующих не выполняется,
+  // apply обновляет ТОЛЬКО сматченные позиции.
+  const is1cImport = rows.some(r => (r as { source?: string | null }).source != null)
+
   return NextResponse.json({
     applied,
     importedIds,
-    categories: Array.from(categoriesSet),
+    categories: is1cImport ? [] : Array.from(categoriesSet),
     errors: errorLog.length,
     errorLog,
   })

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
+import { authHeaders } from '@/lib/api-token'
 import Image from 'next/image'
 
 type ProductHit = {
@@ -131,9 +132,10 @@ export default function MappingPage() {
     if (isAuthed === false) router.replace('/admin')
   }, [isAuthed])
 
-  const loadRows = useCallback(() => {
+  const loadRows = useCallback(async () => {
     setLoading(true)
-    fetch(`/api/import-xls/rows?importId=${importId}`)
+    const headers = await authHeaders()
+    fetch(`/api/import-xls/rows?importId=${importId}`, { headers })
       .then(r => r.json())
       .then(data => { setRows(data.rows ?? []); setSummary(data.summary ?? null) })
       .catch(() => {})
@@ -151,7 +153,7 @@ export default function MappingPage() {
 
     await fetch('/api/import-xls/match', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ rowId, productId: product.id, action: 'match', userId }),
     })
   }
@@ -165,7 +167,7 @@ export default function MappingPage() {
 
     await fetch('/api/import-xls/match', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ rowId, action: 'unmatch' }),
     })
   }
@@ -188,7 +190,7 @@ export default function MappingPage() {
 
     await fetch('/api/import-xls/match', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ rowId, action: 'skip' }),
     })
   }
@@ -198,7 +200,7 @@ export default function MappingPage() {
     try {
       const res = await fetch('/api/import-xls/create-product', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ rowId }),
       })
       const data = await res.json()
@@ -221,18 +223,20 @@ export default function MappingPage() {
     if (!confirm(`Применить ${summary?.matched ?? 0} совпавших строк к остаткам?`)) return
     setApplying(true)
     try {
+      const auth = await authHeaders()
       const applyRes = await fetch('/api/import-xls/apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...auth },
         body: JSON.stringify({ importId: parseInt(importId), userId }),
       })
       const applyData = await applyRes.json()
 
       // Finalize: deactivate products not in importedIds
+      // (для 1С-импортов apply возвращает categories=[] → finalize не вызывается)
       if (applyData.importedIds?.length > 0 && applyData.categories?.length > 0) {
         await fetch('/api/import-xls/finalize', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...auth },
           body: JSON.stringify({
             keepIds: applyData.importedIds,
             categories: applyData.categories,

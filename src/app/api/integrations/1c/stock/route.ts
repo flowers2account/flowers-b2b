@@ -12,10 +12,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
  *
  * Тело JSON:
  *   { source: "1c-ip"|"1c-too", warehouse: string, price_type: string,
+ *     category?: "cut"|"pot"|"accessories",
  *     items: [{ code_1c: string, name: string, qty: number, price: number, unit?: string }] }
+ *
+ * category опциональна; без неё file_category=NULL (НЕ дефолт 'cut') —
+ * это блокирует категориальную деактивацию (finalize) на стороне apply.
  */
 
 const SOURCES = new Set(['1c-ip', '1c-too'])
+const CATEGORIES = new Set(['cut', 'pot', 'accessories'])
 const MAX_ITEMS = 20000
 
 /** lower + trim + схлоп пробелов — как norm_stock_name() / normName в import-xls */
@@ -39,10 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { source, warehouse, price_type, items } = body ?? {}
+  const { source, warehouse, price_type, category, items } = body ?? {}
 
   if (typeof source !== 'string' || !SOURCES.has(source)) {
     return NextResponse.json({ error: 'Unknown source (ожидается "1c-ip" или "1c-too")' }, { status: 422 })
+  }
+  if (category != null && !CATEGORIES.has(category)) {
+    return NextResponse.json({ error: 'Unknown category (ожидается "cut", "pot" или "accessories")' }, { status: 422 })
   }
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'items пуст или не массив' }, { status: 422 })
@@ -70,6 +78,8 @@ export async function POST(req: NextRequest) {
       qty: Number.isFinite(qtyN) ? qtyN : 0,
       price: Number.isFinite(priceN) ? priceN : 0,
       status: 'unmatched',
+      // явный NULL, иначе сработает column default 'cut' и finalize сможет обнулить срезку
+      file_category: category ?? null,
     })
   }
 
@@ -78,6 +88,42 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
+
+  // 3b) автоматч — тот же двухступенчатый, что в import-xls: alias (norm) → exact products.name (norm)
+  const norms = [...new Set(rows.map(r => r.norm_name as string))]
+  const { data: aliases } = await supabase
+    .from('stock_aliases').select('norm_name, product_id').in('norm_name', norms)
+  const aliasByNorm = new Map<string, number>()
+  for (const a of aliases ?? []) aliasByNorm.set(a.norm_name, a.product_id)
+
+  // ⚠️ PostgREST max_rows=1000 — без пагинации карта имён неполная и матч молча теряется
+  const productByNorm = new Map<string, number>()
+  for (let from = 0; ; from += 1000) {
+    const { data: page } = await supabase
+      .from('products').select('id, name').order('id').range(from, from + 999)
+    if (!page || page.length === 0) break
+    for (const p of page) {
+      const n = normName(p.name)
+      if (!productByNorm.has(n)) productByNorm.set(n, p.id)
+    }
+    if (page.length < 1000) break
+  }
+
+  let matched = 0
+  for (const r of rows) {
+    const n = r.norm_name as string
+    if (aliasByNorm.has(n)) {
+      r.matched_product_id = aliasByNorm.get(n)!
+      r.status = 'matched'
+      r.match_source = 'alias'
+      matched++
+    } else if (productByNorm.has(n)) {
+      r.matched_product_id = productByNorm.get(n)!
+      r.status = 'matched'
+      r.match_source = 'exact_name'
+      matched++
+    }
+  }
 
   // 4) вставка нового снимка (чанками по 1000)
   let written = 0
@@ -103,10 +149,15 @@ export async function POST(req: NextRequest) {
 
   console.log(
     `[1c/stock] source=${source} warehouse=${warehouse ?? '-'} price_type=${price_type ?? '-'} ` +
-    `received=${items.length} written=${written} skipped=${skipped} import_id=${importId}`
+    `category=${category ?? '-'} received=${items.length} written=${written} matched=${matched} ` +
+    `unmatched=${written - matched} skipped=${skipped} import_id=${importId}`
   )
 
-  return NextResponse.json({ ok: true, import_id: importId, received: items.length, written })
+  return NextResponse.json({
+    ok: true, import_id: importId,
+    received: items.length, written,
+    matched, unmatched: written - matched,
+  })
 }
 
 // только POST
