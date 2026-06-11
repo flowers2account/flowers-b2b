@@ -2,8 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthedWithRole } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
+  const authed = await getAuthedWithRole(req, ['admin', 'manager'])
+  if (!authed) return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
+
   const supabase = await createClient()
   const { keepIds, categories } = await req.json() as {
     keepIds: number[]
