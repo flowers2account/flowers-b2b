@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCart } from '@/lib/cart-store'
 import { useFavorites } from '@/lib/favorites-store'
+import { useIsMobile } from '@/lib/use-mobile'
 
 /**
  * Глобальная нижняя таб-панель для мобильных (<768px).
@@ -20,8 +21,12 @@ const IC = {
 
 export default function MobileTabBar() {
   const pathname = usePathname()
+  const isMobile = useIsMobile()
   const cartCount = useCart(s => s.items.reduce((n, i) => n + i.qty, 0))
   const favCount = useFavorites(s => s.ids.size)
+
+  // только мобильная ширина — инлайн display:flex перебивает md:hidden, поэтому гейтим в JS
+  if (!isMobile) return null
 
   // не показываем там, где своя мобильная навигация / она лишняя
   if (
