@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,7 @@ export async function POST(req: NextRequest) {
   const normalized = normalizePhone(phone)
   const email = `${normalized.replace('+', '')}@flowers.local`
 
+  // signInWithPassword — только на anon-клиенте; чтение clients — через admin (RLS step 1)
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: pin })
 
@@ -20,7 +22,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Неверный PIN-код' }, { status: 401 })
   }
 
-  const { data: client } = await supabase
+  const admin = createAdminClient()
+  const { data: client } = await admin
     .from('clients')
     .select('id, name, phone, company_name')
     .eq('phone', normalized)

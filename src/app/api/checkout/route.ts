@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import { umnicoClient } from '@/lib/umnico/client'
 import { umnicoTemplates } from '@/lib/umnico/templates'
@@ -7,7 +7,7 @@ import { umnicoTemplates } from '@/lib/umnico/templates'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { items, phone, name, delivery, recipient, payment_method } = await req.json()
   const normalizedPhone = normalizePhone(phone)

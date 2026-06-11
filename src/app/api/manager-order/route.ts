@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { client_id, guest_name, guest_phone, items, confirmed, payment_method } = await req.json()
 
   if (!client_id && !guest_name && !guest_phone) {

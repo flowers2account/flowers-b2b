@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import PrintActions from '@/components/print/PrintActions'
 
@@ -54,7 +54,7 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   const orderId = parseInt(id)
   if (isNaN(orderId)) notFound()
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data: order, error: orderError } = await supabase
     .from('orders')
     .select(`id, status, total, notes, created_at, guest_phone, guest_name, payment_method, payment_comment,

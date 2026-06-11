@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { umnicoClient } from '@/lib/umnico/client'
 
 export const dynamic = 'force-dynamic'
@@ -53,7 +53,7 @@ async function handleSearchProduct(phone: string, query: string) {
     return
   }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data: products } = await supabase
     .from('products')
     .select('id, name, stock(qty, price)')
@@ -79,7 +79,7 @@ async function handleSearchProduct(phone: string, query: string) {
 }
 
 async function handleMyOrder(phone: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: client } = await supabase
     .from('clients')
