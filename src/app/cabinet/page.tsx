@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ChangePinModal from '@/components/cabinet/ChangePinModal'
 import EditProfileModal from '@/components/cabinet/EditProfileModal'
-import { createClient } from '@/lib/supabase/client'
 import { authHeaders } from '@/lib/api-token'
 import { useCart } from '@/lib/cart-store'
 import s from './cabinet.module.css'
@@ -64,24 +63,22 @@ export default function CabinetPage() {
 
   useEffect(() => { init() }, [])
 
+  // Имя/организация — из ответа /api/cabinet (резолв по токену на сервере), без прямого select из clients (RLS step 2)
   async function loadClientInfo() {
-    if (!phone) return
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('clients')
-      .select('name, company_name')
-      .or(`phone.eq.${phone},phone.eq.${phone.replace('+', '')}`)
-      .maybeSingle()
-    if (data) setClientInfo({ name: data.name, company_name: data.company_name })
+    const headers = await authHeaders()
+    const d = await fetch('/api/cabinet', { headers }).then(r => r.json()).catch(() => null)
+    if (d?.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name })
   }
 
   useEffect(() => {
     if (!isAuthed || !phone) { router.push('/'); return }
-    loadClientInfo()
     ;(async () => {
       const headers = await authHeaders()
       await Promise.allSettled([
-        fetch('/api/cabinet', { headers }).then(r => r.json()).then(d => setOrders(d.orders ?? [])).catch(() => {}),
+        fetch('/api/cabinet', { headers }).then(r => r.json()).then(d => {
+          setOrders(d.orders ?? [])
+          if (d.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name })
+        }).catch(() => {}),
         fetch('/api/campaigns/orders', { headers }).then(r => r.json()).then(d => {
           const list: CampaignOrder[] = (d.orders ?? []).map((o: any) => ({ ...o, items: o.items ?? [], converted_to_order_id: o.converted_to_order_id ?? null }))
           list.sort((a, b) => {

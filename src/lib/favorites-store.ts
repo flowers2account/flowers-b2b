@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePhone } from '@/lib/phone'
+import { authHeaders } from '@/lib/api-token'
 
 // Избранное. clientId = clients.id (uuid), резолвится по телефону (как в заказах).
 // Гость (clientId=null) → toggle не пишет в БД, а просит авторизацию (needAuth).
@@ -32,24 +33,27 @@ export const useFavorites = create<FavState>((set, get) => ({
     const norm = normalizePhone(phone)
     if (get().loadedKey === norm && get().clientId) return  // уже загружено для этого телефона
 
-    const sb = createClient()
-    const withoutPlus = norm.replace('+', '')
-    const { data: client } = await sb
-      .from('clients')
-      .select('id')
-      .or(`phone.eq.${norm},phone.eq.${withoutPlus}`)
-      .maybeSingle()
-
-    if (!client) {
+    // Резолв clientId — через серверный роут (Bearer→phone→clients.id), без прямого select из clients (RLS step 2)
+    const headers = await authHeaders()
+    if (!('Authorization' in headers)) {
       set({ clientId: null, ids: new Set(), loadedKey: norm })
       return
     }
+    const data = await fetch('/api/client/resolve', { headers }).then(r => r.json()).catch(() => null)
+    const clientId: string | null = data?.clientId ?? null
+
+    if (!clientId) {
+      set({ clientId: null, ids: new Set(), loadedKey: norm })
+      return
+    }
+    // Чтение самой таблицы favorites пока остаётся на браузерном клиенте (RLS на favorites выключен — отдельный этап)
+    const sb = createClient()
     const { data: rows } = await sb
       .from('favorites')
       .select('product_id')
-      .eq('client_id', client.id)
+      .eq('client_id', clientId)
     set({
-      clientId: client.id as string,
+      clientId,
       ids: new Set((rows ?? []).map((r: { product_id: number }) => r.product_id)),
       loadedKey: norm,
     })
