@@ -59,7 +59,7 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
     .from('orders')
     .select(`id, status, total, notes, created_at, guest_phone, guest_name, payment_method, payment_comment,
              client:client_id(name, phone, company_name),
-             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, origin))`)
+             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, country_iso))`)
     .eq('id', orderId)
     .single()
 
@@ -85,8 +85,8 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   const changedItems = activeItems.filter((i: any) => i.qty_actual !== null && i.qty_actual !== (i.qty_ordered ?? i.qty))
   const hasAssemblyChanges = removedItems.length > 0 || changedItems.length > 0
 
-  const regularItems = activeItems.filter((i: any) => i.product?.origin !== 'china')
-  const chinaItems = activeItems.filter((i: any) => i.product?.origin === 'china')
+  const regularItems = activeItems.filter((i: any) => i.product?.country_iso !== 'CN')
+  const chinaItems = activeItems.filter((i: any) => i.product?.country_iso === 'CN')
 
   const subtotalRegular = regularItems.reduce(
     (sum: number, i: any) => sum + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0
