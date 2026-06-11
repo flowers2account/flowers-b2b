@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import AdminTable from './AdminTable'
 import ImportXLS from './ImportXLS'
+import IncomingImports from './IncomingImports'
 import OrdersPanel from './OrdersPanel'
 import ClientsPanel from './ClientsPanel'
 import StaffPanel from './StaffPanel'
@@ -120,6 +121,7 @@ export default function AdminPageClient() {
 
       {tab === 'stock' && (
         <>
+          <IncomingImports />
           <ImportXLS onImported={() => setStockKey(k => k + 1)} />
           <AdminTable key={stockKey} />
         </>
