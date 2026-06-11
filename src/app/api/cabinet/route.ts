@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import { getAuthedUser } from '@/lib/api-auth'
 
@@ -8,7 +8,8 @@ export async function GET(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed?.phone) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
 
-  const supabase = await createClient()
+  // RLS step 1: admin-клиент вместо anon (доступ уже закрыт токен-проверкой выше)
+  const supabase = createAdminClient()
 
   const normalizedPhone = normalizePhone(authed.phone)
   const { data: client } = await supabase

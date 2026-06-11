@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { umnicoClient } from '@/lib/umnico/client'
 import { umnicoTemplates } from '@/lib/umnico/templates'
 
@@ -9,7 +9,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { id } = await params
   const orderId = parseInt(id)
 

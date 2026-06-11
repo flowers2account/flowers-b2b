@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
@@ -6,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: historyData } = await supabase
     .from('order_history')
@@ -20,8 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   let profileMap: Record<string, string> = {}
   if (changedByIds.length > 0) {
-    const admin = createAdminClient()
-    const { data: profiles } = await admin
+    const { data: profiles } = await supabase
       .from('profiles')
       .select('id, display_name')
       .in('id', changedByIds)

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getAuthedWithRole } from '@/lib/api-auth'
 import * as XLSX from 'xlsx'
 
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const authed = await getAuthedWithRole(req, ['admin', 'manager'])
   if (!authed) return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { searchParams } = req.nextUrl
 
   // Defaults: last 30 days
