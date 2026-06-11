@@ -78,6 +78,19 @@ const NOT_FOUND_REPLY = `Не нашёл такого у нас в наличи�
 const CATEGORY_SUGGESTION = (label: string, url: string) =>
   `Точную позицию не нашёл, но вот наш раздел «${label}»: ${url}. Что-то конкретное подсказать?`
 
+// Словарь синонимов «как говорит клиент → как называется в каталоге». Правит Цвет.
+// Используется классификатором при извлечении keywords.
+const SEARCH_SYNONYMS = `оазис, пиафлор → губка флористическая
+самоклейка → плёнка
+скотч → лента клейкая
+целлофан → плёнка
+бант → лента
+земля → грунт
+горшочек, вазон → горшок
+отрава, химия от вредителей → защита растений
+упаковочная бумага, обёрточная → бумага
+коробочка → коробка`
+
 /** История диалога в компактный текст для промпта (старые→новые). */
 function formatHistory(history: DialogMessage[]): string {
   if (!history.length) return ''
@@ -135,6 +148,10 @@ async function classifyMessage(message: string, history: DialogMessage[] = []): 
 
 - Для "accessories": keywords — 1–5 коротких ключевых слов (на русском, в нижнем
   регистре, без чисел и единиц), по которым искать товар в каталоге.
+  Извлекая keywords, приводи слова клиента к терминам каталога по словарю синонимов
+  ниже, исправляй опечатки, используй единственное число именительный падеж.
+  Словарь синонимов (клиент → каталог):
+${SEARCH_SYNONYMS}
 - Для "smalltalk": keywords — ровно один подтип: "greeting", "thanks", "farewell" или "chitchat".
   "greeting" — ЛЮБАЯ форма приветствия: «привет», «здравствуйте», «здравствуйте!»,
   «добрый день/вечер/утро», «приветствую», «доброго времени», «привет ещё раз»,
@@ -190,7 +207,12 @@ ${histBlock ? `\nИстория диалога (старые→новые):\n${h
   }
 }
 
-/** Шаг B: поиск по расходке (ILIKE по name/display_name). */
+/**
+ * Шаг B: двухступенчатый поиск по расходке.
+ * 1) ILIKE по name/display_name (быстрый точный);
+ * 2) 0 результатов → fallback на trigram similarity (RPC search_accessories_trgm,
+ *    порог 0.3, сортировка по убыванию похожести) — ловит опечатки и словоформы.
+ */
 async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
   if (keywords.length === 0) return []
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -199,11 +221,13 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
   }
   const supabase = createAdminClient()
 
-  // Собираем OR-фильтр PostgREST: name.ilike.%kw%,display_name.ilike.%kw%,...
+  // Ступень 1: ILIKE. OR-фильтр PostgREST: name.ilike.%kw%,display_name.ilike.%kw%,...
   const orParts: string[] = []
+  const safeKeywords: string[] = []
   for (const kw of keywords) {
     const safe = kw.replace(/[%,()]/g, ' ').trim()
     if (!safe) continue
+    safeKeywords.push(safe)
     orParts.push(`name.ilike.%${safe}%`)
     orParts.push(`display_name.ilike.%${safe}%`)
   }
@@ -220,10 +244,24 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
     .limit(20)
 
   if (error) {
-    console.error('[accessories-bot] search failed:', error.message)
+    console.error('[accessories-bot] ilike search failed:', error.message)
+  } else if (data && data.length > 0) {
+    console.log(`[accessories-bot] search: ${data.length} via ilike`)
+    return data as AccessoryRow[]
+  }
+
+  // Ступень 2: trigram similarity (миграция 20260611_trgm_accessories_search).
+  const { data: trgm, error: trgmError } = await supabase.rpc('search_accessories_trgm', {
+    p_keywords: safeKeywords,
+    p_limit: 20,
+  })
+  if (trgmError) {
+    console.error('[accessories-bot] trgm search failed:', trgmError.message)
     return []
   }
-  return (data ?? []) as AccessoryRow[]
+  const rows = (trgm ?? []) as AccessoryRow[]
+  console.log(`[accessories-bot] search: ${rows.length} via trgm`)
+  return rows
 }
 
 const SITE_URL = 'https://uralskflowers.kz'

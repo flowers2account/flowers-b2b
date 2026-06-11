@@ -89,9 +89,15 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
      and (name ilike '%kw%' or display_name ilike '%kw%' ...)
    limit 20;
    ```
-   Если товаров 0 → fallback: `matchLeafByKeywords` подбирает раздел таксономии
-   (`category-tree.ts`) и предлагает подборку (`CATEGORY_SUGGESTION`). Если и раздел
-   не угадан → `NOT_FOUND_REPLY` (менеджер + кнопка WhatsApp).
+   Порядок fallback'ов: **ILIKE → trgm → категория → NOT_FOUND_REPLY**:
+   - ILIKE дал 0 → trigram similarity (RPC `search_accessories_trgm`, порог 0.3,
+     сортировка по похожести; миграция `20260611_trgm_accessories_search.sql` —
+     pg_trgm + GIN-индексы по `display_name`/`name`). Лог: `search: N via ilike|trgm`.
+   - и trgm дал 0 → `matchLeafByKeywords` подбирает раздел таксономии
+     (`category-tree.ts`) и предлагает подборку (`CATEGORY_SUGGESTION`).
+   - и раздел не угадан → `NOT_FOUND_REPLY` (менеджер + кнопка WhatsApp).
+   Классификатор приводит слова клиента к терминам каталога по словарю
+   `SEARCH_SYNONYMS` (правит Цвет: оазис→губка флористическая, скотч→лента клейкая…).
 9. **Единый ответ** (Gemini, `composeAnswer`): один `SYSTEM_PROMPT` + два источника —
    СПИСОК ТОВАРОВ (с `url`/`catalog_url`) и ПАМЯТКА (`CLIENT_FAQ`) → ответ **или** `NO_ANSWER`.
 10. Ответ ≠ `NO_ANSWER` → отправка в Umnico (source из вебхука, fallback `getSources`)
