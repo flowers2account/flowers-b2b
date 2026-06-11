@@ -175,11 +175,17 @@ export async function POST(req: NextRequest) {
   const importId = importIdRaw ? parseInt(importIdRaw) : Date.now()
 
   // ── Matching: load products + aliases ──────────────────────────────────────
-  const { data: allProducts } = await supabase.from('products').select('id, name')
+  // ⚠️ PostgREST max_rows=1000 — без пагинации карта имён неполная и матч молча теряется
   const productByNorm = new Map<string, number>()
-  for (const p of allProducts ?? []) {
-    const n = normName(p.name)
-    if (!productByNorm.has(n)) productByNorm.set(n, p.id)
+  for (let from = 0; ; from += 1000) {
+    const { data: page } = await supabase
+      .from('products').select('id, name').order('id').range(from, from + 999)
+    if (!page || page.length === 0) break
+    for (const p of page) {
+      const n = normName(p.name)
+      if (!productByNorm.has(n)) productByNorm.set(n, p.id)
+    }
+    if (page.length < 1000) break
   }
 
   const norms = [...new Set(rows.map(r => normName(r.name)))]
