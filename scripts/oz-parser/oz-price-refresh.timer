@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly OZ price/stock refresh (03:00 Asia/Oral)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Asia/Oral
+RandomizedDelaySec=20m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

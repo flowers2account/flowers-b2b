@@ -1,0 +1,13 @@
+[Unit]
+Description=EUR/KZT rate update (NBK + extra %) -> app_settings + recalc_oz_prices
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/oz-parser
+ExecStart=/opt/oz-parser/venv/bin/python /opt/oz-parser/update_eur_rate.py
+# защита сработала (exit 1) — это штатный исход, алерт уже в WhatsApp
+SuccessExitStatus=0 1
+TimeoutStartSec=10m

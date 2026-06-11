@@ -1,0 +1,16 @@
+[Unit]
+Description=OZ price/stock refresh (Playwright -> Supabase)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/oz-parser
+# свежий курс EUR перед прогоном; "-" = провал курса не блокирует парсер (старый курс остаётся)
+ExecStartPre=-/opt/oz-parser/venv/bin/python /opt/oz-parser/update_eur_rate.py
+ExecStart=/opt/oz-parser/venv/bin/python /opt/oz-parser/oz_price_refresh.py
+# протухшая сессия -> exit 2; это не "ошибка юнита", алерт уже ушёл в WhatsApp
+SuccessExitStatus=0 2
+TimeoutStartSec=4h
+Nice=10
