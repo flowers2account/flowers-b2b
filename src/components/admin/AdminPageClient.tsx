@@ -100,6 +100,12 @@ export default function AdminPageClient() {
           🌸 Предзаказы
         </Link>
         <Link
+          href="/admin/oz-purchase"
+          className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+        >
+          💶 Закуп ОЗ
+        </Link>
+        <Link
           href="/admin/translations/bulk"
           className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
         >
