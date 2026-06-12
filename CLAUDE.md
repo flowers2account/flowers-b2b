@@ -583,6 +583,7 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 | `docs/UX_DESIGN_BRIEF.md` | UX/дизайн-бриф (стратегия, аудитория) |
 | `docs/CATALOG_IMPORT.md` | Импорт каталога поставщиков (OZ, Waterdrinker) — актуально |
 | `docs/OZ_INTERNAL_API.md` | **Карта служебного API ozexport.nl** (availability/cart/subunit, OCC выключен, дата вылета в сессии) — 12.06 |
+| `docs/OZ_CATALOG_SYNC.md` | **Полный сбор каталога OZ** (parser_oz_catalog + oz_catalog_ingest, 50 категорий, окно robots.txt, продолжение через --skip-done) — 12.06 |
 | `docs/PHOTO_UPLOAD.md` | Загрузка фото + удаление фона (@imgly клиентская сторона) |
 | `docs/DATABASE_SCHEMA.md` | Таблицы, views, триггеры, функции, FK-карта |
 | `docs/ARCHITECTURE.md` | Стек, структура папок, API-роуты, Zustand-сторы |

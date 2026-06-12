@@ -1,0 +1,17 @@
+[Unit]
+Description=OZ catalog full sweep (Playwright -> products). Manual start only, in robots.txt window 05:00-09:00 Oral.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/oz-parser
+ExecStart=/opt/oz-parser/venv/bin/python /opt/oz-parser/parser_oz_catalog.py --categories-file /opt/oz-parser/categories.txt --skip-done --ingest-after-each
+# сессия протухла -> exit 2; стоп без логина это не "ошибка юнита", алерт уже ушёл
+SuccessExitStatus=0 2
+TimeoutStartSec=5h
+Nice=10
+
+# Таймер НЕ создаём намеренно (урок инцидента с дневным авто-запуском ценового парсера).
+# Запуск только вручную: sudo systemctl start oz-catalog-sync.service
