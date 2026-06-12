@@ -12,6 +12,12 @@ oz_price_refresh.py — серверное обновление цен/оста�
                       is_active=true, oz_stock_updated_at=now()
   XHR пришёл, но пусто -> qty=0, is_active=false, oz_stock_updated_at=now()
 
+ROBOTS.TXT OZ (https://www.ozexport.nl/robots.txt):
+  * Request-rate 1/10 -> пауза 8-10 с между товарами (PAUSE_RANGE_S)
+  * Visit-time 00:00-04:00 UTC (05:00-09:00 Oral) -> таймер 05:05 Oral,
+    дедлайн 08:45 Oral: не успели -> стоп, хвост уходит на следующую ночь
+    (порядок обхода: несвежие первыми, см. select_targets)
+
 КРИТИЧНЫЕ ЗАЩИТЫ:
   * Протухшая сессия != нет товара: NO_XHR_STOP_AFTER товаров подряд без XHR ->
     СТОП + WhatsApp-алерт, БЕЗ деактивации (иначе мёртвая сессия за ночь
@@ -55,9 +61,21 @@ LOG_DIR = Path("/var/log/oz-price-refresh")
 NAV_TIMEOUT_MS = 60_000
 AVAIL_WAIT_MS = 20_000        # ожидание XHR allStockPdpMap (как в oz_ingest)
 NO_XHR_STOP_AFTER = 10        # N подряд без XHR -> стоп (протухла сессия)
-PAUSE_RANGE_S = (1.0, 2.0)    # пауза между товарами
+# robots.txt OZ: Request-rate 1/10 — не чаще страницы раз в 10 секунд
+PAUSE_RANGE_S = (8.0, 10.0)   # пауза между товарами
 
 ORAL_TZ = timezone(timedelta(hours=5))  # Asia/Oral, UTC+5, без DST
+
+# robots.txt OZ: Visit-time 00:00–04:00 UTC = 05:00–09:00 Asia/Oral.
+# Стоп с запасом в 08:45 Oral: текущий товар дообрабатываем, остаток — следующей ночью.
+DEADLINE_ORAL = (8, 45)
+
+
+def run_deadline(start: datetime) -> datetime:
+    """08:45 Oral того же дня; если старт позже (ручной дневной запуск) — следующего."""
+    d = start.astimezone(ORAL_TZ).replace(
+        hour=DEADLINE_ORAL[0], minute=DEADLINE_ORAL[1], second=0, microsecond=0)
+    return d + timedelta(days=1) if start >= d else d
 
 
 # ── env / лог ────────────────────────────────────────────────────────────────
@@ -115,14 +133,19 @@ class Supa:
             return json.loads(raw) if raw else None
 
     def select_targets(self):
-        """Все oz_catalog с URL — пагинация (PostgREST max_rows=1000)."""
+        """Все oz_catalog с URL — пагинация (PostgREST max_rows=1000).
+
+        Порядок: самые несвежие первыми (NULLS FIRST) — если прошлый прогон
+        упёрся в дедлайн окна robots.txt, его хвост обработается первым.
+        """
         out = []
         page = 1000
         offset = 0
         while True:
             path = ("/rest/v1/products?select=id,oz_product_code,source_url"
                     "&source=eq.oz_catalog&source_url=not.is.null"
-                    f"&order=id&limit={page}&offset={offset}")
+                    "&order=oz_stock_updated_at.asc.nullsfirst,id.asc"
+                    f"&limit={page}&offset={offset}")
             chunk = self._req("GET", path) or []
             out.extend(chunk)
             if len(chunk) < page:
@@ -255,7 +278,12 @@ async def run(limit: int | None, dry_run: bool) -> int:
              "no_xhr": 0, "errors": 0, "no_price": 0}
     consecutive_no_xhr = 0
     session_dead = False
+    deadline_left = 0   # сколько товаров не успели до дедлайна
     t0 = time.monotonic()
+    started_at = datetime.now(ORAL_TZ)
+    deadline = run_deadline(started_at)
+    log.line(f"Старт прогона: {started_at.strftime('%d.%m %H:%M')} Oral | "
+             f"дедлайн окна robots.txt: {deadline.strftime('%d.%m %H:%M')} Oral")
     now_iso = lambda: datetime.now(timezone.utc).isoformat()  # noqa: E731
 
     async with async_playwright() as p:
@@ -263,6 +291,13 @@ async def run(limit: int | None, dry_run: bool) -> int:
         context = await browser.new_context(storage_state=str(STATE_FILE))
 
         for i, t in enumerate(targets, 1):
+            # окно robots.txt (00:00–04:00 UTC): рискуем вылезти за 08:45 Oral ->
+            # корректно завершаемся, остаток дойдёт следующей ночью (Persistent-таймер)
+            if datetime.now(ORAL_TZ) >= deadline:
+                deadline_left = len(targets) - i + 1
+                log.line(f"ДЕДЛАЙН {deadline.strftime('%H:%M')} Oral: останавливаюсь, "
+                         f"не успели {deadline_left} товаров — добьём следующей ночью.")
+                break
             code, url = t["oz_product_code"], t["source_url"]
             res = await fetch_availability(context, url)
             status = res["status"]
@@ -316,9 +351,15 @@ async def run(limit: int | None, dry_run: bool) -> int:
         await browser.close()
 
     mins = (time.monotonic() - t0) / 60
+    finished_at = datetime.now(ORAL_TZ)
+    log.line(f"Финиш прогона: {finished_at.strftime('%d.%m %H:%M')} Oral ({mins:.1f} мин)")
     summary = (f"OZ price refresh: всего {stats['total']} | обновлено {stats['updated']} | "
                f"деактивировано {stats['deactivated']} | без XHR {stats['no_xhr']} | "
-               f"ошибок {stats['errors']} | без цены {stats['no_price']} | {mins:.1f} мин")
+               f"ошибок {stats['errors']} | без цены {stats['no_price']} | "
+               f"{started_at.strftime('%H:%M')}–{finished_at.strftime('%H:%M')} Oral, {mins:.1f} мин")
+    if deadline_left:
+        summary += (f"\n⏰ Не успели {deadline_left} до конца окна robots.txt (09:00 Oral) — "
+                    "остаток дойдёт следующей ночью.")
     # строка от update_eur_rate.py (ExecStartPre) — в общий отчёт, если свежая (<24ч)
     eur_file = BASE_DIR / ".last_eur_update"
     if eur_file.exists() and time.time() - eur_file.stat().st_mtime < 86_400:

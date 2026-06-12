@@ -1,9 +1,9 @@
 [Unit]
-Description=Nightly OZ price/stock refresh (03:00 Asia/Oral)
+Description=Nightly OZ price/stock refresh (05:05 Asia/Oral = 00:05 UTC, robots.txt Visit-time)
 
 [Timer]
-OnCalendar=*-*-* 03:00:00 Asia/Oral
-RandomizedDelaySec=20m
+OnCalendar=*-*-* 05:05:00 Asia/Oral
+RandomizedDelaySec=5m
 Persistent=true
 
 [Install]
