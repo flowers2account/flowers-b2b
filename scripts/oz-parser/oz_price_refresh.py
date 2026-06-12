@@ -18,6 +18,13 @@ ROBOTS.TXT OZ (https://www.ozexport.nl/robots.txt):
     дедлайн 08:45 Oral: не успели -> стоп, хвост уходит на следующую ночь
     (порядок обхода: несвежие первыми, см. select_targets)
 
+ДАТА ВЫЛЕТА (синхрон с каталогом, 12.06.2026):
+  В начале прогона читаем app_settings.oz_target_departure_date и ставим её в сессии
+  через set_departure_date() (та же, что у каталожного парсера). Все availability и
+  деактивации считаются на эту дату — каталог и цены консистентны. Дата не применилась
+  -> СТОП + алерт, цены НЕ трогаем (иначе перезаписали бы дефолтной датой = ложные
+  деактивации). Только будни (OZ режет выходные).
+
 КРИТИЧНЫЕ ЗАЩИТЫ:
   * Протухшая сессия != нет товара: NO_XHR_STOP_AFTER товаров подряд без XHR ->
     СТОП + WhatsApp-алерт, БЕЗ деактивации (иначе мёртвая сессия за ночь
@@ -52,6 +59,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 from oz_normalize import normalize_availability
+from oz_departure import set_departure_date, is_weekday
 
 BASE_DIR = Path(__file__).resolve().parent
 STATE_FILE = BASE_DIR / "oz_state.json"
@@ -157,7 +165,7 @@ class Supa:
         rows = self._req(
             "GET",
             "/rest/v1/app_settings?select=key,value&key=in."
-            "(preorder_markup_percent,preorder_eur_kzt_rate,preorder_round_to)",
+            "(preorder_markup_percent,preorder_eur_kzt_rate,preorder_round_to,oz_target_departure_date)",
         ) or []
         return {r["key"]: r["value"] for r in rows}
 
@@ -289,6 +297,30 @@ async def run(limit: int | None, dry_run: bool) -> int:
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(storage_state=str(STATE_FILE))
+
+        # ── дата вылета: цены/наличие считаем на ту же дату, что собран каталог ──
+        # (иначе availability вернёт дефолтную дату → ложные деактивации, как было)
+        target_date = settings.get("oz_target_departure_date")
+        if not target_date or not is_weekday(target_date):
+            log.line(f"СТОП: дата вылета '{target_date}' пуста/выходной — цены НЕ обновляю.")
+            if not dry_run:
+                send_whatsapp(
+                    f"⛔ OZ-цены: дата вылета '{target_date}' невалидна (пусто/выходной). "
+                    "Цены НЕ обновлены. Поправь app_settings.oz_target_departure_date на будний день.", log)
+            await browser.close()
+            return 2
+        ok, shown = await set_departure_date(context, target_date)
+        if not ok:
+            log.line(f"СТОП: дата вылета не применилась ({shown}) — цены НЕ обновляю "
+                     "(иначе перезаписал бы дефолтной датой).")
+            if not dry_run:
+                send_whatsapp(
+                    f"⛔ OZ-цены: не удалось выставить дату {target_date} в сессии ({shown}). "
+                    "Цены НЕ обновлены. Обнови oz_state.json (oz_login.py → scp).", log)
+            await browser.close()
+            return 2
+        log.line(f"  ✓ дата вылета установлена: {target_date} (поле: {shown}) — "
+                 "availability и деактивация считаются на неё")
 
         for i, t in enumerate(targets, 1):
             # окно robots.txt (00:00–04:00 UTC): рискуем вылезти за 08:45 Oral ->

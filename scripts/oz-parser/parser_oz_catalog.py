@@ -389,6 +389,9 @@ async def process_pass(categories, list_page, detail_page, log, deadline, use_wi
                 stats["new"] += n_new
                 stats["updated"] += n_upd
                 log.line(f"[{idx}/{total}] ⏭ {cat_name} — jsonl есть, парсинг пропущен; {msg}")
+                remaining = [c[0] for c in categories[i:]]
+                send_whatsapp(f"[{idx}/{total}] {cat_name} ⏭ (jsonl уже есть) {msg}\n"
+                              f"{_remaining_str(remaining)}", log)
             else:
                 log.line(f"[{idx}/{total}] ⏭ {cat_name} — уже есть, пропускаю")
             stats["done"] += 1
