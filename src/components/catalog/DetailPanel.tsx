@@ -108,16 +108,16 @@ const SUBSTRATE_RU: Record<string, string> = {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: 6,
-      padding: '4px 0', borderBottom: '1px solid var(--border)',
+      display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
+      padding: '8px 0', borderBottom: '1px solid var(--border)',
     }}>
       <span style={{
-        fontSize: 11, color: 'var(--text-mid)',
-        minWidth: 80, flexShrink: 0, paddingTop: 1,
+        fontSize: 11.5, color: 'var(--text-mid)',
+        flexShrink: 0,
       }}>
         {label}
       </span>
-      <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 500 }}>{children}</span>
+      <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, textAlign: 'right' }}>{children}</span>
     </div>
   )
 }
@@ -183,7 +183,7 @@ function StateEmpty() {
 // ── State B: product detail ──────────────────────────────────────────────────
 
 function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoToCart: () => void; onClose: () => void }) {
-  const { items, add, update, total } = useCart()
+  const { items, add, update, setColored, total } = useCart()
   const { isAuthed } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
@@ -226,6 +226,25 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
   const colorKeys = product.colors?.length ? product.colors : product.color ? [product.color] : []
   const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
+  // Ассорти по цветам — только аксессуары с ≥2 цветами: у каждого цвета свой степпер,
+  // в корзину едет разбивка (комментарий), сумма ≤ остаток.
+  const isAssort = product.category === 'accessories' && colorKeys.length >= 2
+  const pick = cartItem?.colorQtys ?? {}
+  const pickSum = Object.values(pick).reduce((s, n) => s + n, 0)
+  const setColorQty = (slug: string, n: number) => {
+    if (!isAuthed) { setShowAuth(true); return }
+    const others = Object.entries(pick).filter(([k]) => k !== slug).reduce((s, [, v]) => s + v, 0)
+    const capped = Math.max(0, Math.min(n, available - others))
+    setColored(
+      {
+        id: product.id,
+        name: displayName + (product.length_str ? ' ' + product.length_str : ''),
+        price, available, category: product.category, image_url: product.image_url,
+        unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
+      },
+      { ...pick, [slug]: capped },
+    )
+  }
   const availColor = available > 30 ? '#388E3C' : available >= 10 ? '#F9A825' : '#E53935'
   const floralRole = product.floral_role ? FLORAL_ROLE_MAP[product.floral_role] : null
 
@@ -459,6 +478,41 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
         {/* Stepper + Cart — одна строка, над описанием */}
         <div style={{ marginBottom: 10 }}>
+          {isAssort && (
+            <div style={{ marginBottom: 10 }}>
+              {colorKeys.map(slug => {
+                const col = COLORS.find(c => c.key === slug)
+                const n = pick[slug] ?? 0
+                return (
+                  <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{
+                      width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                      border: '1px solid rgba(0,0,0,0.12)',
+                      background: col ? (('gradient' in col ? col.gradient : col.bg) as string) : '#ccc',
+                    }} />
+                    <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{col?.label ?? slug}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden' }}>
+                      <button onClick={() => setColorQty(slug, n - packSize)} disabled={n <= 0}
+                        style={{ width: 28, height: 28, border: 'none', background: '#fff', cursor: n <= 0 ? 'default' : 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--accent)', opacity: n <= 0 ? 0.4 : 1 }}>−</button>
+                      <span style={{ width: 34, textAlign: 'center', fontSize: 13, fontWeight: 600 }}>{n}</span>
+                      <button onClick={() => setColorQty(slug, n + packSize)} disabled={pickSum >= available}
+                        style={{ width: 28, height: 28, border: 'none', background: '#fff', cursor: pickSum >= available ? 'default' : 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--accent)', opacity: pickSum >= available ? 0.4 : 1 }}>+</button>
+                    </div>
+                  </div>
+                )
+              })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-mid)' }}>Итого: <b style={{ color: 'var(--text)' }}>{pickSum} {unitForProduct(product as any)}</b></span>
+                {pickSum > 0 && (
+                  <button onClick={onGoToCart}
+                    style={{ height: 34, padding: '0 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    В корзину → {(pickSum * price).toLocaleString('ru-RU')} ₸
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          {!isAssort && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Stepper qty={qty} available={available} packSize={packSize} onDec={handleDec} onInc={handleInc} />
             {inCart && isAuthed ? (
@@ -491,7 +545,8 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
               </button>
             )}
           </div>
-          {!inCart && cartCount > 0 && isAuthed && (
+          )}
+          {!isAssort && !inCart && cartCount > 0 && isAuthed && (
             <button
               onClick={onGoToCart}
               style={{

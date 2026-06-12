@@ -4,7 +4,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/lib/cart-store'
 import { unitForProduct } from '@/lib/category-tree'
+import { COLORS } from '@/lib/colors'
 import s from './cart.module.css'
+
+function colorBreakdown(colorQtys?: Record<string, number> | null): { slug: string; label: string; bg: string; n: number }[] {
+  if (!colorQtys) return []
+  return Object.entries(colorQtys).filter(([, n]) => n > 0).map(([slug, n]) => {
+    const col = COLORS.find(c => c.key === slug)
+    return { slug, n, label: col?.label ?? slug, bg: col ? (('gradient' in col ? col.gradient : col.bg) as string) : '#ccc' }
+  })
+}
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
 
@@ -68,13 +77,29 @@ export default function CartPage() {
                       Цена за {unitForProduct(it)}: <b>{fmt(it.price)}</b>
                       {it.available > 0 && <> · в наличии {it.available} {unitForProduct(it)}</>}
                     </div>
+                    {colorBreakdown(it.colorQtys).length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                        {colorBreakdown(it.colorQtys).map(c => (
+                          <span key={c.slug} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#555' }}>
+                            <span style={{ width: 13, height: 13, borderRadius: '50%', background: c.bg, border: '1px solid rgba(0,0,0,0.12)', flexShrink: 0 }} />
+                            {c.label} × {c.n}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className={s.right}>
-                    <div className={s.stepper}>
-                      <button onClick={() => update(it.id, Math.max(1, it.qty - 1))} disabled={it.qty <= 1}>−</button>
-                      <span className={s.q}>{it.qty}</span>
-                      <button onClick={() => update(it.id, Math.min(it.available, it.qty + 1))} disabled={it.qty >= it.available}>+</button>
-                    </div>
+                    {it.colorQtys ? (
+                      <div className={s.stepper} title="Изменить разбивку по цветам — в карточке товара">
+                        <span className={s.q} style={{ padding: '0 10px' }}>{it.qty}</span>
+                      </div>
+                    ) : (
+                      <div className={s.stepper}>
+                        <button onClick={() => update(it.id, Math.max(1, it.qty - 1))} disabled={it.qty <= 1}>−</button>
+                        <span className={s.q}>{it.qty}</span>
+                        <button onClick={() => update(it.id, Math.min(it.available, it.qty + 1))} disabled={it.qty >= it.available}>+</button>
+                      </div>
+                    )}
                     <div className={s.sum}>{fmt(it.price * it.qty)}</div>
                   </div>
                   <button className={s.rm} onClick={() => remove(it.id)} title="Удалить" aria-label="Удалить">

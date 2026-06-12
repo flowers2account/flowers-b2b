@@ -100,6 +100,11 @@ export async function POST(req: NextRequest) {
     const r = [recipient.name, recipient.phone, recipient.email].filter(Boolean).join(', ')
     if (r) noteLines.push(`Получатель: ${r}`)
   }
+  // Разбивка по цветам (ассорти-аксессуары) — комментарий для склада/сборки
+  const colorLines = items
+    .filter((i: any) => i.color)
+    .map((i: any) => `Цвета — ${i.name}: ${i.color}`)
+  if (colorLines.length) noteLines.push(...colorLines)
   if (discountPct > 0) {
     noteLines.push(`Скидка ${discountPct}% (Уральск): −${(rawTotal - total).toLocaleString('ru-RU')} ₸`)
   }
