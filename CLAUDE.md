@@ -572,6 +572,24 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 
 Подробности: `docs/CATALOG_IMPORT.md`
 
+### Серверный сбор каталога OZ на VPS (12.06.2026)
+
+Перенос десктопного парсера на VPS (`/opt/oz-parser/`): `parser_oz_catalog.py` обходит
+50 категорий «Цветов» под B2B-сессией → `oz_catalog_ingest.py` заливает в `products`
+(upsert по `oz_product_code`, `source='oz_catalog'`). Запуск ручной (oneshot
+`oz-catalog-sync.service`, **таймер не включаем**), за 2–3 ночи через `--skip-done`.
+
+⚠️ **Дата вылета — критична.** Листинг категорий и наличие OZ зависят от выбранной
+в сессии даты вылета (см. `docs/OZ_INTERNAL_API.md`: эндпоинт
+`DepartureDateComponentController/updateDepartureDate`). Парсер и ночной
+`oz_price_refresh.py` читают `app_settings.oz_target_departure_date` (сейчас `2026-06-29`,
+только будни) и ставят её в сессии перед обходом — иначе каталог и цены окажутся на
+разных датах (тот же механизм давал 84% ложных деактиваций). Каждой карточке
+проставляется `products.oz_departure_date`. UPDATE — строгий whitelist (НЕ трогает
+`display_name`/`subcategory`/`name`/`is_active`/`qty`/`price`).
+
+Подробности: `docs/OZ_CATALOG_SYNC.md`, `docs/OZ_INTERNAL_API.md`, `docs/OZ_PRICE_REFRESH.md`.
+
 ## База знаний проекта
 
 | Файл | Тема |
@@ -818,6 +836,25 @@ is_active = true AND source IN ('uralsk_site', 'uralsk_1c')
 ### Навигация «Назад» со страницы товара
 
 `goToCategory()` / `goToSubcat()` / `goToCatalog()` вызывают `useFilters.getState()` напрямую — sessionStorage не читается при клиентской навигации. Позиция скролла: `sessionStorage['catalog-scroll']` → `catalog-scroll-restore`.
+
+### Цветовые варианты — ассорти (12.06.2026)
+
+Выбор цвета с количеством по каждому — **НЕ отдельный SKU**: цена и остаток общие на товар,
+цвет едет в заказ **комментарием** (модель «Б»). Включается только для
+`category='accessories'` с ≥2 значениями в `products.colors`.
+
+- **Кружки-свотчи** рисуются по `products.colors` (слаги) через хардкод-палитру
+  `src/lib/colors.ts` (матч по `key`; hex из `bg`/`gradient`). Справочник БД
+  `characteristic_colors` фронтом **не используется**.
+- **Пикер** (`DetailPanel.tsx`, правая панель каталога): у каждого цвета свой степпер;
+  сумма по цветам ограничена остатком (`сумма ≤ products.qty`). Кнопка «В корзину» кладёт
+  ОДНУ позицию с разбивкой. ⚠️ На полноэкранной `/product/[id]` пикера пока нет (бэклог).
+- **Корзина** (`cart-store.ts`): `CartItem.colorQtys: Record<slug,qty>` (qty = сумма),
+  дедуп по `id`. Метод `setColored(item, colorQtys)`. Степпер ассорти-позиции в `/cart`
+  заблокирован (правка разбивки — в карточке).
+- **Заказ/накладная**: `useOrderCheckout` шлёт строку `color` («Жёлтый × 2, Белый × 4»),
+  `/api/checkout` дописывает её в `orders.notes` → лист сборки `/print/order/[id]` печатает
+  в блоке «Примечания». Резервы/остаток не затронуты (одна позиция на товар).
 
 ### Known Issues
 
