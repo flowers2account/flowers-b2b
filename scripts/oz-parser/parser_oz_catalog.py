@@ -45,6 +45,8 @@ from playwright.async_api import async_playwright
 
 # WhatsApp/окно переиспользуем из ценового парсера (один и тот же .env, тот же ORAL_TZ)
 from oz_price_refresh import send_whatsapp, load_env, Log, ORAL_TZ, run_deadline
+from oz_departure import set_departure_date, is_weekday
+from oz_catalog_ingest import Supa
 
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "output"
@@ -306,31 +308,31 @@ async def parse_category(list_page, detail_page, cat_name, cat_url, log, deadlin
     return ("ok", len(products))
 
 
-def run_ingest(cat_name: str, log) -> str:
-    """Заливает output/<cat>.jsonl в БД. Возвращает строку для WhatsApp."""
+def run_ingest(cat_name: str, log, departure_date: str) -> tuple[str, int, int]:
+    """Заливает output/<cat>.jsonl в БД с меткой даты. Возвращает (строка, new, updated)."""
     jsonl = OUTPUT_DIR / f"{cat_name}.jsonl"
     if not jsonl.exists() or jsonl.stat().st_size == 0:
-        return "залито: нечего (пусто)"
+        return ("залито: нечего (пусто)", 0, 0)
     try:
         proc = subprocess.run(
-            [sys.executable, str(BASE_DIR / "oz_catalog_ingest.py"), str(jsonl)],
+            [sys.executable, str(BASE_DIR / "oz_catalog_ingest.py"),
+             "--departure-date", departure_date, str(jsonl)],
             capture_output=True, text=True, timeout=600, cwd=str(BASE_DIR))
         out = proc.stdout.strip()
         for line in reversed(out.splitlines()):
             if line.startswith("RESULT "):
                 kv = dict(p.split("=", 1) for p in line[len("RESULT "):].split() if "=" in p)
-                extra = ""
-                if kv.get("new_subcats"):
-                    extra = f", ⚠ новые subcat: {kv['new_subcats']}"
-                return (f"залито: +{kv.get('new', '?')} новых, "
-                        f"~{kv.get('updated', '?')} обновлено{extra}")
+                new = int(kv.get("new", 0) or 0)
+                upd = int(kv.get("updated", 0) or 0)
+                extra = f", ⚠ новые subcat: {kv['new_subcats']}" if kv.get("new_subcats") else ""
+                return (f"залито: +{new} новых, ~{upd} обновлено{extra}", new, upd)
         if proc.returncode != 0:
             log.line(f"    ingest stderr: {proc.stderr[:200]}")
-            return "залито: ошибка ingest (см. лог)"
-        return "залито: итог не распознан"
+            return ("залито: ошибка ingest (см. лог)", 0, 0)
+        return ("залито: итог не распознан", 0, 0)
     except Exception as e:  # noqa: BLE001
         log.line(f"    ingest exception: {e}")
-        return f"залито: исключение ({e})"
+        return (f"залито: исключение ({e})", 0, 0)
 
 
 def _remaining_str(names: list[str]) -> str:
@@ -373,7 +375,7 @@ def _load_categories_file(path: Path) -> list:
 
 
 async def process_pass(categories, list_page, detail_page, log, deadline, use_window,
-                       do_ingest, skip_done, stats, idx_offset=0, total=None):
+                       do_ingest, skip_done, stats, departure_date, idx_offset=0, total=None):
     """Один проход по списку категорий. Возвращает список упавших имён (для второго прохода)."""
     failed = []
     total = total or len(categories)
@@ -381,7 +383,14 @@ async def process_pass(categories, list_page, detail_page, log, deadline, use_wi
         idx = idx_offset + i
         out_file = OUTPUT_DIR / f"{cat_name}.jsonl"
         if skip_done and out_file.exists() and out_file.stat().st_size > 0:
-            log.line(f"[{idx}/{total}] ⏭ {cat_name} — уже есть, пропускаю")
+            # парсинг пропускаем, но заливку — НЕТ (idempotent upsert догонит БД)
+            if do_ingest:
+                msg, n_new, n_upd = run_ingest(cat_name, log, departure_date)
+                stats["new"] += n_new
+                stats["updated"] += n_upd
+                log.line(f"[{idx}/{total}] ⏭ {cat_name} — jsonl есть, парсинг пропущен; {msg}")
+            else:
+                log.line(f"[{idx}/{total}] ⏭ {cat_name} — уже есть, пропускаю")
             stats["done"] += 1
             continue
         if use_window and datetime.now(ORAL_TZ) >= deadline:
@@ -421,7 +430,12 @@ async def process_pass(categories, list_page, detail_page, log, deadline, use_wi
 
         stats["parsed"] += n
         stats["done"] += 1
-        ing = run_ingest(cat_name, log) if do_ingest else "ingest выключен"
+        if do_ingest:
+            ing, n_new, n_upd = run_ingest(cat_name, log, departure_date)
+            stats["new"] += n_new
+            stats["updated"] += n_upd
+        else:
+            ing = "ingest выключен"
         remaining = [c[0] for c in categories[i:]]
         send_whatsapp(f"[{idx}/{total}] {cat_name} ✓ спарсено {n}, {ing}\n{_remaining_str(remaining)}", log)
     return failed
@@ -432,12 +446,13 @@ async def main():
     ap.add_argument("-f", "--categories-file", metavar="FILE")
     ap.add_argument("--skip-done", action="store_true")
     ap.add_argument("--ingest-after-each", action="store_true")
-    ap.add_argument("--no-window", action="store_true", help="игнорировать окно/дедлайн robots.txt")
+    ap.add_argument("--ignore-window", "--no-window", dest="ignore_window", action="store_true",
+                    help="игнорировать окно Visit-time и дедлайн 08:45 Oral (пауза 8-10с сохраняется)")
     args = ap.parse_args()
 
     load_env()
     log = Log()
-    use_window = not args.no_window
+    use_window = not args.ignore_window
 
     cat_path = Path(args.categories_file) if args.categories_file else (BASE_DIR / "categories.txt")
     if not cat_path.exists():
@@ -475,6 +490,31 @@ async def main():
             return 2
         log.line("  ✓ сессия залогинена")
 
+        # ── дата вылета: читаем из app_settings, ставим в сессии, проверяем ──────
+        try:
+            departure_date = Supa().get_setting("oz_target_departure_date")
+        except Exception as e:  # noqa: BLE001
+            log.line(f"СТОП: не прочитать oz_target_departure_date — {e}")
+            send_whatsapp(f"⛔ OZ-каталог: не прочитать дату вылета из app_settings — {e}", log)
+            await browser.close()
+            return 1
+        if not departure_date or not is_weekday(departure_date):
+            log.line(f"СТОП: дата вылета '{departure_date}' пуста/выходной — OZ принимает только будни.")
+            send_whatsapp(
+                f"⛔ OZ-каталог: дата вылета '{departure_date}' невалидна (пусто/выходной). "
+                "Поправь app_settings.oz_target_departure_date на будний день.", log)
+            await browser.close()
+            return 1
+        ok, shown = await set_departure_date(context, departure_date)
+        if not ok:
+            log.line(f"СТОП: дата вылета не применилась ({shown}).")
+            send_whatsapp(
+                f"⛔ OZ-каталог: не удалось выставить дату вылета {departure_date} в сессии "
+                f"({shown}). Парсинг НЕ начат, иначе соберём дефолтную дату как мусор.", log)
+            await browser.close()
+            return 3
+        log.line(f"  ✓ дата вылета установлена: {departure_date} (поле: {shown})")
+
         list_page = await context.new_page()
         detail_page = await context.new_page()
 
@@ -486,7 +526,7 @@ async def main():
         await list_page.route("**/*", _block)
         await detail_page.route("**/*", _block)
 
-        stats = {"parsed": 0, "done": 0}
+        stats = {"parsed": 0, "done": 0, "new": 0, "updated": 0}
         # стартуем с чистого _failed.txt (накопим заново за этот прогон)
         if FAILED_FILE.exists():
             FAILED_FILE.unlink()
@@ -495,13 +535,13 @@ async def main():
         try:
             failed = await process_pass(categories, list_page, detail_page, log, deadline,
                                         use_window, args.ingest_after_each, args.skip_done,
-                                        stats, total=total)
+                                        stats, departure_date, total=total)
             # второй проход — один повтор упавших
             if failed:
                 log.line(f"\n🔁 Второй проход по упавшим: {len(failed)}")
                 still = await process_pass(failed, list_page, detail_page, log, deadline,
                                            use_window, args.ingest_after_each, False,
-                                           stats, total=len(failed))
+                                           stats, departure_date, total=len(failed))
                 if still:
                     names = ", ".join(c[0] for c in still)
                     log.line(f"❌ Не справился после повтора: {names}")
@@ -517,8 +557,9 @@ async def main():
         fail = FAILED_FILE.read_text(encoding="utf-8").strip().splitlines() if FAILED_FILE.exists() else []
         finished = datetime.now(ORAL_TZ)
         summary = (f"✅ OZ-каталог: проход завершён, обработано {stats['done']}/{total} категорий, "
-                   f"спарсено {stats['parsed']} карточек ({started.strftime('%H:%M')}–"
-                   f"{finished.strftime('%H:%M')} Oral).")
+                   f"спарсено {stats['parsed']} карточек, залито +{stats['new']} новых / "
+                   f"~{stats['updated']} обновлено на дату {departure_date} "
+                   f"({started.strftime('%H:%M')}–{finished.strftime('%H:%M')} Oral).")
         if bad:
             summary += f"\nПлохие URL ({len(bad)}): см. output/_bad_urls.txt"
         if fail:

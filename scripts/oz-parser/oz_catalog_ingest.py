@@ -60,10 +60,12 @@ SUBCATEGORY_MAP = {
     "Helianthus": "seasonal", "Lathyrus": "seasonal",
 }
 
-# поля, которые UPDATE имеет право менять (всё прочее — неприкосновенно)
+# поля, которые UPDATE имеет право менять (всё прочее — неприкосновенно).
+# oz_departure_date — дата вылета, на которую снят ассортимент (метка консистентности).
 UPDATE_WHITELIST = [
     "source_url", "container_code", "quality_grade", "farm", "length_cm",
     "colors", "country_iso", "stems_per_pack", "pack_size", "image_url",
+    "oz_departure_date",
 ]
 
 
@@ -154,20 +156,26 @@ class Supa:
             raw = resp.read()
             return json.loads(raw) if raw else None
 
-    def existing_codes(self, codes: list[str]) -> set[str]:
-        """Какие oz_product_code уже есть среди source=oz_catalog (чанками по 100)."""
-        found: set[str] = set()
+    def get_setting(self, key: str):
+        r = self._req("GET", f"/rest/v1/app_settings?select=value&key=eq.{urllib.parse.quote(key)}")
+        return r[0]["value"] if r else None
+
+    def codes_with_source(self, codes: list[str]) -> dict[str, str]:
+        """{oz_product_code: source} по ЛЮБОМУ source (чанками по 100).
+        Уникальный индекс на oz_product_code глобальный — код может принадлежать
+        чужому source (oz_preorder/uralsk/...); такие коды мы не вставляем и не трогаем."""
+        found: dict[str, str] = {}
         for i in range(0, len(codes), 100):
             chunk = codes[i:i + 100]
             quoted = ",".join(urllib.parse.quote(c) for c in chunk)
-            path = (f"/rest/v1/products?select=oz_product_code"
-                    f"&source=eq.oz_catalog&oz_product_code=in.({quoted})")
+            path = (f"/rest/v1/products?select=oz_product_code,source"
+                    f"&oz_product_code=in.({quoted})")
             rows = self._req("GET", path) or []
             for r in rows:
-                found.add(r["oz_product_code"])
+                found[r["oz_product_code"]] = r["source"]
         return found
 
-    def insert_batch(self, rows: list[dict]) -> None:
+    def insert_batch(self, rows: list[dict], departure_date) -> None:
         """Bulk INSERT новых карточек (полный набор полей)."""
         payload = []
         for r in rows:
@@ -191,13 +199,15 @@ class Supa:
                 "pack_size": r["pack_size"],
                 "container_code": r["container_code"],
                 "quality_grade": r["quality_grade"],
+                "oz_departure_date": departure_date,
             })
         self._req("POST", "/rest/v1/products", payload,
                   extra_headers={"Prefer": "return=minimal"})
 
-    def update_one(self, code: str, row: dict) -> None:
+    def update_one(self, code: str, row: dict, departure_date) -> None:
         """UPDATE существующей карточки — только whitelist, строго source=oz_catalog."""
         patch = {k: row.get(k) for k in UPDATE_WHITELIST}
+        patch["oz_departure_date"] = departure_date
         path = (f"/rest/v1/products?oz_product_code=eq.{urllib.parse.quote(code)}"
                 "&source=eq.oz_catalog")
         self._req("PATCH", path, patch, extra_headers={"Prefer": "return=minimal"})
@@ -205,9 +215,11 @@ class Supa:
 
 # ── основной проход ────────────────────────────────────────────────────────────
 
-def ingest_files(paths: list[Path]) -> dict:
+def ingest_files(paths: list[Path], departure_date: str | None = None) -> dict:
     load_env()
     supa = Supa()
+    if not departure_date:
+        departure_date = supa.get_setting("oz_target_departure_date")
     new_subcats: set[str] = set()
 
     # читаем + дедуп по oz_product_code (внутри всех переданных файлов)
@@ -230,12 +242,19 @@ def ingest_files(paths: list[Path]) -> dict:
 
     rows = list(by_code.values())
     if not rows:
-        print("RESULT new=0 updated=0 errors=0 new_subcats=", flush=True)
-        return {"new": 0, "updated": 0, "errors": 0, "new_subcats": set()}
+        print("RESULT new=0 updated=0 errors=0 skipped_foreign=0 new_subcats=", flush=True)
+        return {"new": 0, "updated": 0, "errors": 0, "skipped_foreign": 0, "new_subcats": set()}
 
-    existing = supa.existing_codes(list(by_code.keys()))
-    to_insert = [r for r in rows if r["oz_product_code"] not in existing]
-    to_update = [r for r in rows if r["oz_product_code"] in existing]
+    src_by_code = supa.codes_with_source(list(by_code.keys()))
+    to_insert = [r for r in rows if r["oz_product_code"] not in src_by_code]
+    to_update = [r for r in rows if src_by_code.get(r["oz_product_code"]) == "oz_catalog"]
+    # код занят чужим source (oz_preorder/uralsk/...) — не вставляем и НЕ трогаем
+    foreign = [r for r in rows if r["oz_product_code"] in src_by_code
+               and src_by_code[r["oz_product_code"]] != "oz_catalog"]
+    if foreign:
+        print(f"  ⏭ пропуск {len(foreign)} кодов под чужим source "
+              f"(напр. {foreign[0]['oz_product_code']} → {src_by_code[foreign[0]['oz_product_code']]})",
+              flush=True)
 
     new_cnt, upd_cnt, err_cnt = 0, 0, 0
 
@@ -243,7 +262,7 @@ def ingest_files(paths: list[Path]) -> dict:
     for i in range(0, len(to_insert), 200):
         batch = to_insert[i:i + 200]
         try:
-            supa.insert_batch(batch)
+            supa.insert_batch(batch, departure_date)
             new_cnt += len(batch)
         except (urllib.error.HTTPError, urllib.error.URLError) as e:
             # батч упал — пробуем по одному, чтобы не потерять всю пачку
@@ -251,7 +270,7 @@ def ingest_files(paths: list[Path]) -> dict:
             print(f"  ⚠ INSERT-батч упал ({detail}); перехожу на поштучный", flush=True)
             for r in batch:
                 try:
-                    supa.insert_batch([r])
+                    supa.insert_batch([r], departure_date)
                     new_cnt += 1
                 except Exception as e2:  # noqa: BLE001
                     err_cnt += 1
@@ -260,23 +279,38 @@ def ingest_files(paths: list[Path]) -> dict:
     # UPDATE — поштучно (whitelist, у каждой карточки свои значения)
     for r in to_update:
         try:
-            supa.update_one(r["oz_product_code"], r)
+            supa.update_one(r["oz_product_code"], r, departure_date)
             upd_cnt += 1
         except Exception as e:  # noqa: BLE001
             err_cnt += 1
             print(f"    UPDATE err {r['oz_product_code']}: {e}", flush=True)
 
     print(f"RESULT new={new_cnt} updated={upd_cnt} errors={err_cnt} "
+          f"skipped_foreign={len(foreign)} departure={departure_date} "
           f"new_subcats={','.join(sorted(new_subcats))}", flush=True)
-    return {"new": new_cnt, "updated": upd_cnt, "errors": err_cnt, "new_subcats": new_subcats}
+    return {"new": new_cnt, "updated": upd_cnt, "errors": err_cnt,
+            "skipped_foreign": len(foreign), "departure_date": departure_date,
+            "new_subcats": new_subcats}
 
 
 def main() -> None:
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if not args:
-        print("Использование: oz_catalog_ingest.py output/<категория>.jsonl [...]")
+    departure = None
+    rest = []
+    argv = sys.argv[1:]
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--departure-date" and i + 1 < len(argv):
+            departure = argv[i + 1]; i += 2; continue
+        if a.startswith("--departure-date="):
+            departure = a.split("=", 1)[1]; i += 1; continue
+        if not a.startswith("--"):
+            rest.append(a)
+        i += 1
+    if not rest:
+        print("Использование: oz_catalog_ingest.py [--departure-date YYYY-MM-DD] output/<кат>.jsonl [...]")
         sys.exit(1)
-    ingest_files([Path(a) for a in args])
+    ingest_files([Path(a) for a in rest], departure)
 
 
 if __name__ == "__main__":
