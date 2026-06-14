@@ -64,14 +64,20 @@ const POT_SIZE_LABELS: Record<string, string> = {
 export function useFilterChips(): Chip[] {
   const {
     subcat, varietyType, selectedLeaves, colors, lengths, origins, farms,
-    potSizes, tags, seasons,
+    potSizes, tags, seasons, searchResultIds, searchActiveQuery,
     setSubcat, setVarietyType, toggleLeaf,
     toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize,
-    toggleTag, toggleSeason,
+    toggleTag, toggleSeason, setSearch, clearSearchResults,
   } = useFilters()
 
   return useMemo<Chip[]>(() => {
     const result: Chip[] = []
+    if (searchResultIds && searchActiveQuery) {
+      result.push({
+        label: `Поиск: ${searchActiveQuery}`,
+        onRemove: () => { setSearch(''); clearSearchResults() },
+      })
+    }
     if (subcat) {
       const parts = [leafForSubcat(subcat)?.label ?? SUBCAT_LABELS[subcat] ?? subcat]
       if (varietyType) parts.push(VARIETY_TYPE_LABELS[varietyType] ?? varietyType)
@@ -89,5 +95,5 @@ export function useFilterChips(): Chip[] {
     tags.forEach(t => result.push({ label: TAG_LABELS[t] ?? t, onRemove: () => toggleTag(t) }))
     seasons.forEach(s => result.push({ label: SEASON_LABELS[s] ?? s, onRemove: () => toggleSeason(s) }))
     return result
-  }, [subcat, varietyType, selectedLeaves, colors, lengths, origins, farms, potSizes, tags, seasons])
+  }, [subcat, varietyType, selectedLeaves, colors, lengths, origins, farms, potSizes, tags, seasons, searchResultIds, searchActiveQuery])
 }

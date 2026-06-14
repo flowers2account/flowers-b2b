@@ -43,6 +43,10 @@ type FilterStore = {
   onlyDiscount: boolean
   stockLevel: StockLevel
   search: string
+  // Закоммиченный серверный поиск: ранжированные id (порядок = релевантность) и
+  // текст запроса. null = режим обычной фильтрации (не поиск). Не персистится.
+  searchResultIds: number[] | null
+  searchActiveQuery: string
   colors: string[]
   lengths: number[]
   origins: string[]
@@ -66,6 +70,8 @@ type FilterStore = {
   setOnlyDiscount: (v: boolean) => void
   setStockLevel: (v: StockLevel) => void
   setSearch: (v: string) => void
+  setSearchResults: (ids: number[], query: string) => void
+  clearSearchResults: () => void
   toggleColor: (v: string) => void
   toggleLength: (v: number) => void
   toggleOrigin: (v: string) => void
@@ -94,6 +100,8 @@ export const useFilters = create<FilterStore>()(
   onlyDiscount: false,
   stockLevel: '',
   search: '',
+  searchResultIds: null,
+  searchActiveQuery: '',
   colors: [],
   lengths: [],
   origins: [],
@@ -106,7 +114,7 @@ export const useFilters = create<FilterStore>()(
 
   setCategory: (category) => set({
     category, group: DEFAULT_GROUP_ID, subcat: '', varietyType: '', selectedLeaves: [], subgroup: '',
-    search: '',
+    search: '', searchResultIds: null, searchActiveQuery: '',
     colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
     seasons: [],
   }),
@@ -122,6 +130,8 @@ export const useFilters = create<FilterStore>()(
   setOnlyDiscount:  (onlyDiscount) => set({ onlyDiscount }),
   setStockLevel:    (stockLevel) => set({ stockLevel }),
   setSearch:        (search) => set({ search }),
+  setSearchResults: (ids, query) => set({ searchResultIds: ids, searchActiveQuery: query }),
+  clearSearchResults: () => set({ searchResultIds: null, searchActiveQuery: '' }),
   toggleColor:      (v) => set(s => ({ colors:      tog(s.colors,      v) })),
   toggleLength:     (v) => set(s => ({ lengths:     s.lengths.includes(v) ? s.lengths.filter(l => l !== v) : [...s.lengths, v] })),
   toggleOrigin:     (v) => set(s => ({ origins:     tog(s.origins,     v) })),
@@ -133,7 +143,8 @@ export const useFilters = create<FilterStore>()(
   reset: () => set({
     category: DEFAULT_CATEGORY, group: DEFAULT_GROUP_ID, subcat: DEFAULT_SUBCAT, varietyType: '', selectedLeaves: [], subgroup: '',
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
-    search: '', colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
+    search: '', searchResultIds: null, searchActiveQuery: '',
+    colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
     seasons: [], facets: null,
   }),
   loadFacets: async () => {

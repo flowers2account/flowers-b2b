@@ -17,6 +17,7 @@ import { COLORS } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
 import FavHeart from './FavHeart'
+import SearchBox from './SearchBox'
 
 const ROLE_ICONS: Record<string, string> = {
   focal: '🌹', mass: '🌸', line: '🌿',
@@ -509,104 +510,9 @@ const ListIcon = () => (
   </svg>
 )
 
-// ── search helpers ───────────────────────────────────────────────────────────
-
-const RU_TO_EN: Record<string, string> = {
-  а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'j',
-  к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',
-  х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',
-}
-const EN_TO_RU: Record<string, string> = {
-  a:'а',b:'б',v:'в',g:'г',d:'д',e:'е',z:'з',i:'и',j:'й',k:'к',l:'л',
-  m:'м',n:'н',o:'о',p:'п',r:'р',s:'с',t:'т',u:'у',f:'ф',h:'х',y:'й',c:'к',
-}
-
-function translitRuToEn(s: string): string {
-  return s.split('').map(c => RU_TO_EN[c] ?? c).join('')
-}
-function translitEnToRu(s: string): string {
-  return s.split('').map(c => EN_TO_RU[c] ?? c).join('')
-}
-
-function matchesSearch(p: Product, query: string): boolean {
-  const q = query.toLowerCase().trim()
-  if (!q) return true
-  const haystack = [
-    p.variety_name?.toLowerCase(),
-    p.name.toLowerCase(),
-    ...((p as Product & { search_aliases?: string[] }).search_aliases?.map(a => a.toLowerCase()) ?? []),
-  ].filter(Boolean).join(' ')
-  if (haystack.includes(q)) return true
-  const qTranslit = translitRuToEn(q)
-  if (qTranslit !== q && haystack.includes(qTranslit)) return true
-  const qRu = translitEnToRu(q)
-  if (qRu !== q && haystack.includes(qRu)) return true
-  return false
-}
-
-// ── smart search suggestions ─────────────────────────────────────────────────
-
-type SuggestionDef = { keywords: string[]; label: string; type: 'subcat' | 'tag' | 'color'; value: string }
-
-const SMART_SUGGESTIONS: SuggestionDef[] = [
-  // Tags
-  { keywords: ['хит', 'популяр', 'бестселл'], label: '🔥 Хит продаж', type: 'tag', value: 'hit' },
-  { keywords: ['акция', 'скидк', 'уценк', 'дешев'], label: '🏷 Акция', type: 'tag', value: 'sale' },
-  { keywords: ['новинк', 'новый', 'новое', 'новые'], label: '🆕 Новинка', type: 'tag', value: 'new' },
-  // Accessories — Упаковка флористическая
-  { keywords: ['плёнк', 'пленк', 'стрет', 'флорист'], label: 'Плёнка', type: 'subcat', value: 'film' },
-  { keywords: ['бумаг', 'крафт', 'тишью', 'органз', 'лент'], label: 'Бумага', type: 'subcat', value: 'paper' },
-  { keywords: ['пакет', 'сетк', 'мешоч', 'упаков', 'упак'], label: 'Пакеты', type: 'subcat', value: 'film_bags' },
-  // Accessories — Горшки, кашпо и фонтаны
-  { keywords: ['горшок', 'горш', 'вазон'], label: 'Горшки', type: 'subcat', value: 'pots' },
-  { keywords: ['кашпо', 'кашп'], label: 'Кашпо', type: 'subcat', value: 'kashpo' },
-  { keywords: ['фонтан'], label: 'Фонтаны', type: 'subcat', value: 'fountains' },
-  { keywords: ['ваза', 'вазы', 'ваз'], label: 'Вазы', type: 'subcat', value: 'vases' },
-  { keywords: ['декор', 'сувен', 'фигурк'], label: 'Декор и сувениры', type: 'subcat', value: 'decor' },
-  // Accessories — Грунт и удобрения
-  { keywords: ['грунт', 'субстрат', 'торф', 'перлит', 'компост', 'дренаж', 'кокос'], label: 'Грунты', type: 'subcat', value: 'soil' },
-  { keywords: ['удобрен', 'удобр', 'фертик', 'подкорм', 'стимул', 'инсектицид', 'фунгицид'], label: 'Удобрения', type: 'subcat', value: 'fertilizers' },
-  // Accessories — Газоны и укрывной материал
-  { keywords: ['укрывн', 'агротекст', 'спанбонд', 'геотекст', 'агро'], label: 'Укрывной материал', type: 'subcat', value: 'cover_fabric' },
-  { keywords: ['мульч', 'теплиц'], label: 'Плёнка укрывная', type: 'subcat', value: 'cover_film' },
-  { keywords: ['газон', 'искусств газ'], label: 'Искусственный газон', type: 'subcat', value: 'artificial_grass' },
-  { keywords: ['семена', 'трав смес', 'газон сем'], label: 'Семена газона', type: 'subcat', value: 'grass_seed' },
-  // Accessories — прочее
-  { keywords: ['сад', 'огород', 'рассад', 'дача'], label: 'Сад и огород', type: 'subcat', value: 'garden' },
-  { keywords: ['искусств'], label: 'Искусственные растения', type: 'subcat', value: 'artificial' },
-  { keywords: ['игрушк', 'мягк', 'медвед', 'кукл'], label: 'Игрушки', type: 'subcat', value: 'toys' },
-  // Cut flower subcategories (for when cut is re-enabled)
-  { keywords: ['роза', 'розы', 'роз', 'rosa', 'rose'], label: '🌹 Розы', type: 'subcat', value: 'roses' },
-  { keywords: ['хризант', 'хриз', 'chrys'], label: 'Хризантемы', type: 'subcat', value: 'chrysanthemums' },
-  { keywords: ['тюльпан', 'tulip'], label: '🌷 Тюльпаны', type: 'subcat', value: 'tulips' },
-  { keywords: ['пион', 'peony'], label: 'Пионы', type: 'subcat', value: 'peonies' },
-  { keywords: ['лилия', 'лили', 'lily'], label: 'Лилии', type: 'subcat', value: 'lilies' },
-  { keywords: ['герб', 'gerbera'], label: 'Герберы', type: 'subcat', value: 'gerberas' },
-  { keywords: ['гвоздик', 'carnation'], label: 'Гвоздики', type: 'subcat', value: 'carnations' },
-  { keywords: ['альстром', 'alstro'], label: 'Альстромерии', type: 'subcat', value: 'alstroemeria' },
-  { keywords: ['орхид', 'orchid'], label: 'Орхидеи', type: 'subcat', value: 'orchids' },
-  { keywords: ['антуриум', 'anthurium'], label: 'Антуриумы', type: 'subcat', value: 'anthuriums' },
-  { keywords: ['гортензи', 'hydrangea'], label: 'Гортензии', type: 'subcat', value: 'hydrangeas' },
-  { keywords: ['зелень', 'листь'], label: 'Зелень', type: 'subcat', value: 'greens' },
-  // Colors
-  { keywords: ['белый', 'белая', 'белые', 'бел', 'white'], label: '⬜ Белый', type: 'color', value: 'white' },
-  { keywords: ['красный', 'красн', 'red'], label: '🔴 Красный', type: 'color', value: 'red' },
-  { keywords: ['розовый', 'розов', 'pink'], label: '🩷 Розовый', type: 'color', value: 'pink' },
-  { keywords: ['жёлтый', 'желтый', 'желт', 'yellow'], label: '🟡 Жёлтый', type: 'color', value: 'yellow' },
-  { keywords: ['оранжевый', 'оранж', 'orange'], label: '🟠 Оранжевый', type: 'color', value: 'orange' },
-  { keywords: ['фиолетовый', 'фиолет', 'purple'], label: '🟣 Фиолетовый', type: 'color', value: 'purple' },
-  { keywords: ['лавандовый', 'лаванд', 'lavender'], label: 'Лавандовый', type: 'color', value: 'lavender' },
-  { keywords: ['бордовый', 'бордов', 'бордо', 'burgundy'], label: '🍷 Бордовый', type: 'color', value: 'burgundy' },
-  { keywords: ['зелёный', 'зеленый', 'зелен', 'green'], label: '🟢 Зелёный', type: 'color', value: 'green' },
-  { keywords: ['кремовый', 'крем', 'cream'], label: 'Кремовый', type: 'color', value: 'cream' },
-  { keywords: ['персиковый', 'персик', 'peach'], label: 'Персиковый', type: 'color', value: 'peach' },
-  { keywords: ['коралловый', 'коралл', 'coral'], label: 'Коралловый', type: 'color', value: 'coral' },
-]
-
-function matchKeyword(kw: string, q: string): boolean {
-  // keyword starts with query OR query starts with keyword (handles prefix matching in both directions)
-  return kw.startsWith(q) || q.startsWith(kw)
-}
+// Поиск каталога вынесен в серверный путь: компонент SearchBox + /api/search
+// (RPC search_products: ранжирование + similarity-фолбэк + синонимы). Клиентский
+// includes-матч остался только как фолбэк в src/lib/catalog-search.ts.
 
 // ── main component ───────────────────────────────────────────────────────────
 
@@ -624,37 +530,10 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
   const isMobile = useIsMobile()
   const {
-    category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search,
+    category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel,
     lengths, origins, farms, potSizes, volumeRanges, tags, seasons,
-    setSearch, setSubcat, toggleTag, toggleColor, reset,
+    searchResultIds, searchActiveQuery, reset,
   } = useFilters()
-
-
-  const suggestions = useMemo<SuggestionDef[]>(() => {
-    const q = search.toLowerCase().trim()
-    if (q.length < 2) return []
-    return SMART_SUGGESTIONS
-      .filter(s => s.keywords.some(kw => matchKeyword(kw, q)))
-      .slice(0, 6)
-  }, [search])
-
-  function isSuggestionActive(s: SuggestionDef): boolean {
-    if (s.type === 'subcat') return subcat === s.value
-    if (s.type === 'tag')   return tags.includes(s.value)
-    if (s.type === 'color') return colors.includes(s.value)
-    return false
-  }
-
-  function applySuggestion(s: SuggestionDef) {
-    if (s.type === 'subcat') {
-      setSubcat(isSuggestionActive(s) ? '' : s.value) // toggle
-    } else if (s.type === 'tag') {
-      toggleTag(s.value)
-    } else if (s.type === 'color') {
-      toggleColor(s.value)
-    }
-    setSearch('')
-  }
 
   // Sync products to global store so DetailPanel can look up by id
   useEffect(() => { syncProducts(products) }, [products])
@@ -704,6 +583,20 @@ export default function ProductGrid({ products: initialProducts }: { products: P
 
   // Filter
   const filtered = useMemo(() => {
+    // Режим серверного поиска: показываем ранжированную выдачу /api/search (по всему
+    // каталогу, без фасетных фильтров). Порядок = релевантность; сортировки цена/наличие
+    // применяются поверх. Недоступные позиции скрываем (как в обычной витрине).
+    if (searchResultIds) {
+      const byId = new Map(products.map(p => [p.id, p]))
+      let list = searchResultIds
+        .map(id => byId.get(id))
+        .filter((p): p is Product => !!p && getAvailable(p.stock) > 0)
+      if (sort === 'price_asc') list = [...list].sort((a, b) => getPrice(a.stock) - getPrice(b.stock))
+      else if (sort === 'price_desc') list = [...list].sort((a, b) => getPrice(b.stock) - getPrice(a.stock))
+      else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
+      return list
+    }
+
     let list = products.filter(p => {
       const available = getAvailable(p.stock)
       const price = getPrice(p.stock)
@@ -729,7 +622,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       if (stockLevel === 'low'  && available >= 50) return false
       if (stockLevel === 'high' && available < 50)  return false
       if (onlyDiscount && !hasDiscount) return false
-      if (search && !matchesSearch(p, search)) return false
       // Длина стебля (cut)
       if (lengths.length > 0) {
         const cm = p.length_cm ?? 0
@@ -793,7 +685,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     }
 
     return list
-  }, [products, category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, search, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
+  }, [products, searchResultIds, category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])
@@ -819,41 +711,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       <div style={{ background: '#fff', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         {/* Row 1: поиск + сортировка + вид + счётчик — одна строка */}
         <div style={{ padding: '10px 16px 8px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* search */}
-          <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
-            <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="var(--text-mid)" strokeWidth="2" strokeLinecap="round"
-              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
-            >
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Поиск по сорту, цвету, ферме..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              autoFocus={!isMobile}
-              style={{
-                width: '100%', height: 42, padding: '0 32px 0 34px',
-                border: `1.5px solid ${search ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-input)', fontSize: 13,
-                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-                color: 'var(--text)', background: '#fff',
-                transition: 'border-color 0.15s',
-              }}
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                style={{
-                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-mid)', fontSize: 16, lineHeight: 1, padding: 2,
-                }}
-              >×</button>
-            )}
-          </div>
+          {/* search — серверный поиск с автоподсказками */}
+          <SearchBox products={products} />
 
           {/* sort */}
           <select
@@ -896,52 +755,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           </span>
         </div>
 
-        {/* Row 1b: smart search suggestions */}
-        {suggestions.length > 0 && (
-          <div style={{
-            padding: '0 16px 8px',
-            display: 'flex', gap: 6, overflowX: 'auto',
-            scrollbarWidth: 'none' as React.CSSProperties['scrollbarWidth'],
-          }}>
-            <style>{`#suggest-row::-webkit-scrollbar{display:none}`}</style>
-            <span style={{ fontSize: 10, color: 'var(--text-mid)', whiteSpace: 'nowrap', alignSelf: 'center', marginRight: 2 }}>→</span>
-            {suggestions.map((s, i) => {
-              const active = isSuggestionActive(s)
-              return (
-              <button
-                key={i}
-                onClick={() => applySuggestion(s)}
-                style={{
-                  flexShrink: 0,
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '4px 11px', borderRadius: 14,
-                  fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
-                  background: active ? 'var(--accent)' : '#fff',
-                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                  color: active ? '#fff' : 'var(--text)',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.12s, color 0.12s, background 0.12s',
-                }}
-                onMouseEnter={e => {
-                  if (active) return
-                  const b = e.currentTarget as HTMLButtonElement
-                  b.style.borderColor = 'var(--accent)'
-                  b.style.color = 'var(--accent)'
-                }}
-                onMouseLeave={e => {
-                  const b = e.currentTarget as HTMLButtonElement
-                  b.style.borderColor = 'var(--border)'
-                  b.style.color = 'var(--text)'
-                }}
-              >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                {active ? '✕' : '+'}
-                {s.label}
-              </button>
-              )}
-            )}
-          </div>
-        )}
 
       </div>
 
@@ -997,7 +810,9 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       >
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-mid)', paddingTop: 64, fontSize: 13 }}>
-            Ничего не найдено
+            {searchResultIds && searchActiveQuery
+              ? `Ничего не нашлось по «${searchActiveQuery}». Проверьте написание или артикул.`
+              : 'Ничего не найдено'}
           </div>
         ) : viewMode !== 'list' ? (
           (() => {

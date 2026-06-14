@@ -6,6 +6,7 @@ import { callGemini } from '@/lib/gemini'
 import { CLIENT_FAQ } from '@/lib/bot/site-faq'
 import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
 import { CATEGORY_TREE, groupIdForLeafSlug, groupIdForSubcat, type Leaf } from '@/lib/category-tree'
+import { formatSynonymsForPrompt } from '@/lib/search-synonyms'
 
 // Единая формулировка «как позвать менеджера» — правится здесь (Цвет). Используется в
 // готовых ответах и подставляется в промпты, чтобы везде звучало одинаково.
@@ -81,18 +82,10 @@ const NOT_FOUND_REPLY = `Не нашёл такого у нас в наличи�
 const CATEGORY_SUGGESTION = (label: string, url: string) =>
   `Точную позицию не нашёл, но вот наш раздел «${label}»: ${url}. Что-то конкретное подсказать?`
 
-// Словарь синонимов «как говорит клиент → как называется в каталоге». Правит Цвет.
-// Используется классификатором при извлечении keywords.
-const SEARCH_SYNONYMS = `оазис, пиафлор → губка флористическая
-самоклейка → плёнка
-скотч → лента клейкая
-целлофан → плёнка
-бант → лента
-земля → грунт
-горшочек, вазон → горшок
-отрава, химия от вредителей → защита растений
-упаковочная бумага, обёрточная → бумага
-коробочка → коробка`
+// Словарь синонимов «как говорит клиент → как называется в каталоге».
+// Единый источник на проект — src/lib/search-synonyms.ts (общий с серверным поиском
+// каталога /api/search). Правится там. Здесь — только рендер блока для промпта.
+const SEARCH_SYNONYMS = formatSynonymsForPrompt()
 
 /** История диалога в компактный текст для промпта (старые→новые). */
 function formatHistory(history: DialogMessage[]): string {
