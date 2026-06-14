@@ -31,6 +31,16 @@ ROBOTS.TXT OZ (https://www.ozexport.nl/robots.txt):
     погасит весь каталог). Деактивация — ТОЛЬКО когда XHR пришёл и в нём пусто.
   * Все записи строго WHERE source='oz_catalog' (uralsk_site/1С/waterdrinker не трогаем).
 
+ФАЗА НАПОЛНЕНИЯ (deactivate-toggle, 14.06.2026):
+  app_settings.oz_price_deactivate_enabled управляет тем, гасить ли карточки,
+  пустые на целевую дату. По умолчанию (ключ отсутствует / != 'true') деактивация
+  ВЫКЛЮЧЕНА: каталог собран как справочник (~5158 карточек), сток на ближайшую
+  дату ~20%, и слепая деактивация погасила бы ~80% витрины. Пока цены наполняются,
+  пустые карточки оставляем как есть (заглушку 999 не трогаем, is_active не трогаем).
+  Когда наполнение закончено и нужна честная деактивация распроданного — ставим
+  oz_price_deactivate_enabled='true'. Реальная цена -> hidden_for_demo=false
+  (карточка показывается на витрине; стаб 999 скрыт, см. /product/[id]).
+
 Запуск:
   python oz_price_refresh.py                 # полный прогон
   python oz_price_refresh.py --limit 30      # первые N товаров (ручной тест)
@@ -165,7 +175,8 @@ class Supa:
         rows = self._req(
             "GET",
             "/rest/v1/app_settings?select=key,value&key=in."
-            "(preorder_markup_percent,preorder_eur_kzt_rate,preorder_round_to,oz_target_departure_date)",
+            "(preorder_markup_percent,preorder_eur_kzt_rate,preorder_round_to,"
+            "oz_target_departure_date,oz_price_deactivate_enabled)",
         ) or []
         return {r["key"]: r["value"] for r in rows}
 
@@ -275,14 +286,19 @@ async def run(limit: int | None, dry_run: bool) -> int:
     markup = settings.get("preorder_markup_percent", "35")
     rate = settings.get("preorder_eur_kzt_rate", "525")
     round_to = settings.get("preorder_round_to", "1")
+    # Фаза наполнения: пустые на целевую дату карточки НЕ гасим, пока ключ != 'true'.
+    deactivate_enabled = settings.get("oz_price_deactivate_enabled") == "true"
     log.line(f"Настройки: наценка {markup}% | курс {rate} ₸/€ | округление {round_to}")
+    log.line("Деактивация пустых: " + (
+        "ВКЛ — пустые на дату гашу (is_active=false)" if deactivate_enabled
+        else "ВЫКЛ (фаза наполнения) — пустые на дату НЕ трогаю"))
 
     targets = supa.select_targets()
     if limit:
         targets = targets[:limit]
     log.line(f"Товаров к обработке: {len(targets)}" + (" [DRY-RUN]" if dry_run else ""))
 
-    stats = {"total": len(targets), "updated": 0, "deactivated": 0,
+    stats = {"total": len(targets), "updated": 0, "deactivated": 0, "empty_kept": 0,
              "no_xhr": 0, "errors": 0, "no_price": 0}
     consecutive_no_xhr = 0
     session_dead = False
@@ -356,10 +372,21 @@ async def run(limit: int | None, dry_run: bool) -> int:
                         "is_active": True,
                         "oz_stock_updated_at": now_iso(),
                     }
-                    if min_eur is not None:
+                    # реальные stock-line id (формат <digits>_<unit>) + MOQ в стеблях —
+                    # для будущего батч-availability (режим B) и лимитов предзаказа
+                    line_ids = [l["line_id"] for l in res["lines"] if l.get("line_id")]
+                    if line_ids:
+                        payload["oz_line_ids"] = line_ids
+                        payload["oz_line_ids_updated_at"] = now_iso()
+                    moqs = [(l.get("min_multiples") or 1) * (l.get("order_multiple_stems") or 1)
+                            for l in res["lines"]]
+                    if moqs:
+                        payload["oz_min_order_qty"] = min(moqs)
+                    if min_eur:  # >0: €0/None трактуем как «цены нет» — не перезаписываем ₸0
                         kzt = supa.calc_price_kzt(min_eur, markup, rate, round_to)
                         payload["oz_purchase_eur"] = min_eur
                         payload["price"] = kzt
+                        payload["hidden_for_demo"] = False  # реальная цена -> показываем (стаб 999 скрыт)
                     else:
                         stats["no_price"] += 1  # стебли есть, цены нет — цену не трогаем
                     if not dry_run:
@@ -368,8 +395,9 @@ async def run(limit: int | None, dry_run: bool) -> int:
                     log.line(f"[{i}/{len(targets)}] OK            {code} qty={stems}"
                              f" €{min_eur if min_eur is not None else '—'}"
                              f"{' ₸' + str(payload.get('price')) if 'price' in payload else ''}")
-                else:
-                    # XHR пришёл и в нём пусто — единственный легальный случай деактивации
+                elif deactivate_enabled:
+                    # XHR пришёл и в нём пусто + деактивация включена — единственный
+                    # легальный случай гашения карточки.
                     if not dry_run:
                         supa.update_product(code, {
                             "qty": 0, "is_active": False,
@@ -377,6 +405,11 @@ async def run(limit: int | None, dry_run: bool) -> int:
                         })
                     stats["deactivated"] += 1
                     log.line(f"[{i}/{len(targets)}] DEACTIVATED   {code} (XHR пуст)")
+                else:
+                    # фаза наполнения: пусто на целевую дату — НЕ гасим, заглушку
+                    # оставляем как есть (is_active/qty/price не трогаем).
+                    stats["empty_kept"] += 1
+                    log.line(f"[{i}/{len(targets)}] EMPTY_KEEP    {code} (пусто на дату — не гашу)")
 
             await asyncio.sleep(random.uniform(*PAUSE_RANGE_S))
 
@@ -385,8 +418,10 @@ async def run(limit: int | None, dry_run: bool) -> int:
     mins = (time.monotonic() - t0) / 60
     finished_at = datetime.now(ORAL_TZ)
     log.line(f"Финиш прогона: {finished_at.strftime('%d.%m %H:%M')} Oral ({mins:.1f} мин)")
+    deact_mode = "деактивировано" if deactivate_enabled else "пусто-сохранено"
+    deact_num = stats["deactivated"] if deactivate_enabled else stats["empty_kept"]
     summary = (f"OZ price refresh: всего {stats['total']} | обновлено {stats['updated']} | "
-               f"деактивировано {stats['deactivated']} | без XHR {stats['no_xhr']} | "
+               f"{deact_mode} {deact_num} | без XHR {stats['no_xhr']} | "
                f"ошибок {stats['errors']} | без цены {stats['no_price']} | "
                f"{started_at.strftime('%H:%M')}–{finished_at.strftime('%H:%M')} Oral, {mins:.1f} мин")
     if deadline_left:

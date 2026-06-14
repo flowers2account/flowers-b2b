@@ -150,6 +150,7 @@ export default function ProductPage() {
       .select('id, name, display_name, price, qty, image_url, pot_diameter, length_cm, colors, country_iso')
       .eq('subcategory', product.subcategory)
       .eq('is_active', true)
+      .eq('hidden_for_demo', false)  // не подмешивать скрытые (oz_catalog 999) в «Похожие»
       .neq('id', productId)
       .gt('qty', 0)
       .order('id')
@@ -192,6 +193,7 @@ export default function ProductPage() {
                pot_form, substrate, quality_grade, min_plants_per_pot, min_flowers_per_pot, variant`)
       .eq('id', productId)
       .eq('is_active', true)
+      .eq('hidden_for_demo', false)  // скрытые карточки (стабы oz_catalog 999, demo-hide) недоступны и по прямой ссылке
       .single()
       .then(({ data, error }: { data: any; error: any }) => {
         if (error || !data) { router.replace('/catalog'); return }
@@ -204,6 +206,7 @@ export default function ProductPage() {
             .select('id, name, display_name, price, qty, image_url, pot_diameter, length_cm, colors, country_iso')
             .eq('subcategory', data.subcategory)
             .eq('is_active', true)
+            .eq('hidden_for_demo', false)  // не подмешивать скрытые (oz_catalog 999) в «Похожие»
             .neq('id', productId)
             .gt('qty', 0)
             .range(0, REL_PAGE - 1)
