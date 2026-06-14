@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       const supabaseAdmin = createAdminClient()
       const { data: orderFull } = await supabaseAdmin
         .from('orders')
-        .select('total, guest_phone, guest_name, client:client_id(name, phone, company_name), order_items(qty, price, product:product_id(name, display_name))')
+        .select('total, guest_phone, guest_name, client:client_id(name, phone, company_name), order_items(qty, price, color, product:product_id(name, display_name))')
         .eq('id', payment.order_id)
         .single()
 
@@ -93,7 +93,8 @@ export async function POST(req: NextRequest) {
       const itemsList   = ((orderFull as any)?.order_items ?? [])
         .map((i: any) => {
           const n = i.product?.display_name ?? i.product?.name ?? 'Товар'
-          return `• ${n} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`
+          const c = i.color ? ` (${i.color})` : ''
+          return `• ${n}${c} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`
         }).join('\n')
 
       const tgText = [
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
         const { umnicoClient } = await import('@/lib/umnico/client')
         const { umnicoTemplates } = await import('@/lib/umnico/templates')
         const orderItems = ((orderFull as any).order_items ?? []).map((i: any) => ({
-          name: i.product?.display_name ?? i.product?.name ?? 'Товар',
+          name: (i.product?.display_name ?? i.product?.name ?? 'Товар') + (i.color ? ` (${i.color})` : ''),
           qty: i.qty, price: i.price,
         }))
         umnicoClient.checkContact(process.env.UMNICO_MANAGER_PHONE).then(has => {

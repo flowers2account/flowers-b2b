@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/cart-store'
 import { useFilters, type FilterCategory } from '@/lib/filter-store'
 import Link from 'next/link'
-import { COLORS } from '@/lib/colors'
+import { COLORS, getColorMode, colorLabel, colorSwatch, isAssorti } from '@/lib/colors'
 import { useIsMobile } from '@/lib/use-mobile'
 import { COUNTRY_LABELS } from '@/lib/countries'
 import { leafForSubcat, unitForProduct } from '@/lib/category-tree'
@@ -121,6 +121,7 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null) // выбор цвета (Вариант А)
   const [added, setAdded] = useState(false)
   const [tab, setTab] = useState<'description' | 'specs' | 'care'>('description')
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -178,6 +179,15 @@ export default function ProductPage() {
 
   const productId = Number(params.id)
 
+  // ── Выбор цвета (Вариант А: цвет — ярлык, не SKU) — переиспользуем colors.ts ──
+  const colorList = (product?.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
+  const colorMode = getColorMode(product?.colors)
+  const colorValue: string | null =
+    colorMode === 'assorti' ? 'ассорти'
+    : colorMode === 'select' ? (selectedSlug ? colorLabel(selectedSlug) : null)
+    : null
+  const colorRequired = colorMode === 'select' && !colorValue
+
   useEffect(() => {
     if (!productId) { router.replace('/catalog'); return }
     setRelated([]); relOffsetRef.current = 0; relLoadingRef.current = false; relHasMoreRef.current = true
@@ -199,6 +209,9 @@ export default function ProductPage() {
         if (error || !data) { router.replace('/catalog'); return }
         setProduct(data as ProductData)
         setQuantity(data.pack_size || 1)
+        // Один настоящий цвет — выбираем сразу; иначе сброс (новый товар по ссылке)
+        const cList = (data.colors ?? []).map((c: string) => c?.trim()).filter(Boolean) as string[]
+        setSelectedSlug(getColorMode(data.colors) === 'select' && cList.length === 1 ? cList[0] : null)
         setLoading(false)
         if (data.subcategory) {
           supabase
@@ -222,13 +235,14 @@ export default function ProductPage() {
 
   function handleAddToCart() {
     if (!product) return
+    if (colorRequired) return // в режиме select цвет обязателен
     const nm = product.display_name || product.name
-    const existing = items.find(i => i.id === product.id)
+    const existing = items.find(i => i.id === product.id && (i.color ?? null) === colorValue)
     if (existing) {
-      update(product.id, Math.min(existing.qty + quantity, product.qty))
+      update(product.id, Math.min(existing.qty + quantity, product.qty), colorValue)
     } else {
-      add({ id: product.id, name: nm, price: product.price, available: product.qty, category: product.category, image_url: product.image_url })
-      update(product.id, quantity)
+      add({ id: product.id, name: nm, price: product.price, available: product.qty, category: product.category, image_url: product.image_url, color: colorValue })
+      update(product.id, quantity, colorValue)
     }
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
@@ -271,7 +285,7 @@ export default function ProductPage() {
     router.push('/catalog')
   }
 
-  const cartQty = items.find(i => i.id === productId)?.qty ?? 0
+  const cartQty = items.find(i => i.id === productId && (i.color ?? null) === colorValue)?.qty ?? 0
   const cartTotal = total()
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
 
@@ -461,7 +475,8 @@ export default function ProductPage() {
 
             {/* tags row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-              {colorDefs.map(col => (
+              {/* в режиме select цвета показывает пикер ниже, тут не дублируем */}
+              {colorMode !== 'select' && colorDefs.map(col => (
                 <span key={col.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: C.bgSoft, color: C.ink2, border: `1px solid ${C.borderSoft}` }}>
                   <span style={{ width: 11, height: 11, borderRadius: '50%', background: ('gradient' in col ? col.gradient : col.bg) as string, flexShrink: 0 }} />
                   {col.label}
@@ -502,6 +517,43 @@ export default function ProductPage() {
                 В наличии: {product.qty} {unit}{product.pack_size > 1 ? ` · ~${packCount} упак.` : ''}
               </div>
 
+              {/* выбор цвета (Вариант А) — бейдж «Ассорти» / чипсы */}
+              {colorMode === 'assorti' && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 16, padding: '7px 12px', borderRadius: 8, background: C.bgSoft, border: `1px solid ${C.borderSoft}` }}>
+                  <span style={{ width: 18, height: 18, borderRadius: '50%', border: '1px solid rgba(0,0,0,0.12)', background: colorSwatch('ассорти') }} />
+                  <span style={{ fontSize: 13, color: C.ink2 }}>Ассорти (как привезут)</span>
+                </div>
+              )}
+              {colorMode === 'select' && (
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.ink3, marginBottom: 8 }}>
+                    Цвет{colorRequired && <span style={{ color: '#B43838' }}> — выберите</span>}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {colorList.map(slug => {
+                      const active = selectedSlug === slug
+                      return (
+                        <button
+                          key={slug}
+                          onClick={() => setSelectedSlug(active && colorList.length > 1 ? null : slug)}
+                          title={colorLabel(slug)}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 7,
+                            padding: '6px 13px 6px 7px', cursor: 'pointer',
+                            border: active ? `1.5px solid ${C.accent}` : `1px solid ${C.border}`,
+                            borderRadius: 999, background: active ? C.accentLight : C.bgCard,
+                            fontFamily: 'inherit', fontSize: 13, fontWeight: active ? 600 : 500, color: C.ink,
+                          }}
+                        >
+                          <span style={{ width: 18, height: 18, borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)', background: colorSwatch(slug) }} />
+                          {isAssorti(slug) ? 'Ассорти' : colorLabel(slug)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* stepper + cart */}
               <div style={{ marginTop: 18 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -526,13 +578,13 @@ export default function ProductPage() {
                       В корзину → {(cartQty * product.price).toLocaleString('ru-RU')} ₸
                     </button>
                   ) : (
-                    <button onClick={handleAddToCart} disabled={product.qty === 0}
-                      style={{ flex: 1, height: 56, background: product.qty === 0 ? '#e8e8e8' : `linear-gradient(180deg,${C.accent},${C.accentDeep})`, color: product.qty === 0 ? '#aaa' : '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, letterSpacing: '-0.005em', cursor: product.qty === 0 ? 'default' : 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: product.qty > 0 ? '0 4px 12px rgba(139,58,90,0.25),inset 0 1px 0 rgba(255,255,255,0.15)' : 'none', transition: 'opacity 0.15s' }}
-                      onMouseEnter={e => product.qty > 0 && ((e.currentTarget as HTMLButtonElement).style.opacity = '0.88')}
+                    <button onClick={handleAddToCart} disabled={product.qty === 0 || colorRequired}
+                      style={{ flex: 1, height: 56, background: (product.qty === 0 || colorRequired) ? '#e8e8e8' : `linear-gradient(180deg,${C.accent},${C.accentDeep})`, color: (product.qty === 0 || colorRequired) ? '#aaa' : '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, letterSpacing: '-0.005em', cursor: (product.qty === 0 || colorRequired) ? 'default' : 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: (product.qty > 0 && !colorRequired) ? '0 4px 12px rgba(139,58,90,0.25),inset 0 1px 0 rgba(255,255,255,0.15)' : 'none', transition: 'opacity 0.15s' }}
+                      onMouseEnter={e => (product.qty > 0 && !colorRequired) && ((e.currentTarget as HTMLButtonElement).style.opacity = '0.88')}
                       onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                      {product.qty === 0 ? 'Нет в наличии' : added ? '✓ Добавлено' : `В корзину — ${(quantity * product.price).toLocaleString('ru-RU')} ₸`}
+                      {product.qty === 0 ? 'Нет в наличии' : colorRequired ? 'Выберите цвет' : added ? '✓ Добавлено' : `В корзину — ${(quantity * product.price).toLocaleString('ru-RU')} ₸`}
                     </button>
                   )}
                 </div>

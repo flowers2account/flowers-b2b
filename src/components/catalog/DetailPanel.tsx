@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useProductsStore } from '@/lib/products-store'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
-import { COLORS } from '@/lib/colors'
+import { COLORS, getColorMode, colorLabel, colorSwatch, isAssorti } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct } from '@/lib/category-tree'
 
@@ -183,16 +183,32 @@ function StateEmpty() {
 // ── State B: product detail ──────────────────────────────────────────────────
 
 function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoToCart: () => void; onClose: () => void }) {
-  const { items, add, update, setColored, total } = useCart()
+  const { items, add, update, total } = useCart()
   const { isAuthed } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [lbOpen, setLbOpen] = useState(false)
 
+  // ── Выбор цвета (Вариант А: цвет — ярлык, не SKU) ──────────────────────────
+  const colorList = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
+  const colorMode = getColorMode(product.colors)
+  // Один настоящий цвет — выбираем сразу (избавляет от лишнего клика на срезке).
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(
+    colorMode === 'select' && colorList.length === 1 ? colorList[0] : null
+  )
+  // Снимок цвета, который уедет в позицию корзины и в заказ:
+  //   none → null, assorti → "ассорти", select → подпись выбранного цвета.
+  const colorValue: string | null =
+    colorMode === 'assorti' ? 'ассорти'
+    : colorMode === 'select' ? (selectedSlug ? colorLabel(selectedSlug) : null)
+    : null
+  // В режиме select цвет обязателен — пока не выбран, в корзину нельзя.
+  const colorRequired = colorMode === 'select' && !colorValue
+
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
   const packSize = product.pack_size || 5
-  const cartItem = items.find(i => i.id === product.id)
+  const cartItem = items.find(i => i.id === product.id && (i.color ?? null) === colorValue)
   const qty = cartItem?.qty ?? 0
   const inCart = qty > 0
   const cartTotal = qty * price
@@ -224,27 +240,16 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         ? [{ type: 'length', val: product.length_cm ? `${product.length_cm}см` : product.length_str! }]
         : [])
 
-  const colorKeys = product.colors?.length ? product.colors : product.color ? [product.color] : []
-  const colorDefs = colorKeys.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
-  // Ассорти по цветам — только аксессуары с ≥2 цветами: у каждого цвета свой степпер,
-  // в корзину едет разбивка (комментарий), сумма ≤ остаток.
-  const isAssort = product.category === 'accessories' && colorKeys.length >= 2
-  const pick = cartItem?.colorQtys ?? {}
-  const pickSum = Object.values(pick).reduce((s, n) => s + n, 0)
-  const setColorQty = (slug: string, n: number) => {
-    if (!isAuthed) { setShowAuth(true); return }
-    const others = Object.entries(pick).filter(([k]) => k !== slug).reduce((s, [, v]) => s + v, 0)
-    const capped = Math.max(0, Math.min(n, available - others))
-    setColored(
-      {
-        id: product.id,
-        name: displayName + (product.length_str ? ' ' + product.length_str : ''),
-        price, available, category: product.category, image_url: product.image_url,
-        unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
-      },
-      { ...pick, [slug]: capped },
-    )
-  }
+  // Свотчи в инфо-строке «Цвет» — только для режимов none/assorti (в select их заменяют чипсы).
+  const colorDefs = colorList.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
+  // Payload позиции корзины с текущим выбранным цветом.
+  const cartPayload = () => ({
+    id: product.id,
+    name: displayName + (product.length_str ? ' ' + product.length_str : ''),
+    price, available, category: product.category, image_url: product.image_url,
+    unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
+    color: colorValue,
+  })
   const availColor = available > 30 ? '#388E3C' : available >= 10 ? '#F9A825' : '#E53935'
   const floralRole = product.floral_role ? FLORAL_ROLE_MAP[product.floral_role] : null
 
@@ -255,34 +260,26 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
   function handleDec() {
     if (!isAuthed) { setShowAuth(true); return }
-    update(product.id, Math.max(0, qty - packSize))
+    update(product.id, Math.max(0, qty - packSize), colorValue)
   }
 
   function handleInc() {
     if (!isAuthed) { setShowAuth(true); return }
+    if (colorRequired) return
     if (qty === 0) {
-      add({
-        id: product.id,
-        name: displayName + (product.length_str ? ' ' + product.length_str : ''),
-        price, available, category: product.category, image_url: product.image_url,
-        unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
-      })
-      update(product.id, packSize)
+      add(cartPayload())
+      update(product.id, packSize, colorValue)
     } else {
-      update(product.id, Math.min(qty + packSize, available))
+      update(product.id, Math.min(qty + packSize, available), colorValue)
     }
   }
 
   function handleAddToCart() {
     if (!isAuthed) { setShowAuth(true); return }
+    if (colorRequired) return
     if (qty === 0) {
-      add({
-        id: product.id,
-        name: displayName + (product.length_str ? ' ' + product.length_str : ''),
-        price, available, category: product.category, image_url: product.image_url,
-        unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
-      })
-      update(product.id, packSize)
+      add(cartPayload())
+      update(product.id, packSize, colorValue)
     }
   }
 
@@ -394,7 +391,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         {/* Characteristics */}
         <div style={{ marginBottom: 12 }}>
 
-          {colorDefs.length > 0 && (
+          {colorMode !== 'select' && colorDefs.length > 0 && (
             <Row label="Цвет">
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                 {colorDefs.map(col => (
@@ -476,43 +473,56 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
         </div>
 
-        {/* Stepper + Cart — одна строка, над описанием */}
-        <div style={{ marginBottom: 10 }}>
-          {isAssort && (
-            <div style={{ marginBottom: 10 }}>
-              {colorKeys.map(slug => {
-                const col = COLORS.find(c => c.key === slug)
-                const n = pick[slug] ?? 0
+        {/* Выбор цвета (Вариант А) — чипсы / бейдж «Ассорти» */}
+        {colorMode === 'assorti' && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7, marginBottom: 10,
+            padding: '5px 10px', borderRadius: 'var(--radius-btn)',
+            background: 'var(--bg2)', border: '1px solid var(--border)',
+          }}>
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+              border: '1px solid rgba(0,0,0,0.12)', background: colorSwatch('ассорти'),
+            }} />
+            <span style={{ fontSize: 12, color: 'var(--text)' }}>Ассорти (как привезут)</span>
+          </div>
+        )}
+        {colorMode === 'select' && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--text-mid)', marginBottom: 6 }}>
+              Цвет{colorRequired && <span style={{ color: '#E53935' }}> — выберите</span>}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {colorList.map(slug => {
+                const active = selectedSlug === slug
                 return (
-                  <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                  <button
+                    key={slug}
+                    onClick={() => setSelectedSlug(active && colorList.length > 1 ? null : slug)}
+                    title={colorLabel(slug)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '4px 9px 4px 5px', cursor: 'pointer',
+                      border: active ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: 999, background: active ? 'var(--accent-light, #F7EEF2)' : '#fff',
+                      fontFamily: 'inherit', fontSize: 12, fontWeight: active ? 600 : 500,
+                      color: 'var(--text)',
+                    }}
+                  >
                     <span style={{
-                      width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                      border: '1px solid rgba(0,0,0,0.12)',
-                      background: col ? (('gradient' in col ? col.gradient : col.bg) as string) : '#ccc',
+                      width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                      border: '1px solid rgba(0,0,0,0.15)', background: colorSwatch(slug),
                     }} />
-                    <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{col?.label ?? slug}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden' }}>
-                      <button onClick={() => setColorQty(slug, n - packSize)} disabled={n <= 0}
-                        style={{ width: 28, height: 28, border: 'none', background: '#fff', cursor: n <= 0 ? 'default' : 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--accent)', opacity: n <= 0 ? 0.4 : 1 }}>−</button>
-                      <span style={{ width: 34, textAlign: 'center', fontSize: 13, fontWeight: 600 }}>{n}</span>
-                      <button onClick={() => setColorQty(slug, n + packSize)} disabled={pickSum >= available}
-                        style={{ width: 28, height: 28, border: 'none', background: '#fff', cursor: pickSum >= available ? 'default' : 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--accent)', opacity: pickSum >= available ? 0.4 : 1 }}>+</button>
-                    </div>
-                  </div>
+                    {isAssorti(slug) ? 'Ассорти' : colorLabel(slug)}
+                  </button>
                 )
               })}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-mid)' }}>Итого: <b style={{ color: 'var(--text)' }}>{pickSum} {unitForProduct(product as any)}</b></span>
-                {pickSum > 0 && (
-                  <button onClick={onGoToCart}
-                    style={{ height: 34, padding: '0 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-btn)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    В корзину → {(pickSum * price).toLocaleString('ru-RU')} ₸
-                  </button>
-                )}
-              </div>
             </div>
-          )}
-          {!isAssort && (
+          </div>
+        )}
+
+        {/* Stepper + Cart — одна строка, над описанием */}
+        <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Stepper qty={qty} available={available} packSize={packSize} onDec={handleDec} onInc={handleInc} />
             {inCart && isAuthed ? (
@@ -530,23 +540,22 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             ) : (
               <button
                 onClick={handleAddToCart}
-                disabled={available === 0}
+                disabled={available === 0 || colorRequired}
                 style={{
                   flex: 1, height: 36,
-                  background: available === 0 ? 'var(--bg2)' : 'var(--accent)',
-                  color: available === 0 ? 'var(--text-mid)' : '#fff',
+                  background: (available === 0 || colorRequired) ? 'var(--bg2)' : 'var(--accent)',
+                  color: (available === 0 || colorRequired) ? 'var(--text-mid)' : '#fff',
                   border: 'none', borderRadius: 'var(--radius-btn)',
                   fontSize: 12, fontWeight: 600,
-                  cursor: available === 0 ? 'default' : 'pointer',
+                  cursor: (available === 0 || colorRequired) ? 'default' : 'pointer',
                   fontFamily: 'inherit',
                 }}
               >
-                {available === 0 ? 'Нет в наличии' : '+ В корзину'}
+                {available === 0 ? 'Нет в наличии' : colorRequired ? 'Выберите цвет' : '+ В корзину'}
               </button>
             )}
           </div>
-          )}
-          {!isAssort && !inCart && cartCount > 0 && isAuthed && (
+          {!inCart && cartCount > 0 && isAuthed && (
             <button
               onClick={onGoToCart}
               style={{
@@ -680,7 +689,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {items.map(item => (
-              <SwipeToDelete key={item.id} onDelete={() => remove(item.id)}>
+              <SwipeToDelete key={`${item.id}__${item.color ?? ''}`} onDelete={() => remove(item.id, item.color)}>
               <div style={{
                 background: 'var(--bg2)', borderRadius: 'var(--radius-card)', padding: '8px 10px',
               }}>
@@ -710,22 +719,23 @@ function StateCart({ onBack }: { onBack: () => void }) {
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-mid)' }}>
                       {item.price.toLocaleString('ru-RU')} ₸/{unitForProduct(item)}
+                      {item.color && <> · <span style={{ color: 'var(--text)' }}>{item.color}</span></>}
                     </div>
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 500, flexShrink: 0 }}>
                     {(item.price * item.qty).toLocaleString('ru-RU')} ₸
                   </div>
                   <button
-                    onClick={() => remove(item.id)}
+                    onClick={() => remove(item.id, item.color)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E53935', fontSize: 16, lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
                   >×</button>
                 </div>
                 {/* Stepper */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                   <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden' }}>
-                    <button onClick={() => update(item.id, item.qty - 1)} style={{ width: 24, height: 24, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>−</button>
+                    <button onClick={() => update(item.id, item.qty - 1, item.color)} style={{ width: 24, height: 24, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>−</button>
                     <span style={{ padding: '0 8px', fontSize: 11, fontWeight: 700, borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>{item.qty}</span>
-                    <button onClick={() => update(item.id, Math.min(item.qty + 1, item.available))} style={{ width: 24, height: 24, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>+</button>
+                    <button onClick={() => update(item.id, Math.min(item.qty + 1, item.available), item.color)} style={{ width: 24, height: 24, border: 'none', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>+</button>
                   </div>
                 </div>
               </div>
@@ -780,6 +790,6 @@ export default function DetailPanel() {
   const { panel, product, setPanel } = useDetailStore()
 
   if (panel === 'cart') return <StateCart onBack={() => setPanel('detail')} />
-  if (panel === 'detail' && product) return <StateDetail product={product} onGoToCart={() => setPanel('cart')} onClose={() => setPanel('empty')} />
+  if (panel === 'detail' && product) return <StateDetail key={product.id} product={product} onGoToCart={() => setPanel('cart')} onClose={() => setPanel('empty')} />
   return <StateEmpty />
 }

@@ -47,21 +47,24 @@ export default function CartSidebar() {
             <>
               <div className="space-y-3">
                 {items.map(item => (
-                  <SwipeToDelete key={item.id} onDelete={() => remove(item.id)}>
+                  <SwipeToDelete key={`${item.id}__${item.color ?? ''}`} onDelete={() => remove(item.id, item.color)}>
                   <div>
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{item.name}</p>
-                        <p className="text-muted-foreground text-xs">{formatPrice(item.price)} × {unitForProduct(item)}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {formatPrice(item.price)} × {unitForProduct(item)}
+                          {item.color && <> · {item.color}</>}
+                        </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <Button variant="outline" size="sm" className="h-6 w-6 p-0 text-xs"
-                          onClick={() => update(item.id, item.qty - 1)}>−</Button>
+                          onClick={() => update(item.id, item.qty - 1, item.color)}>−</Button>
                         <span className="w-6 text-center text-sm font-medium">{item.qty}</span>
                         <Button variant="outline" size="sm" className="h-6 w-6 p-0 text-xs"
-                          onClick={() => update(item.id, Math.min(item.qty + 1, item.available))}>+</Button>
+                          onClick={() => update(item.id, Math.min(item.qty + 1, item.available), item.color)}>+</Button>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-400"
-                          onClick={() => remove(item.id)}>×</Button>
+                          onClick={() => remove(item.id, item.color)}>×</Button>
                       </div>
                     </div>
                     <p className="text-right text-sm font-bold text-green-800 mt-1">

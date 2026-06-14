@@ -279,12 +279,12 @@ export default function CheckoutPage() {
             <h2>Ваш заказ</h2>
             <div className={s.mini}>
               {items.map(it => (
-                <div key={it.id} className={s.miniRow}>
+                <div key={`${it.id}__${it.color ?? ''}`} className={s.miniRow}>
                   <span className={s.miniTh}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {it.image_url ? <img src={it.image_url} alt="" /> : PH_ICON}
                   </span>
-                  <span className={s.miniNm}>{it.name}</span>
+                  <span className={s.miniNm}>{it.name}{it.color ? ` (${it.color})` : ''}</span>
                   <span className={s.miniQ}>{it.qty}×{fmt(it.price)}</span>
                 </div>
               ))}

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, status, created_at, total,
       client:client_id(name, phone),
-      order_items(qty, price, product:product_id(name))
+      order_items(qty, price, color, product:product_id(name))
     `)
     .gte('created_at', new Date(from).toISOString())
     .lte('created_at', new Date(to + 'T23:59:59').toISOString())
@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
         'Клиент':   clientName,
         'Телефон':  clientPhone,
         'Товар':    item.product?.name ?? '—',
+        'Цвет':     item.color ?? '',
         'Кол-во':   item.qty,
         'Цена':     item.price,
         'Сумма':    item.qty * item.price,

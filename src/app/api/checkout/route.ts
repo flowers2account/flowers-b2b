@@ -7,6 +7,13 @@ import { umnicoTemplates } from '@/lib/umnico/templates'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
+  // Без service-role ключа admin-клиент деградирует до anon и RLS молча режет вставку
+  // позиций → заказ-сирота без order_items. Явный отказ лучше тихого пустого заказа
+  // (именно это валило оформление на preview, где ключа нет).
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[checkout] SUPABASE_SERVICE_ROLE_KEY отсутствует — оформление отклонено, заказ НЕ создаётся')
+    return NextResponse.json({ error: 'Оформление временно недоступно (конфигурация сервера)' }, { status: 503 })
+  }
   const supabase = createAdminClient()
 
   const { items, phone, name, delivery, recipient, payment_method } = await req.json()
@@ -47,31 +54,40 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
 
+  // Цвет — ярлык, не SKU: остаток/резерв считаем суммарно по product_id.
+  // Несколько цветных строк одного товара = одна бронь на товар (цвет в резерв не идёт).
+  const qtyByProduct = new Map<number, number>()
+  const nameById = new Map<number, string>()
+  for (const it of items as any[]) {
+    qtyByProduct.set(it.id, (qtyByProduct.get(it.id) ?? 0) + it.qty)
+    if (!nameById.has(it.id)) nameById.set(it.id, it.name)
+  }
+
   // Check availability: products.qty minus other clients' reservations
   const reserveErrors: string[] = []
-  for (const item of items) {
+  for (const [productId, wantQty] of qtyByProduct) {
     const { data: product } = await supabase
       .from('products')
       .select('qty')
-      .eq('id', item.id)
+      .eq('id', productId)
       .single()
 
     if (!product) {
-      reserveErrors.push(`${item.name}: товар не найден`)
+      reserveErrors.push(`${nameById.get(productId) ?? productId}: товар не найден`)
       continue
     }
 
     const { data: otherRes } = await supabase
       .from('reservations')
       .select('qty')
-      .eq('product_id', item.id)
+      .eq('product_id', productId)
       .gt('expires_at', now)
       .neq('client_id', clientId)
 
     const othersReserved = (otherRes ?? []).reduce((s: number, r: any) => s + r.qty, 0)
     const available = product.qty - othersReserved
-    if (item.qty > available) {
-      reserveErrors.push(`${item.name}: доступно только ${available} шт`)
+    if (wantQty > available) {
+      reserveErrors.push(`${nameById.get(productId) ?? productId}: доступно только ${available} шт`)
     }
   }
   if (reserveErrors.length > 0) {
@@ -100,11 +116,6 @@ export async function POST(req: NextRequest) {
     const r = [recipient.name, recipient.phone, recipient.email].filter(Boolean).join(', ')
     if (r) noteLines.push(`Получатель: ${r}`)
   }
-  // Разбивка по цветам (ассорти-аксессуары) — комментарий для склада/сборки
-  const colorLines = items
-    .filter((i: any) => i.color)
-    .map((i: any) => `Цвета — ${i.name}: ${i.color}`)
-  if (colorLines.length) noteLines.push(...colorLines)
   if (discountPct > 0) {
     noteLines.push(`Скидка ${discountPct}% (Уральск): −${(rawTotal - total).toLocaleString('ru-RU')} ₸`)
   }
@@ -125,9 +136,20 @@ export async function POST(req: NextRequest) {
   if (!order) return NextResponse.json({ error: 'Failed to create order', detail: orderError?.message }, { status: 500 })
   const orderId = (order as any).id
 
-  await supabase.from('order_items').insert(
-    items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
+  // Атомарность: позиции обязательны. Если вставка упала (RLS/нет ключа/битая строка) —
+  // не глотаем молча, а откатываем заказ и возвращаем реальную ошибку, чтобы сбой был
+  // громким (заказ не создаётся), а не оставлял пустой заказ-сироту.
+  const { error: itemsError } = await supabase.from('order_items').insert(
+    items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price, color: i.color ?? null }))
   )
+  if (itemsError) {
+    console.error(`[checkout] order_items insert FAILED for order ${orderId} — откатываю заказ:`, itemsError.message)
+    await supabase.from('orders').delete().eq('id', orderId)
+    return NextResponse.json(
+      { error: 'Не удалось сохранить позиции заказа', detail: itemsError.message },
+      { status: 500 },
+    )
+  }
 
   // amoCRM sync (non-fatal — ошибка не роняет заказ)
   try {
@@ -137,15 +159,16 @@ export async function POST(req: NextRequest) {
     console.error('[checkout] amoCRM sync failed:', err instanceof Error ? err.message : err)
   }
 
-  // Create reservations (replace any existing client reservations for these products)
-  for (const item of items) {
+  // Create reservations (replace any existing client reservations for these products).
+  // По product_id с суммарным qty — цвет в резерв не входит.
+  for (const [productId, totalQty] of qtyByProduct) {
     await supabase.from('reservations').delete()
-      .eq('product_id', item.id)
+      .eq('product_id', productId)
       .eq('client_id', clientId)
 
     await supabase.from('reservations').insert({
-      product_id: item.id,
-      qty: item.qty,
+      product_id: productId,
+      qty: totalQty,
       client_id: clientId,
       expires_at,
       order_id: orderId,

@@ -2,6 +2,36 @@
 
 ## Что сделано
 
+### Сессия 14 июня 2026 — выбор цвета (Вариант «А»)
+- ✅ **Цвет как ярлык, не SKU** — выбор цвета у товаров с заполненным `products.colors`,
+  снимок в новый столбец `order_items.color` (text, nullable). Остатки/резервы/1С/`pack_size`
+  не затронуты. **Заменил прежнюю модель «Б»** (`colorQtys` → `orders.notes`) — удалена.
+- ✅ `src/lib/colors.ts` — хелперы `getColorMode()` (`none`/`assorti`/`select`),
+  `colorLabel()`, `colorSwatch()` (матч по слагу и по подписи)
+- ✅ `cart-store.ts` — `CartItem.color`, **составной ключ** `${id}__${color}`;
+  `add`/`update`/`remove` с опциональным `color` (по умолчанию `null` — быстрое добавление
+  не меняется); `migrate` (persist v1) приводит старые корзины к `color=null`
+- ✅ `DetailPanel.tsx` — бейдж «Ассорти» / чипсы выбора; кнопка «В корзину» заблокирована до
+  выбора в режиме `select`; один цвет авто-выбирается; корзина-сабвью показывает цвет
+- ✅ `useOrderCheckout.ts` шлёт `color` по строке; `/api/checkout` пишет в `order_items.color`
+  (остался `createAdminClient()`), резерв агрегируется суммарно по `product_id`
+- ✅ Цвет в уведомлении (Telegram+WhatsApp, `/api/payments/postlink`), Excel-выгрузке
+  (`/api/export-orders`, столбец «Цвет») и листе сборки (`/print/order/[id]`)
+- ✅ Затронуты также `cart/page.tsx`, `CartSidebar.tsx`, `checkout/page.tsx` (составной ключ + показ цвета)
+- ⚠️ Предусловие (применяет владелец): `ALTER TABLE order_items ADD COLUMN color text;`
+
+### Сессия 14 июня 2026 (продолжение) — атомарность чекаута + цвет на /product/[id]
+- ✅ **A2 — атомарное создание заказа**: вставка `order_items` в `/api/checkout` теперь
+  проверяется; при сбое заказ откатывается (`DELETE orders`) + возвращается реальная ошибка
+  (`detail`) вместо тихого пустого заказа. Гард на отсутствие `SUPABASE_SERVICE_ROLE_KEY` →
+  503 до создания заказа. Чинит «заказы-сироты» (диагностированы на preview: №73 пустой)
+- ✅ **B — выбор цвета на `/product/[id]`**: переиспользует `getColorMode()`/`colorLabel()`/
+  `colorSwatch()` и UI из DetailPanel (бейдж «Ассорти» / чипсы + блок кнопки до выбора,
+  авто-выбор единственного цвета); `handleAddToCart` прокидывает цвет, корзина — по
+  составному ключу
+- ℹ️ Диагностика: 500 на `/api/payments/init` (preview) = `TypeError: fetch failed` на
+  OAuth-вызове к Halyk — окружение preview (банк недоступен), не регрессия. Кодом не чиним.
+
 ### Сессия 23–24 мая 2026
 - ✅ **Очистка дублей партий** — найдено 52 группы дублей (104 партии → 52): суммированы остатки в первую партию, дубли деактивированы (`is_active = false`), записано в `inventory_ledger`
 - ✅ **Исправлен `sync_stock_from_1c`** — новая логика без дублей:
