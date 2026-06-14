@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { callGemini } from '@/lib/gemini'
 import { CLIENT_FAQ } from '@/lib/bot/site-faq'
 import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
-import { CATEGORY_TREE, leafForSubcat, type Leaf } from '@/lib/category-tree'
+import { CATEGORY_TREE, groupIdForLeafSlug, groupIdForSubcat, type Leaf } from '@/lib/category-tree'
 
 // Единая формулировка «как позвать менеджера» — правится здесь (Цвет). Используется в
 // готовых ответах и подставляется в промпты, чтобы везде звучало одинаково.
@@ -38,6 +38,9 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
 4) Называя конкретный товар — добавь ссылку на карточку (поле url из списка), ссылки не
    выдумывай. Для нескольких товаров — 2–3 самых подходящих. Для запроса по категории
    целиком — ОДНУ ссылку-подборку (catalog_url из списка), параметры не конструируй сам.
+   ССЫЛКИ ДАВАЙ ТОЛЬКО ГОЛЫМ URL (https://…) отдельной строкой. БЕЗ markdown: никаких
+   [текст](url), без круглых/квадратных/угловых скобок вокруг адреса. Чат не рендерит
+   markdown — лишние символы попадают в ссылку и ломают её.
 
 FAQ (работа сайта):
 5) По регистрации, PIN, заказу, доставке, оплате, графику, контактам отвечай ТОЛЬКО
@@ -266,9 +269,10 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
 
 const SITE_URL = 'https://uralskflowers.kz'
 
-/** Ссылка-подборка раздела каталога по slug листа таксономии. */
-function catalogUrlForLeafSlug(slug: string): string {
-  return `${SITE_URL}/catalog?category=accessories&leaves=${slug}`
+/** Ссылка на раздел каталога accessories по id группы (раздела) таксономии.
+ * Формат раздела — group (НЕ leaves): CatalogLayout читает ?group=<id>. */
+function catalogUrlForGroup(groupId: string): string {
+  return `${SITE_URL}/catalog?category=accessories&group=${groupId}`
 }
 
 /**
@@ -276,14 +280,14 @@ function catalogUrlForLeafSlug(slug: string): string {
  * rows может быть пустым (вопрос только про сайт). Возвращает текст или null (NO_ANSWER).
  */
 async function composeAnswer(message: string, rows: AccessoryRow[], history: DialogMessage[] = []): Promise<string | null> {
-  // Ссылки: карточка товара и подборка раздела. leaves — это slug ЛИСТА таксономии
-  // (не сырой subcategory), иначе фильтр каталога не сматчит (bags→film_bags и т.п.).
+  // Ссылки: карточка товара (/product/{id}) и раздел каталога. Раздел — это group
+  // (НЕ leaves и НЕ сырой subcategory): CatalogLayout открывает ?group=<id>.
   const context = rows.map((r) => {
-    const leaf = leafForSubcat(r.subcategory)
+    const groupId = groupIdForSubcat(r.subcategory)
     return {
       ...r,
       url: `${SITE_URL}/product/${r.id}`,
-      catalog_url: leaf ? catalogUrlForLeafSlug(leaf.slug) : undefined,
+      catalog_url: groupId ? catalogUrlForGroup(groupId) : undefined,
     }
   })
 
@@ -394,8 +398,9 @@ export async function getAccessoriesReply(
       // Товаров нет — пробуем угадать раздел и предложить подборку.
       const leaf = matchLeafByKeywords(cls.keywords)
       if (leaf) {
-        console.log('[accessories-bot] fallback category:', leaf.slug)
-        return CATEGORY_SUGGESTION(leaf.label, catalogUrlForLeafSlug(leaf.slug))
+        const groupId = groupIdForLeafSlug(leaf.slug)
+        console.log('[accessories-bot] fallback category:', leaf.slug, '→ group', groupId)
+        if (groupId) return CATEGORY_SUGGESTION(leaf.label, catalogUrlForGroup(groupId))
       }
       // И раздел не угадался — честно к менеджеру.
       console.log('[accessories-bot] not found → контакт менеджера')

@@ -80,6 +80,12 @@ export function groupIdForLeafSlug(slug: string): string | undefined {
   return undefined
 }
 
+/** id группы (раздела) по сырому products.subcategory (или undefined). */
+export function groupIdForSubcat(rawSubcat: string | null | undefined): string | undefined {
+  const leaf = leafForSubcat(rawSubcat)
+  return leaf ? groupIdForLeafSlug(leaf.slug) : undefined
+}
+
 /** Лист дерева, к которому принадлежит сырой products.subcategory (или undefined). */
 export function leafForSubcat(rawSubcat: string | null | undefined): Leaf | undefined {
   if (!rawSubcat) return undefined
