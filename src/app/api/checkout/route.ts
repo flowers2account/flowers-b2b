@@ -7,6 +7,13 @@ import { umnicoTemplates } from '@/lib/umnico/templates'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
+  // Без service-role ключа admin-клиент деградирует до anon и RLS молча режет вставку
+  // позиций → заказ-сирота без order_items. Явный отказ лучше тихого пустого заказа
+  // (именно это валило оформление на preview, где ключа нет).
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[checkout] SUPABASE_SERVICE_ROLE_KEY отсутствует — оформление отклонено, заказ НЕ создаётся')
+    return NextResponse.json({ error: 'Оформление временно недоступно (конфигурация сервера)' }, { status: 503 })
+  }
   const supabase = createAdminClient()
 
   const { items, phone, name, delivery, recipient, payment_method } = await req.json()
@@ -129,9 +136,20 @@ export async function POST(req: NextRequest) {
   if (!order) return NextResponse.json({ error: 'Failed to create order', detail: orderError?.message }, { status: 500 })
   const orderId = (order as any).id
 
-  await supabase.from('order_items').insert(
+  // Атомарность: позиции обязательны. Если вставка упала (RLS/нет ключа/битая строка) —
+  // не глотаем молча, а откатываем заказ и возвращаем реальную ошибку, чтобы сбой был
+  // громким (заказ не создаётся), а не оставлял пустой заказ-сироту.
+  const { error: itemsError } = await supabase.from('order_items').insert(
     items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price, color: i.color ?? null }))
   )
+  if (itemsError) {
+    console.error(`[checkout] order_items insert FAILED for order ${orderId} — откатываю заказ:`, itemsError.message)
+    await supabase.from('orders').delete().eq('id', orderId)
+    return NextResponse.json(
+      { error: 'Не удалось сохранить позиции заказа', detail: itemsError.message },
+      { status: 500 },
+    )
+  }
 
   // amoCRM sync (non-fatal — ошибка не роняет заказ)
   try {
