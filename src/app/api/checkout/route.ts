@@ -47,31 +47,40 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
 
+  // Цвет — ярлык, не SKU: остаток/резерв считаем суммарно по product_id.
+  // Несколько цветных строк одного товара = одна бронь на товар (цвет в резерв не идёт).
+  const qtyByProduct = new Map<number, number>()
+  const nameById = new Map<number, string>()
+  for (const it of items as any[]) {
+    qtyByProduct.set(it.id, (qtyByProduct.get(it.id) ?? 0) + it.qty)
+    if (!nameById.has(it.id)) nameById.set(it.id, it.name)
+  }
+
   // Check availability: products.qty minus other clients' reservations
   const reserveErrors: string[] = []
-  for (const item of items) {
+  for (const [productId, wantQty] of qtyByProduct) {
     const { data: product } = await supabase
       .from('products')
       .select('qty')
-      .eq('id', item.id)
+      .eq('id', productId)
       .single()
 
     if (!product) {
-      reserveErrors.push(`${item.name}: товар не найден`)
+      reserveErrors.push(`${nameById.get(productId) ?? productId}: товар не найден`)
       continue
     }
 
     const { data: otherRes } = await supabase
       .from('reservations')
       .select('qty')
-      .eq('product_id', item.id)
+      .eq('product_id', productId)
       .gt('expires_at', now)
       .neq('client_id', clientId)
 
     const othersReserved = (otherRes ?? []).reduce((s: number, r: any) => s + r.qty, 0)
     const available = product.qty - othersReserved
-    if (item.qty > available) {
-      reserveErrors.push(`${item.name}: доступно только ${available} шт`)
+    if (wantQty > available) {
+      reserveErrors.push(`${nameById.get(productId) ?? productId}: доступно только ${available} шт`)
     }
   }
   if (reserveErrors.length > 0) {
@@ -100,11 +109,6 @@ export async function POST(req: NextRequest) {
     const r = [recipient.name, recipient.phone, recipient.email].filter(Boolean).join(', ')
     if (r) noteLines.push(`Получатель: ${r}`)
   }
-  // Разбивка по цветам (ассорти-аксессуары) — комментарий для склада/сборки
-  const colorLines = items
-    .filter((i: any) => i.color)
-    .map((i: any) => `Цвета — ${i.name}: ${i.color}`)
-  if (colorLines.length) noteLines.push(...colorLines)
   if (discountPct > 0) {
     noteLines.push(`Скидка ${discountPct}% (Уральск): −${(rawTotal - total).toLocaleString('ru-RU')} ₸`)
   }
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest) {
   const orderId = (order as any).id
 
   await supabase.from('order_items').insert(
-    items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price }))
+    items.map((i: any) => ({ order_id: orderId, product_id: i.id, qty: i.qty, price: i.price, color: i.color ?? null }))
   )
 
   // amoCRM sync (non-fatal — ошибка не роняет заказ)
@@ -137,15 +141,16 @@ export async function POST(req: NextRequest) {
     console.error('[checkout] amoCRM sync failed:', err instanceof Error ? err.message : err)
   }
 
-  // Create reservations (replace any existing client reservations for these products)
-  for (const item of items) {
+  // Create reservations (replace any existing client reservations for these products).
+  // По product_id с суммарным qty — цвет в резерв не входит.
+  for (const [productId, totalQty] of qtyByProduct) {
     await supabase.from('reservations').delete()
-      .eq('product_id', item.id)
+      .eq('product_id', productId)
       .eq('client_id', clientId)
 
     await supabase.from('reservations').insert({
-      product_id: item.id,
-      qty: item.qty,
+      product_id: productId,
+      qty: totalQty,
       client_id: clientId,
       expires_at,
       order_id: orderId,

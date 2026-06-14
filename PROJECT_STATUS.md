@@ -2,6 +2,25 @@
 
 ## Что сделано
 
+### Сессия 14 июня 2026 — выбор цвета (Вариант «А»)
+- ✅ **Цвет как ярлык, не SKU** — выбор цвета у товаров с заполненным `products.colors`,
+  снимок в новый столбец `order_items.color` (text, nullable). Остатки/резервы/1С/`pack_size`
+  не затронуты. **Заменил прежнюю модель «Б»** (`colorQtys` → `orders.notes`) — удалена.
+- ✅ `src/lib/colors.ts` — хелперы `getColorMode()` (`none`/`assorti`/`select`),
+  `colorLabel()`, `colorSwatch()` (матч по слагу и по подписи)
+- ✅ `cart-store.ts` — `CartItem.color`, **составной ключ** `${id}__${color}`;
+  `add`/`update`/`remove` с опциональным `color` (по умолчанию `null` — быстрое добавление
+  не меняется); `migrate` (persist v1) приводит старые корзины к `color=null`
+- ✅ `DetailPanel.tsx` — бейдж «Ассорти» / чипсы выбора; кнопка «В корзину» заблокирована до
+  выбора в режиме `select`; один цвет авто-выбирается; корзина-сабвью показывает цвет
+- ✅ `useOrderCheckout.ts` шлёт `color` по строке; `/api/checkout` пишет в `order_items.color`
+  (остался `createAdminClient()`), резерв агрегируется суммарно по `product_id`
+- ✅ Цвет в уведомлении (Telegram+WhatsApp, `/api/payments/postlink`), Excel-выгрузке
+  (`/api/export-orders`, столбец «Цвет») и листе сборки (`/print/order/[id]`)
+- ✅ Затронуты также `cart/page.tsx`, `CartSidebar.tsx`, `checkout/page.tsx` (составной ключ + показ цвета)
+- ⚠️ Бэклог: пикер цвета на полноэкранной `/product/[id]` (оттуда товар уходит без цвета)
+- ⚠️ Предусловие (применяет владелец): `ALTER TABLE order_items ADD COLUMN color text;`
+
 ### Сессия 23–24 мая 2026
 - ✅ **Очистка дублей партий** — найдено 52 группы дублей (104 партии → 52): суммированы остатки в первую партию, дубли деактивированы (`is_active = false`), записано в `inventory_ledger`
 - ✅ **Исправлен `sync_stock_from_1c`** — новая логика без дублей:

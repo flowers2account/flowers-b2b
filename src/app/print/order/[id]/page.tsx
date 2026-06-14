@@ -37,7 +37,7 @@ function ItemRows({ items, startIdx }: { items: any[]; startIdx: number }) {
         return (
           <tr key={item.id} className="border-b border-gray-200">
             <td className="py-2 pr-2 text-gray-400">{startIdx + idx + 1}</td>
-            <td className="py-2 pr-3">{item.product?.name ?? `Товар #${item.id}`}</td>
+            <td className="py-2 pr-3">{item.product?.name ?? `Товар #${item.id}`}{item.color ? ` (${item.color})` : ''}</td>
             <td className="py-2 px-2 text-center text-gray-600">—</td>
             <td className="py-2 px-3 text-center">{qty}</td>
             <td className="py-2 px-3 text-right">{fmt(item.price)}</td>
@@ -59,7 +59,7 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
     .from('orders')
     .select(`id, status, total, notes, created_at, guest_phone, guest_name, payment_method, payment_comment,
              client:client_id(name, phone, company_name),
-             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, country_iso))`)
+             order_items(id, qty, qty_ordered, qty_actual, is_removed, price, color, product:product_id(name, country_iso))`)
     .eq('id', orderId)
     .single()
 

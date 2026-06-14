@@ -602,7 +602,8 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 | `docs/CATALOG_IMPORT.md` | Импорт каталога поставщиков (OZ, Waterdrinker) — актуально |
 | `docs/OZ_INTERNAL_API.md` | **Карта служебного API ozexport.nl** (availability/cart/subunit, OCC выключен, дата вылета в сессии) — 12.06 |
 | `docs/OZ_CATALOG_SYNC.md` | **Полный сбор каталога OZ** (parser_oz_catalog + oz_catalog_ingest, 50 категорий, окно robots.txt, продолжение через --skip-done) — 12.06 |
-| `docs/PHOTO_UPLOAD.md` | Загрузка фото + удаление фона (@imgly клиентская сторона) |
+| `docs/PHOTO_UPLOAD.md` | Загрузка фото + удаление фона (@imgly клиентская сторона). ⚠️ устарело: описывает удалённый серверный роут remove.bg |
+| `docs/photo-enrichment.md` | **Аудит обогащения фото поиском** (Serper.dev, НЕ Google CSE; пишет hotlink в `extra_images`, не в Storage/`image_url`; по факту почти не использовался — 2/8057) — 14.06 |
 | `docs/DATABASE_SCHEMA.md` | Таблицы, views, триггеры, функции, FK-карта |
 | `docs/ARCHITECTURE.md` | Стек, структура папок, API-роуты, Zustand-сторы |
 | `docs/BUSINESS_LOGIC.md` | Жизненный цикл заказа, резервы, кампании |
@@ -837,24 +838,37 @@ is_active = true AND source IN ('uralsk_site', 'uralsk_1c')
 
 `goToCategory()` / `goToSubcat()` / `goToCatalog()` вызывают `useFilters.getState()` напрямую — sessionStorage не читается при клиентской навигации. Позиция скролла: `sessionStorage['catalog-scroll']` → `catalog-scroll-restore`.
 
-### Цветовые варианты — ассорти (12.06.2026)
+### Выбор цвета — ярлык, не SKU (Вариант «А», 14.06.2026)
 
-Выбор цвета с количеством по каждому — **НЕ отдельный SKU**: цена и остаток общие на товар,
-цвет едет в заказ **комментарием** (модель «Б»). Включается только для
-`category='accessories'` с ≥2 значениями в `products.colors`.
+Цвет — **подпись к позиции**, а НЕ складская единица: цена и остаток общие на товар,
+у цвета нет своего остатка. Остатки/резервы/`products_available`/импорт 1С/`pack_size`
+**не затронуты**. Цвет выбирается в UI и сохраняется снимком в `order_items.color` (text,
+nullable). Включается для **любого** товара с заполненным `products.colors` (не только
+аксессуары).
 
-- **Кружки-свотчи** рисуются по `products.colors` (слаги) через хардкод-палитру
-  `src/lib/colors.ts` (матч по `key`; hex из `bg`/`gradient`). Справочник БД
-  `characteristic_colors` фронтом **не используется**.
-- **Пикер** (`DetailPanel.tsx`, правая панель каталога): у каждого цвета свой степпер;
-  сумма по цветам ограничена остатком (`сумма ≤ products.qty`). Кнопка «В корзину» кладёт
-  ОДНУ позицию с разбивкой. ⚠️ На полноэкранной `/product/[id]` пикера пока нет (бэклог).
-- **Корзина** (`cart-store.ts`): `CartItem.colorQtys: Record<slug,qty>` (qty = сумма),
-  дедуп по `id`. Метод `setColored(item, colorQtys)`. Степпер ассорти-позиции в `/cart`
-  заблокирован (правка разбивки — в карточке).
-- **Заказ/накладная**: `useOrderCheckout` шлёт строку `color` («Жёлтый × 2, Белый × 4»),
-  `/api/checkout` дописывает её в `orders.notes` → лист сборки `/print/order/[id]` печатает
-  в блоке «Примечания». Резервы/остаток не затронуты (одна позиция на товар).
+⚠️ Заменил прежнюю модель «Б» (12.06.2026, `colorQtys`/`setColored`, цвет комментарием в
+`orders.notes`) — та полностью удалена.
+
+- **Хелперы** `src/lib/colors.ts`: `getColorMode(colors) → 'none' | 'assorti' | 'select'`,
+  `colorLabel(slug)`, `colorSwatch(slugOrLabel)` (матч по `key` или подписи; ассорти →
+  радужный микс). Палитра `COLORS` — единственный источник свотчей.
+- **Режимы** (по `products.colors`): пусто → блока нет (`color=null`); ровно один
+  `«ассорти»` → статичный бейдж «Ассорти (как привезут)» (`color="ассорти"`); один и более
+  настоящих цветов → чипсы, выбор **обязателен** (кнопка «В корзину» заблокирована до
+  выбора). Один настоящий цвет авто-выбирается (без лишнего клика на срезке).
+- **Пикер** — `DetailPanel.tsx` (правая панель каталога). ⚠️ На полноэкранной
+  `/product/[id]` пикера пока нет (бэклог) — оттуда товар уходит без цвета.
+- **Корзина** (`cart-store.ts`): `CartItem.color: string | null` (хранится подпись, напр.
+  «Красный»). **Ключ позиции составной** `${id}__${color ?? ''}` — разные цвета одного
+  товара = разные строки. Методы `add`/`update(id, qty, color?)`/`remove(id, color?)` —
+  `color` по умолчанию `null` (быстрое добавление из грида/избранного не меняется). `migrate`
+  (persist v1) приводит старые позиции (в т.ч. с `colorQtys`) к `color=null`.
+- **Заказ**: `useOrderCheckout` шлёт `color` по строке → `/api/checkout` пишет в
+  `order_items.color` (клиент — `createAdminClient()`, как и было). Несколько цветных строк
+  одного товара резервируются **суммарно по `product_id`** (агрегация `qtyByProduct`).
+- **Уведомление** (`/api/payments/postlink`, Telegram+WhatsApp) и **Excel**
+  (`/api/export-orders`, столбец «Цвет») и **лист сборки** (`/print/order/[id]`) показывают
+  цвет в скобках: `Название (Красный) — 30 шт`. Нет цвета → без скобок.
 
 ### Known Issues
 

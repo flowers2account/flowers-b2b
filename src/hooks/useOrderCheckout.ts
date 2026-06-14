@@ -1,6 +1,5 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
-import { COLORS } from '@/lib/colors'
 
 declare global {
   interface Window {
@@ -22,18 +21,8 @@ interface CartItem {
   price: number
   name: string
   available: number
-  colorQtys?: Record<string, number> | null
-}
-
-// "Жёлтый × 2, Белый × 4, Зелёный × 6" — комментарий с разбивкой по цветам для заказа
-function buildColorNote(colorQtys: Record<string, number>): string {
-  return Object.entries(colorQtys)
-    .filter(([, n]) => n > 0)
-    .map(([slug, n]) => {
-      const col = COLORS.find(c => c.key === slug)
-      return `${col?.label ?? slug} × ${n}`
-    })
-    .join(', ')
+  // Снимок выбранного цвета (Вариант А) — едет в order_items.color.
+  color?: string | null
 }
 
 interface Options {
@@ -151,7 +140,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
         body: JSON.stringify({
           items: items.map(i => ({
             id: i.id, qty: i.qty, price: i.price, name: i.name,
-            ...(i.colorQtys ? { color: buildColorNote(i.colorQtys) } : {}),
+            ...(i.color ? { color: i.color } : {}),
           })),
           phone,
           ...(extra?.() ?? {}),

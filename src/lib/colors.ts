@@ -58,3 +58,44 @@ export const COLORS = [
 ] as const
 
 export type ColorDef = typeof COLORS[number]
+
+// ── Выбор цвета (Вариант А: цвет — ярлык, не SKU) ───────────────────────────────
+// Источник вариантов — products.colors (text[]). Остаток/резерв общие на товар.
+
+const ASSORTI_RE = /^(ассорти|assorti)$/i
+
+export function isAssorti(slug: string): boolean {
+  return ASSORTI_RE.test(slug.trim())
+}
+
+/**
+ * Режим выбора цвета по products.colors:
+ *  - 'none'    — пусто/null: блока цвета нет, color = null
+ *  - 'assorti' — ровно один элемент «ассорти»: статичный бейдж, color = "ассорти"
+ *  - 'select'  — один и более настоящих цветов: чипсы, выбор обязателен
+ */
+export function getColorMode(colors?: string[] | null): 'none' | 'assorti' | 'select' {
+  const list = (colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
+  if (list.length === 0) return 'none'
+  if (list.length === 1 && isAssorti(list[0])) return 'assorti'
+  return 'select'
+}
+
+/** Человекочитаемая подпись цвета по слагу (для чипсов, корзины, уведомления, Excel). */
+export function colorLabel(slug: string): string {
+  if (isAssorti(slug)) return 'Ассорти'
+  return COLORS.find(c => c.key === slug)?.label ?? slug
+}
+
+/**
+ * CSS-фон свотча. Принимает и слаг ('red'), и подпись ('Красный') —
+ * в корзине/заказе хранится подпись, в палитре ключ — слаг.
+ * Для неизвестных/ассорти — радужный микс.
+ */
+export function colorSwatch(slugOrLabel: string): string {
+  if (isAssorti(slugOrLabel)) return 'conic-gradient(#E53935 0deg,#FDD835 90deg,#66BB6A 180deg,#7B1FA2 270deg,#E53935 360deg)'
+  const v = slugOrLabel.trim().toLowerCase()
+  const c = COLORS.find(c => c.key.toLowerCase() === v || c.label.toLowerCase() === v)
+  if (!c) return '#ccc'
+  return ('gradient' in c ? c.gradient : c.bg) as string
+}
