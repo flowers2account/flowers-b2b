@@ -387,7 +387,7 @@ export default function SearchBox({ products }: { products: Product[] }) {
 
               {showEmpty && (
                 <div className="ac-empty" style={{ padding: '18px 14px', fontSize: 13, color: 'var(--text-mid)', textAlign: 'center' }}>
-                  Ничего не нашлось по «{q}». Проверьте написание или артикул.
+                  Ничего не нашлось по «{q}». Проверьте написание.
                 </div>
               )}
 

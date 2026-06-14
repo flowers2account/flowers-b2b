@@ -811,7 +811,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-mid)', paddingTop: 64, fontSize: 13 }}>
             {searchResultIds && searchActiveQuery
-              ? `Ничего не нашлось по «${searchActiveQuery}». Проверьте написание или артикул.`
+              ? `Ничего не нашлось по «${searchActiveQuery}». Проверьте написание.`
               : 'Ничего не найдено'}
           </div>
         ) : viewMode !== 'list' ? (
