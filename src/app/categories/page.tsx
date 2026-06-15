@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { company } from '@/config/company'
 import { CATEGORY_TREE, leafForSubcat } from '@/lib/category-tree'
-import CategorySearch from '@/components/catalog/CategorySearch'
+import SearchBox from '@/components/catalog/SearchBox'
 import s from './categories.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -79,7 +79,9 @@ export default async function CategoriesPage() {
             Большинство позиций на складе в Уральске и доступно к заказу сразу.
           </p>
           <div className={s.heroRow}>
-            <CategorySearch />
+            <div style={{ flex: 1, minWidth: 320, maxWidth: 480, display: 'flex' }}>
+              <SearchBox mode="navigate" />
+            </div>
             <div className={s.stats}>
               <div className={s.stat}><div className={s.n}>6</div><div className={s.l}>товарных групп</div></div>
               <div className={s.stat}><div className={s.n}>2008</div><div className={s.l}>год основания</div></div>

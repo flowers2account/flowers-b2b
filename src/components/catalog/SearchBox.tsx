@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFilters } from '@/lib/filter-store'
-import { labelForSubcat } from '@/lib/category-tree'
+import { labelForSubcat, leafForSubcat, groupIdForLeafSlug } from '@/lib/category-tree'
 import { normalizeQuery } from '@/lib/search-synonyms'
 import { clientSearchMatch } from '@/lib/catalog-search'
 import { type Product, getAvailable, getPrice } from './ProductCard'
@@ -69,8 +69,12 @@ const SearchIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
-export default function SearchBox({ products }: { products: Product[] }) {
+// mode='inline' (по умолчанию) — поиск рисует выдачу в гриде каталога через filter-store.
+// mode='navigate' — грида рядом нет (страница «Категории»): submit/категория/недавнее
+// уводят на /catalog (?q=… или с выбранной подкатегорией). Компонент один — поведение разведено пропом.
+export default function SearchBox({ products = [], mode = 'inline' }: { products?: Product[]; mode?: 'inline' | 'navigate' }) {
   const router = useRouter()
+  const navigate = mode === 'navigate'
   const { search, setSearch, setSearchResults, clearSearchResults, searchResultIds } = useFilters()
 
   const [open, setOpen] = useState(false)
@@ -147,8 +151,18 @@ export default function SearchBox({ products }: { products: Product[] }) {
     return () => { cancelled = true; clearTimeout(t) }
   }, [search, clientResponse])
 
+  // ── navigate-режим: уводим на каталог с готовым запросом (?q=…) ──
+  const goToCatalogSearch = useCallback((raw: string) => {
+    const q = raw.trim()
+    if (q.length < MIN_CHARS) return
+    setOpen(false)
+    setRecent(saveRecent(q))
+    router.push(`/catalog?q=${encodeURIComponent(q)}`)
+  }, [router])
+
   // ── коммит полного поиска: грид показывает ранжированную серверную выдачу ──
   const commit = useCallback(async (raw: string) => {
+    if (navigate) { goToCatalogSearch(raw); return }
     const q = raw.trim()
     if (q.length < MIN_CHARS) { clearSearchResults(); return }
     setOpen(false)
@@ -162,12 +176,13 @@ export default function SearchBox({ products }: { products: Product[] }) {
     } catch {
       setSearchResults(clientSearch(q).map((p) => p.id), q)
     }
-  }, [clearSearchResults, setSearchResults, clientSearch])
+  }, [navigate, goToCatalogSearch, clearSearchResults, setSearchResults, clientSearch])
 
-  // Авто-коммит при входе с ?search= (страница «Категории»/герой кладёт search в стор).
+  // Авто-коммит при входе с ?search=/?q= (CatalogLayout кладёт search в стор). Только inline.
   useEffect(() => {
     if (autoCommitted.current) return
     autoCommitted.current = true
+    if (navigate) return
     if (search.trim().length >= MIN_CHARS && searchResultIds === null) commit(search)
   }, [])
 
@@ -204,6 +219,16 @@ export default function SearchBox({ products }: { products: Product[] }) {
   }
 
   const onPickCategory = (c: SearchCategory) => {
+    if (navigate) {
+      // c.slug — сырой products.subcategory; уводим в каталог с выбранной подкатегорией (leaf).
+      const leafSlug = leafForSubcat(c.slug)?.slug ?? c.slug
+      const grp = groupIdForLeafSlug(leafSlug)
+      const params = new URLSearchParams({ category: 'accessories', leaves: leafSlug })
+      if (grp) params.set('group', grp)
+      setOpen(false)
+      router.push(`/catalog?${params.toString()}`)
+      return
+    }
     setSearch(c.label)
     commit(c.label)
   }
@@ -212,6 +237,7 @@ export default function SearchBox({ products }: { products: Product[] }) {
     router.push(`/product/${p.id}`)
   }
   const onPickRecent = (q: string) => {
+    if (navigate) { setSearch(q); goToCatalogSearch(q); return }
     setSearch(q)
     commit(q)
   }
