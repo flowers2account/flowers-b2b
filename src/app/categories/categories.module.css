@@ -17,8 +17,10 @@
 .shell { max-width: 1320px; margin: 0 auto; padding: 0 0 56px; }
 
 /* HERO */
+/* overflow: visible — иначе hero обрезает раскрывающийся дропдаун поиска (он внизу блока).
+   Градиенты фона и так клипаются к border-box, overflow:hidden был лишним. */
 .hero {
-  position: relative; padding: 46px 40px 40px; overflow: hidden;
+  position: relative; padding: 46px 40px 40px; overflow: visible;
   border-bottom: 1px solid var(--border-soft);
   background:
     radial-gradient(120% 140% at 88% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
