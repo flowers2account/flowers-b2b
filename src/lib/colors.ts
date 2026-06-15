@@ -59,6 +59,37 @@ export const COLORS = [
 
 export type ColorDef = typeof COLORS[number]
 
+// Радужный «микс» — для ассорти/мультиколор и неизвестных составных токенов.
+const MIX = 'conic-gradient(#E53935 0deg,#FDD835 90deg,#66BB6A 180deg,#7B1FA2 270deg,#E53935 360deg)'
+
+// ё→е + lower, чтобы «Жёлтый»/«желтый» и т.п. совпадали независимо от написания.
+const norm = (s: string) => s.trim().toLowerCase().replace(/ё/g, 'е')
+
+// ── Русские токены цвета (сопутка) ──────────────────────────────────────────────
+// products.colors у аксессуаров заведены по-русски и НЕ совпадают с key из COLORS
+// (англ.) → раньше падали в серый фолбэк. Фиксируем хексы по спеке; имеют приоритет
+// над совпадением по label. Ключи в е-форме (норм. через norm()).
+const RU_SWATCH: Record<string, string> = {
+  'белый':          '#FFFFFF',
+  'розовый':        '#F48FB1',
+  'ярко-розовый':   '#FF2D8B',
+  'темно-розовый':  '#C2185B',
+  'малиновый':      '#C81D6B',
+  'красный':        '#E53935',
+  'желтый':         '#FDD835',
+  'зеленый':        '#43A047',
+  'синий':          '#1E88E5',
+  'сиреневый':      '#B39DDB',
+  'персиковый':     '#FFB07A',
+  'темно-бордовый': '#5E1A2B',
+  // двухтоновые / особые
+  'бело-розовый':   'linear-gradient(135deg,#FFFFFF 50%,#F48FB1 50%)',
+  'крапчатый':      'radial-gradient(#8E4E73 1px, transparent 1.6px) 0 0 / 5px 5px, #C77DA6',
+  'ассорти':        MIX,
+  'мультиколор':    MIX,
+  'микс':           MIX,
+}
+
 // ── Выбор цвета (Вариант А: цвет — ярлык, не SKU) ───────────────────────────────
 // Источник вариантов — products.colors (text[]). Остаток/резерв общие на товар.
 
@@ -93,9 +124,16 @@ export function colorLabel(slug: string): string {
  * Для неизвестных/ассорти — радужный микс.
  */
 export function colorSwatch(slugOrLabel: string): string {
-  if (isAssorti(slugOrLabel)) return 'conic-gradient(#E53935 0deg,#FDD835 90deg,#66BB6A 180deg,#7B1FA2 270deg,#E53935 360deg)'
-  const v = slugOrLabel.trim().toLowerCase()
-  const c = COLORS.find(c => c.key.toLowerCase() === v || c.label.toLowerCase() === v)
+  if (isAssorti(slugOrLabel)) return MIX
+  const v = norm(slugOrLabel)
+  // Русские токены сопутки — приоритет над label-матчем (фиксированные хексы).
+  if (RU_SWATCH[v]) return RU_SWATCH[v]
+  const c = COLORS.find(c => norm(c.key) === v || norm(c.label) === v)
   if (!c) return '#ccc'
   return ('gradient' in c ? c.gradient : c.bg) as string
+}
+
+/** true, если свотч — белый/очень светлый и нуждается в видимой рамке на белом фоне. */
+export function isLightSwatch(slugOrLabel: string): boolean {
+  return /^#(?:fff|ffffff|fffff0|fff8e7)$/i.test(colorSwatch(slugOrLabel).trim())
 }

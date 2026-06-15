@@ -13,7 +13,7 @@ import { useFilterChips } from '@/lib/filter-chips'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
-import { COLORS } from '@/lib/colors'
+import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
 import FavHeart from './FavHeart'
@@ -295,33 +295,25 @@ export function GridCard({
           </div>
         )}
 
-        {/* Кружки цветов — colors[] или fallback на color */}
+        {/* Кружки цветов — индикатор (не пикер). До 5 кружков + «+N». */}
         {(() => {
           const keys = product.colors?.length ? product.colors : product.color ? [product.color] : []
           if (!keys.length) return null
-          const colorWord = (n: number) => {
-            const a = n % 10, b = n % 100
-            if (a === 1 && b !== 11) return 'цвет'
-            if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return 'цвета'
-            return 'цветов'
-          }
+          const shown = keys.slice(0, 5)
+          const extra = keys.length - shown.length
           return (
             <div style={{ display: 'flex', gap: 7, marginTop: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-              {keys.map(c => {
-                const col = COLORS.find(x => x.key === c)
-                return (
-                  <div key={c} title={col?.label ?? c} style={{
-                    width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                    boxShadow: '0 0 0 1px var(--border) inset',
-                    background: col
-                      ? (('gradient' in col ? col.gradient : col.bg) as string)
-                      : '#ccc',
-                    border: '1px solid rgba(0,0,0,0.1)',
-                  }} />
-                )
-              })}
-              {keys.length > 1 && (
-                <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{keys.length} {colorWord(keys.length)}</span>
+              {shown.map(c => (
+                <div key={c} title={colorLabel(c)} style={{
+                  width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                  boxShadow: '0 0 0 1px var(--border) inset',
+                  background: colorSwatch(c),
+                  // Белый/светлый — более заметная рамка, чтобы кружок было видно на белом фоне.
+                  border: `1px solid ${isLightSwatch(c) ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.1)'}`,
+                }} />
+              ))}
+              {extra > 0 && (
+                <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>+{extra}</span>
               )}
             </div>
           )
