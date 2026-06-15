@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { useFilters } from '@/lib/filter-store'
-import { COLORS } from '@/lib/colors'
+import { COLORS, colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 import { type Product, getAvailable } from './ProductCard'
 import { ORIGIN_LABELS } from '@/lib/filter-chips'
 import { CATEGORY_TREE as ACCESSORIES_TREE, leafForSubcat } from '@/lib/category-tree'
@@ -721,6 +721,23 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     return [...inOrder, ...rest]
   }, [products, subcat])
 
+  // Фильтр цвета для листа film (Плёнка): токены и counts считаем клиентски из products,
+  // скоупом по листу (facets по листьям не считаются). colors[] у film — русские токены.
+  const showFilmColors = category === 'accessories' && selectedLeaves.includes('film')
+  const filmColors = useMemo<[string, number][]>(() => {
+    if (!showFilmColors) return []
+    const counts = new Map<string, number>()
+    for (const p of products) {
+      if (leafForSubcat(p.subcategory)?.slug !== 'film') continue
+      if (onlyAvailable && getAvailable(p.stock) <= 0) continue
+      for (const c of p.colors ?? []) {
+        const t = c?.trim()
+        if (t) counts.set(t, (counts.get(t) ?? 0) + 1)
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ru'))
+  }, [products, showFilmColors, onlyAvailable])
+
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
 
   // Recalculate facets when structural filters change (not colors — standard faceting behavior)
@@ -780,6 +797,33 @@ export default function FilterPanel({ products }: { products: Product[] }) {
                       outline: selected ? '2px solid var(--accent)' : 'none',
                       outlineOffset: 2,
                       opacity: dimmed ? 0.25 : 1,
+                      transition: 'opacity 0.2s',
+                    }}
+                  />
+                )
+              })}
+            </div>
+          </StaticGroup>
+        )}
+
+        {/* ЦВЕТ — лист film (Плёнка): русские токены из products, count=0 просто не показываются */}
+        {showFilmColors && filmColors.length > 0 && (
+          <StaticGroup label="Цвет">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
+              {filmColors.map(([token, count]) => {
+                const selected = colors.includes(token)
+                return (
+                  <div
+                    key={token}
+                    onClick={() => toggleColor(token)}
+                    title={`${colorLabel(token)} (${count})`}
+                    style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      cursor: 'pointer', flexShrink: 0,
+                      background: colorSwatch(token),
+                      border: `1.5px solid ${isLightSwatch(token) ? '#D0D0D0' : 'rgba(0,0,0,0.12)'}`,
+                      outline: selected ? '2px solid var(--accent)' : 'none',
+                      outlineOffset: 2,
                       transition: 'opacity 0.2s',
                     }}
                   />
