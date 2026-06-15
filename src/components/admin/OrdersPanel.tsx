@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/auth-store'
 import { authHeaders } from '@/lib/api-token'
+import { colorLabel } from '@/lib/colors'
 import NewOrderModal from './NewOrderModal'
 import AssemblyModal from './AssemblyModal'
 import OrderEditModal from './OrderEditModal'
@@ -26,6 +27,7 @@ type OrderItem = {
   qty_actual: number | null
   is_removed: boolean
   price: number
+  color: string | null
   product: { name: string; pack_size: number } | null
 }
 
@@ -166,7 +168,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, color, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) console.error('Orders error:', error)
@@ -485,7 +487,10 @@ export default function OrdersPanel() {
             <tbody>
               {order.order_items.map(item => (
                 <tr key={item.id} className="border-b last:border-0">
-                  <td className="py-1.5">{item.product?.name ?? `Товар #${item.product_id}`}</td>
+                  <td className="py-1.5">
+                    {item.product?.name ?? `Товар #${item.product_id}`}
+                    {item.color && <span className="text-gray-500"> — {colorLabel(item.color)}</span>}
+                  </td>
                   <td className="py-1.5 text-center">
                     {order.status === 'pending' || order.status === 'reserved' ? (
                       <input
