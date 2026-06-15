@@ -308,8 +308,8 @@ export function GridCard({
                   width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
                   boxShadow: '0 0 0 1px var(--border) inset',
                   background: colorSwatch(c),
-                  // Белый/светлый — более заметная рамка, чтобы кружок было видно на белом фоне.
-                  border: `1px solid ${isLightSwatch(c) ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.1)'}`,
+                  // Белый/серебристый/светлый — тонкая рамка #D0D0D0, иначе кружок не виден на белом.
+                  border: `1px solid ${isLightSwatch(c) ? '#D0D0D0' : 'rgba(0,0,0,0.1)'}`,
                 }} />
               ))}
               {extra > 0 && (
