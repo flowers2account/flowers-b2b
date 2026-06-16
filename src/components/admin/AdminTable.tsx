@@ -11,6 +11,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table'
 import { COLORS } from '@/lib/colors'
+import { authHeaders } from '@/lib/api-token'
 import ProductEditModal from './ProductEditModal'
 
 const BG_TINT = '#FFFFFF'
@@ -18,20 +19,23 @@ const BG_TINT = '#FFFFFF'
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
 type Product = { id: number; name: string; display_name?: string | null; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; country_iso?: string | null; farm?: string | null; is_new?: boolean; stock: Stock[] | Stock }
 
-const TRANSLIT: Record<string, string> = {
-  а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
-  к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',
-  х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',
-}
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .split('')
-    .map(c => TRANSLIT[c] ?? c)
-    .join('')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+// Готовое (обработанное в браузере) фото → серверный роут.
+// Роут сам решает бэкенд (VPS-диск или Supabase Storage), чистит старый файл и
+// возвращает публичный url. Имя файла генерится на сервере из productId.
+async function persistPhoto(
+  productId: number, file: File, slot: 'main' | 'campaign', oldUrl: string | null,
+): Promise<string> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('productId', String(productId))
+  fd.append('slot', slot)
+  if (oldUrl) fd.append('oldUrl', oldUrl)
+  const res = await fetch('/api/admin/upload-photo', {
+    method: 'POST', body: fd, headers: await authHeaders(),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.error || `upload failed (${res.status})`)
+  return json.url as string
 }
 
 function getStock(s: Stock[] | Stock): Stock {
@@ -97,15 +101,6 @@ function StockRow({ product, onSaved, onEdit }: {
     onSaved()
   }
 
-  function extractStoragePath(url: string): string | null {
-    try {
-      const marker = '/product-images/'
-      const idx = url.indexOf(marker)
-      if (idx === -1) return null
-      return decodeURIComponent(url.slice(idx + marker.length).split('?')[0])
-    } catch { return null }
-  }
-
   async function downscaleImage(file: File | Blob, maxPx: number): Promise<Blob> {
     return new Promise(resolve => {
       const img = new Image()
@@ -157,19 +152,7 @@ function StockRow({ product, onSaved, onEdit }: {
       const processedFile = new File([processed], 'photo.jpg', { type: 'image/jpeg' })
 
       setUploadStep('save')
-      if (imageUrl) {
-        const oldPath = extractStoragePath(imageUrl)
-        if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
-      }
-      const path = `${slugify(product.name)}_${Date.now()}.jpg`
-      const { error: uploadErr } = await supabase.storage
-        .from('product-images').upload(path, processedFile, { upsert: false })
-      if (uploadErr) {
-        setUploadMsg(`Storage: ${uploadErr.message}`)
-        setTimeout(() => setUploadMsg(null), 6000)
-        return
-      }
-      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
+      const publicUrl = await persistPhoto(product.id, processedFile, 'main', imageUrl)
       await supabase.from('products').update({ image_url: publicUrl }).eq('id', product.id)
       setImageUrl(publicUrl)
     } catch (err) {
@@ -192,19 +175,7 @@ function StockRow({ product, onSaved, onEdit }: {
       const processedFile = new File([processed], 'photo.jpg', { type: 'image/jpeg' })
 
       setCampaignUploadStep('save')
-      if (campaignImageUrl) {
-        const oldPath = extractStoragePath(campaignImageUrl)
-        if (oldPath) await supabase.storage.from('product-images').remove([oldPath])
-      }
-      const path = `campaign_${slugify(product.name)}_${Date.now()}.jpg`
-      const { error: uploadErr } = await supabase.storage
-        .from('product-images').upload(path, processedFile, { upsert: false })
-      if (uploadErr) {
-        setUploadMsg(`Storage: ${uploadErr.message}`)
-        setTimeout(() => setUploadMsg(null), 6000)
-        return
-      }
-      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
+      const publicUrl = await persistPhoto(product.id, processedFile, 'campaign', campaignImageUrl)
       await supabase.from('products').update({ campaign_image_url: publicUrl }).eq('id', product.id)
       setCampaignImageUrl(publicUrl)
     } catch (err) {
