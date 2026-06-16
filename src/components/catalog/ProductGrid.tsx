@@ -366,8 +366,8 @@ export function GridCard({
                 ) : (
                   <span style={{ fontSize: 13, color: '#ccc', letterSpacing: '0.1em', userSelect: 'none' }}>●●● ₸</span>
                 )}
-                {unit !== 'шт' && product.pack_size > 1 && (
-                  <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>уп.&nbsp;{product.pack_size}</span>
+                {product.pack_size > 1 && (unit !== 'шт' || product.category === 'accessories') && (
+                  <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>упаковка&nbsp;{product.pack_size}&nbsp;{unit}</span>
                 )}
               </div>
               {/* price_per_m / price_per_m2 справочная строка */}
