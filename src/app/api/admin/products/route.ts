@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     .from('products')
     .select(`
       id, name, display_name, length_cm, category, subcategory,
-      pack_size, stems_per_pack, image_url, campaign_image_url, colors, country_iso, farm,
+      pack_size, stems_per_pack, image_url, campaign_image_url, colors, color_images, country_iso, farm,
       price, previous_price, qty, is_active, arrival_date
     `)
     .order('name')
