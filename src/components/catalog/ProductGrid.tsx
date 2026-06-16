@@ -668,8 +668,14 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     else if (sort === 'price_desc') list = [...list].sort((a, b) => getPrice(b.stock) - getPrice(a.stock))
     else if (sort === 'stock') list = [...list].sort((a, b) => getAvailable(b.stock) - getAvailable(a.stock))
     else {
-      // Default: новинки первыми, затем по убыванию остатка
+      // Default: в общем списке accessories плёнка и бумага идут первыми,
+      // затем новинки, затем по убыванию остатка.
+      const PRIORITY: Record<string, number> = { film: 0, paper: 1 }
+      const rank = (p: Product) =>
+        category === 'accessories' ? (PRIORITY[p.subcategory ?? ''] ?? 9) : 0
       list = [...list].sort((a, b) => {
+        const ra = rank(a), rb = rank(b)
+        if (ra !== rb) return ra - rb
         if (a.is_new && !b.is_new) return -1
         if (!a.is_new && b.is_new) return 1
         return getAvailable(b.stock) - getAvailable(a.stock)
