@@ -28,6 +28,15 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '*.tildacdn.com',
       },
+      {
+        // самохостинг фото товаров на VPS (см. docs/INFRA.md, /assets-9f2a7c/)
+        protocol: 'https',
+        hostname: 'uralskflowers.kz',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.uralskflowers.kz',
+      },
     ],
   },
 };
