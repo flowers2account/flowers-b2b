@@ -10,14 +10,14 @@ import { Button } from '@/components/ui/button'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table'
-import { COLORS } from '@/lib/colors'
+import { COLORS, colorSwatch } from '@/lib/colors'
 import { authHeaders } from '@/lib/api-token'
 import ProductEditModal from './ProductEditModal'
 
 const BG_TINT = '#FFFFFF'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
-type Product = { id: number; name: string; display_name?: string | null; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; arrival_date?: string | null; country_iso?: string | null; farm?: string | null; is_new?: boolean; stock: Stock[] | Stock }
+type Product = { id: number; name: string; display_name?: string | null; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; color_images?: Record<string, string> | null; arrival_date?: string | null; country_iso?: string | null; farm?: string | null; is_new?: boolean; stock: Stock[] | Stock }
 
 // Готовое (обработанное в браузере) фото → серверный роут.
 // Роут сам решает бэкенд (VPS-диск или Supabase Storage), чистит старый файл и
@@ -64,8 +64,12 @@ function StockRow({ product, onSaved, onEdit }: {
   const [uploadMsg, setUploadMsg] = useState<string | null>(null)
   const [colors, setColors] = useState<string[]>(product.colors ?? [])
   const [colorsOpen, setColorsOpen] = useState(false)
+  const [colorImages, setColorImages] = useState<Record<string, string>>(product.color_images ?? {})
+  const [colorBusy, setColorBusy] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const campaignFileInputRef = useRef<HTMLInputElement>(null)
+  const colorPhotoInputRef = useRef<HTMLInputElement>(null)
+  const activeColorRef = useRef<string | null>(null)
   const colorPickerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
@@ -184,6 +188,48 @@ function StockRow({ product, onSaved, onEdit }: {
     } finally {
       setCampaignUploadStep('')
       if (campaignFileInputRef.current) campaignFileInputRef.current.value = ''
+    }
+  }
+
+  // Фото под цвет (color_images): только даунскейл, без удаления фона (плёнка — плоский узор).
+  async function onColorFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    const color = activeColorRef.current
+    if (!file || !color) return
+    setColorBusy(color)
+    setUploadMsg(null)
+    try {
+      const scaled = await downscaleImage(file, 1200)
+      const f = new File([scaled], 'color.jpg', { type: 'image/jpeg' })
+      const fd = new FormData()
+      fd.append('file', f)
+      fd.append('productId', String(product.id))
+      fd.append('color', color)
+      const res = await fetch('/api/admin/upload-color-photo', { method: 'POST', body: fd, headers: await authHeaders() })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || `upload failed (${res.status})`)
+      setColorImages(prev => ({ ...prev, [color]: json.url as string }))
+    } catch (err) {
+      setUploadMsg('Цвет: ' + (err instanceof Error ? err.message : 'ошибка'))
+      setTimeout(() => setUploadMsg(null), 5000)
+    } finally {
+      setColorBusy(null)
+      activeColorRef.current = null
+      if (colorPhotoInputRef.current) colorPhotoInputRef.current.value = ''
+    }
+  }
+
+  async function handleColorPhotoDelete(color: string) {
+    setColorBusy(color)
+    try {
+      const res = await fetch('/api/admin/upload-color-photo', {
+        method: 'DELETE',
+        headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id, color }),
+      })
+      if (res.ok) setColorImages(prev => { const n = { ...prev }; delete n[color]; return n })
+    } finally {
+      setColorBusy(null)
     }
   }
 
@@ -373,6 +419,55 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
                   Готово
                 </button>
               </div>
+
+              {/* Фото под цвет — отдельная картинка на каждый выбранный цвет */}
+              {colors.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <div className="text-[11px] text-gray-500 mb-1.5">Фото под цвет</div>
+                  <div className="flex flex-col gap-1.5 max-h-44 overflow-auto">
+                    {colors.map(c => {
+                      const label = COLORS.find(x => x.key === c)?.label ?? c
+                      const img = colorImages[c]
+                      const busy = colorBusy === c
+                      return (
+                        <div key={c} className="flex items-center gap-2">
+                          <span style={{
+                            width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
+                            background: colorSwatch(c), border: '1px solid rgba(0,0,0,0.18)',
+                            display: 'inline-block',
+                          }} />
+                          <span className="text-[11px] flex-1 truncate" title={label}>{label}</span>
+                          <div
+                            onClick={() => { if (!busy) { activeColorRef.current = c; colorPhotoInputRef.current?.click() } }}
+                            className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group border border-dashed border-gray-300 bg-gray-50 overflow-hidden"
+                            title={img ? 'Заменить фото цвета' : 'Загрузить фото цвета'}
+                          >
+                            {img ? (
+                              <img src={img} alt="" className="w-7 h-7 object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center group-hover:bg-pink-50">
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                              </div>
+                            )}
+                            {busy && (
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <span className="text-white text-[7px]">…</span>
+                              </div>
+                            )}
+                          </div>
+                          {img && !busy && (
+                            <button
+                              onClick={() => handleColorPhotoDelete(c)}
+                              className="text-red-500 text-sm leading-none px-0.5 flex-shrink-0"
+                              title="Удалить фото цвета"
+                            >×</button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -411,6 +506,13 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
           capture="environment"
           className="hidden"
           onChange={handleCampaignImageUpload}
+        />
+        <input
+          ref={colorPhotoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onColorFileChange}
         />
       </TableCell>
     </TableRow>
