@@ -224,7 +224,11 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
     }
     return imgs
   })()
-  const mainPhoto = images[photoIdx] ?? null
+  // Свап главного фото при выборе цвета (Вариант А): если для выбранного цвета есть
+  // отдельное фото в color_images — показываем его; иначе обычную галерею.
+  const colorOverride = colorMode === 'select' && selectedSlug
+    ? (product.color_images?.[selectedSlug] ?? null) : null
+  const mainPhoto = colorOverride ?? images[photoIdx] ?? null
 
   const displayName = product.display_name || product.variety_name || product.name
   const countryLabel = product.country_iso
@@ -291,11 +295,11 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         <div
           style={{ aspectRatio: '1/1', background: 'var(--bg2)', overflow: 'hidden', position: 'relative', borderRadius: 12, cursor: mainPhoto ? 'zoom-in' : 'default' }}
           onClick={() => mainPhoto && setLbOpen(true)}
-          onMouseMove={images.length > 1 ? (e) => {
+          onMouseMove={images.length > 1 && !colorOverride ? (e) => {
             const { left, width } = e.currentTarget.getBoundingClientRect()
             setPhotoIdx(e.clientX - left > width / 2 ? 1 : 0)
           } : undefined}
-          onMouseLeave={images.length > 1 ? () => setPhotoIdx(0) : undefined}
+          onMouseLeave={images.length > 1 && !colorOverride ? () => setPhotoIdx(0) : undefined}
         >
           {mainPhoto ? (
             <Image fill src={mainPhoto} alt={displayName} sizes="(max-width: 768px) 100vw, 50vw" priority style={{ objectFit: 'contain' }} />
@@ -310,7 +314,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
               </svg>
             </div>
           )}
-          {images.length > 1 && (
+          {images.length > 1 && !colorOverride && (
             <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5 }}>
               {images.map((_, i) => (
                 <div key={i} style={{

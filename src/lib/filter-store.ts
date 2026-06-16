@@ -94,7 +94,8 @@ export const useFilters = create<FilterStore>()(
   group: DEFAULT_GROUP_ID,
   subcat: DEFAULT_SUBCAT,
   varietyType: '',
-  selectedLeaves: [],
+  // Дефолт при открытии каталога — лист «Плёнка» (film первый в группе packaging).
+  selectedLeaves: ['film'],
   subgroup: '',
   onlyAvailable: true,
   onlyDiscount: false,
@@ -164,7 +165,7 @@ export const useFilters = create<FilterStore>()(
 }),
 {
   name: 'catalog-filters',
-  version: 4,
+  version: 5,
   storage: createJSONStorage(() => sessionStorage),
   partialize: (s) => ({
     category:      s.category,

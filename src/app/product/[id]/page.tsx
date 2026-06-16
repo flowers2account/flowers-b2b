@@ -72,7 +72,7 @@ type ProductData = {
   subcategory: string | null; variety_type: string | null; length_cm: number | null
   pot_diameter: number | null; image_url: string | null; campaign_image_url: string | null
   extra_images: string[] | null; country_iso: string | null; farm: string | null
-  colors: string[] | null; pack_size: number; stems_per_pack: number | null
+  colors: string[] | null; color_images: Record<string, string> | null; pack_size: number; stems_per_pack: number | null
   weight_gram: number | null; price: number; previous_price: number | null; qty: number
   is_active: boolean; description: string | null; short_description: string | null
   care_instructions: string | null; highlights: string[] | null; florist_usage: string[] | null
@@ -197,7 +197,7 @@ export default function ProductPage() {
       .from('products')
       .select(`id, name, display_name, category, subcategory, variety_type,
                length_cm, pot_diameter, image_url, campaign_image_url, extra_images,
-               country_iso, farm, colors, pack_size, stems_per_pack, weight_gram,
+               country_iso, farm, colors, color_images, pack_size, stems_per_pack, weight_gram,
                price, previous_price, qty, is_active, description, short_description,
                care_instructions, highlights, florist_usage, pot_color, pot_material,
                pot_form, substrate, quality_grade, min_plants_per_pot, min_flowers_per_pot, variant`)
@@ -309,7 +309,10 @@ export default function ProductPage() {
     for (const url of product.extra_images ?? []) { if (!imgs.includes(url)) imgs.push(url) }
     return imgs
   })()
-  const mainPhoto = images[photoIdx] ?? null
+  // Свап главного фото при выборе цвета (Вариант А): для выбранного цвета — своё фото.
+  const colorOverride = colorMode === 'select' && selectedSlug
+    ? (product.color_images?.[selectedSlug] ?? null) : null
+  const mainPhoto = colorOverride ?? images[photoIdx] ?? null
 
   const colorDefs = (product.colors ?? []).map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
   const potColorVal = product.pot_color ? (POT_COLOR_RU[product.pot_color.toLowerCase()] ?? product.pot_color) : null

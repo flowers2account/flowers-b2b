@@ -46,6 +46,7 @@ export type Product = {
   images?: string[] | null
   campaign_image_url?: string | null
   colors?: string[] | null
+  color_images?: Record<string, string> | null
   search_aliases?: string[] | null
   pack_size: number
   stems_per_pack?: number | null
