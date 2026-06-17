@@ -2,7 +2,6 @@
 
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient as createServerClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/phone'
 import type { CampaignSummaryRow } from '@/types/campaigns'
 
@@ -157,7 +156,7 @@ export async function admitRequest(params: {
   campaign_id: number
   action: 'approve' | 'deny'
 }): Promise<{ status?: string; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('admin_admit_request', {
     p_access_id:   params.access_id,
     p_campaign_id: params.campaign_id,
@@ -179,7 +178,7 @@ export interface AccessRow {
 export async function getAccessRequests(
   campaign_id: number
 ): Promise<{ rows: AccessRow[]; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('get_campaign_access_requests', {
     p_campaign_id: campaign_id,
   })
@@ -194,7 +193,7 @@ export async function bulkPreorderStatus(params: {
   from: string
   to: string
 }): Promise<{ updated?: number; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('admin_bulk_preorder_status', {
     p_campaign_id: params.campaign_id,
     p_from:        params.from,
@@ -210,7 +209,7 @@ export async function updatePreorderStatus(params: {
   order_id: number
   status: string
 }): Promise<{ error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.rpc('admin_set_preorder_status', {
     p_order_id: params.order_id,
     p_status:   params.status,
@@ -342,7 +341,7 @@ export async function checkoutPreorder(params: {
 // ── Read all campaign_orders via SECURITY DEFINER RPC ────────────────────────
 
 export async function getPreorders(): Promise<{ orders: PreorderOrder[]; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('get_admin_preorders')
   if (error) return { orders: [], error: error.message }
   return { orders: (data as PreorderOrder[]) ?? [] }
@@ -355,7 +354,7 @@ export async function assemblePreorder(params: {
   items:     Array<{ id: number; qty_actual: number; is_removed: boolean }>
   photo_url?: string
 }): Promise<{ total?: number; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('admin_assemble_preorder', {
     p_order_id:  params.order_id,
     p_items:     params.items,
@@ -373,7 +372,7 @@ export async function savePreorderEdits(params: {
   new_items: Array<{ campaign_item_id: number; qty: number }>
   note?:     string
 }): Promise<{ total?: number; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('admin_save_preorder_edits', {
     p_order_id:  params.order_id,
     p_updates:   params.updates,
@@ -389,7 +388,7 @@ export async function savePreorderEdits(params: {
 export async function getCampaignItemsForOrder(
   campaign_id: number
 ): Promise<{ items: CampaignItemOption[]; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('admin_get_campaign_items', {
     p_campaign_id: campaign_id,
   })
@@ -402,7 +401,7 @@ export async function getCampaignItemsForOrder(
 export async function getCampaignSummary(
   campaign_id: number
 ): Promise<{ summary: CampaignSummaryRow[]; error?: string }> {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.rpc('get_admin_summary', { p_campaign_id: campaign_id })
   if (error) return { summary: [], error: error.message }
   return { summary: (data as CampaignSummaryRow[]) ?? [] }

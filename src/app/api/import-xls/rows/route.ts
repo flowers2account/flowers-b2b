@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getAuthedWithRole } from '@/lib/api-auth'
 
 export async function GET(req: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const importId = req.nextUrl.searchParams.get('importId')
   if (!importId) return NextResponse.json({ error: 'importId required' }, { status: 400 })
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: rows, error } = await supabase
     .from('stock_import_rows')

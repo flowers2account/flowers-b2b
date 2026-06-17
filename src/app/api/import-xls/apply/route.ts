@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getAuthedWithRole } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
   if (!importId) return NextResponse.json({ error: 'importId required' }, { status: 400 })
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // ⚠️ PostgREST max_rows=1000 — без пагинации select молча вернул бы первые 1000
   // matched-строк. Полный снимок 1С может дать >1000 matched → пагинируем .range().

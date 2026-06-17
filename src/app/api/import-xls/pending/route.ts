@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getAuthedWithRole } from '@/lib/api-auth'
 
 /**
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const authed = await getAuthedWithRole(req, ['admin', 'manager'])
   if (!authed) return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // лёгкие поля + пагинация (PostgREST max_rows=1000)
   type Row = { import_id: number; source: string | null; status: string; created_at: string }

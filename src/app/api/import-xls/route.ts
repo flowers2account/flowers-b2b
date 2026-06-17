@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import * as XLSX from 'xlsx'
 import { enrichProductBatch } from '@/lib/naming/ai-enrichment'
 import { parseNomenclature } from '@/lib/parse-nomenclature'
@@ -117,7 +117,7 @@ function getSubcatByKeyword(name: string, category: 'cut' | 'pot' | 'accessories
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const formData = await req.formData()
   const file = formData.get('file') as File
