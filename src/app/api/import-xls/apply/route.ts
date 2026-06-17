@@ -47,6 +47,19 @@ export async function POST(req: NextRequest) {
     const product = productMap.get(row.matched_product_id)
     if (!product) continue
 
+    // ⚠️ Приведение типов. qty/price в stock_import_rows — numeric, но PostgREST
+    // сериализует numeric как СТРОКУ ("46"/"545"), и products.qty (integer) /
+    // products.price (numeric) могли бы получить строку через неявное приведение.
+    // Приводим явно: qty → целое, price → число. Битые значения (NaN) пропускаем,
+    // чтобы на витрину не попал текст/мусор вместо числа.
+    const qtyNum = Math.round(Number(row.qty))
+    const priceNum = Number(row.price)
+    if (!Number.isFinite(qtyNum) || !Number.isFinite(priceNum)) {
+      errorLog.push(`${row.matched_product_id ?? row.id}: нечисловые qty/price (qty="${row.qty}", price="${row.price}")`)
+      continue
+    }
+    const curPrice = product.price != null ? Number(product.price) : null
+
     categoriesSet.add(product.category)
 
     // ⚠️ Аллоулист обновляемых полей. НАМЕРЕННО не трогаем ручные поля:
@@ -55,13 +68,13 @@ export async function POST(req: NextRequest) {
     // Кратность рулонных расходников (спанбонд 150 пог. м и др.) задаётся вручную
     // и НЕ должна сбрасываться при повторной загрузке прайса.
     const payload: Record<string, unknown> = {
-      qty: row.qty,
-      price: row.price,
+      qty: qtyNum,
+      price: priceNum,
       is_active: true,
     }
 
-    if (product.price && row.price < product.price) {
-      payload.previous_price = product.price
+    if (curPrice != null && Number.isFinite(curPrice) && priceNum < curPrice) {
+      payload.previous_price = curPrice
     }
     if (!product.country_iso && row.enriched_country_iso) {
       payload.country_iso = row.enriched_country_iso
@@ -77,9 +90,9 @@ export async function POST(req: NextRequest) {
     ledgerRows.push({
       product_id: product.id,
       action: 'import',
-      quantity: row.qty,
+      quantity: qtyNum,
       qty_before: 0,
-      qty_after: row.qty,
+      qty_after: qtyNum,
       reference_type: 'import',
       created_by: userId ?? null,
     })
@@ -94,11 +107,14 @@ export async function POST(req: NextRequest) {
     )
   )
 
+  let updateFailures = 0
   updateResults.forEach((r, i) => {
     if (r.status === 'rejected') {
       errorLog.push(`${updates[i].id}: ${String(r.reason)}`)
+      updateFailures++
     } else if (r.value.error) {
       errorLog.push(`${updates[i].id}: ${r.value.error.message}`)
+      updateFailures++
     }
   })
 
@@ -114,7 +130,7 @@ export async function POST(req: NextRequest) {
       .in('id', appliedRowIds)
   }
 
-  const applied = importedIds.length - errorLog.length
+  const applied = importedIds.length - updateFailures
 
   // 1С-импорт (строки с source) — это снимок одного источника, НЕ полный срез категории.
   // categories: [] блокирует finalize на клиенте → деактивация отсутствующих не выполняется,
