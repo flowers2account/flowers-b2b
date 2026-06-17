@@ -485,40 +485,6 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             )
           })()}
 
-          {/* Характеристики аксессуаров-горшков (пустой ГОРШОК как товар) и прочих
-              не-растительных категорий: рендер по НАЛИЧИЮ данных, без гейта по category.
-              Живые горшечные растения (category==='pot') обслуживает блок выше. */}
-          {product.category !== 'pot' && (() => {
-            const p = product as any
-            const potColorVal = p.pot_color ? (POT_COLOR_RU[p.pot_color.toLowerCase()] ?? p.pot_color) : null
-            const matVal      = p.pot_material ? (POT_MATERIAL_RU[p.pot_material.toLowerCase()] ?? p.pot_material) : null
-            const catLabel    = labelForSubcat(product.subcategory)
-            const has = (v: any) => v != null && v !== ''
-            const rows = [
-              { label: 'Категория',     value: catLabel || null },
-              { label: 'Производитель', value: has(p.supplier) ? p.supplier : null },
-              { label: 'Материал',      value: matVal },
-              { label: 'Цвет',          value: potColorVal },
-              { label: 'Объём',         value: has(p.volume_l)      ? `${fmtNum(p.volume_l)} л`      : null },
-              { label: 'Высота',        value: has(p.pot_height)    ? `${fmtNum(p.pot_height)} см`   : null },
-              { label: 'Диаметр',       value: has(p.pot_diameter)  ? `${fmtNum(p.pot_diameter)} см` : null },
-              { label: 'Вариант',       value: has(p.variant) ? p.variant : null },
-            ].filter(r => r.value) as { label: string; value: string }[]
-            if (!rows.length) return null
-            return (
-              <>
-                <div style={{
-                  fontFamily: 'monospace', fontSize: 10, letterSpacing: '0.12em',
-                  textTransform: 'uppercase', color: 'var(--text-mid)', fontWeight: 500,
-                  margin: '8px 0 2px',
-                }}>
-                  Характеристики ({rows.length})
-                </div>
-                {rows.map(r => <Row key={r.label} label={r.label}>{r.value}</Row>)}
-              </>
-            )
-          })()}
-
         </div>
 
         {/* Выбор цвета (Вариант А) — чипсы / бейдж «Ассорти» */}
@@ -641,13 +607,47 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             borderLeft: '2px solid var(--accent-mid)',
           }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-mid)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-              Характеристики
+              Описание
             </div>
             <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
               {product.description}
             </div>
           </div>
         )}
+
+        {/* Структурные характеристики — отдельный блок ВНИЗУ, под описанием.
+            Data-driven (только непустые), категория-независимо для всей расходки;
+            живые горшечные растения (category==='pot') обслуживает блок в шапке выше. */}
+        {product.category !== 'pot' && (() => {
+          const p = product as any
+          const potColorVal = p.pot_color ? (POT_COLOR_RU[p.pot_color.toLowerCase()] ?? p.pot_color) : null
+          const matVal      = p.pot_material ? (POT_MATERIAL_RU[p.pot_material.toLowerCase()] ?? p.pot_material) : null
+          const catLabel    = labelForSubcat(product.subcategory)
+          const has = (v: any) => v != null && v !== ''
+          const rows = [
+            { label: 'Категория',     value: catLabel || null },
+            { label: 'Производитель', value: has(p.supplier) ? p.supplier : null },
+            { label: 'Материал',      value: matVal },
+            { label: 'Цвет',          value: potColorVal },
+            { label: 'Объём',         value: has(p.volume_l)      ? `${fmtNum(p.volume_l)} л`      : null },
+            { label: 'Высота',        value: has(p.pot_height)    ? `${fmtNum(p.pot_height)} см`   : null },
+            { label: 'Диаметр',       value: has(p.pot_diameter)  ? `${fmtNum(p.pot_diameter)} см` : null },
+            { label: 'Вариант',       value: has(p.variant) ? p.variant : null },
+          ].filter(r => r.value) as { label: string; value: string }[]
+          if (!rows.length) return null
+          return (
+            <div style={{ marginTop: 4 }}>
+              <div style={{
+                fontFamily: 'monospace', fontSize: 10, letterSpacing: '0.12em',
+                textTransform: 'uppercase', color: 'var(--text-mid)', fontWeight: 500,
+                marginBottom: 2,
+              }}>
+                Характеристики ({rows.length})
+              </div>
+              {rows.map(r => <Row key={r.label} label={r.label}>{r.value}</Row>)}
+            </div>
+          )
+        })()}
       </div>
 
       {showAuth && (
