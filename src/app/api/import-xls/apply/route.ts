@@ -50,8 +50,15 @@ export async function POST(req: NextRequest) {
     // ⚠️ Приведение типов. qty/price в stock_import_rows — numeric, но PostgREST
     // сериализует numeric как СТРОКУ ("46"/"545"), и products.qty (integer) /
     // products.price (numeric) могли бы получить строку через неявное приведение.
-    // Приводим явно: qty → целое, price → число. Битые значения (NaN) пропускаем,
+    // Приводим явно: qty → целое, price → число. Битые значения пропускаем,
     // чтобы на витрину не попал текст/мусор вместо числа.
+    // ОТБОЙ на пусто/null/undefined ДО Number(): Number("")===0 и Number(null)===0 —
+    // иначе пустое qty деактивировало бы товар (0), пустое price поставило бы 0 ₸.
+    const isBlank = (v: unknown) => v == null || (typeof v === 'string' && v.trim() === '')
+    if (isBlank(row.qty) || isBlank(row.price)) {
+      errorLog.push(`${row.matched_product_id ?? row.id}: пустые qty/price (qty="${row.qty}", price="${row.price}")`)
+      continue
+    }
     const qtyNum = Math.round(Number(row.qty))
     const priceNum = Number(row.price)
     if (!Number.isFinite(qtyNum) || !Number.isFinite(priceNum)) {
