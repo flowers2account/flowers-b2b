@@ -12,7 +12,7 @@ import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
 import { COLORS, getColorMode, colorLabel, colorSwatch, isAssorti } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
-import { unitForProduct } from '@/lib/category-tree'
+import { unitForProduct, labelForSubcat } from '@/lib/category-tree'
 
 const FLORAL_ROLE_MAP: Record<string, { label: string; icon: string }> = {
   focal:   { label: 'Фокусный',    icon: '🌹' },
@@ -104,6 +104,9 @@ const SUBSTRATE_RU: Record<string, string> = {
 
 
 // ── primitives ───────────────────────────────────────────────────────────────
+
+// ru-формат чисел: точка→запятая, хвостовой .0 убрать (5→«5», 4.5→«4,5», 12.0→«12»)
+const fmtNum = (v: number | string) => Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 })
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -392,6 +395,13 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           </div>
         )}
 
+        {/* Производитель — отдельная заметная строка (из products.supplier) */}
+        {(product as any).supplier && (
+          <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--text)' }}>
+            Производитель: <span style={{ fontWeight: 600 }}>{(product as any).supplier}</span>
+          </div>
+        )}
+
         {/* Characteristics */}
         <div style={{ marginBottom: 12 }}>
 
@@ -471,6 +481,40 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
                 {matVal                && <Row label="Материал горшка">{matVal}</Row>}
                 {formVal               && <Row label="Тип горшка">{formVal}</Row>}
                 {substrVal             && <Row label="Субстрат">{substrVal}</Row>}
+              </>
+            )
+          })()}
+
+          {/* Характеристики аксессуаров-горшков (пустой ГОРШОК как товар) и прочих
+              не-растительных категорий: рендер по НАЛИЧИЮ данных, без гейта по category.
+              Живые горшечные растения (category==='pot') обслуживает блок выше. */}
+          {product.category !== 'pot' && (() => {
+            const p = product as any
+            const potColorVal = p.pot_color ? (POT_COLOR_RU[p.pot_color.toLowerCase()] ?? p.pot_color) : null
+            const matVal      = p.pot_material ? (POT_MATERIAL_RU[p.pot_material.toLowerCase()] ?? p.pot_material) : null
+            const catLabel    = labelForSubcat(product.subcategory)
+            const has = (v: any) => v != null && v !== ''
+            const rows = [
+              { label: 'Категория',     value: catLabel || null },
+              { label: 'Производитель', value: has(p.supplier) ? p.supplier : null },
+              { label: 'Материал',      value: matVal },
+              { label: 'Цвет',          value: potColorVal },
+              { label: 'Объём',         value: has(p.volume_l)      ? `${fmtNum(p.volume_l)} л`      : null },
+              { label: 'Высота',        value: has(p.pot_height)    ? `${fmtNum(p.pot_height)} см`   : null },
+              { label: 'Диаметр',       value: has(p.pot_diameter)  ? `${fmtNum(p.pot_diameter)} см` : null },
+              { label: 'Вариант',       value: has(p.variant) ? p.variant : null },
+            ].filter(r => r.value) as { label: string; value: string }[]
+            if (!rows.length) return null
+            return (
+              <>
+                <div style={{
+                  fontFamily: 'monospace', fontSize: 10, letterSpacing: '0.12em',
+                  textTransform: 'uppercase', color: 'var(--text-mid)', fontWeight: 500,
+                  margin: '8px 0 2px',
+                }}>
+                  Характеристики ({rows.length})
+                </div>
+                {rows.map(r => <Row key={r.label} label={r.label}>{r.value}</Row>)}
               </>
             )
           })()}

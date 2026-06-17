@@ -79,7 +79,11 @@ type ProductData = {
   pot_color: string | null; pot_material: string | null; pot_form: string | null
   substrate: string | null; quality_grade: string | null; min_plants_per_pot: number | null
   min_flowers_per_pot: number | null; variant: string | null
+  supplier: string | null; volume_l: number | null; pot_height: number | null
 }
+
+// ru-формат чисел: точка→запятая, хвостовой .0 убрать (5→«5», 4.5→«4,5», 12.0→«12»)
+const fmtNum = (v: number | string) => Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 })
 
 type RelatedProduct = {
   id: number; display_name: string | null; name: string; price: number; qty: number
@@ -200,7 +204,8 @@ export default function ProductPage() {
                country_iso, farm, colors, color_images, pack_size, stems_per_pack, weight_gram,
                price, previous_price, qty, is_active, description, short_description,
                care_instructions, highlights, florist_usage, pot_color, pot_material,
-               pot_form, substrate, quality_grade, min_plants_per_pot, min_flowers_per_pot, variant`)
+               pot_form, substrate, quality_grade, min_plants_per_pot, min_flowers_per_pot, variant,
+               supplier, volume_l, pot_height`)
       .eq('id', productId)
       .eq('is_active', true)
       .eq('hidden_for_demo', false)  // скрытые карточки (стабы oz_catalog 999, demo-hide) недоступны и по прямой ссылке
@@ -328,19 +333,24 @@ export default function ProductPage() {
   const latinLine = [hasLatin ? product.name : null, product.variant].filter(Boolean).join(' · ')
 
   const isBasket = product.subcategory === 'baskets'
+  // Аксессуары-горшки (пустой ГОРШОК как товар) — нейтральные ярлыки «Материал/Цвет»,
+  // в отличие от живых горшечных растений (category==='pot'), где это «...горшка».
+  const genericPot = product.category === 'accessories' && !isBasket
   const potL = {
-    diameter:      isBasket ? 'Диаметр корзины' : 'Диаметр горшка',
+    diameter:      isBasket ? 'Диаметр корзины' : genericPot ? 'Диаметр' : 'Диаметр горшка',
     diameterShort: isBasket ? 'Диаметр'         : 'Горшок',
-    color:         isBasket ? 'Цвет'             : 'Цвет горшка',
-    material:      isBasket ? 'Материал'         : 'Материал горшка',
+    color:         (isBasket || genericPot) ? 'Цвет'     : 'Цвет горшка',
+    material:      (isBasket || genericPot) ? 'Материал' : 'Материал горшка',
     form:          isBasket ? 'Форма'            : 'Тип горшка',
     variant:       isBasket ? 'Комплектность'    : 'Вариант',
   }
 
   const specRows = [
     { label: 'Категория', value: subcategoryLabel },
-    { label: product.category === 'cut' ? 'Длина стебля' : 'Высота', value: product.length_cm ? `${product.length_cm} см` : null },
-    { label: potL.diameter, value: product.pot_diameter ? `${product.pot_diameter} см` : null },
+    { label: 'Производитель', value: product.supplier },
+    { label: product.category === 'cut' ? 'Длина стебля' : 'Высота', value: product.length_cm ? `${product.length_cm} см` : product.pot_height != null ? `${fmtNum(product.pot_height)} см` : null },
+    { label: potL.diameter, value: product.pot_diameter != null ? `${fmtNum(product.pot_diameter)} см` : null },
+    { label: 'Объём', value: product.volume_l != null ? `${fmtNum(product.volume_l)} л` : null },
     { label: 'Цвет', value: colorDefs.length > 0 ? colorDefs.map(c => c.label).join(', ') : null },
     { label: 'Страна', value: countryLabel },
     { label: 'Поставщик', value: product.farm },
@@ -495,6 +505,11 @@ export default function ProductPage() {
               {displayName}
             </h1>
             {latinLine && <div style={{ fontSize: 14, color: C.ink3, fontStyle: 'italic', marginTop: 6 }}>{latinLine}</div>}
+            {product.supplier && (
+              <div style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
+                Производитель: <span style={{ fontWeight: 600, color: C.ink }}>{product.supplier}</span>
+              </div>
+            )}
 
             {/* price block */}
             <div style={{ marginTop: 22, padding: 20, background: C.bgCard, border: `1px solid ${C.borderSoft}`, borderRadius: 12, boxShadow: sh }}>
