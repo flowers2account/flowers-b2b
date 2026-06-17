@@ -96,6 +96,18 @@ export async function POST(req: NextRequest) {
   const aliasByNorm = new Map<string, number>()
   for (const a of aliases ?? []) aliasByNorm.set(a.norm_name, a.product_id)
 
+  // Приоритетный матч по артикулу 1С (products.code_1c) — точное совпадение кода.
+  // Чанки по 1000 кодов (ограничение длины .in()).
+  const codes = [...new Set(rows.map(r => r.code_1c as string).filter(Boolean))]
+  const productByCode = new Map<string, number>()
+  for (let i = 0; i < codes.length; i += 1000) {
+    const { data } = await supabase
+      .from('products').select('id, code_1c').in('code_1c', codes.slice(i, i + 1000))
+    for (const p of data ?? []) {
+      if (p.code_1c && !productByCode.has(p.code_1c)) productByCode.set(p.code_1c, p.id)
+    }
+  }
+
   // ⚠️ PostgREST max_rows=1000 — без пагинации карта имён неполная и матч молча теряется
   const productByNorm = new Map<string, number>()
   for (let from = 0; ; from += 1000) {
@@ -109,10 +121,17 @@ export async function POST(req: NextRequest) {
     if (page.length < 1000) break
   }
 
+  // Приоритет матча: code_1c (точный артикул) → alias (norm) → exact products.name (norm)
   let matched = 0
   for (const r of rows) {
+    const code = r.code_1c as string
     const n = r.norm_name as string
-    if (aliasByNorm.has(n)) {
+    if (code && productByCode.has(code)) {
+      r.matched_product_id = productByCode.get(code)!
+      r.status = 'matched'
+      r.match_source = 'code_1c'
+      matched++
+    } else if (aliasByNorm.has(n)) {
       r.matched_product_id = aliasByNorm.get(n)!
       r.status = 'matched'
       r.match_source = 'alias'
