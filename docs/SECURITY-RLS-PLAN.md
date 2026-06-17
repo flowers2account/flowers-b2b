@@ -1,3 +1,5 @@
+> 🔗 Связано: [`SECURITY-ANON-FIX.md`](./SECURITY-ANON-FIX.md) — закрытие anon-дыры после перестройки каталога (шаги A–E, 17.06.2026): products под RLS, ~30 таблиц + 11 функций закрыты от anon.
+
 # План RLS-защиты: clients / orders / order_items
 
 **Статус: ✅ ВНЕДРЕНО ПОЛНОСТЬЮ (шаги 1–4) — 11.06.2026.** БД: flower-stock (jwastcmasactymmzojhi).
