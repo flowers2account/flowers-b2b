@@ -201,6 +201,7 @@ const DEFAULT_OPEN = {
   subcat: true,
   length: false, origin: false, farm: false,
   season: false, tags: false, potSize: false, volume: false,
+  supplier: true, material: true, potColor: false, accVolume: false,
 }
 
 // Порядок подгрупп по подкатегории (data-driven subgroup tabs)
@@ -219,6 +220,33 @@ const VOLUME_RANGES = [
   { id: '40+',   label: '40+ л',    test: (v: number) => v > 40 },
 ]
 const VOLUME_SUBCATS = new Set(['pots', 'kashpo', 'soil'])
+
+// Порядок диапазонов объёма для accessories-фасета (синхронно с api/facets и ProductGrid)
+const ACC_VOLUME_ORDER = ['до 1л', '1-3л', '3-6л', '6-12л', '12+л']
+
+// Строки чекбоксов для accessories-фасета (Производитель/Материал/Цвет/Объём)
+function FacetCheckList({ entries, selected, onToggle }: {
+  entries: [string, number][]; selected: string[]; onToggle: (v: string) => void
+}) {
+  return (
+    <>
+      {entries.map(([val, count]) => (
+        <label key={val} style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '5px 8px', fontSize: 12,
+          borderRadius: 'var(--radius-btn)', cursor: 'pointer',
+        }}>
+          <input
+            type="checkbox" checked={selected.includes(val)} onChange={() => onToggle(val)}
+            style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          <span style={{ flex: 1 }}>{val}</span>
+          <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{count}</span>
+        </label>
+      ))}
+    </>
+  )
+}
 
 // ── primitives ────────────────────────────────────────────────────────────────
 
@@ -702,11 +730,23 @@ export default function FilterPanel({ products }: { products: Product[] }) {
   const {
     category, subcat, varietyType, selectedLeaves, subgroup,
     colors, lengths, origins, farms, potSizes, volumeRanges, tags,
+    suppliers, materials, potColors, volumes,
     seasons, onlyAvailable, facets,
     setSubcat, setVarietyType, setSubgroup, clearLeaves,
     toggleColor, toggleLength, toggleOrigin, toggleFarm, togglePotSize, toggleVolumeRange,
+    toggleSupplier, toggleMaterial, togglePotColor, toggleVolume,
     toggleSeason, reset, loadFacets,
   } = useFilters()
+
+  // accessories-фасеты: записи для рендера (Производитель/Материал — по убыванию count; Объём — фикс. порядок)
+  const supplierEntries = useMemo<[string, number][]>(
+    () => Object.entries(facets?.supplierCounts ?? {}).sort((a, b) => b[1] - a[1]), [facets])
+  const materialEntries = useMemo<[string, number][]>(
+    () => Object.entries(facets?.materialCounts ?? {}).sort((a, b) => b[1] - a[1]), [facets])
+  const potColorEntries = useMemo<[string, number][]>(
+    () => Object.entries(facets?.potColorCounts ?? {}).sort((a, b) => b[1] - a[1]), [facets])
+  const volumeEntries = useMemo<[string, number][]>(
+    () => ACC_VOLUME_ORDER.filter(r => facets?.volumeCounts?.[r]).map(r => [r, facets!.volumeCounts[r]] as [string, number]), [facets])
 
   // Data-driven subgroup tabs: compute available subgroups for current subcat
   const availableSubgroups = useMemo(() => {
@@ -740,8 +780,12 @@ export default function FilterPanel({ products }: { products: Product[] }) {
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
 
-  // Recalculate facets when structural filters change (not colors — standard faceting behavior)
-  useEffect(() => { loadFacets() }, [category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable])
+  // Recalculate facets when structural filters change (not colors — standard faceting behavior).
+  // accessories-фасеты включены в пересчёт → кросс-фасетные counts + скоуп по листьям.
+  useEffect(() => { loadFacets() }, [
+    category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable,
+    selectedLeaves, suppliers, materials, potColors, volumes,
+  ])
 
   // Reset group open states when category changes
   useEffect(() => { setOpenGroups({ ...DEFAULT_OPEN }) }, [category])
@@ -757,10 +801,14 @@ export default function FilterPanel({ products }: { products: Product[] }) {
       if (tags.length > 0)        next.tags      = true
       if (potSizes.length > 0)      next.potSize   = true
       if (volumeRanges.length > 0)  next.volume    = true
+      if (suppliers.length > 0)     next.supplier  = true
+      if (materials.length > 0)     next.material  = true
+      if (potColors.length > 0)     next.potColor  = true
+      if (volumes.length > 0)       next.accVolume = true
       if (subcat)                   next.subcat    = true
       return next
     })
-  }, [lengths, origins, farms, seasons, tags, potSizes, volumeRanges, subcat])
+  }, [lengths, origins, farms, seasons, tags, potSizes, volumeRanges, suppliers, materials, potColors, volumes, subcat])
 
   const tog = (key: keyof typeof DEFAULT_OPEN) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -875,6 +923,55 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               })}
             </div>
           </div>
+        )}
+
+        {/* Accessories-фасеты: Производитель · Материал · Объём · Цвет (И-логика) */}
+        {category === 'accessories' && (
+          <>
+            {(supplierEntries.length > 0 || suppliers.length > 0) && (
+              <CollapsibleGroup
+                label="Производитель"
+                open={openGroups.supplier}
+                onToggle={() => tog('supplier')}
+                activeCount={suppliers.length}
+              >
+                <FacetCheckList entries={supplierEntries} selected={suppliers} onToggle={toggleSupplier} />
+              </CollapsibleGroup>
+            )}
+
+            {(materialEntries.length > 0 || materials.length > 0) && (
+              <CollapsibleGroup
+                label="Материал"
+                open={openGroups.material}
+                onToggle={() => tog('material')}
+                activeCount={materials.length}
+              >
+                <FacetCheckList entries={materialEntries} selected={materials} onToggle={toggleMaterial} />
+              </CollapsibleGroup>
+            )}
+
+            {(volumeEntries.length > 0 || volumes.length > 0) && (
+              <CollapsibleGroup
+                label="Объём"
+                open={openGroups.accVolume}
+                onToggle={() => tog('accVolume')}
+                activeCount={volumes.length}
+              >
+                <FacetCheckList entries={volumeEntries} selected={volumes} onToggle={toggleVolume} />
+              </CollapsibleGroup>
+            )}
+
+            {(potColorEntries.length > 0 || potColors.length > 0) && (
+              <CollapsibleGroup
+                label="Цвет"
+                open={openGroups.potColor}
+                onToggle={() => tog('potColor')}
+                activeCount={potColors.length}
+              >
+                <FacetCheckList entries={potColorEntries} selected={potColors} onToggle={togglePotColor} />
+              </CollapsibleGroup>
+            )}
+          </>
         )}
 
         {/* 4–8. CUT-only filters */}

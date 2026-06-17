@@ -64,6 +64,16 @@ const VOLUME_RANGE_TEST: Record<string, (v: number) => boolean> = {
   '40+':   v => v > 40,
 }
 
+// Диапазон объёма для accessories-фасета (синхронно с api/facets и FilterPanel)
+function accVolumeRange(v: number): string | null {
+  if (!v || v <= 0) return null
+  if (v < 1)  return 'до 1л'
+  if (v < 3)  return '1-3л'
+  if (v < 6)  return '3-6л'
+  if (v < 12) return '6-12л'
+  return '12+л'
+}
+
 // ── card tag badge ──────────────────────────────────────────────────────────
 
 function TagBadge({ type }: { type: 'hit' | 'sale' | 'new' }) {
@@ -524,6 +534,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const {
     category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel,
     lengths, origins, farms, potSizes, volumeRanges, tags, seasons,
+    suppliers, materials, potColors, volumes,
     searchResultIds, searchActiveQuery, reset,
   } = useFilters()
 
@@ -610,6 +621,23 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         if (!vol || !volumeRanges.some(id => VOLUME_RANGE_TEST[id]?.(vol))) return false
       }
       if (colors.length > 0 && !colors.some(c => p.colors?.includes(c) || p.color === c)) return false
+      // Accessories-фасеты (И-логика; пустое поле просто не проходит свой активный фильтр)
+      if (suppliers.length > 0) {
+        const s = (p as any).supplier
+        if (!s || !suppliers.includes(s)) return false
+      }
+      if (materials.length > 0) {
+        const m = (p as any).pot_material
+        if (!m || !materials.includes(m)) return false
+      }
+      if (potColors.length > 0) {
+        const c = (p as any).pot_color
+        if (!c || !potColors.includes(c)) return false
+      }
+      if (volumes.length > 0) {
+        const r = accVolumeRange(Number((p as any).volume_l))
+        if (!r || !volumes.includes(r)) return false
+      }
       if (available <= 0) return false
       if (stockLevel === 'low'  && available >= 50) return false
       if (stockLevel === 'high' && available < 50)  return false
@@ -683,7 +711,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     }
 
     return list
-  }, [products, searchResultIds, category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, lengths, origins, farms, potSizes, volumeRanges, tags, seasons, sort])
+  }, [products, searchResultIds, category, group, subcat, varietyType, selectedLeaves, subgroup, colors, onlyDiscount, stockLevel, lengths, origins, farms, potSizes, volumeRanges, suppliers, materials, potColors, volumes, tags, seasons, sort])
 
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])

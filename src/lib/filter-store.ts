@@ -30,6 +30,11 @@ export type Facets = {
   originCounts: Record<string, number>
   seasonCounts: Record<string, number>
   farmCounts: Record<string, number>
+  // accessories-фасеты
+  supplierCounts: Record<string, number>
+  materialCounts: Record<string, number>
+  potColorCounts: Record<string, number>
+  volumeCounts: Record<string, number>
 }
 
 type FilterStore = {
@@ -53,6 +58,11 @@ type FilterStore = {
   farms: string[]
   potSizes: string[]
   volumeRanges: string[]
+  // accessories-фасеты (И-логика)
+  suppliers: string[]
+  materials: string[]
+  potColors: string[]
+  volumes: string[]
   tags: string[]
   seasons: string[]
   facets: Facets | null
@@ -78,6 +88,10 @@ type FilterStore = {
   toggleFarm: (v: string) => void
   togglePotSize: (v: string) => void
   toggleVolumeRange: (v: string) => void
+  toggleSupplier: (v: string) => void
+  toggleMaterial: (v: string) => void
+  togglePotColor: (v: string) => void
+  toggleVolume: (v: string) => void
   toggleTag: (v: string) => void
   toggleSeason: (v: string) => void
   reset: () => void
@@ -109,6 +123,10 @@ export const useFilters = create<FilterStore>()(
   farms: [],
   potSizes: [],
   volumeRanges: [],
+  suppliers: [],
+  materials: [],
+  potColors: [],
+  volumes: [],
   tags: [],
   seasons: [],
   facets: null,
@@ -117,11 +135,13 @@ export const useFilters = create<FilterStore>()(
     category, group: DEFAULT_GROUP_ID, subcat: '', varietyType: '', selectedLeaves: [], subgroup: '',
     search: '', searchResultIds: null, searchActiveQuery: '',
     colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
+    suppliers: [], materials: [], potColors: [], volumes: [],
     seasons: [],
   }),
   // Смена набора листьев сбрасывает colors: фильтр цвета привязан к листу (film),
   // иначе выбранный цвет тихо обнулял бы грид на листе без этого цвета.
-  setGroup:         (group) => set({ group, selectedLeaves: [], subgroup: '', colors: [] }),
+  // Смена раздела также сбрасывает accessories-фасеты (другой набор поставщиков/материалов).
+  setGroup:         (group) => set({ group, selectedLeaves: [], subgroup: '', colors: [], suppliers: [], materials: [], potColors: [], volumes: [] }),
   setSubcat:        (subcat) => set({ subcat, varietyType: '', subgroup: '' }),
   setVarietyType:   (varietyType) => set({ varietyType }),
   setSubcatAndVT:   (subcat, varietyType) => set({ subcat, varietyType, subgroup: '' }),
@@ -141,6 +161,10 @@ export const useFilters = create<FilterStore>()(
   toggleFarm:       (v) => set(s => ({ farms:       tog(s.farms,       v) })),
   togglePotSize:    (v) => set(s => ({ potSizes:    tog(s.potSizes,    v) })),
   toggleVolumeRange:(v) => set(s => ({ volumeRanges: tog(s.volumeRanges, v) })),
+  toggleSupplier:   (v) => set(s => ({ suppliers:   tog(s.suppliers,   v) })),
+  toggleMaterial:   (v) => set(s => ({ materials:   tog(s.materials,   v) })),
+  togglePotColor:   (v) => set(s => ({ potColors:   tog(s.potColors,   v) })),
+  toggleVolume:     (v) => set(s => ({ volumes:     tog(s.volumes,     v) })),
   toggleTag:    (v) => set(s => ({ tags:    tog(s.tags,    v) })),
   toggleSeason: (v) => set(s => ({ seasons: tog(s.seasons, v) })),
   reset: () => set({
@@ -148,14 +172,17 @@ export const useFilters = create<FilterStore>()(
     onlyAvailable: true, onlyDiscount: false, stockLevel: '',
     search: '', searchResultIds: null, searchActiveQuery: '',
     colors: [], lengths: [], origins: [], farms: [], potSizes: [], volumeRanges: [], tags: [],
+    suppliers: [], materials: [], potColors: [], volumes: [],
     seasons: [], facets: null,
   }),
   loadFacets: async () => {
-    const { category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable } = get()
+    const { category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable,
+            selectedLeaves, group, suppliers, materials, potColors, volumes } = get()
     const res = await fetch('/api/facets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable }),
+      body: JSON.stringify({ category, subcat, varietyType, subgroup, volumeRanges, onlyAvailable,
+        selectedLeaves, group, suppliers, materials, potColors, volumes }),
     })
     if (res.ok) {
       const facets: Facets = await res.json()
@@ -182,6 +209,10 @@ export const useFilters = create<FilterStore>()(
     farms:         s.farms,
     potSizes:      s.potSizes,
     volumeRanges:  s.volumeRanges,
+    suppliers:     s.suppliers,
+    materials:     s.materials,
+    potColors:     s.potColors,
+    volumes:       s.volumes,
     tags:          s.tags,
     seasons:       s.seasons,
   }),
