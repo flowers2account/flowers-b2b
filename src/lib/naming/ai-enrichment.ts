@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export interface EnrichedProductData {
   raw_name: string;
@@ -107,7 +107,7 @@ ${JSON.stringify(names)}`;
 export async function enrichProductBatch(rawNames: string[]): Promise<EnrichedProductData[]> {
   if (rawNames.length === 0) return [];
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const normalized = rawNames.map(normalizeName);
 

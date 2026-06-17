@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // GET /api/preorder/[id]/status?phone=... — клиент проверяет статус своего запроса
 // Возвращает status и access_token (только при approved)
@@ -19,7 +19,7 @@ export async function GET(
 
   // Service client to bypass RLS (campaign_access is admin-only)
   // Using anon key but reading through a server-side route that validates the query
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Use service role only for this specific lookup — read own record by exact phone match
   // The phone is user-supplied and acts as the identity claim here

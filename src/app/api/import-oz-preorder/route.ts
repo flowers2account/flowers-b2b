@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 interface OzLine {
   oz_line_id: string
@@ -39,7 +39,7 @@ interface OzPreorderPayload {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Auth: script path (x-import-secret) OR browser session (admin/manager)
   const importSecret = process.env.OZ_IMPORT_SECRET

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeSupplierName, NormalizationResult } from '@/lib/naming/supplier-translations';
 import { normalizeText } from '@/lib/utils/normalize-text';
 
@@ -80,7 +80,7 @@ function extractKeywords(product: string): string[] {
 }
 
 async function findSimilarFromDB(products: string[], limit: number = 10) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const keywords = products
     .flatMap(p => extractKeywords(p))
@@ -112,7 +112,7 @@ async function findSimilarFromDB(products: string[], limit: number = 10) {
 }
 
 async function findExactInDB(normalizedProducts: string[]) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const [forwardResult, reverseResult] = await Promise.all([
     supabase
