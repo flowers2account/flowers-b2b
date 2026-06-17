@@ -15,23 +15,47 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createClient()
 
-  const { data: rows, error: rowsErr } = await supabase
-    .from('stock_import_rows')
-    .select('id, raw_name, matched_product_id, qty, price, source, enriched_country_iso, enriched_display_name, enriched_colors')
-    .eq('import_id', importId)
-    .eq('status', 'matched')
+  // ⚠️ PostgREST max_rows=1000 — без пагинации select молча вернул бы первые 1000
+  // matched-строк. Полный снимок 1С может дать >1000 matched → пагинируем .range().
+  type ImportRow = {
+    id: number; raw_name: string | null; matched_product_id: number | null
+    qty: number | string | null; price: number | string | null; source: string | null
+    enriched_country_iso: string | null; enriched_display_name: string | null
+    enriched_colors: string[] | null
+  }
+  const rows: ImportRow[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error: rowsErr } = await supabase
+      .from('stock_import_rows')
+      .select('id, raw_name, matched_product_id, qty, price, source, enriched_country_iso, enriched_display_name, enriched_colors')
+      .eq('import_id', importId)
+      .eq('status', 'matched')
+      .order('id', { ascending: true })
+      .range(from, from + 999)
+    if (rowsErr) return NextResponse.json({ error: rowsErr.message }, { status: 500 })
+    if (!page || page.length === 0) break
+    rows.push(...(page as ImportRow[]))
+    if (page.length < 1000) break
+  }
 
-  if (rowsErr) return NextResponse.json({ error: rowsErr.message }, { status: 500 })
-  if (!rows?.length) return NextResponse.json({ applied: 0, importedIds: [], categories: [] })
+  if (!rows.length) return NextResponse.json({ applied: 0, importedIds: [], categories: [] })
 
   const productIds = [...new Set(rows.map(r => r.matched_product_id).filter(Boolean))] as number[]
 
-  const { data: products, error: prodErr } = await supabase
-    .from('products')
-    .select('id, category, price, country_iso, display_name, colors')
-    .in('id', productIds)
-
-  if (prodErr) return NextResponse.json({ error: prodErr.message }, { status: 500 })
+  // products через .in(...) тоже капается на 1000 — тянем чанками по 500 id.
+  type ProductRow = {
+    id: number; category: string; price: number | string | null
+    country_iso: string | null; display_name: string | null; colors: string[] | null
+  }
+  const products: ProductRow[] = []
+  for (let i = 0; i < productIds.length; i += 500) {
+    const { data, error: prodErr } = await supabase
+      .from('products')
+      .select('id, category, price, country_iso, display_name, colors')
+      .in('id', productIds.slice(i, i + 500))
+    if (prodErr) return NextResponse.json({ error: prodErr.message }, { status: 500 })
+    if (data) products.push(...(data as ProductRow[]))
+  }
 
   const productMap = new Map((products ?? []).map(p => [p.id, p]))
   const categoriesSet = new Set<string>()
@@ -44,6 +68,7 @@ export async function POST(req: NextRequest) {
   const appliedRowIds: number[] = []
 
   for (const row of rows) {
+    if (row.matched_product_id == null) continue
     const product = productMap.get(row.matched_product_id)
     if (!product) continue
 
@@ -125,16 +150,16 @@ export async function POST(req: NextRequest) {
     }
   })
 
-  // Batch insert ledger
-  if (ledgerRows.length > 0) {
-    await supabase.from('inventory_ledger').insert(ledgerRows)
+  // Batch insert ledger (чанками — большой снимок может дать >1000 строк)
+  for (let i = 0; i < ledgerRows.length; i += 500) {
+    await supabase.from('inventory_ledger').insert(ledgerRows.slice(i, i + 500))
   }
 
-  // Batch mark rows as applied
-  if (appliedRowIds.length > 0) {
+  // Mark rows as applied (чанками — .in(...) с >1000 id раздувает запрос)
+  for (let i = 0; i < appliedRowIds.length; i += 500) {
     await supabase.from('stock_import_rows')
       .update({ status: 'applied' })
-      .in('id', appliedRowIds)
+      .in('id', appliedRowIds.slice(i, i + 500))
   }
 
   const applied = importedIds.length - updateFailures
