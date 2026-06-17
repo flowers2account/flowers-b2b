@@ -1148,8 +1148,11 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </>
         )}
 
-        {/* Объём, л — для горшков/кашпо/грунтов */}
-        {VOLUME_SUBCATS.has(subcat) && (
+        {/* Объём, л — ЛЕГАСИ-блок (грубые 5–40+ л) для cut/pot-каталога.
+            В accessories объём обслуживает новый фасет «Объём» выше — иначе показались
+            бы два блока разом (баг проявлялся при «Назад» с карточки горшка: goToSubcat
+            ставит subcat='pots', активируя VOLUME_SUBCATS). Поэтому скрываем для accessories. */}
+        {category !== 'accessories' && VOLUME_SUBCATS.has(subcat) && (
           <CollapsibleGroup
             label="Объём, л"
             open={openGroups.volume}
