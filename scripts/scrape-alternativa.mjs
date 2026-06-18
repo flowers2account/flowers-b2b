@@ -588,7 +588,10 @@ function sigTokens(name) {
   const out = new Set()
   for (let t of s.split(/[^a-zа-я]+/)) {
     if (!t || t.length < 2 || STOP2.has(t)) continue
-    if (colorCanon(t)) continue
+    // выбросить как цвет ТОЛЬКО при совпадении префикса с канон-меткой
+    // (иначе модель «Розалия» съест /роз/ → розовый; «роз»=розовый — съест, «розалия» — нет)
+    const c = colorCanon(t)
+    if (c) { const base = c.label.replace(/^(светло-|тёмно-|прозрачно-)/, ''); const n = Math.min(4, t.length, base.length); if (t.slice(0, n) === base.slice(0, n)) continue }
     if (/^(горшок|кашпо|вазон)$/.test(t)) t = 'pot'
     out.add(t)
   }
