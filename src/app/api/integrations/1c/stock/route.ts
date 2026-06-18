@@ -89,30 +89,43 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // 3b) автоматч — тот же двухступенчатый, что в import-xls: alias (norm) → exact products.name (norm)
+  // 3b) автоматч с ИЗОЛЯЦИЕЙ по категории (защита от пересечения контуров):
+  //   1c-ip  → только products category='accessories' (расходка)
+  //   1c-too → только products category IN ('cut','pot') (цветы/горшечные)
+  // Цветочная строка не привяжется к карточке расходки даже при совпадении имени/кода.
+  const allowedCats = source === '1c-too' ? ['cut', 'pot'] : ['accessories']
+
+  // alias (norm → product_id): принимаем только если товар нужной категории
   const norms = [...new Set(rows.map(r => r.norm_name as string))]
   const { data: aliases } = await supabase
     .from('stock_aliases').select('norm_name, product_id').in('norm_name', norms)
+  const aliasPids = [...new Set((aliases ?? []).map(a => a.product_id))]
+  const aliasCatOk = new Set<number>()
+  for (let i = 0; i < aliasPids.length; i += 500) {
+    const { data } = await supabase
+      .from('products').select('id').in('id', aliasPids.slice(i, i + 500)).in('category', allowedCats)
+    for (const p of data ?? []) aliasCatOk.add(p.id)
+  }
   const aliasByNorm = new Map<string, number>()
-  for (const a of aliases ?? []) aliasByNorm.set(a.norm_name, a.product_id)
+  for (const a of aliases ?? []) if (aliasCatOk.has(a.product_id)) aliasByNorm.set(a.norm_name, a.product_id)
 
-  // Приоритетный матч по артикулу 1С (products.code_1c) — точное совпадение кода.
-  // Чанки по 1000 кодов (ограничение длины .in()).
+  // Приоритетный матч по артикулу 1С (products.code_1c) — только среди нужной категории.
   const codes = [...new Set(rows.map(r => r.code_1c as string).filter(Boolean))]
   const productByCode = new Map<string, number>()
   for (let i = 0; i < codes.length; i += 1000) {
     const { data } = await supabase
-      .from('products').select('id, code_1c').in('code_1c', codes.slice(i, i + 1000))
+      .from('products').select('id, code_1c').in('code_1c', codes.slice(i, i + 1000)).in('category', allowedCats)
     for (const p of data ?? []) {
       if (p.code_1c && !productByCode.has(p.code_1c)) productByCode.set(p.code_1c, p.id)
     }
   }
 
+  // exact name (norm) — только среди нужной категории.
   // ⚠️ PostgREST max_rows=1000 — без пагинации карта имён неполная и матч молча теряется
   const productByNorm = new Map<string, number>()
   for (let from = 0; ; from += 1000) {
     const { data: page } = await supabase
-      .from('products').select('id, name').order('id').range(from, from + 999)
+      .from('products').select('id, name').in('category', allowedCats).order('id').range(from, from + 999)
     if (!page || page.length === 0) break
     for (const p of page) {
       const n = normName(p.name)

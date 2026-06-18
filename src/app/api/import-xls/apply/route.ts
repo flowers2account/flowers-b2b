@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   type ImportRow = {
     id: number; raw_name: string | null; matched_product_id: number | null
     qty: number | string | null; price: number | string | null; source: string | null
+    code_1c: string | null
     enriched_country_iso: string | null; enriched_display_name: string | null
     enriched_colors: string[] | null
   }
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   for (let from = 0; ; from += 1000) {
     const { data: page, error: rowsErr } = await supabase
       .from('stock_import_rows')
-      .select('id, raw_name, matched_product_id, qty, price, source, enriched_country_iso, enriched_display_name, enriched_colors')
+      .select('id, raw_name, matched_product_id, qty, price, source, code_1c, enriched_country_iso, enriched_display_name, enriched_colors')
       .eq('import_id', importId)
       .eq('status', 'matched')
       .order('id', { ascending: true })
@@ -39,6 +40,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!rows.length) return NextResponse.json({ applied: 0, importedIds: [], categories: [] })
+
+  // Контур ТОО/цветы: apply ТОЛЬКО обновляет склад/цену/артикул у сматченных cut/pot,
+  // НЕ трогает is_active (цветы остаются невидимы на витрине), без обогащения/деактивации.
+  const isToo = (rows.find(r => r.source)?.source ?? null) === '1c-too'
 
   const productIds = [...new Set(rows.map(r => r.matched_product_id).filter(Boolean))] as number[]
 
@@ -94,28 +99,40 @@ export async function POST(req: NextRequest) {
 
     categoriesSet.add(product.category)
 
-    // ⚠️ Аллоулист обновляемых полей. НАМЕРЕННО не трогаем ручные поля:
-    // pack_size (кратность), unit, length_cm, image_url, tags и т.п. — импорт
-    // обновляет только остаток/цену/активность (+ обогащает пустые поля ниже).
-    // Кратность рулонных расходников (спанбонд 150 пог. м и др.) задаётся вручную
-    // и НЕ должна сбрасываться при повторной загрузке прайса.
-    const payload: Record<string, unknown> = {
-      qty: qtyNum,
-      price: priceNum,
-      is_active: true,
-    }
-
-    if (curPrice != null && Number.isFinite(curPrice) && priceNum < curPrice) {
-      payload.previous_price = curPrice
-    }
-    if (!product.country_iso && row.enriched_country_iso) {
-      payload.country_iso = row.enriched_country_iso
-    }
-    if (!product.display_name && row.enriched_display_name) {
-      payload.display_name = row.enriched_display_name
-    }
-    if (!(product.colors as string[] | null)?.length && row.enriched_colors?.length) {
-      payload.colors = row.enriched_colors
+    let payload: Record<string, unknown>
+    if (isToo) {
+      // Контур ТОО/цветы: обновляем ТОЛЬКО склад/цену/артикул. is_active НЕ трогаем
+      // (цветы остаются невидимы на витрине — механизма показа нет), без previous_price/
+      // обогащения. Защитный гард: только cut/pot (accessories никогда не трогаем).
+      if (product.category !== 'cut' && product.category !== 'pot') {
+        errorLog.push(`${product.id}: 1c-too матч в неожиданной категории '${product.category}' — пропуск`)
+        continue
+      }
+      payload = { qty: qtyNum, price: priceNum }
+      if (row.code_1c) payload.code_1c = row.code_1c
+    } else {
+      // ⚠️ Аллоулист обновляемых полей (расходка/XLS). НАМЕРЕННО не трогаем ручные поля:
+      // pack_size (кратность), unit, length_cm, image_url, tags и т.п. — импорт
+      // обновляет только остаток/цену/активность (+ обогащает пустые поля ниже).
+      // Кратность рулонных расходников (спанбонд 150 пог. м и др.) задаётся вручную
+      // и НЕ должна сбрасываться при повторной загрузке прайса.
+      payload = {
+        qty: qtyNum,
+        price: priceNum,
+        is_active: true,
+      }
+      if (curPrice != null && Number.isFinite(curPrice) && priceNum < curPrice) {
+        payload.previous_price = curPrice
+      }
+      if (!product.country_iso && row.enriched_country_iso) {
+        payload.country_iso = row.enriched_country_iso
+      }
+      if (!product.display_name && row.enriched_display_name) {
+        payload.display_name = row.enriched_display_name
+      }
+      if (!(product.colors as string[] | null)?.length && row.enriched_colors?.length) {
+        payload.colors = row.enriched_colors
+      }
     }
 
     updates.push({ id: product.id, payload })
