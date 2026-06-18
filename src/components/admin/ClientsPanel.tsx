@@ -7,6 +7,7 @@ type ClientRecord = {
   id: string
   name: string | null
   company_name: string | null
+  bin: string | null
   phone: string | null
   pin: string | null
   status: 'active' | 'inactive' | 'blocked'
@@ -20,6 +21,7 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
   const [company, setCompany] = useState('')
+  const [bin, setBin] = useState('')
   const [pin, setPin] = useState('')
   const [showPin, setShowPin] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -33,12 +35,13 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!phone || !pin) { setError('Телефон и PIN обязательны'); return }
+    if (bin && !/^\d{12}$/.test(bin)) { setError('БИН/ИИН — 12 цифр'); return }
     setLoading(true)
     setError('')
     const res = await fetch('/api/admin/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, name, company_name: company, pin }),
+      body: JSON.stringify({ phone, name, company_name: company, bin, pin }),
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Ошибка'); setLoading(false); return }
@@ -76,6 +79,16 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
               onChange={e => setCompany(e.target.value)}
               placeholder="ООО Ромашка"
               className="w-full border rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">БИН/ИИН организации</label>
+            <input
+              value={bin}
+              onChange={e => setBin(e.target.value.replace(/\D/g, '').slice(0, 12))}
+              inputMode="numeric"
+              placeholder="12 цифр (для оплаты по QR)"
+              className="w-full border rounded px-3 py-2 text-sm font-mono"
             />
           </div>
           <div>
@@ -136,6 +149,7 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
 function EditClientModal({ client, onClose, onSaved }: { client: ClientRecord; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(client.name ?? '')
   const [company, setCompany] = useState(client.company_name ?? '')
+  const [bin, setBin] = useState(client.bin ?? '')
   const [pin, setPin] = useState('')
   const [showPin, setShowPin] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -149,12 +163,13 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientRecord; o
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (pin && !/^\d{6}$/.test(pin)) { setError('PIN должен быть 6 цифр'); return }
+    if (bin && !/^\d{12}$/.test(bin)) { setError('БИН/ИИН — 12 цифр'); return }
     setLoading(true)
     setError('')
     const res = await fetch('/api/admin/clients', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: client.id, name, company_name: company, ...(pin && { pin }) }),
+      body: JSON.stringify({ id: client.id, name, company_name: company, bin, ...(pin && { pin }) }),
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Ошибка'); setLoading(false); return }
@@ -181,6 +196,16 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientRecord; o
               value={company}
               onChange={e => setCompany(e.target.value)}
               className="w-full border rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">БИН/ИИН организации</label>
+            <input
+              value={bin}
+              onChange={e => setBin(e.target.value.replace(/\D/g, '').slice(0, 12))}
+              inputMode="numeric"
+              placeholder="12 цифр (для оплаты по QR)"
+              className="w-full border rounded px-3 py-2 text-sm font-mono"
             />
           </div>
           <div>

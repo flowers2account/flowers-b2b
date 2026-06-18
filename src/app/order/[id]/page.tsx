@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { authHeaders } from '@/lib/api-token'
 import { company } from '@/config/company'
+import HalykQrBlock from '@/components/HalykQrBlock'
 import s from './order.module.css'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
@@ -51,6 +52,7 @@ export default function OrderPage() {
   const { isAuthed, phone, init } = useAuthStore()
   const { add, update } = useCart()
   const [order, setOrder] = useState<Order | null>(null)
+  const [client, setClient] = useState<{ company_name: string | null; bin: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { init() }, [])
@@ -64,6 +66,7 @@ export default function OrderPage() {
         const data = await r.json()
         const found = (data.orders ?? []).find((o: Order) => String(o.id) === String(params.id))
         setOrder(found ?? null)
+        setClient(data.client ? { company_name: data.client.company_name, bin: data.client.bin ?? null } : null)
       } catch { setOrder(null) }
       finally { setLoading(false) }
     })()
@@ -184,6 +187,11 @@ export default function OrderPage() {
                 <span className={s.paid}>✓ Оплачено{order.payment_method === 'card' ? ' картой' : order.payment_method === 'invoice' ? ' по счёту' : ''}</span>
               )}
             </div>
+
+            {/* QR-оплата для юр. лиц (Halyk OnlineBank) — пока неоплачен и клиент юрлицо */}
+            {!isPaid && client?.company_name && (
+              <HalykQrBlock order={{ id: order.id, total: totalPaid }} client={{ bin: client.bin }} />
+            )}
 
             <div className={s.box}>
               <h3>Получение</h3>

@@ -6,12 +6,18 @@ import { getAuthedUser } from '@/lib/api-auth'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const { name, company_name } = await req.json().catch(() => ({}))
+  const { name, company_name, bin } = await req.json().catch(() => ({}))
 
   // Менять можно только свой профиль — владелец берётся из токена, не из тела
   const authed = await getAuthedUser(req)
   if (!authed?.phone) return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 })
   if (!name?.trim()) return NextResponse.json({ success: false, error: 'Укажите имя' }, { status: 400 })
+
+  // БИН/ИИН организации — необязателен, но если задан, ровно 12 цифр
+  const binClean = typeof bin === 'string' ? bin.trim() : ''
+  if (binClean && !/^\d{12}$/.test(binClean)) {
+    return NextResponse.json({ success: false, error: 'БИН/ИИН — 12 цифр' }, { status: 400 })
+  }
 
   const normalized = normalizePhone(authed.phone)
   const admin = createAdminClient()
@@ -32,6 +38,7 @@ export async function POST(req: NextRequest) {
     .update({
       name: name.trim(),
       company_name: company_name?.trim() || '',
+      bin: binClean || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', client.id)

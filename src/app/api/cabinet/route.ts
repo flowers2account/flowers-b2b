@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const normalizedPhone = normalizePhone(authed.phone)
   const { data: client } = await supabase
     .from('clients')
-    .select('id, name, phone, company_name')
+    .select('id, name, phone, company_name, bin')
     .eq('phone', normalizedPhone)
     .maybeSingle()
 
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
 
   return NextResponse.json({
-    client: { id: client.id, name: client.name, phone: client.phone, company_name: client.company_name },
+    client: { id: client.id, name: client.name, phone: client.phone, company_name: client.company_name, bin: client.bin },
     orders: orders ?? [],
   })
 }

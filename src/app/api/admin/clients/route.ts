@@ -16,10 +16,15 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { phone, name, company_name, pin } = await req.json()
+  const { phone, name, company_name, pin, bin } = await req.json()
 
   if (!phone || !pin) {
     return NextResponse.json({ error: 'Телефон и PIN обязательны' }, { status: 400 })
+  }
+
+  const binClean = typeof bin === 'string' ? bin.trim() : ''
+  if (binClean && !/^\d{12}$/.test(binClean)) {
+    return NextResponse.json({ error: 'БИН/ИИН — 12 цифр' }, { status: 400 })
   }
 
   const normalizedPhone = normalizePhone(String(phone))
@@ -63,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   const { data: client, error: clientError } = await adminClient
     .from('clients')
-    .insert({ phone: normalizedPhone, name: name ?? null, company_name: company_name ?? null, pin: String(pin), auth_user_id: userId })
+    .insert({ phone: normalizedPhone, name: name ?? null, company_name: company_name ?? null, bin: binClean || null, pin: String(pin), auth_user_id: userId })
     .select()
     .single()
 
@@ -76,7 +81,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { id, name, company_name, pin } = await req.json()
+  const { id, name, company_name, pin, bin } = await req.json()
 
   if (!id) return NextResponse.json({ error: 'ID обязателен' }, { status: 400 })
 
@@ -84,11 +89,21 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'PIN должен быть 6 цифр' }, { status: 400 })
   }
 
+  let binUpdate: string | null | undefined
+  if (bin !== undefined) {
+    const binClean = typeof bin === 'string' ? bin.trim() : ''
+    if (binClean && !/^\d{12}$/.test(binClean)) {
+      return NextResponse.json({ error: 'БИН/ИИН — 12 цифр' }, { status: 400 })
+    }
+    binUpdate = binClean || null
+  }
+
   const adminClient = createAdminClient()
 
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (name !== undefined) updateData.name = name
   if (company_name !== undefined) updateData.company_name = company_name
+  if (binUpdate !== undefined) updateData.bin = binUpdate
   if (pin) updateData.pin = String(pin)
 
   const { data: client, error } = await adminClient

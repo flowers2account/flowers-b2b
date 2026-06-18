@@ -7,20 +7,22 @@ interface Props {
   onClose: () => void
   currentName: string
   currentCompany: string
+  currentBin?: string
   onSuccess?: () => void
 }
 
-export default function EditProfileModal({ isOpen, onClose, currentName, currentCompany, onSuccess }: Props) {
+export default function EditProfileModal({ isOpen, onClose, currentName, currentCompany, currentBin = '', onSuccess }: Props) {
   const [name, setName] = useState(currentName)
   const [company, setCompany] = useState(currentCompany)
+  const [bin, setBin] = useState(currentBin)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
   // Sync props when modal opens
   useEffect(() => {
-    if (isOpen) { setName(currentName); setCompany(currentCompany); setError(''); setSuccess(false) }
-  }, [isOpen, currentName, currentCompany])
+    if (isOpen) { setName(currentName); setCompany(currentCompany); setBin(currentBin); setError(''); setSuccess(false) }
+  }, [isOpen, currentName, currentCompany, currentBin])
 
   if (!isOpen) return null
 
@@ -29,13 +31,15 @@ export default function EditProfileModal({ isOpen, onClose, currentName, current
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setError('Укажите имя'); return }
+    const binClean = bin.trim()
+    if (binClean && !/^\d{12}$/.test(binClean)) { setError('БИН/ИИН организации — ровно 12 цифр'); return }
     setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/client/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ name: name.trim(), company_name: company.trim() }),
+        body: JSON.stringify({ name: name.trim(), company_name: company.trim(), bin: binClean }),
       })
       const data = await res.json()
       if (data.success) {
@@ -88,6 +92,18 @@ export default function EditProfileModal({ isOpen, onClose, currentName, current
                 onChange={e => setCompany(e.target.value)}
                 disabled={loading}
                 placeholder="ИП Иванов (необязательно)"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-pink-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">БИН/ИИН организации</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={bin}
+                onChange={e => setBin(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                disabled={loading}
+                placeholder="12 цифр — для оплаты по QR (Halyk)"
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-pink-400"
               />
             </div>
