@@ -21,7 +21,7 @@ const { BRAND_DOMAIN_HINT } = require('../config/accessory-photo-domains.js')
 const ARGV = process.argv.slice(2)
 const argVal = k => { const a = ARGV.find(x => x.startsWith(`--${k}=`)); return a ? a.split('=').slice(1).join('=') : null }
 const DRY   = ARGV.includes('--dry')
-const ONLY  = argVal('only')                         // soil|plant_protection|growth_stim|fertilizers
+const ONLY  = argVal('only')?.split(',').map(s => s.trim()).filter(Boolean) ?? null  // напр. soil,plant_protection
 const LIMIT = argVal('limit') ? Number(argVal('limit')) : Infinity
 const IDS   = argVal('ids')?.split(',').map(s => Number(s.trim())).filter(Boolean) ?? null
 
@@ -430,7 +430,7 @@ const df = new Map()
 for (const it of lettoIndex) for (const t of it.pset) df.set(t, (df.get(t) ?? 0) + 1)
 
 for (const step of QUEUE) {
-  if (ONLY && step.sub !== ONLY) continue
+  if (ONLY && !ONLY.includes(step.sub)) continue
   console.log(`\n═══ ${step.sub} ═══`)
   let items = await H.worklist(step.filter)
   if (IDS) items = items.filter(p => IDS.includes(p.id))

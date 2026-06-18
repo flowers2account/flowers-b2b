@@ -117,12 +117,21 @@ export async function worklist(filter) {
 // ── fetchHtml / fetchImg: локальный fetch, опционально VPS-fallback (только чтение) ─
 function vpsCurl(url, binary) {
   if (/'/.test(url)) throw new Error('fetch: url содержит кавычку, отклонено')
-  // ssh deploy@vps "curl -sL --max-time 20 '<url>'" — GET, без записи на сервер
-  const args = [...sshOpts, VPS_HOST, `curl -sL --max-time 20 '${url}'`]
-  return execFileSync('ssh', args, {
-    env: SSH_ENV, maxBuffer: 64 * 1024 * 1024,
-    ...(binary ? {} : { encoding: 'utf8' }),
-  })
+  // ssh deploy@vps "curl -sSL --max-time 20 '<url>'" — GET, без записи на сервер.
+  // -S: при -s показывать причину ошибки в stderr (иначе сбой приходит немым «Command failed»).
+  const args = [...sshOpts, VPS_HOST, `curl -sSL --max-time 20 '${url}'`]
+  try {
+    return execFileSync('ssh', args, {
+      env: SSH_ENV, maxBuffer: 64 * 1024 * 1024,
+      ...(binary ? {} : { encoding: 'utf8' }),
+    })
+  } catch (e) {
+    // ssh пробрасывает код выхода удалённого curl: 28=timeout, 6=DNS, 7=connect refused, 35=TLS.
+    // Сбой самой ssh-аутентификации — код 255. Поднимаем код + stderr в текст ошибки.
+    const code = e.status ?? e.signal ?? '?'
+    const why = String(e.stderr || '').trim() || e.shortMessage || e.message
+    throw new Error(`vpsCurl exit=${code}: ${why.slice(0, 300)} (url: ${url})`)
+  }
 }
 
 async function localFetch(url, binary) {
@@ -184,6 +193,8 @@ export const DRAFT_FIELDS = [
   'image_draft_url', 'image_draft_raw_url', 'image_status', 'image_source',
   'description', 'short_description', 'color_images', 'colors',
   'pot_material', 'pot_color', 'pot_diameter', 'pot_height', 'volume_l',
+  // характеристики из блока «Характеристики» (режим по ссылкам):
+  'tnved_code', 'dimensions_packed', 'dimensions_unpacked', 'weight_gram', 'pack_size',
 ]
 const FORBIDDEN = new Set(['image_url', 'is_active', 'qty', 'price'])
 
