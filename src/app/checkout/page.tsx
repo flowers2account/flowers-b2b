@@ -14,6 +14,10 @@ const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
 const CITIES = ['Уральск', 'Актобе', 'Атырау'] as const
 type Method = 'pickup' | 'delivery'
 
+// Вкладка оплаты «По счёту (для организаций)» — временно включена для проверки QR.
+// Включена по умолчанию; чтобы вернуть «СКОРО»/disabled — задать env NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED=false (build-time).
+const LEGAL_PAYMENT_ENABLED = process.env.NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED !== 'false'
+
 const PH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" />
@@ -35,6 +39,8 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState('')
   const [formError, setFormError] = useState('')
   const [showAuth, setShowAuth] = useState(false)
+  // Способ оплаты: карта (ePay) или по счёту/QR для юр.лиц
+  const [payMethod, setPayMethod] = useState<'card' | 'invoice'>('card')
 
   // Префилл телефона получателя из профиля
   useEffect(() => { if (phone) setRecipientPhone(prev => prev || phone) }, [phone])
@@ -51,12 +57,15 @@ export default function CheckoutPage() {
     onSuccess: () => clear(),
     extra: () => ({
       name: recipientName.trim() || undefined,
-      payment_method: 'card',
+      payment_method: payMethod,
       delivery: method === 'pickup'
         ? { method: 'pickup' }
         : { method: 'delivery', city, date: date.trim(), address: address.trim(), comment: comment.trim() },
       recipient: { name: recipientName.trim(), phone: recipientPhone.trim(), email: email.trim() },
     }),
+    // «По счёту»: ePay пропускаем, ведём на /order/[id] — там QR-блок для юр.лиц
+    skipPayment: () => payMethod === 'invoice',
+    onCreated: (orderId) => router.push(`/order/${orderId}`),
   })
 
   function validate(): string {
@@ -244,7 +253,8 @@ export default function CheckoutPage() {
             <div className={s.sect}>
               <div className={s.sectH}><span className={s.nn}>3</span><h3>Оплата</h3></div>
               <div className={s.sectB}>
-                <div className={`${s.payOpt} ${s.on}`}>
+                <div className={`${s.payOpt} ${payMethod === 'card' ? s.on : ''}`}
+                  onClick={() => setPayMethod('card')} role="radio" aria-checked={payMethod === 'card'}>
                   <span className={s.payRadio} />
                   <div className={s.payBody}>
                     <div className={s.payTt}>Картой онлайн</div>
@@ -263,13 +273,24 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-                <div className={`${s.payOpt} ${s.disabled}`} aria-disabled="true">
-                  <span className={s.payRadio} />
-                  <div className={s.payBody}>
-                    <div className={s.payTt}>По счёту (для организаций) <span className={s.soon}>скоро</span></div>
-                    <div className={s.payDd}>Оплата по счёту с полным пакетом документов. Работаем с ИП, ТОО и другими организациями.<br />Для клиентов Halyk Bank — оплата без комиссии и рассрочка через OnlineDuken.</div>
+                {LEGAL_PAYMENT_ENABLED ? (
+                  <div className={`${s.payOpt} ${payMethod === 'invoice' ? s.on : ''}`}
+                    onClick={() => setPayMethod('invoice')} role="radio" aria-checked={payMethod === 'invoice'}>
+                    <span className={s.payRadio} />
+                    <div className={s.payBody}>
+                      <div className={s.payTt}>По счёту (для организаций)</div>
+                      <div className={s.payDd}>Оплата по счёту с полным пакетом документов. Работаем с ИП, ТОО и другими организациями.<br />Для клиентов Halyk Bank — оплата по QR без комиссии через OnlineBank (QR-код покажем в заказе).</div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className={`${s.payOpt} ${s.disabled}`} aria-disabled="true">
+                    <span className={s.payRadio} />
+                    <div className={s.payBody}>
+                      <div className={s.payTt}>По счёту (для организаций) <span className={s.soon}>скоро</span></div>
+                      <div className={s.payDd}>Оплата по счёту с полным пакетом документов. Работаем с ИП, ТОО и другими организациями.<br />Для клиентов Halyk Bank — оплата без комиссии и рассрочка через OnlineDuken.</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -304,7 +325,7 @@ export default function CheckoutPage() {
             <button className={s.payBtn} onClick={handlePay} disabled={checkout.busy}>
               {checkout.busy
                 ? (checkout.step === 'creating' ? 'Создаём заказ…' : 'Ожидаем оплату…')
-                : <>Оплатить заказ
+                : <>{payMethod === 'invoice' ? 'Оформить заказ' : 'Оплатить заказ'}
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                   </>}
             </button>

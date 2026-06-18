@@ -32,6 +32,10 @@ interface Options {
   onSuccess: () => void        // очистить корзину (или другое действие)
   /** Доп. поля в тело /api/checkout (доставка, получатель, способ оплаты) — для страницы чекаута */
   extra?: () => Record<string, unknown>
+  /** Пропустить ePay-шаг (оплата по счёту/QR для юр.лиц): заказ создаётся, оплата — вне ePay. */
+  skipPayment?: () => boolean
+  /** Колбэк после создания заказа в режиме skipPayment (например, редирект на /order/[id]). */
+  onCreated?: (orderId: number) => void
 }
 
 const epayLoaded = { current: false }  // модульный синглтон — один скрипт на всю сессию
@@ -102,7 +106,7 @@ async function runPaymentStep(orderId: number): Promise<{
   return { ok: true, invoiceId: widgetConfig.invoiceId, result }
 }
 
-export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extra }: Options) {
+export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extra, skipPayment, onCreated }: Options) {
   const [step,       setStep]       = useState<CheckoutStep>('idle')
   const [orderId,    setOrderId]    = useState<number | null>(null)
   const [invoiceId,  setInvoiceId]  = useState<string | null>(null)
@@ -155,6 +159,16 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
       }
       const { order_id } = await checkRes.json()
       setOrderId(order_id)
+
+      // Режим «по счёту/QR» (юр.лица): ePay не запускаем — заказ создан, оплата вне виджета.
+      if (skipPayment?.()) {
+        onSuccess()              // очистить корзину
+        inFlight.current = false
+        setStep('idle')
+        onCreated?.(order_id)    // напр., редирект на /order/[id], где показывается QR
+        return
+      }
+
       setStep('paying')
 
       // 2. Платёжный шаг
@@ -182,7 +196,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
       setStep('failed')
     }
     inFlight.current = false
-  }, [items, phone, onAuthRequired, onSuccess, extra])
+  }, [items, phone, onAuthRequired, onSuccess, extra, skipPayment, onCreated])
 
   const retryPayment = useCallback(async () => {
     if (!orderId || inFlight.current) return
