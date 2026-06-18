@@ -13,31 +13,43 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient()
 
-  const { data: rows, error } = await supabase
-    .from('stock_import_rows')
-    .select('*')
-    .eq('import_id', parseInt(importId))
-    .order('status') // unmatched first (alphabetical: matched < skipped < unmatched)
-    .order('raw_name')
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // ⚠️ PostgREST max_rows=1000 — без пагинации снимок >1000 строк режется и часть
+  // позиций пропадает со страницы маппинга. Тянем чанками по 1000.
+  type StockRow = Record<string, unknown> & {
+    status: string; raw_name: string; matched_product_id: number | null
+  }
+  const rows: StockRow[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error } = await supabase
+      .from('stock_import_rows')
+      .select('*')
+      .eq('import_id', parseInt(importId))
+      .order('status') // unmatched first (alphabetical: matched < skipped < unmatched)
+      .order('raw_name')
+      .range(from, from + 999)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!page || page.length === 0) break
+    rows.push(...(page as StockRow[]))
+    if (page.length < 1000) break
+  }
 
   // Enrich with product info for matched rows
   const productIds = [...new Set(
-    (rows ?? []).filter(r => r.matched_product_id).map(r => r.matched_product_id as number)
+    rows.filter(r => r.matched_product_id).map(r => r.matched_product_id as number)
   )]
 
   let productMap: Record<number, { id: number; name: string; display_name: string | null; length_cm: number | null; subcategory: string | null; image_url: string | null; colors: string[] | null }> = {}
 
-  if (productIds.length > 0) {
+  // .in(...) тоже капается на 1000 — чанки по 500 id (снимок может дать >1000 matched)
+  for (let i = 0; i < productIds.length; i += 500) {
     const { data: products } = await supabase
       .from('products')
       .select('id, name, display_name, length_cm, subcategory, image_url, colors')
-      .in('id', productIds)
+      .in('id', productIds.slice(i, i + 500))
     for (const p of products ?? []) productMap[p.id] = p
   }
 
-  const enriched = (rows ?? []).map(r => ({
+  const enriched = rows.map(r => ({
     ...r,
     product: r.matched_product_id ? (productMap[r.matched_product_id] ?? null) : null,
   }))
