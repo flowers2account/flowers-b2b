@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
+import { EPAY_JS_URL } from '@/lib/epay-client'
 
 declare global {
   interface Window {
@@ -47,7 +48,7 @@ function loadEpayScript(): Promise<void> {
   }
   return new Promise((resolve, reject) => {
     const s = document.createElement('script')
-    s.src = process.env.NEXT_PUBLIC_EPAY_JS_URL!
+    s.src = EPAY_JS_URL
     s.onload  = () => { epayLoaded.current = true; resolve() }
     s.onerror = () => reject(new Error('Не удалось загрузить платёжный скрипт'))
     document.body.appendChild(s)

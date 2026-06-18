@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { epayServerConfig } from '@/lib/epay-server'
 import { randomBytes } from 'crypto'
 
 export const dynamic = 'force-dynamic'
@@ -50,21 +51,22 @@ export async function POST(req: NextRequest) {
 
     const amount = Math.round(Number(order.total)) // целые тенге
     const currency = 'KZT'
-    const terminal = process.env.EPAY_TERMINAL_ID!
+    const epay = epayServerConfig()        // creds + OAuth-URL по флагу EPAY_ENV (test|prod)
+    const terminal = epay.terminal
 
     // OAuth token from epay
     const oauthParams = new URLSearchParams({
       grant_type: 'client_credentials',
       scope: 'webapi usermanagement email_send verification statement statistics payment',
-      client_id: process.env.EPAY_CLIENT_ID!,
-      client_secret: process.env.EPAY_CLIENT_SECRET!,
+      client_id: epay.clientId,
+      client_secret: epay.clientSecret,
       invoiceID: invoiceId,
       amount: String(amount),
       currency,
       terminal,
     })
 
-    const oauthRes = await fetch(process.env.EPAY_OAUTH_URL!, {
+    const oauthRes = await fetch(epay.oauthUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: oauthParams.toString(),

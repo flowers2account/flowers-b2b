@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { epayServerConfig } from '@/lib/epay-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,9 +39,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'amount mismatch' }, { status: 400 })
     }
 
-    // Verify terminal if present
+    // Verify terminal if present (активный терминал по флагу EPAY_ENV)
     const bodyTerminal = body.terminal ?? body.merchantId
-    if (bodyTerminal && bodyTerminal !== process.env.EPAY_TERMINAL_ID) {
+    if (bodyTerminal && bodyTerminal !== epayServerConfig().terminal) {
       console.error('[payments/postlink] terminal mismatch:', bodyTerminal)
       return NextResponse.json({ error: 'terminal mismatch' }, { status: 400 })
     }
