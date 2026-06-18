@@ -392,8 +392,9 @@ async function enrichOne(p, lettoIndex, df, manifest) {
 
     if (DRY) {
       rec.found = true; rec.dry = true
-      rec.preview = { image: page.image, short: text?.short_description, specs: Object.keys(page.specs).length }
-      console.log(`  DRY ok ${p.id} [${source}] ${rec.name} -> ${page.image.split('/').pop()} | ${text?.short_description ?? '(без текста)'}`)
+      rec.preview = { image: page.image, short: text?.short_description, specs: Object.keys(page.specs).length,
+        hero_kb: (draftBuf.length / 1024 | 0), raw_kb: (rawBuf.length / 1024 | 0) }
+      console.log(`  DRY ok ${p.id} [${source}] ${rec.name} -> ${page.image.split('/').pop()} | hero ${rec.preview.hero_kb}KB | ${text?.short_description ?? '(без текста)'}`)
       manifest.push(rec); return
     }
 
