@@ -175,8 +175,21 @@ async function genDescription(name, f) {
   } catch (e) { console.warn(`   Gemini: ${e.message}`); return null }
 }
 
+// ── --probe=<letto-url>: sanity-проверка found-пути на конкретной карточке ────────
+// Прогоняет реальные parseLettoSlug / parseHero / processImg, ничего не пишет.
+async function probe(url) {
+  const slug = parseLettoSlug(url)
+  const html = await H.fetchHtml(clean(url), FETCH)
+  const hero = parseHero(html)
+  let kb = '?'
+  try { kb = Math.round((await H.processImg(await H.fetchImg(hero, FETCH))).length / 1024) } catch (e) { kb = `err:${e.message}` }
+  console.log(`PROBE ${slug.slug}\n  hero=${hero}\n  hero=${kb}KB | d=${slug.diameter_cm} h=${slug.height_cm} v=${slug.volume_l} color=${slug.color}`)
+}
+
 // ── основной цикл ────────────────────────────────────────────────────────────────
 async function main() {
+  const probeUrl = getArg('probe')
+  if (probeUrl) return probe(probeUrl)
   console.log(`[scrape-tambov→letto] dry=${DRY} limit=${LIMIT === Infinity ? '∞' : LIMIT}${ONLY ? ` id=${ONLY}` : ''}`)
 
   let work = await H.worklist(q => q.eq('supplier', 'Керамика Тамбов'))
