@@ -179,6 +179,21 @@ export async function POST(req: NextRequest) {
     .not('status', 'in', '(applied,superseded)')
   if (supErr) console.error(`[1c/stock] supersede warn source=${source}:`, supErr.message)
 
+  // 6) Авто-применение к витрине (ТОЛЬКО 1c-ip = расходка). Синхронно, без ручного подтверждения.
+  //    Зеркало склада: matched(price>0)→qty/price; нет в снимке (по code_1c)→qty=0; price<=0→qty=0.
+  //    Не трогает is_active / cut/pot. Ошибка авто-применения НЕ валит приём снимка (он уже сохранён).
+  let autoApply: Record<string, unknown> | null = null
+  if (source === '1c-ip') {
+    const { data: applyRes, error: applyErr } = await supabase.rpc('apply_1c_snapshot', { p_import_id: importId })
+    if (applyErr) {
+      console.error(`[1c/stock] auto-apply error import_id=${importId}:`, applyErr.message)
+      autoApply = { error: applyErr.message }
+    } else {
+      autoApply = applyRes as Record<string, unknown>
+      console.log(`[1c/stock] auto-apply import_id=${importId}:`, JSON.stringify(autoApply))
+    }
+  }
+
   console.log(
     `[1c/stock] source=${source} warehouse=${warehouse ?? '-'} price_type=${price_type ?? '-'} ` +
     `category=${category ?? '-'} received=${items.length} written=${written} matched=${matched} ` +
@@ -189,6 +204,7 @@ export async function POST(req: NextRequest) {
     ok: true, import_id: importId,
     received: items.length, written,
     matched, unmatched: written - matched,
+    auto_apply: autoApply,
   })
 }
 
