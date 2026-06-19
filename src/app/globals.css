@@ -160,3 +160,21 @@ html[data-cat-scroll='down'] [data-header-l1] {
 /* Ховер карточки каталога — подъём + мягкая тень (как в мокапе) */
 .cat-card { transition: box-shadow 0.16s ease, transform 0.16s ease; }
 .cat-card:hover { box-shadow: 0 10px 30px rgba(50, 25, 40, 0.13); transform: translateY(-2px); }
+
+/* Контакты офиса в шапке (хэндоф «Bloom-кнопка + WhatsApp-пилюля») */
+.shop-wa {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 15px;
+  border-radius: 8px; background: #fff; border: 1px solid #E5E5E5;
+  text-decoration: none; transition: border-color 0.15s ease;
+}
+.shop-wa:hover { border-color: #25D366; }
+.shop-wa .shop-wa-ic { color: #25D366; display: flex; align-items: center; }
+.shop-wa .shop-wa-num {
+  font-weight: 600; font-size: 14px; color: #1C1C1C; font-feature-settings: "tnum"; white-space: nowrap;
+}
+.shop-call {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px;
+  border-radius: 8px; background: #C97A92; color: #fff; border: none; cursor: pointer;
+  font-weight: 600; font-size: 13.5px; text-decoration: none; transition: background-color 0.15s ease;
+}
+.shop-call:hover { background: #8B3A5A; }

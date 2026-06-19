@@ -8,15 +8,19 @@ import { useFavorites } from '@/lib/favorites-store'
 import { useState, useEffect, useRef } from 'react'
 import AuthModal from './AuthModal'
 import CategoryTabs from './CategoryTabs'
+import { company } from '@/config/company'
 
-type ShopContact = { phone: string; digits: string; waLink: string; telLink: string } | null
+// Контакт офиса — единый источник company.ts (не хардкод).
+const SHOP_PHONE = company.phone                         // +7 700 757 5243
+const SHOP_DIGITS = SHOP_PHONE.replace(/\D/g, '')        // 77007575243
+const SHOP_WA = `https://wa.me/${SHOP_DIGITS}`
+const SHOP_TEL = `tel:+${SHOP_DIGITS}`
 
 export default function Header() {
   const { isAuthed, phone, role, init, logout } = useAuthStore()
   const { items, total } = useCart()
   const [showAuth, setShowAuth] = useState(false)
   const [drawer, setDrawer] = useState(false)
-  const [shop, setShop] = useState<ShopContact>(null)
   const [profileMenu, setProfileMenu] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
@@ -24,13 +28,6 @@ export default function Header() {
   const { category, setGroup, setCategory } = useFilters()
 
   useEffect(() => { init() }, [])
-  // Контакт магазина (номер из app_settings) — общий для гостя и залогиненного
-  useEffect(() => {
-    fetch('/api/shop-contact')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.phone) setShop(d) })
-      .catch(() => {})
-  }, [])
   // закрытие меню профиля по клику вне и по смене маршрута
   useEffect(() => {
     if (!profileMenu) return
@@ -141,34 +138,30 @@ export default function Header() {
             })}
           </nav>
 
-          {/* Контакт магазина — общий для всех (гость и залогиненный) */}
-          {shop && (
-            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mr-2">
-              <a
-                href={shop.waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`WhatsApp магазина ${shop.phone}`}
-                className="flex items-center gap-1.5 no-underline transition-colors"
-                style={{ color: '#1FA855', fontSize: 13, fontWeight: 600 }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          {/* Контакт офиса — общий для всех (гость и залогиненный). Номер из company.ts */}
+          <div className="hidden sm:flex items-center gap-2 shrink-0 mr-2">
+            <a
+              href={SHOP_WA}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Написать в WhatsApp"
+              aria-label={`WhatsApp ${SHOP_PHONE}`}
+              className="shop-wa"
+            >
+              <span className="shop-wa-ic">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.86 9.86 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 1.8c2.17 0 4.2.84 5.74 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.47-3.64 8.11-8.12 8.11a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.12.82.83-3.04-.19-.31a8.04 8.04 0 0 1-1.26-4.35c0-4.47 3.64-8.11 8.11-8.11Zm-4.7 4.34c-.22 0-.58.08-.88.41-.3.33-1.15 1.13-1.15 2.75 0 1.62 1.18 3.19 1.34 3.41.17.22 2.32 3.54 5.62 4.96.79.34 1.4.54 1.88.7.79.25 1.51.21 2.08.13.63-.09 1.95-.8 2.23-1.57.27-.77.27-1.43.19-1.57-.08-.13-.3-.21-.63-.38-.33-.16-1.95-.96-2.25-1.07-.3-.11-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.39-.51-2.65-1.63-.98-.87-1.64-1.95-1.83-2.28-.19-.33-.02-.5.15-.67.15-.15.33-.38.49-.58.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.58-.08-.16-.74-1.78-1.01-2.44-.27-.64-.54-.55-.74-.56-.19-.01-.41-.01-.63-.01Z"/>
                 </svg>
-                <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{shop.phone}</span>
-              </a>
-              <a
-                href={shop.telLink}
-                aria-label={`Позвонить ${shop.phone}`}
-                className="flex items-center justify-center no-underline transition-colors"
-                style={{ width: 30, height: 30, borderRadius: 'var(--radius-btn)', background: '#f5f0f3', color: 'var(--accent)' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/>
-                </svg>
-              </a>
-            </div>
-          )}
+              </span>
+              <span className="shop-wa-num">{SHOP_PHONE}</span>
+            </a>
+            <a href={SHOP_TEL} title="Позвонить" aria-label={`Позвонить ${SHOP_PHONE}`} className="shop-call">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/>
+              </svg>
+              Позвонить
+            </a>
+          </div>
 
           {/* User / Auth */}
           {isAuthed ? (
@@ -364,36 +357,32 @@ export default function Header() {
             })}
           </nav>
 
-          {/* Контакт магазина — виден всем (гость и залогиненный) */}
-          {shop && (
-            <div style={{ borderTop: '1px solid #eee', padding: '12px 14px 4px' }}>
-              <div style={{ fontSize: 11, color: '#9a9098', marginBottom: 8 }}>Связаться с магазином</div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={shop.waLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 flex-1 no-underline"
-                  style={{ padding: '11px 12px', borderRadius: 10, background: '#E9F8EF', color: '#1FA855', fontSize: 14, fontWeight: 600 }}
-                >
+          {/* Контакт офиса — виден всем (гость и залогиненный). Номер из company.ts */}
+          <div style={{ borderTop: '1px solid #eee', padding: '12px 14px 4px' }}>
+            <div style={{ fontSize: 11, color: '#9a9098', marginBottom: 8 }}>Связаться с офисом</div>
+            <div className="flex items-center gap-2">
+              <a
+                href={SHOP_WA}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shop-wa flex-1"
+                style={{ flex: 1 }}
+              >
+                <span className="shop-wa-ic">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.86 9.86 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 1.8c2.17 0 4.2.84 5.74 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.47-3.64 8.11-8.12 8.11a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.12.82.83-3.04-.19-.31a8.04 8.04 0 0 1-1.26-4.35c0-4.47 3.64-8.11 8.11-8.11Zm-4.7 4.34c-.22 0-.58.08-.88.41-.3.33-1.15 1.13-1.15 2.75 0 1.62 1.18 3.19 1.34 3.41.17.22 2.32 3.54 5.62 4.96.79.34 1.4.54 1.88.7.79.25 1.51.21 2.08.13.63-.09 1.95-.8 2.23-1.57.27-.77.27-1.43.19-1.57-.08-.13-.3-.21-.63-.38-.33-.16-1.95-.96-2.25-1.07-.3-.11-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.39-.51-2.65-1.63-.98-.87-1.64-1.95-1.83-2.28-.19-.33-.02-.5.15-.67.15-.15.33-.38.49-.58.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.58-.08-.16-.74-1.78-1.01-2.44-.27-.64-.54-.55-.74-.56-.19-.01-.41-.01-.63-.01Z"/>
                   </svg>
-                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{shop.phone}</span>
-                </a>
-                <a
-                  href={shop.telLink}
-                  aria-label={`Позвонить ${shop.phone}`}
-                  className="flex items-center justify-center no-underline"
-                  style={{ width: 44, height: 44, borderRadius: 10, background: '#F7EEF2', color: 'var(--accent)', flexShrink: 0 }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/>
-                  </svg>
-                </a>
-              </div>
+                </span>
+                <span className="shop-wa-num">{SHOP_PHONE}</span>
+              </a>
+              <a href={SHOP_TEL} aria-label={`Позвонить ${SHOP_PHONE}`} className="shop-call" style={{ padding: '0 14px' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/>
+                </svg>
+                Позвонить
+              </a>
             </div>
-          )}
+          </div>
 
           {/* Низ меню — вход/выход */}
           <div style={{ borderTop: '1px solid #eee', padding: 12 }}>
