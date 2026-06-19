@@ -5,20 +5,42 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useFilters } from '@/lib/filter-store'
 import { useFavorites } from '@/lib/favorites-store'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import AuthModal from './AuthModal'
 import CategoryTabs from './CategoryTabs'
+
+type ShopContact = { phone: string; digits: string; waLink: string; telLink: string } | null
 
 export default function Header() {
   const { isAuthed, phone, role, init, logout } = useAuthStore()
   const { items, total } = useCart()
   const [showAuth, setShowAuth] = useState(false)
   const [drawer, setDrawer] = useState(false)
+  const [shop, setShop] = useState<ShopContact>(null)
+  const [profileMenu, setProfileMenu] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
   const { category, setGroup, setCategory } = useFilters()
 
   useEffect(() => { init() }, [])
+  // Контакт магазина (номер из app_settings) — общий для гостя и залогиненного
+  useEffect(() => {
+    fetch('/api/shop-contact')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.phone) setShop(d) })
+      .catch(() => {})
+  }, [])
+  // закрытие меню профиля по клику вне и по смене маршрута
+  useEffect(() => {
+    if (!profileMenu) return
+    const onDown = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileMenu(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [profileMenu])
+  useEffect(() => { setProfileMenu(false) }, [pathname])
   // блокируем скролл body при открытом мобильном меню
   useEffect(() => {
     if (drawer) { document.body.style.overflow = 'hidden' }
@@ -119,6 +141,35 @@ export default function Header() {
             })}
           </nav>
 
+          {/* Контакт магазина — общий для всех (гость и залогиненный) */}
+          {shop && (
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0 mr-2">
+              <a
+                href={shop.waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`WhatsApp магазина ${shop.phone}`}
+                className="flex items-center gap-1.5 no-underline transition-colors"
+                style={{ color: '#1FA855', fontSize: 13, fontWeight: 600 }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.86 9.86 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 1.8c2.17 0 4.2.84 5.74 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.47-3.64 8.11-8.12 8.11a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.12.82.83-3.04-.19-.31a8.04 8.04 0 0 1-1.26-4.35c0-4.47 3.64-8.11 8.11-8.11Zm-4.7 4.34c-.22 0-.58.08-.88.41-.3.33-1.15 1.13-1.15 2.75 0 1.62 1.18 3.19 1.34 3.41.17.22 2.32 3.54 5.62 4.96.79.34 1.4.54 1.88.7.79.25 1.51.21 2.08.13.63-.09 1.95-.8 2.23-1.57.27-.77.27-1.43.19-1.57-.08-.13-.3-.21-.63-.38-.33-.16-1.95-.96-2.25-1.07-.3-.11-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.39-.51-2.65-1.63-.98-.87-1.64-1.95-1.83-2.28-.19-.33-.02-.5.15-.67.15-.15.33-.38.49-.58.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.58-.08-.16-.74-1.78-1.01-2.44-.27-.64-.54-.55-.74-.56-.19-.01-.41-.01-.63-.01Z"/>
+                </svg>
+                <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{shop.phone}</span>
+              </a>
+              <a
+                href={shop.telLink}
+                aria-label={`Позвонить ${shop.phone}`}
+                className="flex items-center justify-center no-underline transition-colors"
+                style={{ width: 30, height: 30, borderRadius: 'var(--radius-btn)', background: '#f5f0f3', color: 'var(--accent)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/>
+                </svg>
+              </a>
+            </div>
+          )}
+
           {/* User / Auth */}
           {isAuthed ? (
             <div className="flex items-center gap-2 shrink-0">
@@ -131,23 +182,45 @@ export default function Header() {
                   ⚙️ Админка
                 </Link>
               )}
-              <div className="flex items-center gap-2 px-[10px] py-[5px] bg-[#f5f0f3] text-[12px] font-medium" style={{ borderRadius: 'var(--radius-btn)' }}>
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+              {/* Аватар + дропдаун профиля (свой номер — здесь, не в шапке) */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileMenu(o => !o)}
+                  aria-label="Меню профиля"
+                  aria-expanded={profileMenu}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0 border-none cursor-pointer"
                   style={{ background: 'var(--accent)' }}
                 >
                   👤
-                </div>
-                <span className="hidden sm:inline text-[12px]" style={{ color: 'var(--text)' }}>
-                  {phone}
-                </span>
-                <button
-                  onClick={() => logout()}
-                  className="text-[11px] ml-1 bg-none border-none cursor-pointer transition-colors"
-                  style={{ color: 'var(--text-mid)' }}
-                >
-                  Выйти
                 </button>
+                {profileMenu && (
+                  <div
+                    className="absolute right-0 mt-2 z-[120] bg-white overflow-hidden"
+                    style={{ minWidth: 200, borderRadius: 'var(--radius-card, 12px)', border: '1px solid #ECE5E0', boxShadow: '0 10px 30px rgba(28,18,22,.16)' }}
+                  >
+                    <div style={{ padding: '12px 14px', borderBottom: '1px solid #F0EAE6' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-mid, #8a8088)' }}>Вы вошли как</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text, #2a2226)', fontVariantNumeric: 'tabular-nums' }}>{phone ?? '—'}</div>
+                    </div>
+                    {!isAdminRole && (
+                      <Link
+                        href="/cabinet"
+                        onClick={() => setProfileMenu(false)}
+                        className="block no-underline transition-colors"
+                        style={{ padding: '11px 14px', fontSize: 13.5, color: 'var(--text, #2a2226)' }}
+                      >
+                        Личный кабинет
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => { setProfileMenu(false); logout() }}
+                      className="block w-full text-left border-none bg-transparent cursor-pointer transition-colors"
+                      style={{ padding: '11px 14px', fontSize: 13.5, color: 'var(--text-mid, #8a8088)', fontFamily: 'inherit', borderTop: '1px solid #F0EAE6' }}
+                    >
+                      Выйти
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -253,7 +326,9 @@ export default function Header() {
               </button>
             </div>
             {isAuthed && phone && (
-              <div style={{ marginTop: 14, fontSize: 12.5, opacity: .9, fontFamily: 'var(--font-jetbrains), monospace' }}>{phone}</div>
+              <div style={{ marginTop: 14, fontSize: 11, opacity: .8 }}>
+                Вы вошли как <span style={{ fontFamily: 'var(--font-jetbrains), monospace', fontSize: 12.5, opacity: 1 }}>{phone}</span>
+              </div>
             )}
           </div>
 
@@ -288,6 +363,37 @@ export default function Header() {
                 : <button key={it.label} style={st} onClick={() => { setDrawer(false); it.action?.() }}>{inner}</button>
             })}
           </nav>
+
+          {/* Контакт магазина — виден всем (гость и залогиненный) */}
+          {shop && (
+            <div style={{ borderTop: '1px solid #eee', padding: '12px 14px 4px' }}>
+              <div style={{ fontSize: 11, color: '#9a9098', marginBottom: 8 }}>Связаться с магазином</div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={shop.waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 flex-1 no-underline"
+                  style={{ padding: '11px 12px', borderRadius: 10, background: '#E9F8EF', color: '#1FA855', fontSize: 14, fontWeight: 600 }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.86 9.86 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 1.8c2.17 0 4.2.84 5.74 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.47-3.64 8.11-8.12 8.11a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.12.82.83-3.04-.19-.31a8.04 8.04 0 0 1-1.26-4.35c0-4.47 3.64-8.11 8.11-8.11Zm-4.7 4.34c-.22 0-.58.08-.88.41-.3.33-1.15 1.13-1.15 2.75 0 1.62 1.18 3.19 1.34 3.41.17.22 2.32 3.54 5.62 4.96.79.34 1.4.54 1.88.7.79.25 1.51.21 2.08.13.63-.09 1.95-.8 2.23-1.57.27-.77.27-1.43.19-1.57-.08-.13-.3-.21-.63-.38-.33-.16-1.95-.96-2.25-1.07-.3-.11-.52-.16-.74.17-.22.33-.85 1.07-1.04 1.29-.19.22-.38.25-.71.08-.33-.16-1.39-.51-2.65-1.63-.98-.87-1.64-1.95-1.83-2.28-.19-.33-.02-.5.15-.67.15-.15.33-.38.49-.58.16-.19.22-.33.33-.55.11-.22.05-.41-.03-.58-.08-.16-.74-1.78-1.01-2.44-.27-.64-.54-.55-.74-.56-.19-.01-.41-.01-.63-.01Z"/>
+                  </svg>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{shop.phone}</span>
+                </a>
+                <a
+                  href={shop.telLink}
+                  aria-label={`Позвонить ${shop.phone}`}
+                  className="flex items-center justify-center no-underline"
+                  style={{ width: 44, height: 44, borderRadius: 10, background: '#F7EEF2', color: 'var(--accent)', flexShrink: 0 }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+          )}
 
           {/* Низ меню — вход/выход */}
           <div style={{ borderTop: '1px solid #eee', padding: 12 }}>
