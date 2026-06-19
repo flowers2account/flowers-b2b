@@ -249,7 +249,7 @@ for (const card of cards) {
     if (colors.length) parts.push(`доступные цвета: ${colors.join(', ')}`)
     const description = parts.join(', ') + '.'
     const short_description = sd.join(', ') + '.'
-    const fields = { image_draft_url: heroUrl, image_draft_raw_url: `${heroUrl.replace('_draft.jpg', '_draft_raw.jpg')}`, image_status: 'approved_dealer', image_source: hit.url, description, short_description }
+    const fields = { image_draft_url: heroUrl, image_draft_raw_url: `${heroUrl.replace('_draft.jpg', '_draft_raw.jpg')}`, image_status: 'approved_dealer', image_source: hit.url, source_url: hit.url, description, short_description }
     // всегда задаём (null если вариаций нет) — чтобы перезатереть возможные прежние спуриозные значения
     fields.color_images = colors.length ? color_images : null
     fields.colors = colors.length ? colors : null

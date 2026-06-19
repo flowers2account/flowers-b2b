@@ -336,7 +336,7 @@ async function runWorklistMode() {
       })
       const draftFields = {
         image_draft_url: heroDraftUrl, image_draft_raw_url: heroRawUrl,
-        image_status: 'draft', image_source: HOST + hero.url,
+        image_status: 'draft', image_source: HOST + hero.url, source_url: HOST + hero.url,
         pot_material: 'пластик', pot_color: wantColor.label,
         pot_diameter: hero.dia ?? null, pot_height: hero.height ?? null, volume_l: hero.litres ?? null,
         colors, color_images, short_description, description,
@@ -476,7 +476,7 @@ async function runLinksMode() {
 
       const draftFields = {
         image_draft_url: heroDraftUrl, image_draft_raw_url: heroRawUrl,
-        image_status: 'draft', image_source: url,
+        image_status: 'draft', image_source: url, source_url: url,
         colors, color_images,
         short_description: txt.short_description, description: txt.description,
         // характеристики (null если поля нет)
@@ -557,7 +557,7 @@ async function commitMatch({ id, name, sub, sourceUrl, hero, offers }) {
 
   const draftFields = {
     image_draft_url: heroDraftUrl, image_draft_raw_url: heroRawUrl,
-    image_status: 'draft', image_source: sourceUrl,
+    image_status: 'draft', image_source: sourceUrl, source_url: sourceUrl,
     colors, color_images, short_description: txt.short_description, description: txt.description,
     tnved_code: chars.tnved_code, dimensions_packed: chars.dimensions_packed,
     dimensions_unpacked: chars.dimensions_unpacked, weight_gram: chars.weight_gram,

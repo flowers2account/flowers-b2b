@@ -405,6 +405,7 @@ async function enrichOne(p, lettoIndex, df, manifest) {
       image_draft_raw_url: rawUrl,
       image_status,                                       // approved_dealer (LETTO) | draft (бренд-сайт)
       image_source: cands.cand.url,
+      source_url: cands.cand.url,
     }
     if (text?.short_description) draft.short_description = text.short_description
     if (text?.description) draft.description = text.description

@@ -281,6 +281,7 @@ async function processItem(item, url, report) {
     image_draft_raw_url: parsed.heroes[0],
     image_status: 'draft',          // изготовитель
     image_source: url,              // URL Немана
+    source_url: url,                // якорь для пере-синхронизации
     description: txt.description,
     short_description: txt.short_description,
     ...(merged.volume_l != null ? { volume_l: merged.volume_l } : {}),

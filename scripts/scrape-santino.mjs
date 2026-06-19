@@ -16,6 +16,8 @@ const COMMIT = process.argv.includes('--commit')
 const OUT = 'tmp-santino'
 const SUPPLIER = 'Сантино'
 const SOURCE = 'Santino фотобанк'
+// source_url — у фотобанка нет пер-товарного URL, ставим корневой публичный линк как якорь
+const SOURCE_URL = 'https://cloud.mail.ru/public/6bGE/LMNBWyuyv'
 
 // ── нормализация / стем (гасим морфологию 5-симв. префиксом) ─────────────────────
 const norm = s => String(s ?? '').toLowerCase().replace(/ё/g, 'е')
@@ -155,6 +157,7 @@ for (const m of matched) {
     image_draft_raw_url: u.rawUrl,
     image_status: 'approved_dealer',
     image_source: SOURCE,
+    source_url: SOURCE_URL,
     colors: [m.prod.colorLabel],
     color_images: { [m.prod.colorLabel]: u.draftUrl },
   }

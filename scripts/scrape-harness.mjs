@@ -191,6 +191,10 @@ export async function uploadVPS(buf, name) {
 // молча игнорируются — витрину этот модуль не трогает НИКОГДА.
 export const DRAFT_FIELDS = [
   'image_draft_url', 'image_draft_raw_url', 'image_status', 'image_source',
+  // source_url — постоянная ссылка-якорь на товар-первоисточник. Чистый URL, по которому
+  // можно пере-синхронизироваться без повторного краула. В отличие от image_source (который
+  // исторически бывает и лейблом «Santino фотобанк»), source_url — только http-ссылка/якорь.
+  'source_url',
   'description', 'short_description', 'color_images', 'colors',
   'pot_material', 'pot_color', 'pot_diameter', 'pot_height', 'volume_l',
   // характеристики из блока «Характеристики» (режим по ссылкам):

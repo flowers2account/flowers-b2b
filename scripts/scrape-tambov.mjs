@@ -222,6 +222,7 @@ async function main() {
       const draft = {
         image_status: IMAGE_STATUS,        // дилерское фото (временное)
         image_source: hit.url,             // URL letto
+        source_url: hit.url,               // якорь для пере-синхронизации
         pot_material: 'керамика',
       }
       if (pot_color) { draft.pot_color = pot_color; draft.colors = [pot_color] }
