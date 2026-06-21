@@ -15,9 +15,10 @@ const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
 const CITIES = ['Уральск', 'Актобе', 'Атырау'] as const
 type Method = 'pickup' | 'delivery'
 
-// Вкладка оплаты «По счёту (для организаций)» — временно включена для проверки QR.
-// Включена по умолчанию; чтобы вернуть «СКОРО»/disabled — задать env NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED=false (build-time).
-const LEGAL_PAYMENT_ENABLED = process.env.NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED !== 'false'
+// Вкладка оплаты «По счёту (для организаций)» — путь ещё не готов (QR без боевого
+// OnlineDuken, подтверждение оплаты ручное), поэтому по умолчанию ВЫКЛ → бейдж «скоро»/disabled.
+// Чтобы включить (когда допилим) — задать env NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED=true (build-time).
+const LEGAL_PAYMENT_ENABLED = process.env.NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED === 'true'
 
 const PH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">

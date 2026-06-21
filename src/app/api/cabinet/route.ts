@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
         qty_actual,
         is_removed,
         price,
+        color,
         product:products ( id, name, display_name )
       )
     `)

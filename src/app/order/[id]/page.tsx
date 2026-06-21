@@ -19,6 +19,7 @@ type OrderItem = {
   qty_actual: number | null
   is_removed: boolean
   price: number
+  color: string | null
   product: { id: number; name: string; display_name?: string | null } | null
 }
 type Order = {
@@ -93,7 +94,9 @@ export default function OrderPage() {
   const totalPaid = Number(order.total ?? itemsSum)
   const discount = Math.max(0, itemsSum - totalPaid)
   const count = visible.reduce((acc, i) => acc + itemQty(i), 0)
-  const isPaid = order.payment_status === 'paid'
+  // «Оплачен» загорается ТОЛЬКО при фактической оплате — независимо от способа.
+  // Для «По счёту»/QR (invoice) подтверждение ручное → пока unpaid стадия не активна.
+  const isPaid = order.payment_status === 'paid' || !!order.paid_at
   const st = STATUS[order.status] ?? { label: order.status }
 
   // Таймлайн
@@ -136,10 +139,13 @@ export default function OrderPage() {
         {!cancelled && (
           <div className={s.timeline}>
             {steps.map((step, idx) => {
-              const cls = step.done ? s.done : idx === curIdx ? s.cur : s.todo
+              // «Оплачен» никогда не подсвечивается как «текущая» (амбер): либо оплачено (✓),
+              // либо ждём оплату — серый todo. Иначе unpaid-заказ выглядел «на стадии оплаты».
+              const isCur = idx === curIdx && step.key !== 'paid'
+              const cls = step.done ? s.done : isCur ? s.cur : s.todo
               return (
                 <div key={step.key} className={`${s.step} ${cls}`}>
-                  <span className={s.dot}>{step.done ? '✓' : idx === curIdx ? '•' : idx + 1}</span>
+                  <span className={s.dot}>{step.done ? '✓' : isCur ? '•' : idx + 1}</span>
                   <span className={s.lb}>{step.label}</span>
                   {step.time && <span className={s.tm}>{step.time}</span>}
                 </div>
@@ -158,7 +164,10 @@ export default function OrderPage() {
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" /></svg>
                 </span>
                 <div>
-                  <div className={s.nm}>{(i.product?.display_name || i.product?.name) ?? '—'}</div>
+                  <div className={s.nm}>
+                    {(i.product?.display_name || i.product?.name) ?? '—'}
+                    {i.color && <span className={s.color}> — Цвет: {i.color}</span>}
+                  </div>
                   <div className={s.calc}>{fmt(i.price)} × {itemQty(i)} шт{i.is_removed ? ' · снято' : ''}</div>
                 </div>
                 <div className={s.sum}>{i.is_removed ? '—' : fmt(itemQty(i) * i.price)}</div>
