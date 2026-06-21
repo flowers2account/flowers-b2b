@@ -146,9 +146,6 @@ const GROUP_EMOJI: Record<string, string> = {
 }
 const DEFAULT_EMOJI = '🛍️'
 
-// Клиент явно просит показать товар (триггер карточки, вариант Б). Правит Цвет.
-const PHOTO_REQUEST_RE = /(покажи|показать|пришл\w*\s*фото|фото|фотк|картинк|изображ|как выглядит|выгляд|посмотреть|глянуть|увидеть)/i
-
 // Богатая карточка для виджета = ОДНО сообщение: фото (attachment) + caption (плоский текст,
 // \n и эмодзи; markdown/кнопок виджет не умеет). Шаблон правит Цвет.
 function buildCardCaption(r: AccessoryRow): string {
@@ -444,17 +441,15 @@ export async function getAccessoriesReply(
   const answer = await composeAnswer(message, rows, history)
   console.log(`[accessories-bot] compose (${cls.intent}):`, answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
 
-  // Богатая карточка (вариант Б): шлём ТОЛЬКО когда клиент явно просит показать
-  // (PHOTO_REQUEST_RE) — фото к топ-1 релевантному товару (rows[0]); в тексте остальные
-  // перечислены как обычно. Максимум 1 карточка. caption — buildCardCaption.
+  // Богатая карточка ПО УМОЛЧАНИЮ: в любом ответе про расходку с найденным товаром шлём
+  // карточку к топ-1 релевантному товару (rows[0]); в тексте остальные перечислены как обычно.
+  // Максимум 1 карточка. caption — buildCardCaption. Нет фото → не шлём.
   let photo: BotReply['photo']
   if (BOT_SEND_PHOTOS && answer && cls.intent === 'accessories' && rows.length >= 1) {
-    if (!PHOTO_REQUEST_RE.test(message)) {
-      console.log('[accessories-bot] photo: skipped (no-request)')
-    } else if (!rows[0].image_url) {
-      console.log('[accessories-bot] photo: skipped (no image)')
-    } else {
+    if (rows[0].image_url) {
       photo = { imageUrl: rows[0].image_url, caption: buildCardCaption(rows[0]), productId: rows[0].id }
+    } else {
+      console.log('[accessories-bot] photo: skipped (no image)')
     }
   }
 
