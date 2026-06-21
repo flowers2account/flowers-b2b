@@ -17,7 +17,7 @@ type CampaignOrder = {
 }
 type OrderItem = {
   id: string; qty: number; qty_ordered: number; qty_actual: number | null; is_removed: boolean
-  price: number; product: { id: number; name: string; display_name?: string | null } | null
+  price: number; product: { id: number; name: string; display_name?: string | null; image_url?: string | null } | null
 }
 type Order = {
   id: string; status: string; created_at: string; payment_status?: string | null; total?: number | null
@@ -143,7 +143,14 @@ export default function CabinetPage() {
                 </div>
                 <div className={s.oBody}>
                   <div className={s.oThumbs}>
-                    {Array.from({ length: shown }).map((_, i) => <span key={i} className={s.t}>{THUMB}</span>)}
+                    {visible.slice(0, shown).map((it, i) => (
+                      <span key={i} className={s.t}>
+                        {it.product?.image_url
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={it.product.image_url} alt={(it.product?.display_name || it.product?.name) ?? ''} />
+                          : THUMB}
+                      </span>
+                    ))}
                     {more > 0 && <span className={s.more}>+{more}</span>}
                   </div>
                   <div className={s.oInfo}><b>{visible.length}</b> наимен. · <b>{qtyTotal}</b> шт</div>
