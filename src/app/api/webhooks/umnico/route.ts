@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccessoriesReply, CHANNEL_POLICY, type ChannelMode } from '@/lib/bot/accessories-bot'
 import { isLeadEnabled, enableLead, disableLead } from '@/lib/bot/lead-gate'
-import { sendMessage, addTag } from '@/lib/umnico'
+import { sendMessage, sendPhoto, addTag } from '@/lib/umnico'
 
 // Дедуп доставок одного messageId. In-memory — переживает только тёплый инстанс,
 // достаточно для защиты от повторных ретраев Umnico за короткое окно.
@@ -147,14 +147,27 @@ export async function POST(req: NextRequest) {
 
     // Шаг 2: конвейер бота (внутренние шаги — history/classify/search/compose — логируются в accessories-bot)
     const reply = await getAccessoriesReply(text, { leadId, realId: srcRealId, messageId })
-    console.log('[umnico webhook] reply:', reply ? `len=${reply.length}` : 'none (менеджеру)')
+    console.log('[umnico webhook] reply:', reply.text ? `len=${reply.text.length}` : 'none (менеджеру)')
 
-    // Шаг 3: отправка в Umnico (source из payload, fallback внутри sendMessage)
-    if (reply) {
-      const sent = await sendMessage(leadId, reply, payloadSource)
+    // Шаг 3: сначала ВСЕГДА текст (source из payload, fallback внутри sendMessage)
+    if (reply.text) {
+      const sent = await sendMessage(leadId, reply.text, payloadSource)
       console.log('[umnico webhook] umnico send:', sent ? 'ok' : 'failed')
       if (sent) {
         await addTag(leadId, 'отвечено-ботом')
+
+        // Шаг 4: фото товара ОТДЕЛЬНЫМ сообщением ПОСЛЕ текста (решение принято в конвейере,
+        // за флагом BOT_SEND_PHOTOS). Ошибка фото НЕ роняет диалог — текст уже ушёл.
+        if (reply.photo) {
+          try {
+            const okPhoto = await sendPhoto(leadId, reply.photo.imageUrl, reply.photo.caption, payloadSource)
+            console.log(okPhoto
+              ? `[accessories-bot] photo: sent ${reply.photo.productId}`
+              : '[accessories-bot] photo: failed')
+          } catch (e) {
+            console.error('[accessories-bot] photo: failed', (e as Error)?.message)
+          }
+        }
       }
     }
   } catch (err) {

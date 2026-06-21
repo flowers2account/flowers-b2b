@@ -42,6 +42,7 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
    ССЫЛКИ ДАВАЙ ТОЛЬКО ГОЛЫМ URL (https://…) отдельной строкой. БЕЗ markdown: никаких
    [текст](url), без круглых/квадратных/угловых скобок вокруг адреса. Чат не рендерит
    markdown — лишние символы попадают в ссылку и ломают её.
+   Поле image_url из товара НЕ упоминай и НЕ вставляй в ответ — фото уходит отдельным сообщением.
 
 FAQ (работа сайта):
 5) По регистрации, PIN, заказу, доставке, оплате, графику, контактам отвечай ТОЛЬКО
@@ -122,7 +123,17 @@ interface AccessoryRow {
   unit: string | null
   qty: number | null
   pack_size: number | null
+  image_url: string | null
 }
+
+// Ответ конвейера: текст + опционально фото товара (отдельным сообщением, за флагом).
+export interface BotReply {
+  text: string | null
+  photo?: { imageUrl: string; caption: string; productId: number }
+}
+
+// Флаг отправки фото товара. По умолчанию ВЫКЛ.
+const BOT_SEND_PHOTOS = process.env.BOT_SEND_PHOTOS === 'true'
 
 /** Шаг A: классификация — small talk / расходка / сайт / прочее + ключевые слова. */
 async function classifyMessage(message: string, history: DialogMessage[] = []): Promise<ClassifyResult> {
@@ -231,7 +242,7 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
 
   const { data, error } = await supabase
     .from('products')
-    .select('id, display_name, subcategory, price, unit, qty, pack_size')
+    .select('id, display_name, subcategory, price, unit, qty, pack_size, image_url')
     .eq('category', 'accessories')
     .eq('is_active', true)
     .eq('hidden_for_demo', false)
@@ -278,7 +289,7 @@ async function composeAnswer(message: string, rows: AccessoryRow[], history: Dia
   const context = rows.map((r) => {
     const groupId = groupIdForSubcat(r.subcategory)
     return {
-      ...r,
+      ...r,                                    // включает image_url (фото товара)
       url: `${SITE_URL}/product/${r.id}`,
       catalog_url: groupId ? catalogUrlForGroup(groupId) : undefined,
     }
@@ -344,8 +355,8 @@ function matchLeafByKeywords(keywords: string[]): Leaf | null {
 export async function getAccessoriesReply(
   message: string,
   ctx?: { leadId: string | number; realId?: string | number; messageId?: string | number },
-): Promise<string | null> {
-  if (!message || !message.trim()) return null
+): Promise<BotReply> {
+  if (!message || !message.trim()) return { text: null }
 
   // Контекст диалога: последние сообщения из истории Umnico. Ошибка → [] (конвейер продолжает).
   let history: DialogMessage[] = []
@@ -375,11 +386,11 @@ export async function getAccessoriesReply(
     const useShort = repeat && Boolean(SMALLTALK_REPLIES_REPEAT[sub])
     const reply = useShort ? SMALLTALK_REPLIES_REPEAT[sub] : (SMALLTALK_REPLIES[sub] ?? SMALLTALK_REPLIES.greeting)
     console.log(`[accessories-bot] smalltalk: sub=${sub} repeat=${repeat} (${reason}) → ${useShort ? 'short' : 'full'}`)
-    return reply
+    return { text: reply }
   }
 
   // Прочее (живые цветы/букеты/статус заказа/жалоба) — молчим, диалог менеджеру.
-  if (cls.intent === 'other') return null
+  if (cls.intent === 'other') return { text: null }
 
   // accessories / site_help → единый compose (каталог + FAQ).
   // Товары ищем только для accessories; для site_help список пустой (отвечаем по памятке).
@@ -393,15 +404,30 @@ export async function getAccessoriesReply(
       if (leaf) {
         const groupId = groupIdForLeafSlug(leaf.slug)
         console.log('[accessories-bot] fallback category:', leaf.slug, '→ group', groupId)
-        if (groupId) return CATEGORY_SUGGESTION(leaf.label, catalogUrlForGroup(groupId))
+        if (groupId) return { text: CATEGORY_SUGGESTION(leaf.label, catalogUrlForGroup(groupId)) }
       }
       // И раздел не угадался — честно к менеджеру.
       console.log('[accessories-bot] not found → контакт менеджера')
-      return NOT_FOUND_REPLY
+      return { text: NOT_FOUND_REPLY }
     }
   }
 
   const answer = await composeAnswer(message, rows, history)
   console.log(`[accessories-bot] compose (${cls.intent}):`, answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
-  return answer
+
+  // Фото товара (за флагом BOT_SEND_PHOTOS) — кандидат на отправку ОТДЕЛЬНЫМ сообщением
+  // после текста. Только для accessories с ответом. Правило: ровно один товар → шлём;
+  // несколько → не спамим; нет фото/нет товара → не шлём. Сама отправка — в роуте вебхука.
+  let photo: BotReply['photo']
+  if (BOT_SEND_PHOTOS && answer && cls.intent === 'accessories') {
+    if (rows.length > 1) {
+      console.log('[accessories-bot] photo: skipped (multiple)')
+    } else if (rows.length === 1 && rows[0].image_url) {
+      photo = { imageUrl: rows[0].image_url, caption: rows[0].display_name ?? '', productId: rows[0].id }
+    } else {
+      console.log('[accessories-bot] photo: skipped (no-request)')
+    }
+  }
+
+  return { text: answer, photo }
 }

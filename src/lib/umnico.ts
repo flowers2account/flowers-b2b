@@ -85,6 +85,50 @@ export async function sendMessage(
   return true
 }
 
+/**
+ * POST /messaging/{leadId}/send — отправить ФОТО в чат лида (отдельным сообщением).
+ * Формат вложения по докам Umnico (umnico.com/messaging-api):
+ *   { message: { text?, attachment: { media: { url }, type: 'photo' } }, source, userId }
+ * В доке у media есть ещё `id` (для пересылки ПОЛУЧЕННЫХ медиа) — при отправке своего фото
+ * по URL шлём только media.url. ⚠️ Формат не на 100% подтверждён доками v1.3 → нужен живой тест.
+ */
+export async function sendPhoto(
+  leadId: string | number,
+  imageUrl: string,
+  caption?: string,
+  source?: UmnicoSource,
+): Promise<boolean> {
+  let target = source && source.type === 'message' ? source : null
+  if (!target) {
+    const sources = await getSources(leadId)
+    target = pickMessageSource(sources)
+  }
+  if (!target) {
+    console.error('[umnico] sendPhoto: no source with type=message for lead', leadId)
+    return false
+  }
+
+  const message: Record<string, unknown> = {
+    attachment: { media: { url: imageUrl }, type: 'photo' },
+  }
+  if (caption && caption.trim()) message.text = caption.trim()
+
+  const body: Record<string, unknown> = { message, source: toNum(target.realId) }
+  const userIdRaw = process.env.UMNICO_BOT_USER_ID
+  if (userIdRaw) body.userId = toNum(userIdRaw)
+
+  const res = await fetch(`${UMNICO_BASE}/messaging/${leadId}/send`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    console.error('[umnico] sendPhoto failed:', res.status, await res.text().catch(() => ''))
+    return false
+  }
+  return true
+}
+
 // ── История диалога (контекст для бота) ──────────────────────────────────────
 
 export interface DialogMessage {
