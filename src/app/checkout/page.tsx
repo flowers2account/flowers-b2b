@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useOrderCheckout } from '@/hooks/useOrderCheckout'
 import { company } from '@/config/company'
 import AuthModal from '@/components/catalog/AuthModal'
+import DeliveryTermsModal from '@/components/DeliveryTermsModal'
 import s from './checkout.module.css'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
@@ -39,6 +40,7 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState('')
   const [formError, setFormError] = useState('')
   const [showAuth, setShowAuth] = useState(false)
+  const [showDelivery, setShowDelivery] = useState(false)
   // Способ оплаты: карта (ePay) или по счёту/QR для юр.лиц
   const [payMethod, setPayMethod] = useState<'card' | 'invoice'>('card')
 
@@ -184,7 +186,14 @@ export default function CheckoutPage() {
                       Доставка
                     </div>
                     <div className={s.optDs}>По Уральску, а также в Актобе и Атырау. Сроки и стоимость по согласованию.</div>
-                    <div className={s.optPr}>от 0 ₸ (см. условия)</div>
+                    <div className={s.optPr}>от 0 ₸ (см.{' '}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowDelivery(true) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setShowDelivery(true) } }}
+                        style={{ color: '#8B3A5A', textDecoration: 'underline', cursor: 'pointer' }}
+                      >условия</span>)</div>
                   </button>
                 </div>
 
@@ -342,6 +351,7 @@ export default function CheckoutPage() {
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />}
+      <DeliveryTermsModal open={showDelivery} onClose={() => setShowDelivery(false)} />
     </main>
   )
 }
