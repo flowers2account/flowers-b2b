@@ -17,25 +17,38 @@ export const AMO_STATUS_ON_DELIVERY = 86646730  // на доставке (нов
 export const AMO_STATUS_DELIVERED   = 142        // Выдан (финал успешно)
 export const AMO_STATUS_CANCELLED   = 143        // Отменён (финал)
 
-// Маппинг order_status → этап amoCRM
-// НЕ двигаем (нет в маппинге): pending/cart/in_transit/arrived.
-// ⚠️ reserved — этап «В брони» удалён из воронки; маппинг убран, чтобы не PATCH-ить на
-//    несуществующий id (был бы 400 от amo). reserved остаётся живым статусом сайта
-//    (канбан «В работе», касса, payable) → пока updateLeadStage для него no-op.
-//    Решение, на какой этап вешать reserved (Согласование? оставить?), — отдельным шагом.
-// ⚠️ AMO_STATUS_NEGOTIATION / AMO_STATUS_ON_DELIVERY заведены, но в маппинг НЕ добавлены —
-//    под какие order_status их вешать, решаем отдельно.
+// Двусторонний маппинг order_status ↔ этап воронки 10853806 (полное соответствие).
+// НЕ двигаем (нет в маппинге): pending/cart/arrived; «Новый»/«Incoming leads» — вход не маппим.
+// ⚠️ reserved — этап «В брони» удалён из воронки; не маппим → updateLeadStage no-op.
+//    reserved остаётся живым статусом сайта (канбан «В работе», касса) до заморозки кнопок.
 const ORDER_STATUS_TO_AMO: Record<string, number> = {
-  confirmed:  AMO_STATUS_CONFIRMED,
-  assembling: AMO_STATUS_ASSEMBLING,
-  assembled:  AMO_STATUS_ASSEMBLED,
-  delivered:  AMO_STATUS_DELIVERED,
-  cancelled:  AMO_STATUS_CANCELLED,
+  confirmed:   AMO_STATUS_CONFIRMED,
+  negotiation: AMO_STATUS_NEGOTIATION,
+  assembling:  AMO_STATUS_ASSEMBLING,
+  assembled:   AMO_STATUS_ASSEMBLED,
+  in_transit:  AMO_STATUS_ON_DELIVERY,
+  delivered:   AMO_STATUS_DELIVERED,
+  cancelled:   AMO_STATUS_CANCELLED,
+}
+
+// Обратный маппинг этап amoCRM → order_status (для вебхука CRM→сайт).
+// «Новый» (85413462) и «Incoming leads» (85413458) намеренно отсутствуют → вебхук их игнорит.
+export const AMO_STATUS_TO_ORDER: Record<number, string> = {
+  [AMO_STATUS_CONFIRMED]:   'confirmed',
+  [AMO_STATUS_NEGOTIATION]: 'negotiation',
+  [AMO_STATUS_ASSEMBLING]:  'assembling',
+  [AMO_STATUS_ASSEMBLED]:   'assembled',
+  [AMO_STATUS_ON_DELIVERY]: 'in_transit',
+  [AMO_STATUS_DELIVERED]:   'delivered',
+  [AMO_STATUS_CANCELLED]:   'cancelled',
 }
 
 // Custom field IDs (from /api/v4/leads/custom_fields)
 export const CF_ORDERID            = 1394611   // ORDERID  (textarea)
 export const CF_DATA_DOSTAVKI      = 1394599   // ДАТА_ДОСТАВКИ (textarea)
+export const CF_DRIVER             = 1363771   // «Номер водителя» (text) → orders.driver_name
+export const CF_CAR                = 1363769   // «Номер машины» (text)   → orders.driver_phone
+export const CF_DELIVERY_PRICE     = 1394623   // DELIVERY_PRICE (numeric) → orders.delivery_cost
 export const CF_POLUCHATEL_FIO     = 1394593   // POLUCHATEL_FIO (textarea)
 export const CF_POLUCHATEL_PHONE   = 1394595   // POLUCHATEL_PHONE (textarea)
 export const CF_ADRES_POLUCHATELYA = 1394597   // АДРЕС_ПОЛУЧАТЕЛЯ (textarea)
@@ -180,6 +193,20 @@ export async function createLead(params: {
   const id = data?._embedded?.leads?.[0]?.id
   if (!id) throw new Error('amoCRM: createLead — no id returned')
   return id
+}
+
+// Полная сделка из amoCRM (для вебхука — источник истины по этапу и кастомным полям).
+export async function getLead(leadId: number): Promise<any> {
+  const res = await amoFetch(`/leads/${leadId}`)
+  if (res.status === 204) return null
+  return res.json()
+}
+
+// Достать значение кастомного поля сделки по field_id (первое непустое), иначе null.
+export function leadFieldValue(lead: any, fieldId: number): string | null {
+  const f = (lead?.custom_fields_values ?? []).find((x: any) => x.field_id === fieldId)
+  const v = f?.values?.map((x: any) => x.value).find((x: any) => x != null && String(x).trim() !== '')
+  return v != null ? String(v) : null
 }
 
 // ── Notes ─────────────────────────────────────────────────────────────────────
