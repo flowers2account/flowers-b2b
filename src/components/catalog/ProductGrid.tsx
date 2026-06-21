@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilters } from '@/lib/filter-store'
 import { useDetailStore } from '@/lib/detail-store'
@@ -13,7 +12,7 @@ import { useFilterChips } from '@/lib/filter-chips'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
-import { colorSwatch, colorLabel, isLightSwatch, getColorMode } from '@/lib/colors'
+import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 import { useColorCart } from '@/lib/use-color-cart'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
@@ -464,15 +463,37 @@ export function GridCard({
 // ── list row ─────────────────────────────────────────────────────────────────
 
 function ListRow({
-  product, qty, isAuthed, onDec, onInc, onCardClick,
+  product, isAuthed, requireAuth, onCardClick, onFlash,
 }: {
-  product: Product; qty: number; isAuthed: boolean
-  onDec: () => void; onInc: () => void; onCardClick: () => void
+  product: Product; isAuthed: boolean
+  requireAuth: (fn: () => void) => void
+  onCardClick: () => void
+  onFlash?: () => void
 }) {
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
   const displayName = product.display_name || product.variety_name || product.name
+  const packSize = product.stems_per_pack || product.pack_size || 1
+
+  // Выбор цвета → корзина: ТА ЖЕ модель, что в клетке грида и DetailPanel.
+  const {
+    colorList, colorMode, selectedSlug, setSelectedSlug,
+    colorValue, colorRequired, qty, qtyBySlug, inc, dec,
+  } = useColorCart(product, {
+    available, packSize,
+    makePayload: (color) => ({
+      id: product.id,
+      name: displayName + (product.length_str ? ' ' + product.length_str : ''),
+      price, available, category: product.category, image_url: product.image_url,
+      unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
+      color,
+    }),
+  })
+  const isMulti = colorMode === 'select' && colorList.length >= 2
+  const doInc = () => requireAuth(() => { inc(); onFlash?.() })
+  const doDec = () => requireAuth(() => { dec() })
+
   type Dim = { type: 'length' | 'diam'; val: string }
   const dims: Dim[] = product.category === 'pot'
     ? [
@@ -528,6 +549,40 @@ function ListRow({
           {product.country_iso && <CountryBadge iso={product.country_iso} />}
           {hasDiscount && <TagBadge type="sale" />}
         </div>
+
+        {/* Мультицвет → кликабельные кружки-пикер + подпись выбранного цвета (как в клетке грида) */}
+        {isMulti && (
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 9, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {colorList.map(slug => {
+              const active = selectedSlug === slug
+              const cnt = qtyBySlug[slug] ?? 0
+              return (
+                <button
+                  key={slug}
+                  title={colorLabel(slug)}
+                  onClick={() => requireAuth(() => setSelectedSlug(active && colorList.length > 1 ? null : slug))}
+                  style={{
+                    position: 'relative', width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                    padding: 0, cursor: 'pointer', background: colorSwatch(slug),
+                    border: active ? '2px solid var(--accent)' : `1px solid ${isLightSwatch(slug) ? '#D0D0D0' : 'rgba(0,0,0,0.18)'}`,
+                    boxShadow: active ? '0 0 0 2px var(--bg)' : '0 0 0 1px var(--border) inset',
+                  }}
+                >
+                  {cnt > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -6, right: -6, minWidth: 13, height: 13, padding: '0 3px',
+                      borderRadius: 7, background: 'var(--accent)', color: '#fff', fontSize: 8, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                    }}>{cnt}</span>
+                  )}
+                </button>
+              )
+            })}
+            <span style={{ fontSize: 10.5, color: colorRequired ? '#E53935' : 'var(--text-mid)' }}>
+              {colorRequired ? 'выберите цвет' : colorValue}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Цена + степпер */}
@@ -542,7 +597,7 @@ function ListRow({
         ) : (
           <span style={{ fontSize: 12, color: '#ccc', userSelect: 'none' }}>●●● ₸</span>
         )}
-        <Stepper qty={qty} available={available} packSize={product.stems_per_pack || product.pack_size || 1} onDec={onDec} onInc={onInc} />
+        <Stepper qty={qty} available={available} packSize={packSize} onDec={doDec} onInc={doInc} disabled={isMulti && colorRequired} />
       </div>
     </div>
   )
@@ -586,7 +641,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   const [viewMode, setViewMode] = useState<'compact' | 'list'>('compact')
 
   const router = useRouter()
-  const { items, add, update } = useCart()
   const { isAuthed } = useAuthStore()
   const { setProduct, flashCart, panel, productId, product: detailProduct, restoreProduct } = useDetailStore()
   const { setProducts: syncProducts, setFilteredCount } = useProductsStore()
@@ -639,8 +693,6 @@ export default function ProductGrid({ products: initialProducts }: { products: P
     if (isAuthed) action()
     else { setPendingAction(() => action); setShowAuth(true) }
   }, [isAuthed])
-
-  const getQty = (id: number) => items.find(i => i.id === id)?.qty ?? 0
 
   const chips = useFilterChips()
 
@@ -776,39 +828,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])
 
-  // Цвет для быстрого добавления из грида (Вариант А: цвет — ярлык, не SKU):
-  // assorti → 'ассорти'; один явный цвет → авто-выбор; несколько → выбрать нельзя (вернём null,
-  // вызывающий открывает карточку для выбора). null — у товара нет цветовых вариаций.
-  const gridColor = (product: Product): string | null => {
-    const list = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
-    const mode = getColorMode(product.colors)
-    if (mode === 'assorti') return 'ассорти'
-    if (mode === 'select' && list.length === 1) return colorLabel(list[0])
-    return null
-  }
-  // Несколько явных цветов — выбор обязателен, угадать из грида нельзя.
-  const needsColorPick = (product: Product): boolean => {
-    const list = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
-    return getColorMode(product.colors) === 'select' && list.length > 1
-  }
-
-  const handleDec = (product: Product, qty: number) => requireAuth(() =>
-    update(product.id, Math.max(0, qty - (product.pack_size || 5)), gridColor(product))
-  )
-  const handleInc = (product: Product, qty: number, available: number, price: number) =>
-    requireAuth(() => {
-      // Мульти-цвет: не добавляем «безцветную» строку — открываем карточку, чтобы клиент выбрал цвет.
-      if (needsColorPick(product)) { setProduct(product); return }
-      const color = gridColor(product)
-      const packSize = product.stems_per_pack || product.pack_size || 1
-      if (qty === 0) {
-        add({ id: product.id, name: (product.display_name || product.variety_name || product.name) + (product.length_str ? ' ' + product.length_str : ''), price, available, category: product.category, image_url: product.image_url, unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null, color })
-        update(product.id, packSize, color)
-      } else {
-        update(product.id, Math.min(qty + packSize, available), color)
-      }
-      if (!isMobile) flashCart(product) // на мобиле корзина открывается только явным нажатием
-    })
+  // Добавление в корзину (с выбором цвета) живёт внутри GridCard/ListRow через useColorCart —
+  // здесь больше нет per-card обработчиков.
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -940,22 +961,16 @@ export default function ProductGrid({ products: initialProducts }: { products: P
           })()
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filtered.map(p => {
-              const qty = getQty(p.id)
-              const available = getAvailable(p.stock)
-              const price = getPrice(p.stock)
-              return (
-                <ListRow
-                  key={p.id}
-                  product={p}
-                  qty={qty}
-                  isAuthed={isAuthed}
-                  onDec={() => handleDec(p, qty)}
-                  onInc={() => handleInc(p, qty, available, price)}
-                  onCardClick={() => setProduct(p)}
-                />
-              )
-            })}
+            {filtered.map(p => (
+              <ListRow
+                key={p.id}
+                product={p}
+                isAuthed={isAuthed}
+                requireAuth={requireAuth}
+                onCardClick={() => setProduct(p)}
+                onFlash={() => { if (!isMobile) flashCart(p) }}
+              />
+            ))}
           </div>
         )}
       </div>
