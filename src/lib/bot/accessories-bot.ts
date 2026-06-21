@@ -6,7 +6,7 @@ import { callGemini } from '@/lib/gemini'
 import { CLIENT_FAQ } from '@/lib/bot/site-faq'
 import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
 import { CATEGORY_TREE, groupIdForLeafSlug, groupIdForSubcat, labelForSubcat, type Leaf } from '@/lib/category-tree'
-import { formatSynonymsForPrompt } from '@/lib/search-synonyms'
+import { formatSynonymsForPrompt, normalizeQuery } from '@/lib/search-synonyms'
 
 // Единая формулировка «как позвать менеджера» — правится здесь (Цвет). Используется в
 // готовых ответах и подставляется в промпты, чтобы везде звучало одинаково.
@@ -257,11 +257,45 @@ ${histBlock ? `\nИстория диалога (старые→новые):\n${h
   }
 }
 
+const SEARCH_SELECT = 'id, display_name, subcategory, price, unit, qty, pack_size, image_url, code_1c'
+
+// Русские окончания прилагательных/существительных (длинные → короткие). Снимаются
+// для основы, чтобы ILIKE ловил все формы: «цветная/цветной/цветным» → «цветн»,
+// которое матчит «с цветным рисунком». В каталоге много длинных названий, где точная
+// форма клиента не совпадает, а основа — да.
+const RU_ENDINGS = ['иями', 'ыми', 'ими', 'ого', 'его', 'ому', 'ему', 'ями', 'ами', 'ая', 'яя', 'ое', 'ее', 'ые', 'ие', 'ый', 'ий', 'ой', 'ом', 'ем', 'ым', 'им', 'ых', 'их', 'ую', 'юю', 'ов', 'ев', 'ах', 'ях', 'а', 'я', 'ы', 'и', 'у', 'ю', 'е', 'о', 'ь', 'й']
+function stemRu(w: string): string {
+  for (const e of RU_ENDINGS) {
+    if (w.length - e.length >= 4 && w.endsWith(e)) return w.slice(0, -e.length)
+  }
+  return w
+}
+
+// Один keyword классификатора → варианты для ILIKE: нормализуем (ё→е, нижний регистр),
+// бьём на слова, добавляем основу каждого слова. Группа вариантов соответствует ОДНОМУ
+// keyword (внутри — OR, между keyword'ами — AND, чтобы «цветная плёнка» уточняла, а не
+// расширяла до всех плёнок).
+function kwVariants(kw: string): string[] {
+  const out = new Set<string>()
+  for (const word of normalizeQuery(kw).split(/[\s,/]+/)) {
+    const w = word.replace(/[%(),]/g, '').trim()
+    if (w.length < 3) continue
+    out.add(w)
+    const s = stemRu(w)
+    if (s !== w && s.length >= 4) out.add(s)
+  }
+  return [...out]
+}
+const ilikeOr = (variants: string[]) =>
+  variants.flatMap((v) => [`name.ilike.%${v}%`, `display_name.ilike.%${v}%`]).join(',')
+
 /**
- * Шаг B: двухступенчатый поиск по расходке.
- * 1) ILIKE по name/display_name (быстрый точный);
- * 2) 0 результатов → fallback на trigram similarity (RPC search_accessories_trgm,
- *    порог 0.3, сортировка по убыванию похожести) — ловит опечатки и словоформы.
+ * Шаг B: поиск по расходке. Перед поиском — нормализация (ё→е) и снятие основы
+ * (словоформы прилагательных). Три ступени:
+ * 1a) ILIKE-AND (уточнение): каждый keyword обязателен (OR его вариантов) — «цветная
+ *     плёнка» → только цветные плёнки, а не все;
+ * 1b) ILIKE-OR (расширение): если AND пуст — любой вариант любого keyword;
+ * 2)  trigram similarity (RPC, нормализованные слова) — опечатки/дальние формы.
  */
 async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
   if (keywords.length === 0) return []
@@ -270,39 +304,47 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
     return []
   }
   const supabase = createAdminClient()
-
-  // Ступень 1: ILIKE. OR-фильтр PostgREST: name.ilike.%kw%,display_name.ilike.%kw%,...
-  const orParts: string[] = []
-  const safeKeywords: string[] = []
-  for (const kw of keywords) {
-    const safe = kw.replace(/[%,()]/g, ' ').trim()
-    if (!safe) continue
-    safeKeywords.push(safe)
-    orParts.push(`name.ilike.%${safe}%`)
-    orParts.push(`display_name.ilike.%${safe}%`)
-  }
-  if (orParts.length === 0) return []
-
-  const { data, error } = await supabase
+  const base = () => supabase
     .from('products')
-    .select('id, display_name, subcategory, price, unit, qty, pack_size, image_url, code_1c')
+    .select(SEARCH_SELECT)
     .eq('category', 'accessories')
     .eq('is_active', true)
     .eq('hidden_for_demo', false)
     .gt('price', 0)
-    .or(orParts.join(','))
-    .limit(20)
 
-  if (error) {
-    console.error('[accessories-bot] ilike search failed:', error.message)
-  } else if (data && data.length > 0) {
-    console.log(`[accessories-bot] search: ${data.length} via ilike`)
-    return data as AccessoryRow[]
+  const groups = keywords.map(kwVariants).filter((g) => g.length > 0)
+  if (groups.length === 0) return []
+  const allVariants = [...new Set(groups.flat())]
+
+  // Ступень 1a: уточнение — AND между keyword'ами (каждый .or() ANDится в PostgREST).
+  if (groups.length >= 2) {
+    let q = base()
+    for (const g of groups) q = q.or(ilikeOr(g))
+    const { data, error } = await q.limit(20)
+    if (error) console.error('[accessories-bot] ilike-AND failed:', error.message)
+    else if (data && data.length > 0) {
+      console.log(`[accessories-bot] search: ${data.length} via ilike-AND`)
+      return data as AccessoryRow[]
+    }
   }
 
-  // Ступень 2: trigram similarity (миграция 20260611_trgm_accessories_search).
+  // Ступень 1b: расширение — OR всех вариантов.
+  {
+    const { data, error } = await base().or(ilikeOr(allVariants)).limit(20)
+    if (error) console.error('[accessories-bot] ilike-OR failed:', error.message)
+    else if (data && data.length > 0) {
+      console.log(`[accessories-bot] search: ${data.length} via ilike-OR`)
+      return data as AccessoryRow[]
+    }
+  }
+
+  // Ступень 2: trigram similarity по НОРМАЛИЗОВАННЫМ словам (ё→е критично — «плёнка» с ё
+  // даёт word_similarity ниже порога и теряет все плёнки).
+  const trgmKeywords = [...new Set(
+    keywords.flatMap((k) => normalizeQuery(k).split(/[\s,/]+/).map((w) => w.replace(/[%(),]/g, '').trim()).filter((w) => w.length >= 3)),
+  )]
   const { data: trgm, error: trgmError } = await supabase.rpc('search_accessories_trgm', {
-    p_keywords: safeKeywords,
+    p_keywords: trgmKeywords,
     p_limit: 20,
   })
   if (trgmError) {

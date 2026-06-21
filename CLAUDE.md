@@ -611,6 +611,7 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 | `docs/STOCK_MANAGEMENT.md` | Архитектура остатков |
 | `docs/AI_TRANSLATOR.md` | AI-переводчик инвойсов, `translation_memory` |
 | `docs/UMNICO_BOT.md` | ИИ-бот поддержки в Umnico (расходка): трёхуровневое управление (env→каналы→команды), поток, ENV, настройка |
+| `docs/WIDGET_TECH_CONTEXT.md` | **Нативный AI-виджет на сайте (vA завершён 21.06)**: файлы, канал widget/whatsapp, карточки 3 плотностей, наджа/чипы/FAB-пузырь, бэклог vB |
 | `docs/CLIENT_FAQ.md` | Памятка клиента (регистрация, вход, заказ, доставка, оплата). Генерится из `src/lib/bot/site-faq.ts` — правь там |
 | `docs/NAMING_SYSTEM_STATE.md` | Состояние нейминга, дубли товаров |
 | `docs/KNOWN_ISSUES.md` | Известные баги |
@@ -719,6 +720,40 @@ src/
 
 **Разовая настройка** (сотрудник-бот, регистрация вебхука, включение, проверка) и правка
 промптов — подробно в `docs/UMNICO_BOT.md`.
+
+## Нативный AI-виджет-консультант на сайте (версия A) — актуально с 21.06.2026
+
+Собственный AI-виджет в чате на сайте (заменил виджет Umnico). **Тот же мозг** —
+`getAccessoriesReply` из `accessories-bot.ts`. Виджет Umnico с сайта снят; `umnicoClient`
+(WhatsApp-уведомления) и Umnico-бот для WhatsApp **остаются**.
+
+| Файл | Роль |
+|------|------|
+| `src/app/api/chat/route.ts` | POST `{message, history[]}` → `getAccessoriesReply(…, {history, channel:'widget'})` → `{text, products[], chips[]}`. Парсит «Варианты: A / B / C» → `chips[]`. Gemini-ключ только на сервере. |
+| `src/components/AiWidget.tsx` | FAB + панель чата; смонтирован в `layout.tsx` на всех страницах. На `/checkout` приглушён. |
+| `src/components/widget/ProductCard.tsx` | Единый стандарт карточки, контракт `{sku,name,image,price,unit,stock,pack,url}`, `density: full\|mini\|compact`. |
+| `src/lib/widget-store.ts` | Zustand: история диалога **в сессии браузера** (без БД). |
+
+**Канал ответа** (`ctx.channel` в `getAccessoriesReply`): `widget` — текст разговорный,
+БЕЗ перечисления товаров и ссылок (карточки рисует UI, товары в `products[]`);
+`whatsapp` (дефолт) — поведение без изменений (Umnico-путь не трогаем).
+
+**Вошло в vA**: карточки 3 плотностей; бейдж наличия (≥6 зелёный `#3D6B50`, 1–5 янтарный,
+0 «под заказ»); «В корзину» → `useCart` (шаг `pack_size`) + «В корзине ✓» + подсказка
+«Добавлено · в корзине N товаров»; наджа гостю «Войти по PIN»/«Стать клиентом» (1×/сессию);
+чипы-уточнения; FAB-пузырь (1×/сессию); онлайн-точка, бейдж «AI», микрокопия, «печатает»;
+шрифт Playfair (`--font-playfair`) — акцент виджета (каталог остаётся на Lora).
+
+**Поиск расходки** (общий мозг, `searchAccessories`): нормализация **ё→е** + снятие
+основы словоформ (`stemRu`) + 3 ступени **ILIKE-AND** (уточнение) → **ILIKE-OR**
+(расширение) → **trigram**. Это лечило «не нашёл цветную плёнку»: классификатор отдавал
+«плёнка» с ё, а ё рушил и ILIKE, и `word_similarity` trigram (теряло все плёнки).
+
+**Осталось на версию B**: имя клиента в приветствии (в `useAuthStore` только `phone`/`user.id`);
+`client_id` и персональные цены; оформление заказа прямо в чате; серверная история диалога
+(`conversations`/`messages` — НЕ созданы); «повторить заказ».
+
+Подробности — `docs/WIDGET_TECH_CONTEXT.md`.
 
 ## amoCRM интеграция — актуально с 04.06.2026
 
