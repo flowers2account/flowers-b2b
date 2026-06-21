@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from 'next'
-import { Golos_Text, Lora, JetBrains_Mono } from 'next/font/google'
+import { Golos_Text, Lora, JetBrains_Mono, Playfair_Display } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import './globals.css'
 import Header from '@/components/catalog/Header'
@@ -27,6 +27,14 @@ const jetbrains = JetBrains_Mono({
   variable: '--font-jetbrains'
 })
 
+// Акцентный шрифт ТОЛЬКО для AI-виджета (шапка/цены/заголовки карточек).
+// Каталог сайта остаётся на Lora (--font-serif).
+const playfair = Playfair_Display({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['500', '600', '700'],
+  variable: '--font-playfair'
+})
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://uralskflowers.kz'),
   title: {
@@ -46,7 +54,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={`${golos.variable} ${lora.variable} ${jetbrains.variable}`}>
+    <html lang="ru" className={`${golos.variable} ${lora.variable} ${jetbrains.variable} ${playfair.variable}`}>
       <body className="font-[family-name:var(--font-golos)]">
         <Header />
         {children}

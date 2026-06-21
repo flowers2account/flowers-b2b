@@ -10,6 +10,8 @@ import { company } from '@/config/company'
 import type { WidgetProduct } from '@/lib/bot/accessories-bot'
 
 const WA = `https://wa.me/${company.phone.replace(/\D/g, '')}`
+// Акцентный шрифт виджета — Playfair Display (решение хэндоффа), фолбэк Lora→Georgia.
+const PLAYFAIR = "var(--font-playfair), 'Playfair Display', 'Lora', Georgia, serif"
 const FALLBACK_MANAGER =
   'С этим лучше поможет менеджер 🌸 Нажмите «Продолжить в WhatsApp» — ответим в рабочие часы.'
 const STARTERS = ['Плёнка для букетов', 'Горшки и кашпо', 'Удобрения', 'Условия доставки']
@@ -58,11 +60,11 @@ function ProductCard({ p }: { p: WidgetProduct }) {
           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-mid)' }}>🛍️</div>}
       </div>
       <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25, color: 'var(--text)', minHeight: 32 }}>
+        <div style={{ fontFamily: PLAYFAIR, fontSize: 13.5, fontWeight: 600, lineHeight: 1.25, color: 'var(--text)', minHeight: 32 }}>
           {p.display_name}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>{fmt(p.price)}</span>
+          <span style={{ fontFamily: PLAYFAIR, fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>{fmt(p.price)}</span>
           <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 999, color: '#fff', background: inStock ? '#3D6B50' : '#9CA3AF' }}>
             {inStock ? 'В наличии' : 'Нет'}
           </span>
@@ -202,7 +204,7 @@ export default function AiWidget() {
       <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep, #6E2A45))', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🌸</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 15, lineHeight: 1.1 }}>ИИ-консультант</div>
+          <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 16, lineHeight: 1.1 }}>ИИ-помощник</div>
           <div style={{ fontSize: 10.5, opacity: .85 }}>Цветы Уральска · на связи 24/7</div>
         </div>
         <a href={WA} target="_blank" rel="noopener noreferrer" title="Продолжить в WhatsApp"

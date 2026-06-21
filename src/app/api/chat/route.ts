@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }))
 
   try {
-    const reply = await getAccessoriesReply(message, { history })
+    const reply = await getAccessoriesReply(message, { history, channel: 'widget' })
     return NextResponse.json({
       text: reply.text,                 // null → вне зоны бота (мягко уводим к менеджеру на клиенте)
       products: reply.products ?? [],   // богатые карточки строятся из этого

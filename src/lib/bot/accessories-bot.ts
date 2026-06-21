@@ -324,7 +324,28 @@ function catalogUrlForGroup(groupId: string): string {
  * Шаг C: единый ответ по двум источникам — список товаров (каталог) + памятка (FAQ).
  * rows может быть пустым (вопрос только про сайт). Возвращает текст или null (NO_ANSWER).
  */
-async function composeAnswer(message: string, rows: AccessoryRow[], history: DialogMessage[] = []): Promise<string | null> {
+type Channel = 'widget' | 'whatsapp'
+
+// Канал «виджет сайта»: товары показываются ОТДЕЛЬНЫМИ карточками (products[]),
+// поэтому текст — только разговорная фраза, БЕЗ перечисления товаров и БЕЗ ссылок.
+// Перекрывает правила SYSTEM_PROMPT про названия/цены/ссылки. WhatsApp — без изменений.
+const WIDGET_TEXT_RULES = `
+
+=== КАНАЛ «ВИДЖЕТ САЙТА» (перекрывает правила про перечисление и ссылки выше) ===
+Товары клиенту показываются ОТДЕЛЬНЫМИ КАРТОЧКАМИ (фото, цена, кнопки «В корзину»/«Открыть») —
+НЕ в твоём тексте. Поэтому в ответе:
+- НЕ перечисляй товары, НЕ пиши их названия / цены / наличие — всё это в карточках.
+- НЕ вставляй НИКАКИХ ссылок (ни https://, ни /product, ни /catalog) — кнопки в карточках.
+- Дай РОВНО одну короткую живую фразу (1–2 предложения): лёгкое вступление к карточкам
+  («Вот что подойдёт под букеты 👇», «Смотрите варианты ниже 👇»), ИЛИ один уточняющий
+  вопрос, ИЛИ короткий ответ по FAQ (для вопросов про сайт). Без списков и без ссылок.`
+
+async function composeAnswer(
+  message: string,
+  rows: AccessoryRow[],
+  history: DialogMessage[] = [],
+  channel: Channel = 'whatsapp',
+): Promise<string | null> {
   // Ссылки: карточка товара (/product/{id}) и раздел каталога. Раздел — это group
   // (НЕ leaves и НЕ сырой subcategory): CatalogLayout открывает ?group=<id>.
   const context = rows.map((r) => {
@@ -337,7 +358,7 @@ async function composeAnswer(message: string, rows: AccessoryRow[], history: Dia
   })
 
   const histBlock = formatHistory(history)
-  const prompt = `${SYSTEM_PROMPT}
+  const prompt = `${SYSTEM_PROMPT}${channel === 'widget' ? WIDGET_TEXT_RULES : ''}
 
 СПИСОК ТОВАРОВ (JSON): ${JSON.stringify(context)}
 
@@ -400,9 +421,13 @@ export async function getAccessoriesReply(
     // Нативный виджет сайта инжектит историю напрямую (из браузерной сессии) →
     // Umnico (fetchDialogContext) в этом пути НЕ дёргается. Umnico-путь (WhatsApp) — без изменений.
     history?: DialogMessage[]
+    // Канал ответа: 'widget' — текст разговорный, товары только в products[] (карточки);
+    // 'whatsapp' (по умолчанию) — поведение без изменений (ссылки/перечисление в тексте).
+    channel?: Channel
   },
 ): Promise<BotReply> {
   if (!message || !message.trim()) return { text: null }
+  const channel: Channel = ctx?.channel ?? 'whatsapp'
 
   // История: инжектированная (виджет) приоритетна; иначе тянем из Umnico по leadId/realId (WhatsApp).
   let history: DialogMessage[] = []
@@ -453,7 +478,13 @@ export async function getAccessoriesReply(
       if (leaf) {
         const groupId = groupIdForLeafSlug(leaf.slug)
         console.log('[accessories-bot] fallback category:', leaf.slug, '→ group', groupId)
-        if (groupId) return { text: CATEGORY_SUGGESTION(leaf.label, catalogUrlForGroup(groupId)) }
+        if (groupId) {
+          // Виджет: без ссылки на подборку в тексте (по хэндоффу) — просто подсказываем раздел.
+          const text = channel === 'widget'
+            ? `Точную позицию не нашёл, но посмотрите раздел «${leaf.label}» в каталоге. Что-то конкретное подсказать?`
+            : CATEGORY_SUGGESTION(leaf.label, catalogUrlForGroup(groupId))
+          return { text }
+        }
       }
       // И раздел не угадался — честно к менеджеру.
       console.log('[accessories-bot] not found → контакт менеджера')
@@ -461,8 +492,8 @@ export async function getAccessoriesReply(
     }
   }
 
-  const answer = await composeAnswer(message, rows, history)
-  console.log(`[accessories-bot] compose (${cls.intent}):`, answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
+  const answer = await composeAnswer(message, rows, history, channel)
+  console.log(`[accessories-bot] compose (${cls.intent}, ${channel}):`, answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
 
   // Богатая карточка ПО УМОЛЧАНИЮ: в любом ответе про расходку с найденным товаром шлём
   // карточку к топ-1 релевантному товару (rows[0]); в тексте остальные перечислены как обычно.
