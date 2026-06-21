@@ -87,10 +87,10 @@ export async function sendMessage(
 
 /**
  * POST /messaging/{leadId}/send — отправить ФОТО в чат лида (отдельным сообщением).
- * Формат вложения по докам Umnico (umnico.com/messaging-api):
- *   { message: { text?, attachment: { media: { url }, type: 'photo' } }, source, userId }
- * В доке у media есть ещё `id` (для пересылки ПОЛУЧЕННЫХ медиа) — при отправке своего фото
- * по URL шлём только media.url. ⚠️ Формат не на 100% подтверждён доками v1.3 → нужен живой тест.
+ * Формат вложения для канала ВИДЖЕТ (onlinechat) — по живому тесту 21.06.2026:
+ *   { message: { text?, attachment: { media: { path, name, mime }, type: 'photo' } }, source, userId }
+ * Umnico-сервер скачивает картинку по media.path (URL). media.url (как у VK) виджет НЕ принимает —
+ * отдаёт 400 «path argument ... Received undefined». Доки: «others use path/name/mime».
  */
 export async function sendPhoto(
   leadId: string | number,
@@ -108,8 +108,14 @@ export async function sendPhoto(
     return false
   }
 
+  // name/mime из расширения URL (без query). Дефолт — jpeg.
+  const clean = imageUrl.split('?')[0]
+  const ext = (clean.split('.').pop() ?? 'jpg').toLowerCase()
+  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+  const name = clean.split('/').pop() || 'photo.jpg'
+
   const message: Record<string, unknown> = {
-    attachment: { media: { url: imageUrl }, type: 'photo' },
+    attachment: { media: { path: imageUrl, name, mime }, type: 'photo' },
   }
   if (caption && caption.trim()) message.text = caption.trim()
 
