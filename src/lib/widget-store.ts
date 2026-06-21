@@ -3,7 +3,7 @@ import type { WidgetProduct } from '@/lib/bot/accessories-bot' // import type �
 
 export interface ChatMessage {
   id: string
-  role: 'user' | 'bot'
+  role: 'user' | 'bot' | 'system'   // system — служебная подсказка в ленте («добавлено · N товаров»)
   text: string
   products?: WidgetProduct[]
   ts: number

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useWidget, type ChatMessage } from '@/lib/widget-store'
 import { useAuthStore } from '@/lib/auth-store'
@@ -8,6 +8,7 @@ import { useCart } from '@/lib/cart-store'
 import { useIsMobile } from '@/lib/use-mobile'
 import { company } from '@/config/company'
 import type { WidgetProduct } from '@/lib/bot/accessories-bot'
+import ProductCard, { type CardProduct } from '@/components/widget/ProductCard'
 
 const WA = `https://wa.me/${company.phone.replace(/\D/g, '')}`
 // Акцентный шрифт виджета — Playfair Display (решение хэндоффа), фолбэк Lora→Georgia.
@@ -16,7 +17,11 @@ const FALLBACK_MANAGER =
   'С этим лучше поможет менеджер 🌸 Нажмите «Продолжить в WhatsApp» — ответим в рабочие часы.'
 const STARTERS = ['Плёнка для букетов', 'Горшки и кашпо', 'Удобрения', 'Условия доставки']
 
-const fmt = (n: number | null) => (n != null ? `${Number(n).toLocaleString('ru-RU')} ₸` : '—')
+// products[] из /api/chat → контракт карточки.
+const toCard = (p: WidgetProduct): CardProduct => ({
+  id: p.id, sku: p.sku, name: p.display_name ?? 'Товар', image: p.image_url,
+  price: p.price, unit: p.unit, stock: p.qty ?? 0, pack: p.pack_size, url: p.url,
+})
 
 // Плоский текст: переносы строк + автолинк голых URL (markdown виджет не рендерит).
 function renderText(text: string) {
@@ -33,73 +38,38 @@ function renderText(text: string) {
   ))
 }
 
-function ProductCard({ p }: { p: WidgetProduct }) {
-  const router = useRouter()
-  const { add, update } = useCart()
-  const inStock = (p.qty ?? 0) > 0
-
-  const addToCart = () => {
-    add({
-      id: p.id, name: p.display_name ?? 'Товар', price: p.price ?? 0,
-      available: p.qty ?? 0, category: 'accessories',
-      image_url: p.image_url, unit: p.unit, subcategory: p.subcategory, color: null,
-    })
-    update(p.id, p.pack_size && p.pack_size > 1 ? p.pack_size : 1, null) // шаг = кратность
-    toast.success('Добавлено в корзину')
+function Bubble({ m, onAdded }: { m: ChatMessage; onAdded: () => void }) {
+  // Служебная подсказка в ленте — по центру, мелким серым.
+  if (m.role === 'system') {
+    return <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-mid)', padding: '2px 0' }}>{m.text}</div>
   }
-
-  return (
-    <div style={{
-      width: 200, flexShrink: 0, background: 'var(--bg)', border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-card)', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-    }}>
-      <div style={{ aspectRatio: '1/1', background: 'var(--bg2)', overflow: 'hidden' }}>
-        {p.image_url
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={p.image_url} alt={p.display_name ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-mid)' }}>🛍️</div>}
-      </div>
-      <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <div style={{ fontFamily: PLAYFAIR, fontSize: 13.5, fontWeight: 600, lineHeight: 1.25, color: 'var(--text)', minHeight: 32 }}>
-          {p.display_name}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: PLAYFAIR, fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>{fmt(p.price)}</span>
-          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 999, color: '#fff', background: inStock ? '#3D6B50' : '#9CA3AF' }}>
-            {inStock ? 'В наличии' : 'Нет'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 'auto' }}>
-          <button onClick={addToCart} disabled={!inStock}
-            style={{ flex: 1, height: 30, border: 'none', borderRadius: 'var(--radius-btn)', cursor: inStock ? 'pointer' : 'default',
-              background: inStock ? 'var(--accent)' : 'var(--bg2)', color: inStock ? '#fff' : 'var(--text-mid)', fontSize: 11.5, fontWeight: 600, fontFamily: 'inherit' }}>
-            В корзину
-          </button>
-          <button onClick={() => router.push(p.url)}
-            style={{ width: 34, height: 30, border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', cursor: 'pointer', background: 'var(--bg)', color: 'var(--accent)', fontSize: 14 }}
-            title="Открыть товар" aria-label="Открыть товар">↗</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Bubble({ m }: { m: ChatMessage }) {
   const isUser = m.role === 'user'
+  const products = m.products ?? []
+  const single = products.length === 1
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', gap: 6 }}>
-      <div style={{
-        maxWidth: '85%', padding: '9px 12px', borderRadius: 12, fontSize: 13.5, lineHeight: 1.4,
-        background: isUser ? 'var(--accent)' : 'var(--bg2)', color: isUser ? '#fff' : 'var(--text)',
-        borderBottomRightRadius: isUser ? 3 : 12, borderBottomLeftRadius: isUser ? 12 : 3, whiteSpace: 'pre-wrap',
-      }}>
-        {renderText(m.text)}
-      </div>
-      {!!m.products?.length && (
-        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', maxWidth: '100%', padding: '2px 1px 6px', scrollbarWidth: 'thin' }}>
-          {m.products.slice(0, 10).map((p) => <ProductCard key={p.id} p={p} />)}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', gap: 7, maxWidth: '100%' }}>
+      {!!m.text && (
+        <div style={{
+          maxWidth: '85%', padding: '9px 12px', borderRadius: 12, fontSize: 13.5, lineHeight: 1.4,
+          background: isUser ? 'var(--accent)' : 'var(--bg2)', color: isUser ? '#fff' : 'var(--text)',
+          borderBottomRightRadius: isUser ? 3 : 12, borderBottomLeftRadius: isUser ? 12 : 3, whiteSpace: 'pre-wrap',
+        }}>
+          {renderText(m.text)}
         </div>
       )}
+      {/* 1 товар → Full; несколько → Mini-карусель со scroll-snap */}
+      {single ? (
+        <div style={{ width: '100%', maxWidth: 320 }}>
+          <ProductCard p={toCard(products[0])} density="full" onAdded={onAdded} />
+        </div>
+      ) : products.length > 1 ? (
+        <div style={{ width: '100%' }}>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '2px 1px 4px', scrollSnapType: 'x mandatory', scrollbarWidth: 'thin' }}>
+            {products.slice(0, 12).map((p) => <ProductCard key={p.id} p={toCard(p)} density="mini" onAdded={onAdded} />)}
+          </div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-mid)', marginTop: 2 }}>листайте →</div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -148,7 +118,9 @@ export default function AiWidget() {
     const t = text.trim()
     if (!t || pending) return
     setInput('')
-    const prior = useWidget.getState().messages.map((m) => ({ role: m.role === 'user' ? 'client' : 'bot', text: m.text }))
+    const prior = useWidget.getState().messages
+      .filter((m) => m.role !== 'system')   // служебные подсказки не уходят в контекст бота
+      .map((m) => ({ role: m.role === 'user' ? 'client' : 'bot', text: m.text }))
     addMessage({ role: 'user', text: t })
     setPending(true)
     try {
@@ -163,6 +135,16 @@ export default function AiWidget() {
     } finally {
       setPending(false)
     }
+  }
+
+  // «В корзину» из карточки → тост + служебная подсказка в ленте (счётчик корзины сайта
+  // обновляется сам, cart-store общий).
+  function onAdded() {
+    const n = useCart.getState().items.length
+    const w = n % 10 === 1 && n % 100 !== 11 ? 'товар'
+      : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'товара' : 'товаров'
+    toast.success('Добавлено в корзину')
+    addMessage({ role: 'system', text: `Добавлено · в корзине ${n} ${w}` })
   }
 
   // ── Плавающая кнопка ──
@@ -216,7 +198,7 @@ export default function AiWidget() {
 
       {/* Сообщения */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg)' }}>
-        {messages.map((m) => <Bubble key={m.id} m={m} />)}
+        {messages.map((m) => <Bubble key={m.id} m={m} onAdded={onAdded} />)}
         {pending && <Typing />}
         {!isAuthed && messages.length <= 1 && (
           <div style={{ fontSize: 11.5, color: 'var(--text-mid)', background: 'var(--bg2)', borderRadius: 10, padding: '8px 10px' }}>

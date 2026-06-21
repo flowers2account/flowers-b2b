@@ -124,6 +124,7 @@ interface AccessoryRow {
   qty: number | null
   pack_size: number | null
   image_url: string | null
+  code_1c: string | null
 }
 
 // Структурированный товар для богатой карточки виджета сайта.
@@ -136,6 +137,7 @@ export interface WidgetProduct {
   subcategory: string | null
   unit: string | null
   pack_size: number | null
+  sku: string | null                // артикул 1С (code_1c), может быть пуст
   url: string                       // /product/{id}
 }
 
@@ -283,7 +285,7 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
 
   const { data, error } = await supabase
     .from('products')
-    .select('id, display_name, subcategory, price, unit, qty, pack_size, image_url')
+    .select('id, display_name, subcategory, price, unit, qty, pack_size, image_url, code_1c')
     .eq('category', 'accessories')
     .eq('is_active', true)
     .eq('hidden_for_demo', false)
@@ -511,7 +513,7 @@ export async function getAccessoriesReply(
   const products: WidgetProduct[] = rows.map((r) => ({
     id: r.id, display_name: r.display_name, price: r.price, qty: r.qty,
     image_url: r.image_url, subcategory: r.subcategory, unit: r.unit, pack_size: r.pack_size,
-    url: `${SITE_URL}/product/${r.id}`,
+    sku: r.code_1c, url: `${SITE_URL}/product/${r.id}`,
   }))
 
   return { text: answer, products: products.length ? products : undefined, photo }
