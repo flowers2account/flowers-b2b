@@ -16,16 +16,18 @@ interface Opts {
   available: number
   packSize: number
   makePayload: (color: string | null) => Omit<CartItem, 'qty'>
+  // Предвыбранный цвет (напр. кликнули кружок в гриде → открыли правую панель с этим цветом).
+  initialSlug?: string | null
 }
 
-export function useColorCart(product: ColorsLike, { available, packSize, makePayload }: Opts) {
+export function useColorCart(product: ColorsLike, { available, packSize, makePayload, initialSlug }: Opts) {
   const { items, add, update } = useCart()
 
   const colorList = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
   const colorMode = getColorMode(product.colors)
-  // Один настоящий цвет — выбираем сразу (без лишнего клика на срезке).
+  // Предвыбор извне → иначе один настоящий цвет (срезка) выбираем сразу → иначе ничего.
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
-    colorMode === 'select' && colorList.length === 1 ? colorList[0] : null,
+    initialSlug ?? (colorMode === 'select' && colorList.length === 1 ? colorList[0] : null),
   )
 
   // Снимок цвета, который уедет в позицию корзины и в заказ.

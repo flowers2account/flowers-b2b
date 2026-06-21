@@ -175,11 +175,12 @@ function Stepper({
 // ── grid card ───────────────────────────────────────────────────────────────
 
 export function GridCard({
-  product, isAuthed, requireAuth, onCardClick, onFlash,
+  product, isAuthed, requireAuth, onCardClick, onPickColor, onFlash,
 }: {
   product: Product; isAuthed: boolean
   requireAuth: (fn: () => void) => void
   onCardClick: () => void
+  onPickColor?: (slug: string) => void
   onFlash?: () => void
 }) {
   const available = getAvailable(product.stock)
@@ -339,7 +340,7 @@ export function GridCard({
                 <button
                   key={slug}
                   title={colorLabel(slug)}
-                  onClick={() => requireAuth(() => setSelectedSlug(active && colorList.length > 1 ? null : slug))}
+                  onClick={() => requireAuth(() => { setSelectedSlug(slug); onPickColor?.(slug) })}
                   style={{
                     position: 'relative', width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
                     padding: 0, cursor: 'pointer', background: colorSwatch(slug),
@@ -463,11 +464,12 @@ export function GridCard({
 // ── list row ─────────────────────────────────────────────────────────────────
 
 function ListRow({
-  product, isAuthed, requireAuth, onCardClick, onFlash,
+  product, isAuthed, requireAuth, onCardClick, onPickColor, onFlash,
 }: {
   product: Product; isAuthed: boolean
   requireAuth: (fn: () => void) => void
   onCardClick: () => void
+  onPickColor?: (slug: string) => void
   onFlash?: () => void
 }) {
   const available = getAvailable(product.stock)
@@ -560,7 +562,7 @@ function ListRow({
                 <button
                   key={slug}
                   title={colorLabel(slug)}
-                  onClick={() => requireAuth(() => setSelectedSlug(active && colorList.length > 1 ? null : slug))}
+                  onClick={() => requireAuth(() => { setSelectedSlug(slug); onPickColor?.(slug) })}
                   style={{
                     position: 'relative', width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
                     padding: 0, cursor: 'pointer', background: colorSwatch(slug),
@@ -954,6 +956,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                 isAuthed={isAuthed}
                 requireAuth={requireAuth}
                 onCardClick={() => setProduct(p)}
+                onPickColor={(slug) => setProduct(p, slug)}
                 onFlash={() => { if (!isMobile) flashCart(p) }}
               />
             )
@@ -968,6 +971,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
                 isAuthed={isAuthed}
                 requireAuth={requireAuth}
                 onCardClick={() => setProduct(p)}
+                onPickColor={(slug) => setProduct(p, slug)}
                 onFlash={() => { if (!isMobile) flashCart(p) }}
               />
             ))}

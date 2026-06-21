@@ -8,7 +8,9 @@ type DetailStore = {
   panel: PanelState
   product: Product | null
   productId: number | null
-  setProduct: (product: Product) => void
+  // Цвет, выбранный на карточке грида/строки — предвыбираем его в правой панели.
+  colorSlug: string | null
+  setProduct: (product: Product, colorSlug?: string | null) => void
   setPanel: (panel: PanelState) => void
   restoreProduct: (product: Product) => void
   flashCart: (product: Product) => void
@@ -20,7 +22,8 @@ export const useDetailStore = create<DetailStore>()(
       panel: 'empty',
       product: null,
       productId: null,
-      setProduct: (product) => set({ product, productId: product.id, panel: 'detail' }),
+      colorSlug: null,
+      setProduct: (product, colorSlug = null) => set({ product, productId: product.id, panel: 'detail', colorSlug }),
       setPanel: (panel) => set({ panel }),
       restoreProduct: (product) => set({ product }),
       flashCart: (product) => {

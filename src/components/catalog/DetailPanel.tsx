@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useDetailStore } from '@/lib/detail-store'
 import SwipeToDelete from './SwipeToDelete'
@@ -189,6 +189,7 @@ function StateEmpty() {
 function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoToCart: () => void; onClose: () => void }) {
   const { items, total } = useCart()
   const { isAuthed } = useAuthStore()
+  const { colorSlug } = useDetailStore()
   const [showAuth, setShowAuth] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [lbOpen, setLbOpen] = useState(false)
@@ -199,11 +200,12 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   const displayName = product.display_name || product.variety_name || product.name
 
   // ── Выбор цвета → корзина: единая модель useColorCart (та же, что в клетке грида) ──
+  // initialSlug — цвет, выбранный на карточке грида/строки (предвыбор при открытии панели).
   const {
     colorList, colorMode, selectedSlug, setSelectedSlug,
     colorValue, colorRequired, qty, inc, dec,
   } = useColorCart(product, {
-    available, packSize,
+    available, packSize, initialSlug: colorSlug,
     makePayload: (color) => ({
       id: product.id,
       name: displayName + (product.length_str ? ' ' + product.length_str : ''),
@@ -212,6 +214,10 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
       color,
     }),
   })
+
+  // Та же карточка уже открыта и кликнули другой цвет в гриде → панель не перемонтируется
+  // (key=product.id), синхронизируем выбор по стору.
+  useEffect(() => { if (colorSlug) setSelectedSlug(colorSlug) }, [colorSlug, setSelectedSlug])
 
   const inCart = qty > 0
   const cartTotal = qty * price
