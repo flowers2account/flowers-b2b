@@ -33,37 +33,72 @@ class UmnicoClient {
     }
   }
 
+  // Отправка КАРТИНКИ в WhatsApp по документированному формату Umnico:
+  //   message.attachment = { type: 'photo', media: { type: <mime>, filename, src } }
+  // src — ссылка на файл. Сначала пробуем публичный URL прямо в src; если Umnico вернёт
+  // ошибку формата/URL — предварительно грузим файл через POST /messaging/upload и берём src.
   async sendImage(phone: string, imageUrl: string, caption?: string): Promise<boolean> {
     try {
       const cleanPhone = phone.replace(/[\s\+\-\(\)]/g, '')
+      const noQuery = imageUrl.split('?')[0]
+      const ext = (noQuery.split('.').pop() ?? 'jpg').toLowerCase()
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+      const filename = noQuery.split('/').pop() || 'order.jpg'
 
-      const response = await fetch(`${this.baseUrl}/messaging/post`, {
+      const post = (src: string) => fetch(`${this.baseUrl}/messaging/post`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `bearer ${this.apiToken}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `bearer ${this.apiToken}` },
         body: JSON.stringify({
-          message: {
-            type: 'image',
-            imageUrl,
-            text: caption || ''
-          },
+          message: { text: caption ?? '', attachment: { type: 'photo', media: { type: mime, filename, src } } },
           destination: cleanPhone,
-          saId: this.whatsappSaId
-        })
+          saId: this.whatsappSaId,
+        }),
       })
 
-      if (!response.ok) {
-        const error = await response.text()
-        console.error('Umnico sendImage failed:', error)
+      // 1) публичный URL прямо в src
+      let res = await post(imageUrl)
+      if (res.ok) { console.log('Umnico sendImage: отправлено по публичному URL (src)'); return true }
+      console.error('Umnico sendImage (url-in-src) failed:', res.status, await res.text().catch(() => ''))
+
+      // 2) фолбэк — предварительная загрузка файла → /messaging/upload → src
+      const uploadedSrc = await this.uploadFile(imageUrl, filename, mime)
+      if (!uploadedSrc) return false
+      res = await post(uploadedSrc)
+      if (!res.ok) {
+        console.error('Umnico sendImage (uploaded src) failed:', res.status, await res.text().catch(() => ''))
         return false
       }
-
+      console.log('Umnico sendImage: отправлено через upload (src)')
       return true
     } catch (error) {
       console.error('Umnico sendImage error:', error)
       return false
+    }
+  }
+
+  // Предварительная загрузка файла в Umnico → возвращает src для attachment.
+  // ⚠️ Формат upload доками v1.3 не детализирован → нужен живой тест (multipart file + saId).
+  private async uploadFile(imageUrl: string, filename: string, mime: string): Promise<string | null> {
+    try {
+      const imgRes = await fetch(imageUrl)
+      if (!imgRes.ok) { console.error('uploadFile: не скачать картинку', imgRes.status); return null }
+      const blob = await imgRes.blob()
+      const fd = new FormData()
+      fd.append('file', new File([blob], filename, { type: mime }))
+      fd.append('saId', String(this.whatsappSaId))
+      const up = await fetch(`${this.baseUrl}/messaging/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `bearer ${this.apiToken}` }, // Content-Type выставит FormData (boundary)
+        body: fd,
+      })
+      if (!up.ok) { console.error('Umnico upload failed:', up.status, await up.text().catch(() => '')); return null }
+      const d = await up.json().catch(() => null)
+      const src = d?.src ?? d?.data?.src ?? d?.file?.src ?? null
+      if (!src) console.error('Umnico upload: src не найден в ответе', JSON.stringify(d).slice(0, 200))
+      return src
+    } catch (e) {
+      console.error('Umnico uploadFile error:', e)
+      return null
     }
   }
 

@@ -8,14 +8,6 @@ interface OrderDetails {
   adminUrl: string
 }
 
-interface StatusDetails {
-  orderId: string
-  clientName: string
-  total: number
-  photoUrl?: string
-  items?: Array<{ name: string; qty: number }>
-}
-
 interface ManagerStatusDetails {
   orderId: string
   managerName: string
@@ -39,38 +31,50 @@ ${itemsList}
 🔗 ${details.adminUrl}`
   },
 
-  orderConfirmedToClient: ({ orderId, clientName, total }: StatusDetails): string =>
-    `✅ Заказ #${orderId} подтверждён
-${clientName}, заказ принят и будет собран в ближайшее время.
-💰 Сумма: ${total.toLocaleString('ru-RU')} ₸
-_Цветы Уральска_`,
+  // Оплата (создание сделки)
+  orderPaidToClient: (orderId: string): string =>
+    `✅ Заказ #${orderId} оплачен. Спасибо! Принят в работу, скоро подтвердим. _Цветы Уральска_`,
+
+  // confirmed (Подтверждён)
+  orderConfirmedToClient: ({ orderId }: { orderId: string }): string =>
+    `✅ Заказ #${orderId} подтверждён, собираем. _Цветы Уральска_`,
 
   orderConfirmedToManager: ({ orderId, managerName, clientName, companyName, total }: ManagerStatusDetails): string =>
     `✅ Заказ #${orderId} подтверждён
 👤 ${clientName ?? '—'}${companyName ? ` | ${companyName}` : ''}
 👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
-  orderPackedToClient: ({ orderId, clientName, total, photoUrl }: StatusDetails): string =>
-    `📦 Заказ #${orderId} собран и готов к получению
-${clientName}, ваш заказ ждёт вас!
-💰 Сумма: ${total.toLocaleString('ru-RU')} ₸${photoUrl ? `\n📸 ${photoUrl}` : ''}
-📍 ул. Каримуллина, 11 | Пн-Пт 8:00-18:00, Сб 9:00-15:00
-_Цветы Уральска_`,
+  // assembled (Готово) — ветвится по способу получения. Фото заказа прикрепляется отдельно (sendImage).
+  orderAssembledPickupToClient: ({ orderId }: { orderId: string }): string =>
+    `📦 Заказ #${orderId} собран и готов к выдаче! Забрать: г. Уральск, ул. Каримуллина, 11. Часы: пн–пт 9:00–18:00, сб–вс 10:00–17:00. Назовите номер заказа. _Цветы Уральска_`,
+
+  orderAssembledDeliveryToClient: ({ orderId }: { orderId: string }): string =>
+    `📦 Заказ #${orderId} собран! Передаём в доставку, сообщим, когда выедет курьер. _Цветы Уральска_`,
 
   orderPackedToManager: ({ orderId, managerName, clientName, companyName, total }: ManagerStatusDetails): string =>
     `📦 Заказ #${orderId} собран
 👤 ${clientName ?? '—'}${companyName ? ` | ${companyName}` : ''}
 👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
-  orderDeliveredToClient: ({ orderId, clientName, total, items }: StatusDetails): string => {
-    const itemsList = items?.length
-      ? '\n' + items.map(i => `• ${i.name} — ${i.qty} шт`).join('\n')
-      : ''
-    return `🎉 Заказ #${orderId} выдан
-${clientName}, спасибо за покупку! 🌸${itemsList}
-💰 Итого: ${total.toLocaleString('ru-RU')} ₸
-_Цветы Уральска_`
+  // in_transit (На доставке) — пустые строки скрываются
+  orderOnDeliveryToClient: ({ orderId, driverName, driverPhone, driverCarPlate, deliveryDate }: {
+    orderId: string
+    driverName?: string | null; driverPhone?: string | null
+    driverCarPlate?: string | null; deliveryDate?: string | null
+  }): string => {
+    const lines = [
+      `🚚 Заказ #${orderId} в пути!`,
+      driverName     ? `Водитель: ${driverName}` : '',
+      driverPhone    ? `Телефон: ${driverPhone}` : '',
+      driverCarPlate ? `Авто: ${driverCarPlate}` : '',
+      deliveryDate   ? `Ожидайте к ${deliveryDate}.` : '',
+    ].filter(Boolean)
+    return `${lines.join('\n')} _Цветы Уральска_`
   },
+
+  // delivered (Выдан)
+  orderDeliveredToClient: ({ orderId }: { orderId: string }): string =>
+    `🎉 Заказ #${orderId} выдан. Спасибо, что выбрали нас! Будем рады видеть снова. _Цветы Уральска_`,
 
   orderDeliveredToManager: ({ orderId, managerName, clientName, companyName, total, items }: ManagerStatusDetails): string => {
     const itemsList = items?.length
@@ -82,70 +86,9 @@ _Цветы Уральска_`
 💰 ${total.toLocaleString('ru-RU')} ₸`
   },
 
-  orderOnDeliveryToClient: ({ orderId, clientName, driverName, driverPhone, driverCarPlate, deliveryDate }: {
-    orderId: string; clientName: string
-    driverName?: string | null; driverPhone?: string | null
-    driverCarPlate?: string | null; deliveryDate?: string | null
-  }): string => {
-    const lines = [
-      driverName     ? `Водитель: ${driverName}` : '',
-      driverPhone    ? `Телефон: ${driverPhone}` : '',
-      driverCarPlate ? `Авто: ${driverCarPlate}` : '',
-      deliveryDate   ? `Доставка: ${deliveryDate}` : '',
-    ].filter(Boolean)
-    return `🚚 Заказ #${orderId} в пути!
-${clientName}, ваш заказ везёт водитель.${lines.length ? '\n' + lines.join('\n') : ''}
-_Цветы Уральска_`
-  },
-
-  orderCancelledToClient: ({ orderId, clientName }: { orderId: string; clientName: string }): string =>
-    `❌ Заказ #${orderId} отменён
-${clientName}, ваш заказ был отменён.
-Если есть вопросы — свяжитесь с нами.
-_Цветы Уральска_`,
-
-  orderPaidToClient: (
-    orderId: string,
-    clientName: string,
-    items: Array<{ name: string; qty: number; price: number }>,
-    total: number,
-    cardMask?: string
-  ): string => {
-    const itemsList = items
-      .map(i => `• ${i.name} — ${i.qty} шт × ${i.price.toLocaleString('ru-RU')} ₸`)
-      .join('\n')
-    const paymentLine = cardMask ? `💳 Оплачено картой ${cardMask}` : '💳 Оплата прошла успешно'
-
-    return `✅ Заказ #${orderId} оплачен!
-${clientName ? clientName + ', ваш' : 'Ваш'} заказ успешно оплачен.
-
-${itemsList}
-
-💰 Итого: ${total.toLocaleString('ru-RU')} ₸
-${paymentLine}
-
-📦 Мы уже приступили к обработке заказа. Как только он будет проверен и передан в сборку — пришлём уведомление.
-
-_Цветы Уральска_`
-  },
-
-  orderCreatedToClient: (
-    orderId: string,
-    clientName: string,
-    items: Array<{ name: string; qty: number; price: number }>,
-    total: number
-  ): string => {
-    const itemsList = items
-      .map(i => `• ${i.name} — ${i.qty} шт × ${i.price.toLocaleString('ru-RU')} ₸`)
-      .join('\n')
-
-    return `✅ Заказ #${orderId} принят!
-${clientName}, ваш заказ принят в обработку.
-${itemsList}
-💰 ${total.toLocaleString('ru-RU')} ₸
-Свяжемся для подтверждения в ближайшее время.
-_Цветы Уральска_`
-  },
+  // cancelled (Отменён)
+  orderCancelledToClient: ({ orderId }: { orderId: string }): string =>
+    `❌ Заказ #${orderId} отменён. Если это ошибка — напишите нам. _Цветы Уральска_`,
 }
 
 export function authPinToClient(clientName: string, pin: string): string {

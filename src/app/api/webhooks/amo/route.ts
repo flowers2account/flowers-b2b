@@ -82,14 +82,8 @@ export async function POST(req: NextRequest) {
       const deliveryCost = priceRaw != null && priceRaw !== '' && Number.isFinite(Number(priceRaw))
         ? Number(priceRaw) : null
 
-      // Защита от дырок: «на доставке» без имени водителя → статус обновляем и поля пишем,
-      // но клиенту НЕ шлём кривое сообщение (без водителя). Логируем.
-      const skipClientNotify = newStatus === 'in_transit' && !driverName
-      if (skipClientNotify) {
-        console.warn(`[webhooks/amo] order ${order.id}: in_transit без имени водителя — уведомление клиенту пропущено`)
-      }
-
       // 8) Та же логика, что у кнопок админки. skipAmoPush — не дёргаем сделку обратно.
+      // Сообщение клиенту шлётся всегда (пустые поля скрываются в шаблоне) — без страховки-молчания.
       const res = await applyOrderStatus(order.id, newStatus, {
         changedBy: 'amocrm',
         driverName,
@@ -97,7 +91,6 @@ export async function POST(req: NextRequest) {
         driverCarPlate: carPlate,
         deliveryCost,
         skipAmoPush: true,
-        skipClientNotify,
       })
       if (!res.ok) console.error(`[webhooks/amo] order ${order.id} → ${newStatus}: ${res.error}`)
       else console.log(`[webhooks/amo] order ${order.id} ← lead ${leadId}: ${newStatus}`)

@@ -143,20 +143,10 @@ export async function POST(req: NextRequest) {
         if (clientPhone) {
           const { umnicoClient } = await import('@/lib/umnico/client')
           const { umnicoTemplates } = await import('@/lib/umnico/templates')
-          const orderItems = ((orderFull as any).order_items ?? []).map((i: any) => ({
-            name: i.product?.display_name ?? i.product?.name ?? 'Товар',
-            qty: i.qty, price: i.price,
-          }))
           umnicoClient.checkContact(clientPhone).then(has => {
             if (has) umnicoClient.sendMessage(
               clientPhone,
-              umnicoTemplates.orderPaidToClient(
-                String(payment.order_id),
-                (orderFull?.client as any)?.name ?? (orderFull as any)?.guest_name ?? '',
-                orderItems,
-                Number(payment.amount),
-                cardMask ?? undefined
-              )
+              umnicoTemplates.orderPaidToClient(String(payment.order_id))
             )
           }).catch(() => {})
         }

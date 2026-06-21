@@ -22,8 +22,6 @@ interface Opts {
   // Вебхук CRM→сайт не должен дёргать сделку обратно (хотя циклов мы не боимся — кнопки
   // замораживаются отдельно). true → пропустить updateLeadStage (сайт→CRM).
   skipAmoPush?: boolean
-  // true → не слать клиенту WhatsApp (напр. «на доставке» без имени водителя — защита от дырок).
-  skipClientNotify?: boolean
 }
 
 export async function applyOrderStatus(
@@ -74,7 +72,7 @@ export async function applyOrderStatus(
       const [{ data: orderData }, { data: historyRecord }] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, total, guest_name, guest_phone, driver_name, driver_phone, driver_car_plate, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, is_removed, product:product_id(name))')
+          .select('id, total, guest_name, guest_phone, fulfillment_type, assembly_photo_url, driver_name, driver_phone, driver_car_plate, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, is_removed, product:product_id(name))')
           .eq('id', orderId)
           .single(),
         supabase
@@ -106,31 +104,42 @@ export async function applyOrderStatus(
         clientNotificationsEnabled = setting?.value !== 'false'
       } catch { /* default enabled */ }
 
-      if (!opts.skipClientNotify && clientNotificationsEnabled && clientPhone) {
+      // Клиенту шлём ВСЕГДА при переходе (страховки-молчания нет; пустые поля скрываются в шаблоне).
+      if (clientNotificationsEnabled && clientPhone) {
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
         if (hasWhatsApp) {
+          const ff = (orderData as any)?.fulfillment_type
+          const photoUrl = (orderData as any)?.assembly_photo_url ?? null
+
           const clientMessage =
             status === 'confirmed'
-              ? umnicoTemplates.orderConfirmedToClient({ orderId: orderIdStr, clientName, total })
+              ? umnicoTemplates.orderConfirmedToClient({ orderId: orderIdStr })
               : status === 'assembled'
-              ? umnicoTemplates.orderPackedToClient({ orderId: orderIdStr, clientName, total })
+              ? (ff === 'pickup'
+                  ? umnicoTemplates.orderAssembledPickupToClient({ orderId: orderIdStr })
+                  : umnicoTemplates.orderAssembledDeliveryToClient({ orderId: orderIdStr }))
               : status === 'in_transit'
               ? umnicoTemplates.orderOnDeliveryToClient({
-                  orderId: orderIdStr, clientName,
+                  orderId: orderIdStr,
                   driverName: (orderData as any)?.driver_name ?? null,
                   driverPhone: (orderData as any)?.driver_phone ?? null,
                   driverCarPlate: (orderData as any)?.driver_car_plate ?? null,
                   deliveryDate: (orderData as any)?.delivery_date ?? null,
                 })
               : status === 'delivered'
-              ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr, clientName, total, items: deliveredItems })
+              ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr })
               : status === 'cancelled'
-              ? umnicoTemplates.orderCancelledToClient({ orderId: orderIdStr, clientName })
+              ? umnicoTemplates.orderCancelledToClient({ orderId: orderIdStr })
               : null
           // negotiation / assembling → клиенту НЕ шлём (менеджер сам / внутренний этап)
 
           if (clientMessage) {
-            await umnicoClient.sendMessage(clientPhone, clientMessage)
+            // assembled с фото заказа → шлём картинкой (подпись = текст шаблона); иначе текст.
+            if (status === 'assembled' && photoUrl) {
+              await umnicoClient.sendImage(clientPhone, photoUrl, clientMessage)
+            } else {
+              await umnicoClient.sendMessage(clientPhone, clientMessage)
+            }
             console.log(`✓ Umnico: клиенту (заказ ${orderId}, статус ${status})`)
           }
         }

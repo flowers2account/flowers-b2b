@@ -70,7 +70,7 @@ export async function PATCH(
     try {
       const { data: orderData, error: orderFetchError } = await supabase
         .from('orders')
-        .select('total, guest_phone, guest_name, clients(name, phone)')
+        .select('total, guest_phone, guest_name, fulfillment_type, clients(name, phone)')
         .eq('id', orderId)
         .single()
 
@@ -113,11 +113,17 @@ export async function PATCH(
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
         console.log('Client hasWhatsApp:', hasWhatsApp)
         if (hasWhatsApp) {
-          await umnicoClient.sendMessage(
-            clientPhone,
-            umnicoTemplates.orderPackedToClient({ orderId: String(orderId), clientName, total, photoUrl })
-          )
-          console.log(`✓ Umnico: клиенту о сборке заказа ${orderId}`)
+          // Текст ветвится по способу получения; если есть фото сборки — шлём картинкой.
+          const ff = (orderData as any)?.fulfillment_type
+          const msg = ff === 'pickup'
+            ? umnicoTemplates.orderAssembledPickupToClient({ orderId: String(orderId) })
+            : umnicoTemplates.orderAssembledDeliveryToClient({ orderId: String(orderId) })
+          if (photoUrl) {
+            await umnicoClient.sendImage(clientPhone, photoUrl, msg)
+          } else {
+            await umnicoClient.sendMessage(clientPhone, msg)
+          }
+          console.log(`✓ Umnico: клиенту о сборке заказа ${orderId} (${ff === 'pickup' ? 'самовывоз' : 'доставка'}${photoUrl ? ', с фото' : ''})`)
         }
       } else {
         console.log('⚠ Umnico: clientPhone not found, skipping client notification')
