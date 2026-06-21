@@ -194,6 +194,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // 7) Чистка staging: удаляем superseded строки (старые снимки не храним — новый затирает
+  //    старый каждые 30 мин). Только superseded; актуальный снимок (matched/unmatched/applied)
+  //    не трогаем. Ошибка чистки НЕ валит приём снимка.
+  let cleaned: number | null = null
+  {
+    const { data: delCount, error: cleanErr } = await supabase.rpc('cleanup_superseded_snapshots')
+    if (cleanErr) console.error(`[1c/stock] cleanup warn:`, cleanErr.message)
+    else { cleaned = delCount as number; if (cleaned) console.log(`[1c/stock] cleanup removed ${cleaned} superseded rows`) }
+  }
+
   console.log(
     `[1c/stock] source=${source} warehouse=${warehouse ?? '-'} price_type=${price_type ?? '-'} ` +
     `category=${category ?? '-'} received=${items.length} written=${written} matched=${matched} ` +
@@ -205,6 +215,7 @@ export async function POST(req: NextRequest) {
     received: items.length, written,
     matched, unmatched: written - matched,
     auto_apply: autoApply,
+    cleaned_superseded: cleaned,
   })
 }
 
