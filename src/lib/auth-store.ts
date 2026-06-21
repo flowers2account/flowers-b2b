@@ -103,6 +103,10 @@ if (typeof window !== 'undefined') {
     if (event === 'SIGNED_OUT') {
       _initialized = false
       useAuthStore.setState({ user: null, role: null, phone: null, isAuthed: false })
+      // Любой разлогин (истёк токен, выход в другой вкладке), не только кнопка «Выйти»,
+      // должен чистить персональную корзину/избранное — иначе остатки висят у гостя.
+      useCart.getState().clear()
+      useFavorites.getState().loadForPhone('')
       return
     }
 
