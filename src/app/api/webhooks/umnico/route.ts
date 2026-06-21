@@ -156,14 +156,15 @@ export async function POST(req: NextRequest) {
       if (sent) {
         await addTag(leadId, 'отвечено-ботом')
 
-        // Шаг 4: фото товара ОТДЕЛЬНЫМ сообщением ПОСЛЕ текста (решение принято в конвейере,
-        // за флагом BOT_SEND_PHOTOS). Ошибка фото НЕ роняет диалог — текст уже ушёл.
+        // Шаг 4: богатая карточка (фото + caption) ОТДЕЛЬНЫМ сообщением ПОСЛЕ текста
+        // (решение принято в конвейере, за флагом BOT_SEND_PHOTOS). Тело ответа Umnico при
+        // ошибке логирует sendPhoto. Ошибка фото НЕ роняет диалог — текст уже ушёл.
         if (reply.photo) {
           try {
             const okPhoto = await sendPhoto(leadId, reply.photo.imageUrl, reply.photo.caption, payloadSource)
             console.log(okPhoto
-              ? `[accessories-bot] photo: sent ${reply.photo.productId}`
-              : '[accessories-bot] photo: failed')
+              ? `[accessories-bot] photo: sent ${reply.photo.productId} (карточка, caption ${reply.photo.caption.length} симв.)`
+              : `[accessories-bot] photo: failed (id ${reply.photo.productId}) — см. ответ Umnico выше`)
           } catch (e) {
             console.error('[accessories-bot] photo: failed', (e as Error)?.message)
           }

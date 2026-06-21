@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { callGemini } from '@/lib/gemini'
 import { CLIENT_FAQ } from '@/lib/bot/site-faq'
 import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
-import { CATEGORY_TREE, groupIdForLeafSlug, groupIdForSubcat, type Leaf } from '@/lib/category-tree'
+import { CATEGORY_TREE, groupIdForLeafSlug, groupIdForSubcat, labelForSubcat, type Leaf } from '@/lib/category-tree'
 import { formatSynonymsForPrompt } from '@/lib/search-synonyms'
 
 // Единая формулировка «как позвать менеджера» — правится здесь (Цвет). Используется в
@@ -134,6 +134,35 @@ export interface BotReply {
 
 // Флаг отправки фото товара. По умолчанию ВЫКЛ.
 const BOT_SEND_PHOTOS = process.env.BOT_SEND_PHOTOS === 'true'
+
+// Эмодзи карточки по ГРУППЕ таксономии (id из category-tree). Правит Цвет.
+const GROUP_EMOJI: Record<string, string> = {
+  packaging: '📦',   // упаковка и флористика
+  pots:      '🪴',   // горшки и кашпо
+  vases:     '🏺',   // вазы и корзины
+  decor:     '🎀',   // декор и подарки
+  garden:    '🌱',   // сад и огород (грунты/удобрения/защита)
+  lawn:      '🌾',   // газоны и укрытие
+}
+const DEFAULT_EMOJI = '🛍️'
+
+// Клиент явно просит показать товар (триггер карточки, вариант Б). Правит Цвет.
+const PHOTO_REQUEST_RE = /(покажи|показать|пришл\w*\s*фото|фото|фотк|картинк|изображ|как выглядит|выгляд|посмотреть|глянуть|увидеть)/i
+
+// Богатая карточка для виджета = ОДНО сообщение: фото (attachment) + caption (плоский текст,
+// \n и эмодзи; markdown/кнопок виджет не умеет). Шаблон правит Цвет.
+function buildCardCaption(r: AccessoryRow): string {
+  const emoji = GROUP_EMOJI[groupIdForSubcat(r.subcategory) ?? ''] ?? DEFAULT_EMOJI
+  const name = r.display_name ?? 'Товар'
+  const priceStr = r.price != null ? `${Number(r.price).toLocaleString('ru-RU')} ₸` : '—'
+  const stock = (r.qty ?? 0) > 0 ? 'В наличии' : 'нет в наличии'
+  // 1–2 факта: тип (лейбл подкатегории) + фасовка (если кратность > 1)
+  const typeLabel = labelForSubcat(r.subcategory)
+  const pack = r.pack_size && r.pack_size > 1 ? `фасовка ${r.pack_size}${r.unit ? ' ' + r.unit : ''}` : ''
+  const facts = [typeLabel, pack].filter(Boolean).join(', ')
+  const url = `${SITE_URL}/product/${r.id}`
+  return [`${emoji} ${name}`, `Цена: ${priceStr} · ${stock}`, facts, url].filter(Boolean).join('\n')
+}
 
 /** Шаг A: классификация — small talk / расходка / сайт / прочее + ключевые слова. */
 async function classifyMessage(message: string, history: DialogMessage[] = []): Promise<ClassifyResult> {
@@ -415,17 +444,17 @@ export async function getAccessoriesReply(
   const answer = await composeAnswer(message, rows, history)
   console.log(`[accessories-bot] compose (${cls.intent}):`, answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
 
-  // Фото товара (за флагом BOT_SEND_PHOTOS) — кандидат на отправку ОТДЕЛЬНЫМ сообщением
-  // после текста. Только для accessories с ответом. Правило: ровно один товар → шлём;
-  // несколько → не спамим; нет фото/нет товара → не шлём. Сама отправка — в роуте вебхука.
+  // Богатая карточка (вариант Б): шлём ТОЛЬКО когда клиент явно просит показать
+  // (PHOTO_REQUEST_RE) — фото к топ-1 релевантному товару (rows[0]); в тексте остальные
+  // перечислены как обычно. Максимум 1 карточка. caption — buildCardCaption.
   let photo: BotReply['photo']
-  if (BOT_SEND_PHOTOS && answer && cls.intent === 'accessories') {
-    if (rows.length > 1) {
-      console.log('[accessories-bot] photo: skipped (multiple)')
-    } else if (rows.length === 1 && rows[0].image_url) {
-      photo = { imageUrl: rows[0].image_url, caption: rows[0].display_name ?? '', productId: rows[0].id }
-    } else {
+  if (BOT_SEND_PHOTOS && answer && cls.intent === 'accessories' && rows.length >= 1) {
+    if (!PHOTO_REQUEST_RE.test(message)) {
       console.log('[accessories-bot] photo: skipped (no-request)')
+    } else if (!rows[0].image_url) {
+      console.log('[accessories-bot] photo: skipped (no image)')
+    } else {
+      photo = { imageUrl: rows[0].image_url, caption: buildCardCaption(rows[0]), productId: rows[0].id }
     }
   }
 
