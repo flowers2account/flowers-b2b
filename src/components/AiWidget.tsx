@@ -43,27 +43,156 @@ const chipStyle: React.CSSProperties = {
   background: 'var(--accent-light)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
 }
 
-// Наджа для анонима под PIN-каталог (хэндофф «Анонимный посетитель»). Мягкий призыв, не тупик.
+const cardWrap: React.CSSProperties = {
+  width: '100%', background: 'linear-gradient(135deg,#FBF6F8,#F7EEF2)', border: '1px solid var(--accent-light)',
+  borderRadius: 14, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8,
+}
+const fieldStyle: React.CSSProperties = {
+  height: 36, border: '1px solid var(--border)', borderRadius: 9, padding: '0 10px',
+  fontSize: 13.5, fontFamily: 'inherit', outline: 'none', background: '#fff', color: 'var(--text)', width: '100%',
+}
+const primaryBtn: React.CSSProperties = {
+  height: 36, border: 'none', borderRadius: 10, background: 'var(--accent)', color: '#fff',
+  fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit',
+}
+const ghostBtn: React.CSSProperties = {
+  height: 36, border: '1px solid var(--accent-mid)', borderRadius: 10, background: '#fff', color: 'var(--accent)',
+  fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit',
+}
+const REG_TYPES = ['ИП', 'ТОО', 'Физлицо']
+
+// Наджа: гость не может класть в корзину → быстрая регистрация (PIN в WhatsApp).
 function NudgeCard() {
   const router = useRouter()
+  const { addMessage } = useWidget()
   return (
-    <div style={{ width: '100%', background: 'linear-gradient(135deg,#FBF6F8,#F7EEF2)', border: '1px solid var(--accent-light)', borderRadius: 14, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={cardWrap}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M22 11h-6" /></svg>
         </span>
-        <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Цены и наличие — после входа</div>
+        <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Зарегистрируйтесь, чтобы покупать</div>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.4 }}>Каталог с ценами и наличием открывается по входу — телефон + PIN. Регистрация быстрая, для оптовых клиентов.</div>
+      <div style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.4 }}>Доступ к корзине и заказам — после быстрой регистрации, PIN придёт в WhatsApp.</div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => router.push('/login')} style={{ flex: 1, height: 34, border: 'none', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}>Войти по PIN</button>
-        <button onClick={() => router.push('/register')} style={{ flex: 1, height: 34, border: '1px solid var(--accent-mid)', borderRadius: 10, background: '#fff', color: 'var(--accent)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}>Стать клиентом</button>
+        <button onClick={() => addMessage({ role: 'bot', kind: 'register-form', text: '' })} style={{ ...primaryBtn, flex: 1 }}>Зарегистрироваться</button>
+        <button onClick={() => router.push('/login')} style={{ ...ghostBtn, flex: 1 }}>Уже есть доступ — войти</button>
       </div>
     </div>
   )
 }
 
-function Bubble({ m, onAdded, onChip }: { m: ChatMessage; onAdded: () => void; onChip: (c: string) => void }) {
+// Форма регистрации прямо в ленте (без ухода на /register).
+function RegisterForm() {
+  const { addMessage, setRegPhone } = useWidget()
+  const [f, setF] = useState({ name: '', phone: '', company: '', type: 'ИП', city: '' })
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }))
+
+  const submit = async () => {
+    setErr('')
+    if (!f.name.trim()) { setErr('Укажите имя'); return }
+    const digits = f.phone.replace(/\D/g, '')
+    if (!/^[78]\d{10}$/.test(digits)) { setErr('Телефон в формате +7XXXXXXXXXX'); return }
+    const normalized = '+7' + digits.slice(1)
+    setBusy(true)
+    try {
+      const r = await fetch('/api/auth/self-register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: f.name, phone: f.phone, company_name: f.company, client_type: f.type, city: f.city }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (d.alreadyExists) {
+        setDone(true); setRegPhone(normalized)
+        addMessage({ role: 'bot', text: 'На этот номер уже есть доступ 🌸 Введите PIN из WhatsApp, чтобы войти, или вышлите код повторно.', kind: 'pin-entry' })
+        return
+      }
+      if (d.ok) {
+        setDone(true); setRegPhone(d.phone || normalized)
+        if (d.delivered) addMessage({ role: 'bot', text: `Готово! PIN отправлен в WhatsApp на ${d.phone}. Введите его ниже, чтобы войти.`, kind: 'pin-entry' })
+        else addMessage({ role: 'bot', text: `Аккаунт создан, но PIN не удалось отправить в WhatsApp на ${d.phone}. Менеджер свяжется и вышлет код.` })
+        return
+      }
+      setErr(d.error || 'Не удалось зарегистрировать. Попробуйте позже.')
+    } catch {
+      setErr('Сеть недоступна, попробуйте ещё раз.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={cardWrap}>
+      <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Регистрация</div>
+      <input style={fieldStyle} placeholder="Имя*" value={f.name} onChange={(e) => set('name', e.target.value)} disabled={done} />
+      <input style={fieldStyle} placeholder="Телефон* +7XXXXXXXXXX" value={f.phone} onChange={(e) => set('phone', e.target.value)} disabled={done} inputMode="tel" />
+      <input style={fieldStyle} placeholder="Название компании" value={f.company} onChange={(e) => set('company', e.target.value)} disabled={done} />
+      <div style={{ display: 'flex', gap: 6 }}>
+        {REG_TYPES.map((t) => (
+          <button key={t} onClick={() => set('type', t)} disabled={done}
+            style={{ flex: 1, height: 32, borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${f.type === t ? 'var(--accent)' : 'var(--border)'}`, background: f.type === t ? 'var(--accent-light)' : '#fff', color: f.type === t ? 'var(--accent)' : 'var(--text-mid)' }}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <input style={fieldStyle} placeholder="Город" value={f.city} onChange={(e) => set('city', e.target.value)} disabled={done} />
+      {err && <div style={{ fontSize: 11.5, color: '#C0392B' }}>{err}</div>}
+      {!done && <button onClick={submit} disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{busy ? 'Отправляем…' : 'Получить доступ'}</button>}
+    </div>
+  )
+}
+
+// Ввод PIN из WhatsApp → вход прямо в чате; pending-товар кладётся в корзину.
+function PinEntry() {
+  const { regPhone, pendingAdd, setPendingAdd, addMessage } = useWidget()
+  const { add, update } = useCart()
+  const [pin, setPin] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+
+  const doLogin = async () => {
+    setErr('')
+    if (!/^\d{6}$/.test(pin)) { setErr('PIN — 6 цифр'); return }
+    if (!regPhone) { setErr('Телефон не найден, начните заново'); return }
+    setBusy(true)
+    const { error } = await useAuthStore.getState().login(regPhone, pin)
+    setBusy(false)
+    if (error) { setErr(error); return }
+    setDone(true)
+    let note = 'Вы вошли 🌸 Корзина и заказы доступны.'
+    if (pendingAdd) {
+      add({ id: pendingAdd.id, name: pendingAdd.name, price: pendingAdd.price, available: pendingAdd.available, category: 'accessories', image_url: pendingAdd.image, unit: pendingAdd.unit, subcategory: null, color: null })
+      update(pendingAdd.id, pendingAdd.pack && pendingAdd.pack > 1 ? pendingAdd.pack : 1, null)
+      note = `Вы вошли 🌸 «${pendingAdd.name}» добавлен в корзину.`
+      setPendingAdd(null)
+    }
+    addMessage({ role: 'system', text: note })
+  }
+  const resend = async () => {
+    if (!regPhone) return
+    try { await fetch('/api/whatsapp/send-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: regPhone }) }) } catch {}
+    addMessage({ role: 'system', text: 'PIN выслан повторно в WhatsApp.' })
+  }
+
+  if (done) return null
+  return (
+    <div style={cardWrap}>
+      <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Введите PIN из WhatsApp</div>
+      <input style={{ ...fieldStyle, letterSpacing: '0.3em', textAlign: 'center', fontSize: 16 }} placeholder="••••••" value={pin}
+        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => { if (e.key === 'Enter') doLogin() }} inputMode="numeric" />
+      {err && <div style={{ fontSize: 11.5, color: '#C0392B' }}>{err}</div>}
+      <button onClick={doLogin} disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{busy ? 'Входим…' : 'Войти'}</button>
+      <button onClick={resend} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>Выслать PIN повторно</button>
+    </div>
+  )
+}
+
+function Bubble({ m, onAdded, onChip, onGuestAdd }: { m: ChatMessage; onAdded: () => void; onChip: (c: string) => void; onGuestAdd: (p: CardProduct) => void }) {
+  // Интерактивные блоки регистрации.
+  if (m.kind === 'register-form') return <div style={{ width: '100%' }}><RegisterForm /></div>
+  if (m.kind === 'pin-entry') return <div style={{ width: '100%' }}><PinEntry /></div>
   // Служебная подсказка в ленте — по центру, мелким серым.
   if (m.role === 'system') {
     return <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-mid)', padding: '2px 0' }}>{m.text}</div>
@@ -85,12 +214,12 @@ function Bubble({ m, onAdded, onChip }: { m: ChatMessage; onAdded: () => void; o
       {/* 1 товар → Full; несколько → Mini-карусель со scroll-snap */}
       {single ? (
         <div style={{ width: '100%', maxWidth: 320 }}>
-          <ProductCard p={toCard(products[0])} density="full" onAdded={onAdded} />
+          <ProductCard p={toCard(products[0])} density="full" onAdded={onAdded} onGuestAdd={onGuestAdd} />
         </div>
       ) : products.length > 1 ? (
         <div style={{ width: '100%' }}>
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '2px 1px 4px', scrollSnapType: 'x mandatory', scrollbarWidth: 'thin' }}>
-            {products.slice(0, 12).map((p) => <ProductCard key={p.id} p={toCard(p)} density="mini" onAdded={onAdded} />)}
+            {products.slice(0, 12).map((p) => <ProductCard key={p.id} p={toCard(p)} density="mini" onAdded={onAdded} onGuestAdd={onGuestAdd} />)}
           </div>
           <div style={{ fontSize: 10.5, color: 'var(--text-mid)', marginTop: 2 }}>листайте →</div>
         </div>
@@ -119,7 +248,7 @@ function Typing() {
 }
 
 export default function AiWidget() {
-  const { open, messages, pending, greeted, setOpen, toggle, addMessage, setPending, markGreeted, markNudgedAnon } = useWidget()
+  const { open, messages, pending, greeted, setOpen, toggle, addMessage, setPending, markGreeted, setPendingAdd } = useWidget()
   const { isAuthed } = useAuthStore()
   const isMobile = useIsMobile()
   const pathname = usePathname()
@@ -175,11 +304,7 @@ export default function AiWidget() {
       const d = await r.json().catch(() => ({}))
       const products = d?.products as WidgetProduct[] | undefined
       const chips = Array.isArray(d?.chips) ? (d.chips as string[]) : undefined
-      // Наджа гостю: если аноним получил товары и ещё не показывали — прикрепляем к ответу.
-      const anon = !useAuthStore.getState().isAuthed
-      const nudge = anon && !!products?.length && !useWidget.getState().nudgedAnon
-      if (nudge) markNudgedAnon()
-      addMessage({ role: 'bot', text: (d?.text as string) || FALLBACK_MANAGER, products, chips, nudge: nudge || undefined })
+      addMessage({ role: 'bot', text: (d?.text as string) || FALLBACK_MANAGER, products, chips })
     } catch {
       addMessage({ role: 'bot', text: 'Не получилось ответить, попробуйте ещё раз или напишите менеджеру.' })
     } finally {
@@ -195,6 +320,12 @@ export default function AiWidget() {
       : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'товара' : 'товаров'
     toast.success('Добавлено в корзину')
     addMessage({ role: 'system', text: `Добавлено · в корзине ${n} ${w}` })
+  }
+
+  // Гость жмёт «В корзину» → запоминаем товар и показываем наджу-регистрацию.
+  function onGuestAdd(p: CardProduct) {
+    setPendingAdd({ id: p.id, name: p.name, price: p.price ?? 0, available: p.stock, pack: p.pack, image: p.image, unit: p.unit })
+    addMessage({ role: 'bot', nudge: true, text: '' })
   }
 
   // ── Плавающая кнопка + пузырь-подсказка ──
@@ -265,11 +396,11 @@ export default function AiWidget() {
 
       {/* Сообщения */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg)' }}>
-        {messages.map((m) => <Bubble key={m.id} m={m} onAdded={onAdded} onChip={send} />)}
+        {messages.map((m) => <Bubble key={m.id} m={m} onAdded={onAdded} onChip={send} onGuestAdd={onGuestAdd} />)}
         {pending && <Typing />}
         {!isAuthed && messages.length <= 1 && (
           <div style={{ fontSize: 11.5, color: 'var(--text-mid)', background: 'var(--bg2)', borderRadius: 10, padding: '8px 10px' }}>
-            Цены и оформление — после входа по телефону и PIN. Спрашивайте про товары — подскажу и без входа 🌸
+            Спрашивайте про товары — подскажу цены и наличие. Для корзины и заказов нужна быстрая регистрация (PIN придёт в WhatsApp) 🌸
           </div>
         )}
       </div>

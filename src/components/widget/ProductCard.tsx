@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/lib/cart-store'
+import { useAuthStore } from '@/lib/auth-store'
 
 // Единый стандарт карточки товара для AI-виджета (хэндофф «★ Стандарт карточки»).
 // Контракт данных — независим от источника.
@@ -42,17 +43,21 @@ function Placeholder() {
 
 const CARD_SHADOW = '0 1px 2px rgba(40,20,30,.05), 0 4px 14px rgba(40,20,30,.06)'
 
-export default function ProductCard({ p, density, onAdded }: {
+export default function ProductCard({ p, density, onAdded, onGuestAdd }: {
   p: CardProduct
   density: CardDensity
   onAdded?: () => void
+  onGuestAdd?: (p: CardProduct) => void   // гость жмёт «В корзину» → регистрация вместо добавления
 }) {
   const router = useRouter()
   const { items, add, update } = useCart()
+  const { isAuthed } = useAuthStore()
   const inCart = items.some((i) => i.id === p.id)   // ключ строки id+color; для карточки достаточно по id
   const badge = stockBadge(p.stock)
 
   const addToCart = () => {
+    // Гость не может класть в корзину → наджа/регистрация (вход нужен для корзины и заказов).
+    if (!isAuthed && onGuestAdd) { onGuestAdd(p); return }
     add({ id: p.id, name: p.name, price: p.price ?? 0, available: p.stock, category: 'accessories', image_url: p.image, unit: p.unit, subcategory: null, color: null })
     update(p.id, p.pack && p.pack > 1 ? p.pack : 1, null) // шаг = кратность
     onAdded?.()
