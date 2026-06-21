@@ -26,9 +26,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const reply = await getAccessoriesReply(message, { history, channel: 'widget' })
+
+    // Чипы-уточнения: бот может закончить строкой «Варианты: A / B / C» → вынимаем в chips[]
+    // и убираем строку из текста.
+    let text = reply.text
+    let chips: string[] = []
+    if (text) {
+      const m = text.match(/(?:^|\n)\s*Варианты:\s*(.+?)\s*$/i)
+      if (m) {
+        chips = m[1].split(/\s*[/|]\s*/).map((s) => s.trim()).filter(Boolean).slice(0, 4)
+        text = text.replace(m[0], '').trim()
+      }
+    }
+
     return NextResponse.json({
-      text: reply.text,                 // null → вне зоны бота (мягко уводим к менеджеру на клиенте)
+      text,                             // null → вне зоны бота (мягко уводим к менеджеру на клиенте)
       products: reply.products ?? [],   // богатые карточки строятся из этого
+      chips,                            // кликабельные варианты-уточнения
     })
   } catch (err) {
     console.error('[api/chat]', err instanceof Error ? err.message : err)

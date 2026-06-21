@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useWidget, type ChatMessage } from '@/lib/widget-store'
 import { useAuthStore } from '@/lib/auth-store'
@@ -38,7 +38,32 @@ function renderText(text: string) {
   ))
 }
 
-function Bubble({ m, onAdded }: { m: ChatMessage; onAdded: () => void }) {
+const chipStyle: React.CSSProperties = {
+  fontSize: 11.5, padding: '6px 11px', borderRadius: 999, border: '1px solid var(--accent-mid)',
+  background: 'var(--accent-light)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+}
+
+// Наджа для анонима под PIN-каталог (хэндофф «Анонимный посетитель»). Мягкий призыв, не тупик.
+function NudgeCard() {
+  const router = useRouter()
+  return (
+    <div style={{ width: '100%', background: 'linear-gradient(135deg,#FBF6F8,#F7EEF2)', border: '1px solid var(--accent-light)', borderRadius: 14, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+        </span>
+        <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Цены и наличие — после входа</div>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.4 }}>Каталог с ценами и наличием открывается по входу — телефон + PIN. Регистрация быстрая, для оптовых клиентов.</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => router.push('/login')} style={{ flex: 1, height: 34, border: 'none', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}>Войти по PIN</button>
+        <button onClick={() => router.push('/register')} style={{ flex: 1, height: 34, border: '1px solid var(--accent-mid)', borderRadius: 10, background: '#fff', color: 'var(--accent)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}>Стать клиентом</button>
+      </div>
+    </div>
+  )
+}
+
+function Bubble({ m, onAdded, onChip }: { m: ChatMessage; onAdded: () => void; onChip: (c: string) => void }) {
   // Служебная подсказка в ленте — по центру, мелким серым.
   if (m.role === 'system') {
     return <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-mid)', padding: '2px 0' }}>{m.text}</div>
@@ -70,6 +95,14 @@ function Bubble({ m, onAdded }: { m: ChatMessage; onAdded: () => void }) {
           <div style={{ fontSize: 10.5, color: 'var(--text-mid)', marginTop: 2 }}>листайте →</div>
         </div>
       ) : null}
+      {/* Чипы-уточнения — клик отправляет вариант как сообщение */}
+      {!!m.chips?.length && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 1 }}>
+          {m.chips.map((c) => <button key={c} onClick={() => onChip(c)} style={chipStyle}>{c}</button>)}
+        </div>
+      )}
+      {/* Наджа гостю (цены/наличие под PIN) */}
+      {m.nudge && <NudgeCard />}
     </div>
   )
 }
@@ -86,15 +119,26 @@ function Typing() {
 }
 
 export default function AiWidget() {
-  const { open, messages, pending, greeted, setOpen, toggle, addMessage, setPending, markGreeted } = useWidget()
+  const { open, messages, pending, greeted, setOpen, toggle, addMessage, setPending, markGreeted, markNudgedAnon } = useWidget()
   const { isAuthed } = useAuthStore()
   const isMobile = useIsMobile()
   const pathname = usePathname()
   const [input, setInput] = useState('')
+  const [tip, setTip] = useState(false)   // подсказка-пузырь у FAB
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // На оформлении не мешаем: панель не открываем, кнопку приглушаем.
   const subdued = pathname?.startsWith('/checkout') ?? false
+
+  // Пузырь-подсказка у FAB — один раз за сессию, через короткую задержку, закрытие запоминаем.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (open || subdued) return
+    if (sessionStorage.getItem('aiw_tip_dismissed')) return
+    const t = setTimeout(() => setTip(true), 1500)
+    return () => clearTimeout(t)
+  }, [open, subdued])
+  const dismissTip = () => { setTip(false); try { sessionStorage.setItem('aiw_tip_dismissed', '1') } catch {} }
 
   // Приветствие при первом открытии.
   useEffect(() => {
@@ -129,7 +173,13 @@ export default function AiWidget() {
         body: JSON.stringify({ message: t, history: prior }),
       })
       const d = await r.json().catch(() => ({}))
-      addMessage({ role: 'bot', text: (d?.text as string) || FALLBACK_MANAGER, products: d?.products })
+      const products = d?.products as WidgetProduct[] | undefined
+      const chips = Array.isArray(d?.chips) ? (d.chips as string[]) : undefined
+      // Наджа гостю: если аноним получил товары и ещё не показывали — прикрепляем к ответу.
+      const anon = !useAuthStore.getState().isAuthed
+      const nudge = anon && !!products?.length && !useWidget.getState().nudgedAnon
+      if (nudge) markNudgedAnon()
+      addMessage({ role: 'bot', text: (d?.text as string) || FALLBACK_MANAGER, products, chips, nudge: nudge || undefined })
     } catch {
       addMessage({ role: 'bot', text: 'Не получилось ответить, попробуйте ещё раз или напишите менеджеру.' })
     } finally {
@@ -147,24 +197,34 @@ export default function AiWidget() {
     addMessage({ role: 'system', text: `Добавлено · в корзине ${n} ${w}` })
   }
 
-  // ── Плавающая кнопка ──
+  // ── Плавающая кнопка + пузырь-подсказка ──
   const fabBottom = isMobile ? 76 : 24   // на мобиле над таб-баром
-  const fab = (
-    <button
-      onClick={toggle}
-      aria-label="Чат с ИИ-консультантом"
-      style={{
-        position: 'fixed', right: isMobile ? 16 : 24, bottom: fabBottom, zIndex: 2147483000,
-        width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
-        background: 'var(--accent)', color: '#fff', boxShadow: '0 8px 24px rgba(139,58,90,0.4)',
-        display: open ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: subdued ? 0.45 : 1, transition: 'opacity .2s',
-      }}
-    >
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-      </svg>
-    </button>
+  const fab = !open && (
+    <div style={{ position: 'fixed', right: isMobile ? 16 : 24, bottom: fabBottom, zIndex: 2147483000, display: 'flex', alignItems: 'flex-end', gap: 10, opacity: subdued ? 0.45 : 1, transition: 'opacity .2s' }}>
+      {/* Подсказка слева от FAB */}
+      {tip && !isMobile && (
+        <div style={{ position: 'relative', maxWidth: 220, background: '#fff', borderRadius: 14, boxShadow: '0 8px 26px rgba(28,18,22,.18)', border: '1px solid var(--border)', padding: '10px 30px 10px 12px', marginBottom: 4 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>Помогу подобрать товар и собрать заказ</div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-mid)', marginTop: 2 }}>ИИ-помощник · отвечает 24/7</div>
+          <button onClick={dismissTip} aria-label="Закрыть" style={{ position: 'absolute', top: 6, right: 6, width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--text-mid)', cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>
+          {/* хвостик-стрелка */}
+          <div style={{ position: 'absolute', right: -6, bottom: 14, width: 12, height: 12, background: '#fff', borderRight: '1px solid var(--border)', borderTop: '1px solid var(--border)', transform: 'rotate(45deg)' }} />
+        </div>
+      )}
+      <button
+        onClick={() => { dismissTip(); toggle() }}
+        aria-label="Чат с ИИ-консультантом"
+        style={{
+          width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
+          background: 'var(--accent)', color: '#fff', boxShadow: '0 8px 24px rgba(139,58,90,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        </svg>
+      </button>
+    </div>
   )
 
   // На /checkout панель не показываем (приглушено).
@@ -184,10 +244,17 @@ export default function AiWidget() {
     >
       {/* Шапка */}
       <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep, #6E2A45))', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🌸</div>
+        <div style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+          🌸
+          {/* онлайн-точка */}
+          <span style={{ position: 'absolute', right: -1, bottom: -1, width: 10, height: 10, borderRadius: '50%', background: '#5ED39A', border: '2px solid var(--accent)' }} />
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 16, lineHeight: 1.1 }}>ИИ-помощник</div>
-          <div style={{ fontSize: 10.5, opacity: .85 }}>Цветы Уральска · на связи 24/7</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 16, lineHeight: 1.1 }}>ИИ-помощник</span>
+            <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '.04em', padding: '1px 5px', borderRadius: 5, background: 'rgba(255,255,255,.22)', color: '#fff' }}>AI</span>
+          </div>
+          <div style={{ fontSize: 10.5, opacity: .85 }}>Цветы Уральска · {isAuthed ? 'на связи 24/7' : 'гость'}</div>
         </div>
         <a href={WA} target="_blank" rel="noopener noreferrer" title="Продолжить в WhatsApp"
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.15)', color: '#fff' }}>
@@ -198,7 +265,7 @@ export default function AiWidget() {
 
       {/* Сообщения */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg)' }}>
-        {messages.map((m) => <Bubble key={m.id} m={m} onAdded={onAdded} />)}
+        {messages.map((m) => <Bubble key={m.id} m={m} onAdded={onAdded} onChip={send} />)}
         {pending && <Typing />}
         {!isAuthed && messages.length <= 1 && (
           <div style={{ fontSize: 11.5, color: 'var(--text-mid)', background: 'var(--bg2)', borderRadius: 10, padding: '8px 10px' }}>
@@ -207,31 +274,35 @@ export default function AiWidget() {
         )}
       </div>
 
-      {/* Чипы-подсказки (стартовые) */}
+      {/* Стартовые быстрые чипы (первая — с искрой) */}
       {messages.length <= 1 && (
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
-          {STARTERS.map((c) => (
-            <button key={c} onClick={() => send(c)} disabled={pending}
-              style={{ fontSize: 11.5, padding: '6px 11px', borderRadius: 999, border: '1px solid var(--accent-mid)', background: 'var(--accent-light)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
-              {c}
+          {STARTERS.map((c, i) => (
+            <button key={c} onClick={() => send(c)} disabled={pending} style={chipStyle}>
+              {i === 0 ? '✨ ' : ''}{c}
             </button>
           ))}
         </div>
       )}
 
-      {/* Ввод */}
-      <div style={{ borderTop: '1px solid var(--border)', padding: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') send(input) }}
-          placeholder="Спросите про товар или сайт…"
-          style={{ flex: 1, height: 40, border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', padding: '0 12px', fontSize: 14, fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
-        />
-        <button onClick={() => send(input)} disabled={pending || !input.trim()} aria-label="Отправить"
-          style={{ width: 40, height: 40, borderRadius: 'var(--radius-btn)', border: 'none', cursor: pending || !input.trim() ? 'default' : 'pointer', background: 'var(--accent)', color: '#fff', opacity: pending || !input.trim() ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-        </button>
+      {/* Ввод + микрокопия */}
+      <div style={{ borderTop: '1px solid var(--border)', padding: '10px 10px 8px' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') send(input) }}
+            placeholder="Спросите про товар или сайт…"
+            style={{ flex: 1, height: 40, border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', padding: '0 12px', fontSize: 14, fontFamily: 'inherit', outline: 'none', background: 'var(--bg)', color: 'var(--text)' }}
+          />
+          <button onClick={() => send(input)} disabled={pending || !input.trim()} aria-label="Отправить"
+            style={{ width: 40, height: 40, borderRadius: 'var(--radius-btn)', border: 'none', cursor: pending || !input.trim() ? 'default' : 'pointer', background: 'var(--accent)', color: '#fff', opacity: pending || !input.trim() ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+          </button>
+        </div>
+        <div style={{ fontSize: 9.5, color: 'var(--text-tertiary, #9CA3AF)', textAlign: 'center', marginTop: 6 }}>
+          ИИ может ошибаться · наличие подтверждается в корзине
+        </div>
       </div>
     </div>
   )

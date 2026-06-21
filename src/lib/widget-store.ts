@@ -6,6 +6,8 @@ export interface ChatMessage {
   role: 'user' | 'bot' | 'system'   // system — служебная подсказка в ленте («добавлено · N товаров»)
   text: string
   products?: WidgetProduct[]
+  chips?: string[]                  // кликабельные варианты-уточнения под сообщением бота
+  nudge?: boolean                   // показать наджу-карточку «войдите по PIN» (гость + товары)
   ts: number
 }
 
@@ -14,11 +16,13 @@ export interface ChatMessage {
 interface WidgetStore {
   open: boolean
   greeted: boolean                 // показали ли приветствие
+  nudgedAnon: boolean              // показывали ли уже наджу гостю в этой сессии
   messages: ChatMessage[]
   pending: boolean
   setOpen: (v: boolean) => void
   toggle: () => void
   markGreeted: () => void
+  markNudgedAnon: () => void
   addMessage: (m: Omit<ChatMessage, 'id' | 'ts'>) => void
   setPending: (v: boolean) => void
 }
@@ -26,11 +30,13 @@ interface WidgetStore {
 export const useWidget = create<WidgetStore>((set) => ({
   open: false,
   greeted: false,
+  nudgedAnon: false,
   messages: [],
   pending: false,
   setOpen: (v) => set({ open: v }),
   toggle: () => set((s) => ({ open: !s.open })),
   markGreeted: () => set({ greeted: true }),
+  markNudgedAnon: () => set({ nudgedAnon: true }),
   addMessage: (m) => set((s) => ({
     messages: [...s.messages, { ...m, id: crypto.randomUUID(), ts: Date.now() }],
   })),
