@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import { colorSwatch, colorLabel, isLightSwatch, getColorMode } from '@/lib/colors'
+import { useColorCart } from '@/lib/use-color-cart'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
 import FavHeart from './FavHeart'
@@ -126,14 +127,15 @@ function QtyBadge({ qty, unit = 'шт' }: { qty: number; unit?: string }) {
 // ── stepper ─────────────────────────────────────────────────────────────────
 
 function Stepper({
-  qty, available, packSize, onDec, onInc, big,
+  qty, available, packSize, onDec, onInc, big, disabled,
 }: {
   qty: number; available: number; packSize: number
-  onDec: () => void; onInc: () => void; big?: boolean
+  onDec: () => void; onInc: () => void; big?: boolean; disabled?: boolean
 }) {
   const h = big ? 40 : 28
   const bw = big ? 42 : 28
   const fs = big ? 18 : 14
+  const incDisabled = disabled || qty >= available
   return (
     <div style={{
       display: 'flex', alignItems: 'center',
@@ -159,12 +161,12 @@ function Stepper({
       </span>
       <button
         onClick={onInc}
-        disabled={qty >= available}
+        disabled={incDisabled}
         style={{
           width: bw, height: h, border: 'none',
           background: 'var(--bg2)', color: 'var(--accent)',
-          fontSize: fs, fontWeight: 700, cursor: qty >= available ? 'default' : 'pointer',
-          opacity: qty >= available ? 0.35 : 1,
+          fontSize: fs, fontWeight: 700, cursor: incDisabled ? 'default' : 'pointer',
+          opacity: incDisabled ? 0.35 : 1,
         }}
       >+</button>
     </div>
@@ -174,16 +176,38 @@ function Stepper({
 // ── grid card ───────────────────────────────────────────────────────────────
 
 export function GridCard({
-  product, qty, isAuthed,
-  onDec, onInc, onCardClick,
+  product, isAuthed, requireAuth, onCardClick, onFlash,
 }: {
-  product: Product; qty: number; isAuthed: boolean
-  onDec: () => void; onInc: () => void; onCardClick: () => void
+  product: Product; isAuthed: boolean
+  requireAuth: (fn: () => void) => void
+  onCardClick: () => void
+  onFlash?: () => void
 }) {
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
   const hasDiscount = !!(product.previous_price && product.previous_price > price)
   const displayName = product.display_name || product.variety_name || product.name
+  const packSize = product.stems_per_pack || product.pack_size || 1
+
+  // Выбор цвета → корзина: ТА ЖЕ модель, что и в расширенной карточке (DetailPanel).
+  const {
+    colorList, colorMode, selectedSlug, setSelectedSlug,
+    colorValue, colorRequired, qty, qtyBySlug, inc, dec,
+  } = useColorCart(product, {
+    available, packSize,
+    makePayload: (color) => ({
+      id: product.id,
+      name: displayName + (product.length_str ? ' ' + product.length_str : ''),
+      price, available, category: product.category, image_url: product.image_url,
+      unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
+      color,
+    }),
+  })
+  // Мультицвет (≥2 настоящих цвета) → кликабельные кружки-пикер + степпер по выбранному цвету.
+  // Деградация: 1 цвет / ассорти / без colors → обычный степпер (цвет резолвится автоматически).
+  const isMulti = colorMode === 'select' && colorList.length >= 2
+  const doInc = () => requireAuth(() => { inc(); onFlash?.() })
+  const doDec = () => requireAuth(() => { dec() })
   type Dim = { type: 'length' | 'diam'; val: string }
   const dims: Dim[] = product.category === 'pot'
     ? [
@@ -305,8 +329,37 @@ export function GridCard({
           </div>
         )}
 
-        {/* Кружки цветов — индикатор (не пикер). До 5 кружков + «+N». */}
-        {(() => {
+        {/* Цвета. Мультицвет → кликабельный пикер (как в DetailPanel): выбор → активный цвет,
+            бейдж-счётчик на каждом наборном цвете. Иначе — простой индикатор (до 5 + «+N»). */}
+        {isMulti ? (
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 9, marginTop: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+            {colorList.map(slug => {
+              const active = selectedSlug === slug
+              const cnt = qtyBySlug[slug] ?? 0
+              return (
+                <button
+                  key={slug}
+                  title={colorLabel(slug)}
+                  onClick={() => requireAuth(() => setSelectedSlug(active && colorList.length > 1 ? null : slug))}
+                  style={{
+                    position: 'relative', width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    padding: 0, cursor: 'pointer', background: colorSwatch(slug),
+                    border: active ? '2px solid var(--accent)' : `1px solid ${isLightSwatch(slug) ? '#D0D0D0' : 'rgba(0,0,0,0.18)'}`,
+                    boxShadow: active ? '0 0 0 2px var(--bg)' : '0 0 0 1px var(--border) inset',
+                  }}
+                >
+                  {cnt > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -6, right: -6, minWidth: 14, height: 14, padding: '0 3px',
+                      borderRadius: 7, background: 'var(--accent)', color: '#fff', fontSize: 8.5, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                    }}>{cnt}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        ) : (() => {
           const keys = product.colors?.length ? product.colors : product.color ? [product.color] : []
           if (!keys.length) return null
           const shown = keys.slice(0, 5)
@@ -394,7 +447,14 @@ export function GridCard({
 
         {/* stop propagation so stepper click doesn't open detail */}
         <div onClick={e => e.stopPropagation()}>
-          <Stepper qty={qty} available={available} packSize={product.stems_per_pack || product.pack_size || 1} onDec={onDec} onInc={onInc} big />
+          {isMulti && (
+            <div style={{ marginTop: 8, fontSize: 11, color: colorRequired ? '#E53935' : 'var(--text-mid)' }}>
+              {colorRequired
+                ? 'Выберите цвет'
+                : <>Цвет: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{colorValue}</span></>}
+            </div>
+          )}
+          <Stepper qty={qty} available={available} packSize={packSize} onDec={doDec} onInc={doInc} big disabled={isMulti && colorRequired} />
         </div>
       </div>
     </div>
@@ -866,22 +926,16 @@ export default function ProductGrid({ products: initialProducts }: { products: P
               gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
               gap: isMobile ? 12 : 16,
             }
-            const renderCard = (p: Product) => {
-              const qty = getQty(p.id)
-              const available = getAvailable(p.stock)
-              const price = getPrice(p.stock)
-              return (
-                <GridCard
-                  key={p.id}
-                  product={p}
-                  qty={qty}
-                  isAuthed={isAuthed}
-                  onDec={() => handleDec(p, qty)}
-                  onInc={() => handleInc(p, qty, available, price)}
-                  onCardClick={() => setProduct(p)}
-                />
-              )
-            }
+            const renderCard = (p: Product) => (
+              <GridCard
+                key={p.id}
+                product={p}
+                isAuthed={isAuthed}
+                requireAuth={requireAuth}
+                onCardClick={() => setProduct(p)}
+                onFlash={() => { if (!isMobile) flashCart(p) }}
+              />
+            )
             return <div style={gridStyle}>{filtered.map(renderCard)}</div>
           })()
         ) : (

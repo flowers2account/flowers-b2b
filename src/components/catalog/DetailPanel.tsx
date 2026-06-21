@@ -10,7 +10,8 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useProductsStore } from '@/lib/products-store'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
-import { COLORS, getColorMode, colorLabel, colorSwatch, isAssorti } from '@/lib/colors'
+import { COLORS, colorLabel, colorSwatch, isAssorti } from '@/lib/colors'
+import { useColorCart } from '@/lib/use-color-cart'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, labelForSubcat } from '@/lib/category-tree'
 
@@ -186,33 +187,32 @@ function StateEmpty() {
 // ── State B: product detail ──────────────────────────────────────────────────
 
 function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoToCart: () => void; onClose: () => void }) {
-  const { items, add, update, total } = useCart()
+  const { items, total } = useCart()
   const { isAuthed } = useAuthStore()
   const [showAuth, setShowAuth] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [lbOpen, setLbOpen] = useState(false)
 
-  // ── Выбор цвета (Вариант А: цвет — ярлык, не SKU) ──────────────────────────
-  const colorList = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
-  const colorMode = getColorMode(product.colors)
-  // Один настоящий цвет — выбираем сразу (избавляет от лишнего клика на срезке).
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(
-    colorMode === 'select' && colorList.length === 1 ? colorList[0] : null
-  )
-  // Снимок цвета, который уедет в позицию корзины и в заказ:
-  //   none → null, assorti → "ассорти", select → подпись выбранного цвета.
-  const colorValue: string | null =
-    colorMode === 'assorti' ? 'ассорти'
-    : colorMode === 'select' ? (selectedSlug ? colorLabel(selectedSlug) : null)
-    : null
-  // В режиме select цвет обязателен — пока не выбран, в корзину нельзя.
-  const colorRequired = colorMode === 'select' && !colorValue
-
   const available = getAvailable(product.stock)
   const price = getPrice(product.stock)
   const packSize = product.pack_size || 5
-  const cartItem = items.find(i => i.id === product.id && (i.color ?? null) === colorValue)
-  const qty = cartItem?.qty ?? 0
+  const displayName = product.display_name || product.variety_name || product.name
+
+  // ── Выбор цвета → корзина: единая модель useColorCart (та же, что в клетке грида) ──
+  const {
+    colorList, colorMode, selectedSlug, setSelectedSlug,
+    colorValue, colorRequired, qty, inc, dec,
+  } = useColorCart(product, {
+    available, packSize,
+    makePayload: (color) => ({
+      id: product.id,
+      name: displayName + (product.length_str ? ' ' + product.length_str : ''),
+      price, available, category: product.category, image_url: product.image_url,
+      unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
+      color,
+    }),
+  })
+
   const inCart = qty > 0
   const cartTotal = qty * price
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -233,7 +233,6 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
     ? (product.color_images?.[selectedSlug] ?? null) : null
   const mainPhoto = colorOverride ?? images[photoIdx] ?? null
 
-  const displayName = product.display_name || product.variety_name || product.name
   const countryLabel = product.country_iso
     ? `${countryFlag(product.country_iso)} ${COUNTRY_LABELS[product.country_iso] ?? product.country_iso}`
     : product.origin ? (ORIGIN_MAP[product.origin] ?? product.origin) : null
@@ -249,14 +248,6 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
   // Свотчи в инфо-строке «Цвет» — только для режимов none/assorti (в select их заменяют чипсы).
   const colorDefs = colorList.map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
-  // Payload позиции корзины с текущим выбранным цветом.
-  const cartPayload = () => ({
-    id: product.id,
-    name: displayName + (product.length_str ? ' ' + product.length_str : ''),
-    price, available, category: product.category, image_url: product.image_url,
-    unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null,
-    color: colorValue,
-  })
   const availColor = available > 30 ? '#388E3C' : available >= 10 ? '#F9A825' : '#E53935'
   const floralRole = product.floral_role ? FLORAL_ROLE_MAP[product.floral_role] : null
 
@@ -267,27 +258,17 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
   function handleDec() {
     if (!isAuthed) { setShowAuth(true); return }
-    update(product.id, Math.max(0, qty - packSize), colorValue)
+    dec()
   }
 
   function handleInc() {
     if (!isAuthed) { setShowAuth(true); return }
-    if (colorRequired) return
-    if (qty === 0) {
-      add(cartPayload())
-      update(product.id, packSize, colorValue)
-    } else {
-      update(product.id, Math.min(qty + packSize, available), colorValue)
-    }
+    inc()   // hook сам не даёт добавить при colorRequired
   }
 
   function handleAddToCart() {
     if (!isAuthed) { setShowAuth(true); return }
-    if (colorRequired) return
-    if (qty === 0) {
-      add(cartPayload())
-      update(product.id, packSize, colorValue)
-    }
+    if (qty === 0) inc()
   }
 
   return (
