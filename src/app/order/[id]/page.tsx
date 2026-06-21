@@ -20,7 +20,7 @@ type OrderItem = {
   is_removed: boolean
   price: number
   color: string | null
-  product: { id: number; name: string; display_name?: string | null } | null
+  product: { id: number; name: string; display_name?: string | null; image_url?: string | null } | null
 }
 type Order = {
   id: string
@@ -161,7 +161,12 @@ export default function OrderPage() {
             {order.order_items.map(i => (
               <div key={i.id} className={`${s.irow} ${i.is_removed ? s.removed : ''}`}>
                 <span className={s.thumb}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" /></svg>
+                  {i.product?.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={i.product.image_url} alt={(i.product?.display_name || i.product?.name) ?? ''} />
+                  ) : (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" /></svg>
+                  )}
                 </span>
                 <div>
                   <div className={s.nm}>

@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         is_removed,
         price,
         color,
-        product:products ( id, name, display_name )
+        product:products ( id, name, display_name, image_url )
       )
     `)
     .eq('client_id', client.id)
