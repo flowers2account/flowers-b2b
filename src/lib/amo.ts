@@ -5,19 +5,27 @@ const BASE = 'https://tropinvladislav1.amocrm.ru/api/v4'
 
 export const AMO_PIPELINE_ID = 10853806
 
-// Этапы воронки 10853806 (GET /api/v4/leads/pipelines/10853806)
-export const AMO_STATUS_NEW       = 85413462  // Новый
-export const AMO_STATUS_RESERVED  = 85413466  // В брони
-export const AMO_STATUS_CONFIRMED = 85413470  // Подтверждён
-export const AMO_STATUS_ASSEMBLING = 86286418 // В сборке
-export const AMO_STATUS_ASSEMBLED  = 86286422 // Готово к выдаче
-export const AMO_STATUS_DELIVERED  = 142       // Выдан (финал успешно)
-export const AMO_STATUS_CANCELLED  = 143       // Отменён (финал)
+// Этапы воронки 10853806 (GET /api/v4/leads/pipelines/10853806, перестроена 21.06.2026)
+// Порядок: Новый → Подтверждён → СОГЛАСОВАНИЕ → В сборке → Готово к выдаче → на доставке → Выдан/Отменён.
+// Этап «В брони» (85413466) УДАЛЁН из воронки.
+export const AMO_STATUS_NEW         = 85413462  // Новый
+export const AMO_STATUS_CONFIRMED   = 85413470  // Подтверждён
+export const AMO_STATUS_NEGOTIATION = 86646726  // СОГЛАСОВАНИЕ (новый)
+export const AMO_STATUS_ASSEMBLING  = 86286418  // В сборке
+export const AMO_STATUS_ASSEMBLED   = 86286422  // Готово к выдаче
+export const AMO_STATUS_ON_DELIVERY = 86646730  // на доставке (новый)
+export const AMO_STATUS_DELIVERED   = 142        // Выдан (финал успешно)
+export const AMO_STATUS_CANCELLED   = 143        // Отменён (финал)
 
 // Маппинг order_status → этап amoCRM
-// pending/cart/in_transit/arrived — не двигаем
+// НЕ двигаем (нет в маппинге): pending/cart/in_transit/arrived.
+// ⚠️ reserved — этап «В брони» удалён из воронки; маппинг убран, чтобы не PATCH-ить на
+//    несуществующий id (был бы 400 от amo). reserved остаётся живым статусом сайта
+//    (канбан «В работе», касса, payable) → пока updateLeadStage для него no-op.
+//    Решение, на какой этап вешать reserved (Согласование? оставить?), — отдельным шагом.
+// ⚠️ AMO_STATUS_NEGOTIATION / AMO_STATUS_ON_DELIVERY заведены, но в маппинг НЕ добавлены —
+//    под какие order_status их вешать, решаем отдельно.
 const ORDER_STATUS_TO_AMO: Record<string, number> = {
-  reserved:   AMO_STATUS_RESERVED,
   confirmed:  AMO_STATUS_CONFIRMED,
   assembling: AMO_STATUS_ASSEMBLING,
   assembled:  AMO_STATUS_ASSEMBLED,
