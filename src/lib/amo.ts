@@ -26,8 +26,12 @@ const ORDER_STATUS_TO_AMO: Record<string, number> = {
 }
 
 // Custom field IDs (from /api/v4/leads/custom_fields)
-export const CF_ORDERID       = 1394611   // ORDERID  (textarea)
-export const CF_DATA_DOSTAVKI = 1394599   // ДАТА_ДОСТАВКИ (textarea)
+export const CF_ORDERID            = 1394611   // ORDERID  (textarea)
+export const CF_DATA_DOSTAVKI      = 1394599   // ДАТА_ДОСТАВКИ (textarea)
+export const CF_POLUCHATEL_FIO     = 1394593   // POLUCHATEL_FIO (textarea)
+export const CF_POLUCHATEL_PHONE   = 1394595   // POLUCHATEL_PHONE (textarea)
+export const CF_ADRES_POLUCHATELYA = 1394597   // АДРЕС_ПОЛУЧАТЕЛЯ (textarea)
+export const CF_KOMMENTARII        = 1394607   // КОММЕНТАРИЙ (textarea)
 
 // ── HTTP helpers ─────────────────────────────────────────────────────────────
 
@@ -313,9 +317,11 @@ export async function syncOrderToAmo(orderId: number): Promise<void> {
     .select(`
       id, total, status, client_id, created_at,
       amo_lead_id, amo_sync_attempts,
+      fulfillment_type, delivery_city, delivery_address, delivery_date,
+      courier_comment, recipient_name, recipient_phone,
       order_items (
-        qty, qty_ordered, price, is_removed, color,
-        products ( display_name, name, length_cm, colors )
+        qty, qty_ordered, qty_actual, price, is_removed, color,
+        products ( display_name, name, length_cm, colors, code_1c )
       )
     `)
     .eq('id', orderId)
@@ -360,41 +366,61 @@ export async function syncOrderToAmo(orderId: number): Promise<void> {
       (i: any) => !i.is_removed
     )
 
-    // 5. Создать сделку
-    // TODO: при будущем маппинге статусов orders → этапы воронки amoCRM
-    //   (pending→Новый, confirmed→Подтверждён, assembled→В сборке и т.д.)
-    //   заменить AMO_STATUS_NEW на динамическое значение по order.status
+    // 5. Создать сделку — раскладываем структурные поля доставки/получателя по полям сделки.
+    const o = order as any
+    // textarea-поля: шлём только непустые (пустые при самовывозе — пропускаем, не падаем).
+    const cf: Array<{ field_id: number; values: Array<{ value: string }> }> = [
+      { field_id: CF_ORDERID, values: [{ value: String(orderId) }] },
+    ]
+    const pushCf = (field_id: number, value: unknown) => {
+      const s = value == null ? '' : String(value).trim()
+      if (s) cf.push({ field_id, values: [{ value: s }] })
+    }
+    pushCf(CF_POLUCHATEL_FIO,     o.recipient_name)
+    pushCf(CF_POLUCHATEL_PHONE,   o.recipient_phone)
+    pushCf(CF_ADRES_POLUCHATELYA, o.delivery_address)
+    pushCf(CF_DATA_DOSTAVKI,      o.delivery_date)
+    pushCf(CF_KOMMENTARII,        o.courier_comment)
+    // driver_*/DELIVERY_PRICE при создании не заполняем — их вносит менеджер позже.
+
+    // Тег способа получения: доставка → «Доставка · {город}», самовывоз → «Самовывоз».
+    const fulfillmentTag = o.fulfillment_type === 'delivery'
+      ? `Доставка${o.delivery_city ? ` · ${o.delivery_city}` : ''}`
+      : o.fulfillment_type === 'pickup' ? 'Самовывоз' : null
+
     const leadId = await createLead({
       name:       `Заказ #${orderId} (Сайт)`,
       price:      Number(order.total ?? 0),
       contactId,
       pipelineId: AMO_PIPELINE_ID,
       statusId:   AMO_STATUS_NEW,
-      customFields: [
-        { field_id: CF_ORDERID, values: [{ value: String(orderId) }] },
-        // DATA_DOSTAVKI: в orders колонки с датой доставки нет → пропускаем
-      ],
-      tags: ['Источник: Сайт'],
+      customFields: cf,
+      tags: ['Источник: Сайт', ...(fulfillmentTag ? [fulfillmentTag] : [])],
     })
 
-    // 6. Примечание с позициями
+    // 6. Примечание с позициями (для кладовщика — СКЛАДСКОЕ имя + артикул code_1c)
     const tz = 'Asia/Oral'
+    const fulfillmentLine = o.fulfillment_type === 'delivery'
+      ? `🚚 Доставка${o.delivery_city ? ` — ${o.delivery_city}` : ''}${o.delivery_date ? ` · ${o.delivery_date}` : ''}`
+      : o.fulfillment_type === 'pickup' ? '🏪 Самовывоз' : null
     const lines: string[] = [
       `📋 Заказ #${orderId} с витрины`,
       `👤 ${contactName}  📞 ${phone}`,
-      `📅 ${new Date((order as any).created_at).toLocaleString('ru-RU', { timeZone: tz })}`,
+      `📅 ${new Date(o.created_at).toLocaleString('ru-RU', { timeZone: tz })}`,
+      ...(fulfillmentLine ? [fulfillmentLine] : []),
+      ...(o.recipient_name || o.recipient_phone ? [`📦 Получатель: ${[o.recipient_name, o.recipient_phone].filter(Boolean).join(', ')}`] : []),
+      ...(o.delivery_address ? [`📍 ${o.delivery_address}`] : []),
       '',
       '--- Позиции ---',
     ]
     for (const item of items) {
       const p = item.products
-      const qty   = item.qty_ordered ?? item.qty ?? 0
+      const qty   = item.qty_actual ?? item.qty_ordered ?? item.qty ?? 0
       const price = Number(item.price ?? 0)
-      let label = p?.display_name ?? p?.name ?? '—'
-      if (p?.length_cm) label += ` ${p.length_cm}см`
-      // Выбранный клиентом цвет (order_items.color) — не путать с products.colors (все доступные).
-      if (item.color) label += ` — Цвет: ${item.color}`
-      lines.push(`• ${label}: ${qty} шт × ${price.toLocaleString('ru-RU')} ₸ = ${(qty * price).toLocaleString('ru-RU')} ₸`)
+      const code = p?.code_1c ? `[${p.code_1c}] ` : ''   // артикул 1С, если есть
+      const nm   = p?.name ?? '—'                         // складское имя (raw 1С), не display_name
+      const col  = item.color ? ` (${item.color})` : ''   // выбранный цвет в скобках
+      lines.push(`• ${code}${nm}${col} — ${qty} шт × ${price.toLocaleString('ru-RU')} ₸ = ${(qty * price).toLocaleString('ru-RU')} ₸`)
     }
     lines.push('')
     lines.push(`💰 ИТОГО: ${Number(order.total ?? 0).toLocaleString('ru-RU')} ₸`)

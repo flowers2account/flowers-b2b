@@ -121,6 +121,23 @@ export async function POST(req: NextRequest) {
   }
   const notes = noteLines.length ? noteLines.join('\n') : null
 
+  // Структурные поля доставки/получателя (машинно разбираемые) — параллельно с notes.
+  // driver_*/delivery_cost при создании не заполняем (их вносит менеджер позже).
+  const clean = (v: unknown) => {
+    const s = typeof v === 'string' ? v.trim() : ''
+    return s === '' ? null : s
+  }
+  const isDelivery = delivery?.method === 'delivery'
+  const structured = {
+    fulfillment_type: clean(delivery?.method),
+    delivery_city:    isDelivery ? clean(delivery?.city) : null,
+    delivery_address: isDelivery ? clean(delivery?.address) : null,
+    delivery_date:    isDelivery ? clean(delivery?.date) : null,
+    courier_comment:  isDelivery ? clean(delivery?.comment) : null,
+    recipient_name:   clean(recipient?.name),
+    recipient_phone:  clean(recipient?.phone),
+  }
+
   // Always create a new order
   const { data: order, error: orderError } = await supabase
     .from('orders')
@@ -128,6 +145,7 @@ export async function POST(req: NextRequest) {
       client_id: clientId,
       status: 'pending',
       total,
+      ...structured,
       ...(notes ? { notes } : {}),
       ...(payment_method ? { payment_method } : {}),
     })
