@@ -33,72 +33,43 @@ export async function applyOrderStatus(
 ): Promise<ApplyStatusResult> {
   const supabase = createAdminClient()
 
-  const { data: order } = await supabase
-    .from('orders').select('status').eq('id', orderId).single()
-  if (!order) return { ok: false, httpStatus: 404, error: 'Not found' }
-
-  // Реальный переход статуса? Вебхук CRM может слать тот же этап повторно (правка полей
-  // на «на доставке») — тогда НЕ списываем повторно остаток, НЕ пишем историю, НЕ шлём WhatsApp.
-  const statusChanged = order.status !== status
-
-  const updateFields: Record<string, unknown> = { status }
-  if (opts.paymentMethod !== undefined) updateFields.payment_method = opts.paymentMethod
-  if (opts.paymentComment !== undefined) updateFields.payment_comment = opts.paymentComment
-  // Поля водителя/стоимости — пишем ДО уведомлений, чтобы шаблон «в пути» их подхватил.
-  if (opts.driverName     != null) updateFields.driver_name      = opts.driverName
-  if (opts.driverPhone    != null) updateFields.driver_phone      = opts.driverPhone
-  if (opts.driverCarPlate != null) updateFields.driver_car_plate  = opts.driverCarPlate
-  if (opts.deliveryCost   != null) updateFields.delivery_cost     = opts.deliveryCost
-
-  const { error: updateError } = await supabase
-    .from('orders').update(updateFields).eq('id', orderId)
-  if (updateError) return { ok: false, httpStatus: 500, error: updateError.message }
-
-  // confirmed → списываем остатки и снимаем резервы (как в кнопке «Подтвердить»).
-  // Только при реальном переходе — иначе повторный вебхук списал бы остаток дважды.
-  if (status === 'confirmed' && statusChanged) {
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('product_id, qty, product:product_id(name)')
-      .eq('order_id', orderId)
-
-    const shortages: string[] = []
-    for (const item of orderItems ?? []) {
-      const { data: product } = await supabase
-        .from('products').select('qty').eq('id', item.product_id).single()
-      if (!product || product.qty < item.qty) {
-        const available = product?.qty ?? 0
-        const name = (item.product as any)?.name ?? `Товар #${item.product_id}`
-        shortages.push(`${name} — в остатке только ${available} шт`)
-      }
-    }
-    if (shortages.length > 0) {
-      await supabase.from('orders').update({ status: order.status }).eq('id', orderId)
-      return { ok: false, httpStatus: 409, error: shortages.join('; ') }
-    }
-    for (const item of orderItems ?? []) {
-      const { data: product } = await supabase
-        .from('products').select('qty').eq('id', item.product_id).single()
-      if (product) {
-        await supabase.from('products')
-          .update({ qty: product.qty - item.qty }).eq('id', item.product_id)
-      }
-    }
-    await supabase.from('reservations').delete().eq('order_id', orderId)
+  // 1) Доп. поля (водитель/оплата) — плоский UPDATE, на атомарность перехода не влияет.
+  //    Пишем всегда (идемпотентно), чтобы шаблон «в пути» подхватил данные водителя.
+  const extra: Record<string, unknown> = {}
+  if (opts.paymentMethod  !== undefined) extra.payment_method   = opts.paymentMethod
+  if (opts.paymentComment !== undefined) extra.payment_comment  = opts.paymentComment
+  if (opts.driverName     != null)       extra.driver_name      = opts.driverName
+  if (opts.driverPhone    != null)       extra.driver_phone     = opts.driverPhone
+  if (opts.driverCarPlate != null)       extra.driver_car_plate = opts.driverCarPlate
+  if (opts.deliveryCost   != null)       extra.delivery_cost    = opts.deliveryCost
+  if (Object.keys(extra).length > 0) {
+    const { error } = await supabase.from('orders').update(extra).eq('id', orderId)
+    if (error) return { ok: false, httpStatus: 500, error: error.message }
   }
 
-  if (statusChanged) {
-    await supabase.from('order_history').insert({
-      order_id: orderId,
-      status_from: order.status,
-      status_to: status,
-      changed_by: opts.changedBy ?? null,
-    })
+  // 2) Атомарный идемпотентный переход статуса. RPC: pg_advisory_xact_lock(order_id) →
+  //    параллельные вебхуки одного перехода сериализуются; «статус уже целевой» → changed=false.
+  //    Списание FIFO (confirm_order_fifo) и история — AFTER-триггеры в ТОЙ ЖЕ транзакции,
+  //    поэтому остаток списывается РОВНО один раз и статус не откатывается. JS вручную НЕ списывает.
+  const { data: tr, error: trErr } = await supabase.rpc('apply_order_transition', {
+    p_order_id: orderId,
+    p_target: status,
+    p_enforce_stock: true,
+  })
+  if (trErr) return { ok: false, httpStatus: 500, error: trErr.message }
+  const result = (tr ?? {}) as { ok?: boolean; changed?: boolean; error?: string; previous?: string }
+  if (!result.ok) {
+    return { ok: false, httpStatus: result.error === 'not_found' ? 404 : 409, error: result.error ?? 'transition failed' }
+  }
+  if (result.changed !== true) {
+    // Уже в целевом статусе (дубль/гонка вебхуков) — остаток не трогаем, уведомления не шлём.
+    console.log(`[order-status] order ${orderId}: статус уже ${status} — no-op (идемпотентно)`)
+    return { ok: true }
   }
 
-  // WhatsApp-уведомления (та же логика, что была в роуте) + новый шаблон in_transit.
-  // Только при реальном переходе статуса — чтобы повторные вебхуки не слали дубли.
-  if (statusChanged && process.env.UMNICO_API_TOKEN) {
+  // 3) WhatsApp-уведомления (та же логика) + шаблон in_transit. Только при реальном переходе
+  //    (сюда попадаем лишь когда RPC вернул changed=true) → дубли невозможны.
+  if (process.env.UMNICO_API_TOKEN) {
     try {
       const [{ data: orderData }, { data: historyRecord }] = await Promise.all([
         supabase
@@ -190,7 +161,8 @@ export async function applyOrderStatus(
   }
 
   // amoCRM: двигаем сделку по воронке (сайт→CRM). Для вебхука CRM→сайт пропускаем.
-  if (statusChanged && !opts.skipAmoPush) {
+  // Сюда доходим только при реальном переходе (changed=true).
+  if (!opts.skipAmoPush) {
     try {
       const { updateLeadStage } = await import('@/lib/amo')
       await updateLeadStage(orderId)
