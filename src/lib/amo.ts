@@ -314,7 +314,7 @@ export async function syncOrderToAmo(orderId: number): Promise<void> {
       id, total, status, client_id, created_at,
       amo_lead_id, amo_sync_attempts,
       order_items (
-        qty, qty_ordered, price, is_removed,
+        qty, qty_ordered, price, is_removed, color,
         products ( display_name, name, length_cm, colors )
       )
     `)
@@ -392,7 +392,8 @@ export async function syncOrderToAmo(orderId: number): Promise<void> {
       const price = Number(item.price ?? 0)
       let label = p?.display_name ?? p?.name ?? '—'
       if (p?.length_cm) label += ` ${p.length_cm}см`
-      if (p?.colors?.length) label += ` (${(p.colors as string[]).join(', ')})`
+      // Выбранный клиентом цвет (order_items.color) — не путать с products.colors (все доступные).
+      if (item.color) label += ` — Цвет: ${item.color}`
       lines.push(`• ${label}: ${qty} шт × ${price.toLocaleString('ru-RU')} ₸ = ${(qty * price).toLocaleString('ru-RU')} ₸`)
     }
     lines.push('')

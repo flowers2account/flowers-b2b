@@ -13,7 +13,7 @@ import { useFilterChips } from '@/lib/filter-chips'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
-import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
+import { colorSwatch, colorLabel, isLightSwatch, getColorMode } from '@/lib/colors'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
 import FavHeart from './FavHeart'
@@ -716,17 +716,36 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   // Sync filtered count for mobile "Show N results" button
   useEffect(() => { setFilteredCount(filtered.length) }, [filtered.length])
 
+  // Цвет для быстрого добавления из грида (Вариант А: цвет — ярлык, не SKU):
+  // assorti → 'ассорти'; один явный цвет → авто-выбор; несколько → выбрать нельзя (вернём null,
+  // вызывающий открывает карточку для выбора). null — у товара нет цветовых вариаций.
+  const gridColor = (product: Product): string | null => {
+    const list = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
+    const mode = getColorMode(product.colors)
+    if (mode === 'assorti') return 'ассорти'
+    if (mode === 'select' && list.length === 1) return colorLabel(list[0])
+    return null
+  }
+  // Несколько явных цветов — выбор обязателен, угадать из грида нельзя.
+  const needsColorPick = (product: Product): boolean => {
+    const list = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
+    return getColorMode(product.colors) === 'select' && list.length > 1
+  }
+
   const handleDec = (product: Product, qty: number) => requireAuth(() =>
-    update(product.id, Math.max(0, qty - (product.pack_size || 5)))
+    update(product.id, Math.max(0, qty - (product.pack_size || 5)), gridColor(product))
   )
   const handleInc = (product: Product, qty: number, available: number, price: number) =>
     requireAuth(() => {
+      // Мульти-цвет: не добавляем «безцветную» строку — открываем карточку, чтобы клиент выбрал цвет.
+      if (needsColorPick(product)) { setProduct(product); return }
+      const color = gridColor(product)
       const packSize = product.stems_per_pack || product.pack_size || 1
       if (qty === 0) {
-        add({ id: product.id, name: (product.display_name || product.variety_name || product.name) + (product.length_str ? ' ' + product.length_str : ''), price, available, category: product.category, image_url: product.image_url, unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null })
-        update(product.id, packSize)
+        add({ id: product.id, name: (product.display_name || product.variety_name || product.name) + (product.length_str ? ' ' + product.length_str : ''), price, available, category: product.category, image_url: product.image_url, unit: (product as any).unit ?? null, subcategory: product.subcategory ?? null, color })
+        update(product.id, packSize, color)
       } else {
-        update(product.id, Math.min(qty + packSize, available))
+        update(product.id, Math.min(qty + packSize, available), color)
       }
       if (!isMobile) flashCart(product) // на мобиле корзина открывается только явным нажатием
     })
