@@ -126,9 +126,24 @@ interface AccessoryRow {
   image_url: string | null
 }
 
-// Ответ конвейера: текст + опционально фото товара (отдельным сообщением, за флагом).
+// Структурированный товар для богатой карточки виджета сайта.
+export interface WidgetProduct {
+  id: number
+  display_name: string | null
+  price: number | null
+  qty: number | null
+  image_url: string | null
+  subcategory: string | null
+  unit: string | null
+  pack_size: number | null
+  url: string                       // /product/{id}
+}
+
+// Ответ конвейера: текст + структурированные товары (для карточек виджета) +
+// опционально фото товара (WhatsApp-карточка, отдельным сообщением, за флагом).
 export interface BotReply {
   text: string | null
+  products?: WidgetProduct[]
   photo?: { imageUrl: string; caption: string; productId: number }
 }
 
@@ -380,17 +395,25 @@ function matchLeafByKeywords(keywords: string[]): Leaf | null {
  */
 export async function getAccessoriesReply(
   message: string,
-  ctx?: { leadId: string | number; realId?: string | number; messageId?: string | number },
+  ctx?: {
+    leadId?: string | number; realId?: string | number; messageId?: string | number
+    // Нативный виджет сайта инжектит историю напрямую (из браузерной сессии) →
+    // Umnico (fetchDialogContext) в этом пути НЕ дёргается. Umnico-путь (WhatsApp) — без изменений.
+    history?: DialogMessage[]
+  },
 ): Promise<BotReply> {
   if (!message || !message.trim()) return { text: null }
 
-  // Контекст диалога: последние сообщения из истории Umnico. Ошибка → [] (конвейер продолжает).
+  // История: инжектированная (виджет) приоритетна; иначе тянем из Umnico по leadId/realId (WhatsApp).
   let history: DialogMessage[] = []
-  if (ctx?.leadId !== undefined && ctx.realId !== undefined) {
+  if (ctx?.history) {
+    history = ctx.history
+    console.log(`[accessories-bot] history: ${history.length} messages (injected)`)
+  } else if (ctx?.leadId !== undefined && ctx.realId !== undefined) {
     history = await fetchDialogContext(ctx.leadId, ctx.realId, { excludeMessageId: ctx.messageId })
-    console.log(`[accessories-bot] history: ${history.length} messages`)
+    console.log(`[accessories-bot] history: ${history.length} messages (umnico)`)
   } else {
-    console.log('[accessories-bot] history: 0 messages (no realId)')
+    console.log('[accessories-bot] history: 0 messages (no source)')
   }
 
   const cls = await classifyMessage(message, history)
@@ -453,5 +476,12 @@ export async function getAccessoriesReply(
     }
   }
 
-  return { text: answer, photo }
+  // Структурированные товары для богатых карточек виджета сайта (текстовый путь не меняется).
+  const products: WidgetProduct[] = rows.map((r) => ({
+    id: r.id, display_name: r.display_name, price: r.price, qty: r.qty,
+    image_url: r.image_url, subcategory: r.subcategory, unit: r.unit, pack_size: r.pack_size,
+    url: `${SITE_URL}/product/${r.id}`,
+  }))
+
+  return { text: answer, products: products.length ? products : undefined, photo }
 }
