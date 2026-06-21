@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useDetailStore } from '@/lib/detail-store'
 import SwipeToDelete from './SwipeToDelete'
@@ -672,6 +672,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
   const { items, remove, update, clear, total } = useCart()
   const { products } = useProductsStore()
   const [hoveredId, setHoveredId] = useState<number | null>(null)
+  const itemsRef = useRef<HTMLDivElement>(null)
 
   function openProduct(id: number) {
     const p = products.find(x => x.id === id)
@@ -679,6 +680,13 @@ function StateCart({ onBack }: { onBack: () => void }) {
   }
 
   const count = items.reduce((s, i) => s + i.qty, 0)
+
+  // Мелькающая корзина прокручивается вниз — к последней добавленной позиции
+  // (cart-store добавляет новую строку в конец списка).
+  useEffect(() => {
+    const el = itemsRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [items.length])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -716,7 +724,7 @@ function StateCart({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Items */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
+      <div ref={itemsRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
         {items.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-mid)', fontSize: 13, paddingTop: 48 }}>
             Корзина пуста

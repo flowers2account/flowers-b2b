@@ -16,6 +16,10 @@ type DetailStore = {
   flashCart: (product: Product) => void
 }
 
+// Таймер авто-скрытия мелькающей корзины — один на всё приложение, чтобы каждое
+// добавление продлевало окно показа (10 c) от ПОСЛЕДНЕЙ добавленной позиции, а не стопкой.
+let flashTimer: ReturnType<typeof setTimeout> | null = null
+
 export const useDetailStore = create<DetailStore>()(
   persist(
     (set) => ({
@@ -28,9 +32,11 @@ export const useDetailStore = create<DetailStore>()(
       restoreProduct: (product) => set({ product }),
       flashCart: (product) => {
         set({ product, productId: product.id, panel: 'cart' })
-        setTimeout(() => {
+        if (flashTimer) clearTimeout(flashTimer)
+        flashTimer = setTimeout(() => {
+          flashTimer = null
           set(state => state.panel === 'cart' ? { panel: 'detail' } : state)
-        }, 1500)
+        }, 10000)
       },
     }),
     {
