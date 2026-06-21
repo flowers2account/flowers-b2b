@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { applyOrderStatus } from '@/lib/order-status'
 import {
   AMO_PIPELINE_ID, AMO_STATUS_TO_ORDER,
-  getLead, leadFieldValue, CF_DRIVER, CF_CAR, CF_DELIVERY_PRICE,
+  getLead, leadFieldValue, CF_DRIVER_NAME, CF_DRIVER_PHONE, CF_CAR_PLATE, CF_DELIVERY_PRICE,
 } from '@/lib/amo'
 
 export const dynamic = 'force-dynamic'
@@ -73,19 +73,31 @@ export async function POST(req: NextRequest) {
       }
 
       // 7) Поля доставки от менеджера (для текста «в пути»):
-      //    «Номер водителя» → driver_name, «Номер машины» → driver_phone, DELIVERY_PRICE → delivery_cost.
-      const driverName  = leadFieldValue(lead, CF_DRIVER)
-      const driverPhone = leadFieldValue(lead, CF_CAR)
-      const priceRaw    = leadFieldValue(lead, CF_DELIVERY_PRICE)
-      const deliveryCost = priceRaw != null && priceRaw !== '' ? Number(priceRaw) : null
+      //    «Имя водителя»(1680531)→driver_name, «Номер водителя»(1363771,тел)→driver_phone,
+      //    «Номер машины»(1363769,госномер)→driver_car_plate, DELIVERY_PRICE→delivery_cost.
+      const driverName   = leadFieldValue(lead, CF_DRIVER_NAME)
+      const driverPhone  = leadFieldValue(lead, CF_DRIVER_PHONE)
+      const carPlate     = leadFieldValue(lead, CF_CAR_PLATE)
+      const priceRaw     = leadFieldValue(lead, CF_DELIVERY_PRICE)
+      const deliveryCost = priceRaw != null && priceRaw !== '' && Number.isFinite(Number(priceRaw))
+        ? Number(priceRaw) : null
+
+      // Защита от дырок: «на доставке» без имени водителя → статус обновляем и поля пишем,
+      // но клиенту НЕ шлём кривое сообщение (без водителя). Логируем.
+      const skipClientNotify = newStatus === 'in_transit' && !driverName
+      if (skipClientNotify) {
+        console.warn(`[webhooks/amo] order ${order.id}: in_transit без имени водителя — уведомление клиенту пропущено`)
+      }
 
       // 8) Та же логика, что у кнопок админки. skipAmoPush — не дёргаем сделку обратно.
       const res = await applyOrderStatus(order.id, newStatus, {
         changedBy: 'amocrm',
         driverName,
         driverPhone,
-        deliveryCost: Number.isFinite(deliveryCost as number) ? deliveryCost : null,
+        driverCarPlate: carPlate,
+        deliveryCost,
         skipAmoPush: true,
+        skipClientNotify,
       })
       if (!res.ok) console.error(`[webhooks/amo] order ${order.id} → ${newStatus}: ${res.error}`)
       else console.log(`[webhooks/amo] order ${order.id} ← lead ${leadId}: ${newStatus}`)

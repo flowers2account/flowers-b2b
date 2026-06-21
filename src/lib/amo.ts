@@ -46,9 +46,10 @@ export const AMO_STATUS_TO_ORDER: Record<number, string> = {
 // Custom field IDs (from /api/v4/leads/custom_fields)
 export const CF_ORDERID            = 1394611   // ORDERID  (textarea)
 export const CF_DATA_DOSTAVKI      = 1394599   // ДАТА_ДОСТАВКИ (textarea)
-export const CF_DRIVER             = 1363771   // «Номер водителя» (text) → orders.driver_name
-export const CF_CAR                = 1363769   // «Номер машины» (text)   → orders.driver_phone
-export const CF_DELIVERY_PRICE     = 1394623   // DELIVERY_PRICE (numeric) → orders.delivery_cost
+export const CF_DRIVER_NAME        = 1680531   // «Имя водителя» (text)            → orders.driver_name
+export const CF_DRIVER_PHONE       = 1363771   // «Номер водителя» (text, телефон) → orders.driver_phone
+export const CF_CAR_PLATE          = 1363769   // «Номер машины» (text, госномер)  → orders.driver_car_plate
+export const CF_DELIVERY_PRICE     = 1394623   // DELIVERY_PRICE (numeric)         → orders.delivery_cost
 export const CF_POLUCHATEL_FIO     = 1394593   // POLUCHATEL_FIO (textarea)
 export const CF_POLUCHATEL_PHONE   = 1394595   // POLUCHATEL_PHONE (textarea)
 export const CF_ADRES_POLUCHATELYA = 1394597   // АДРЕС_ПОЛУЧАТЕЛЯ (textarea)

@@ -82,16 +82,18 @@ _Цветы Уральска_`
 💰 ${total.toLocaleString('ru-RU')} ₸`
   },
 
-  orderOnDeliveryToClient: ({ orderId, clientName, driverName, driverPhone, deliveryDate }: {
+  orderOnDeliveryToClient: ({ orderId, clientName, driverName, driverPhone, driverCarPlate, deliveryDate }: {
     orderId: string; clientName: string
-    driverName?: string | null; driverPhone?: string | null; deliveryDate?: string | null
+    driverName?: string | null; driverPhone?: string | null
+    driverCarPlate?: string | null; deliveryDate?: string | null
   }): string => {
     const lines = [
-      driverName  ? `🚗 Водитель: ${driverName}` : '',
-      driverPhone ? `📞 Телефон: ${driverPhone}` : '',
-      deliveryDate ? `🗓 Доставка: ${deliveryDate}` : '',
+      driverName     ? `Водитель: ${driverName}` : '',
+      driverPhone    ? `Телефон: ${driverPhone}` : '',
+      driverCarPlate ? `Авто: ${driverCarPlate}` : '',
+      deliveryDate   ? `Доставка: ${deliveryDate}` : '',
     ].filter(Boolean)
-    return `🚚 Заказ #${orderId} уже в пути!
+    return `🚚 Заказ #${orderId} в пути!
 ${clientName}, ваш заказ везёт водитель.${lines.length ? '\n' + lines.join('\n') : ''}
 _Цветы Уральска_`
   },

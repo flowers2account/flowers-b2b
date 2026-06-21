@@ -17,10 +17,13 @@ interface Opts {
   // Поля доставки от менеджера (приходят из amoCRM на этапе «на доставке»):
   driverName?: string | null
   driverPhone?: string | null
+  driverCarPlate?: string | null
   deliveryCost?: number | null
   // Вебхук CRM→сайт не должен дёргать сделку обратно (хотя циклов мы не боимся — кнопки
   // замораживаются отдельно). true → пропустить updateLeadStage (сайт→CRM).
   skipAmoPush?: boolean
+  // true → не слать клиенту WhatsApp (напр. «на доставке» без имени водителя — защита от дырок).
+  skipClientNotify?: boolean
 }
 
 export async function applyOrderStatus(
@@ -42,9 +45,10 @@ export async function applyOrderStatus(
   if (opts.paymentMethod !== undefined) updateFields.payment_method = opts.paymentMethod
   if (opts.paymentComment !== undefined) updateFields.payment_comment = opts.paymentComment
   // Поля водителя/стоимости — пишем ДО уведомлений, чтобы шаблон «в пути» их подхватил.
-  if (opts.driverName  != null) updateFields.driver_name  = opts.driverName
-  if (opts.driverPhone != null) updateFields.driver_phone = opts.driverPhone
-  if (opts.deliveryCost != null) updateFields.delivery_cost = opts.deliveryCost
+  if (opts.driverName     != null) updateFields.driver_name      = opts.driverName
+  if (opts.driverPhone    != null) updateFields.driver_phone      = opts.driverPhone
+  if (opts.driverCarPlate != null) updateFields.driver_car_plate  = opts.driverCarPlate
+  if (opts.deliveryCost   != null) updateFields.delivery_cost     = opts.deliveryCost
 
   const { error: updateError } = await supabase
     .from('orders').update(updateFields).eq('id', orderId)
@@ -99,7 +103,7 @@ export async function applyOrderStatus(
       const [{ data: orderData }, { data: historyRecord }] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, total, guest_name, guest_phone, driver_name, driver_phone, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, is_removed, product:product_id(name))')
+          .select('id, total, guest_name, guest_phone, driver_name, driver_phone, driver_car_plate, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, is_removed, product:product_id(name))')
           .eq('id', orderId)
           .single(),
         supabase
@@ -131,7 +135,7 @@ export async function applyOrderStatus(
         clientNotificationsEnabled = setting?.value !== 'false'
       } catch { /* default enabled */ }
 
-      if (clientNotificationsEnabled && clientPhone) {
+      if (!opts.skipClientNotify && clientNotificationsEnabled && clientPhone) {
         const hasWhatsApp = await umnicoClient.checkContact(clientPhone)
         if (hasWhatsApp) {
           const clientMessage =
@@ -144,6 +148,7 @@ export async function applyOrderStatus(
                   orderId: orderIdStr, clientName,
                   driverName: (orderData as any)?.driver_name ?? null,
                   driverPhone: (orderData as any)?.driver_phone ?? null,
+                  driverCarPlate: (orderData as any)?.driver_car_plate ?? null,
                   deliveryDate: (orderData as any)?.delivery_date ?? null,
                 })
               : status === 'delivered'
