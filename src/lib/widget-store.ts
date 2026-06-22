@@ -19,7 +19,7 @@ export interface ChatMessage {
   products?: WidgetProduct[]
   chips?: string[]                  // кликабельные варианты-уточнения под сообщением бота
   nudge?: boolean                   // наджа-карточка «зарегистрируйтесь, чтобы покупать»
-  kind?: 'register-form' | 'pin-entry'  // интерактивные блоки регистрации в ленте
+  kind?: 'register-form' | 'login-form' | 'pin-entry'  // интерактивные блоки регистрации/входа в ленте
   ts: number
 }
 

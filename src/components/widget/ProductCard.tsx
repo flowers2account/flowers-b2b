@@ -76,8 +76,10 @@ export default function ProductCard({ p, density, onAdded, onGuestAdd }: {
     </span>
   ) : null)
 
+  // Вся карточка кликабельна → /product/{id}. Кнопка «В корзину» гасит всплытие.
+  const openProduct = () => router.push(p.url)
   const addBtn = (full: boolean) => (
-    <button onClick={addToCart}
+    <button onClick={(e) => { e.stopPropagation(); addToCart() }}
       style={{
         flex: 1, height: 32, border: 'none', borderRadius: 10, cursor: 'pointer', fontFamily: GOLOS, fontSize: 12, fontWeight: 600,
         background: inCart ? FERN_SOFT : 'var(--accent)', color: inCart ? FERN : '#fff',
@@ -86,15 +88,13 @@ export default function ProductCard({ p, density, onAdded, onGuestAdd }: {
       {inCart ? 'В корзине ✓' : (full ? 'В корзину' : '+ В корзину')}
     </button>
   )
-  const openBtn = (
-    <button onClick={() => router.push(p.url)} title="Открыть товар" aria-label="Открыть товар"
-      style={{ width: 36, height: 32, border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', background: 'var(--bg)', color: 'var(--accent)', fontSize: 14, flexShrink: 0 }}>↗</button>
-  )
 
   // ── FULL (~300px) — лента чата: фото 74×74 слева ──
   if (density === 'full') {
     return (
-      <div style={{ display: 'flex', gap: 11, padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 15, boxShadow: CARD_SHADOW, width: '100%' }}>
+      <div onClick={openProduct} role="link" tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter') openProduct() }}
+        style={{ display: 'flex', gap: 11, padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 15, boxShadow: CARD_SHADOW, width: '100%', cursor: 'pointer' }}>
         <div style={{ width: 74, height: 74, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'var(--bg2)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {p.image ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Placeholder />}
@@ -106,7 +106,7 @@ export default function ProductCard({ p, density, onAdded, onGuestAdd }: {
             {fmtPrice(p.price)}{p.unit ? <span style={{ fontFamily: GOLOS, fontSize: 11, fontWeight: 500, color: 'var(--text-mid)' }}> / {p.unit}</span> : null}
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><Badge /><PackPill /></div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>{addBtn(true)}{openBtn}</div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>{addBtn(true)}</div>
         </div>
       </div>
     )
@@ -115,7 +115,8 @@ export default function ProductCard({ p, density, onAdded, onGuestAdd }: {
   // ── MINI (~158px) — карусель: фото сверху + overlay-бейдж ──
   if (density === 'mini') {
     return (
-      <div style={{ width: 158, flexShrink: 0, scrollSnapAlign: 'start', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: CARD_SHADOW, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div onClick={openProduct} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') openProduct() }}
+        style={{ width: 158, flexShrink: 0, scrollSnapAlign: 'start', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: CARD_SHADOW, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
         <div style={{ position: 'relative', aspectRatio: '1/1', background: 'var(--bg2)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {p.image ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Placeholder />}
@@ -132,7 +133,8 @@ export default function ProductCard({ p, density, onAdded, onGuestAdd }: {
 
   // ── COMPACT (~172px) — вертикальная для каталога/мобайла (одна кнопка) ──
   return (
-    <div style={{ width: 172, flexShrink: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: CARD_SHADOW, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div onClick={openProduct} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') openProduct() }}
+      style={{ width: 172, flexShrink: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: CARD_SHADOW, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
       <div style={{ aspectRatio: '1/1', background: 'var(--bg2)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {p.image ? <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Placeholder />}

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useWidget, type ChatMessage } from '@/lib/widget-store'
 import { useAuthStore } from '@/lib/auth-store'
@@ -61,10 +61,16 @@ const ghostBtn: React.CSSProperties = {
 }
 const REG_TYPES = ['ИП', 'ТОО', 'Физлицо']
 
+// Открыть интерактивный блок в ленте ровно один раз (защита от дубля при повторных тапах).
+function openFormOnce(kind: 'register-form' | 'login-form') {
+  const w = useWidget.getState()
+  // Уже открыта любая форма/ввод PIN → не плодим вторую (фикс дубля при повторных тапах).
+  if (w.messages.some((m) => m.kind === 'register-form' || m.kind === 'login-form' || m.kind === 'pin-entry')) return
+  w.addMessage({ role: 'bot', kind, text: '' })
+}
+
 // Наджа: гость не может класть в корзину → быстрая регистрация (PIN в WhatsApp).
 function NudgeCard() {
-  const router = useRouter()
-  const { addMessage } = useWidget()
   return (
     <div style={cardWrap}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -75,8 +81,8 @@ function NudgeCard() {
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.4 }}>Доступ к корзине и заказам — после быстрой регистрации, PIN придёт в WhatsApp.</div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => addMessage({ role: 'bot', kind: 'register-form', text: '' })} style={{ ...primaryBtn, flex: 1 }}>Зарегистрироваться</button>
-        <button onClick={() => router.push('/login')} style={{ ...ghostBtn, flex: 1 }}>Уже есть доступ — войти</button>
+        <button onClick={() => openFormOnce('register-form')} style={{ ...primaryBtn, flex: 1 }}>Зарегистрироваться</button>
+        <button onClick={() => openFormOnce('login-form')} style={{ ...ghostBtn, flex: 1 }}>Уже есть доступ — войти</button>
       </div>
     </div>
   )
@@ -143,6 +149,52 @@ function RegisterForm() {
   )
 }
 
+// Вход для существующего клиента прямо в чате: телефон → высылаем PIN → pin-entry.
+// Никакого ухода на /login.
+function LoginForm() {
+  const { setRegPhone, addMessage } = useWidget()
+  const [phone, setPhone] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+
+  const submit = async () => {
+    setErr('')
+    const digits = phone.replace(/\D/g, '')
+    if (!/^[78]\d{10}$/.test(digits)) { setErr('Телефон в формате +7XXXXXXXXXX'); return }
+    const normalized = '+7' + digits.slice(1)
+    setBusy(true)
+    try {
+      const r = await fetch('/api/whatsapp/send-pin', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: normalized }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (r.ok && d.success) {
+        setDone(true); setRegPhone(normalized)
+        addMessage({ role: 'bot', kind: 'pin-entry', text: `PIN отправлен в WhatsApp на ${normalized}. Введите его ниже, чтобы войти.` })
+        return
+      }
+      if (r.status === 404) { setErr('На этот номер ещё нет доступа. Нажмите «Зарегистрироваться».'); return }
+      setErr(d.error || 'Не удалось выслать PIN. Попробуйте позже или напишите менеджеру.')
+    } catch {
+      setErr('Сеть недоступна, попробуйте ещё раз.')
+    } finally { setBusy(false) }
+  }
+
+  if (done) return null
+  return (
+    <div style={cardWrap}>
+      <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Вход по PIN</div>
+      <div style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.4 }}>Введите телефон — вышлем PIN в WhatsApp, войдёте прямо здесь.</div>
+      <input style={fieldStyle} placeholder="Телефон +7XXXXXXXXXX" value={phone}
+        onChange={(e) => setPhone(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submit() }} inputMode="tel" />
+      {err && <div style={{ fontSize: 11.5, color: '#C0392B' }}>{err}</div>}
+      <button onClick={submit} disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{busy ? 'Высылаем PIN…' : 'Выслать PIN'}</button>
+    </div>
+  )
+}
+
 // Ввод PIN из WhatsApp → вход прямо в чате; pending-товар кладётся в корзину.
 function PinEntry() {
   const { regPhone, pendingAdd, setPendingAdd, addMessage } = useWidget()
@@ -170,21 +222,42 @@ function PinEntry() {
     }
     addMessage({ role: 'system', text: note })
   }
+  // Honest resend: Umnico подтверждает только ОТПРАВКУ, не доставку → сообщаем реальный
+  // ответ роута, не врём «доставлено». На неуспех — зовём к менеджеру.
   const resend = async () => {
     if (!regPhone) return
-    try { await fetch('/api/whatsapp/send-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: regPhone }) }) } catch {}
-    addMessage({ role: 'system', text: 'PIN выслан повторно в WhatsApp.' })
+    try {
+      const r = await fetch('/api/whatsapp/send-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: regPhone }) })
+      const d = await r.json().catch(() => ({}))
+      if (r.ok && d.success) addMessage({ role: 'system', text: 'PIN выслан повторно в WhatsApp.' })
+      else addMessage({ role: 'system', text: `Не удалось выслать PIN${d.error ? ` (${d.error})` : ''}. Напишите менеджеру в WhatsApp.` })
+    } catch {
+      addMessage({ role: 'system', text: 'Сеть недоступна. Напишите менеджеру в WhatsApp.' })
+    }
   }
+
+  // Ручной выход к живому человеку — на случай, когда PIN не дошёл (доставку Umnico
+  // не гарантирует). Предзаполняем номер клиента в тексте.
+  const managerHref = `${WA}?text=${encodeURIComponent(`Не пришёл PIN для входа, номер ${regPhone ?? ''}`)}`
 
   if (done) return null
   return (
     <div style={cardWrap}>
       <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Введите PIN из WhatsApp</div>
+      <div style={{ fontSize: 11.5, color: 'var(--text-mid)', lineHeight: 1.4 }}>
+        PIN отправлен в WhatsApp{regPhone ? ` на ${regPhone}` : ''}. Не пришёл в течение минуты — нажмите «Выслать повторно» или напишите менеджеру.
+      </div>
       <input style={{ ...fieldStyle, letterSpacing: '0.3em', textAlign: 'center', fontSize: 16 }} placeholder="••••••" value={pin}
         onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => { if (e.key === 'Enter') doLogin() }} inputMode="numeric" />
       {err && <div style={{ fontSize: 11.5, color: '#C0392B' }}>{err}</div>}
       <button onClick={doLogin} disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{busy ? 'Входим…' : 'Войти'}</button>
-      <button onClick={resend} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>Выслать PIN повторно</button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={resend} style={{ ...ghostBtn, flex: 1, fontSize: 11.5 }}>Выслать повторно</button>
+        <a href={managerHref} target="_blank" rel="noopener noreferrer"
+          style={{ ...ghostBtn, flex: 1, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+          PIN не пришёл? Менеджер
+        </a>
+      </div>
     </div>
   )
 }
@@ -192,6 +265,7 @@ function PinEntry() {
 function Bubble({ m, onAdded, onChip, onGuestAdd }: { m: ChatMessage; onAdded: () => void; onChip: (c: string) => void; onGuestAdd: (p: CardProduct) => void }) {
   // Интерактивные блоки регистрации.
   if (m.kind === 'register-form') return <div style={{ width: '100%' }}><RegisterForm /></div>
+  if (m.kind === 'login-form') return <div style={{ width: '100%' }}><LoginForm /></div>
   if (m.kind === 'pin-entry') return <div style={{ width: '100%' }}><PinEntry /></div>
   // Служебная подсказка в ленте — по центру, мелким серым.
   if (m.role === 'system') {
