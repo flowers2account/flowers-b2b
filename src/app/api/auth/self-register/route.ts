@@ -17,8 +17,8 @@ export const dynamic = 'force-dynamic'
 
 // In-memory rate limit по телефону (сброс на cold start — норм для анти-спама).
 const rl = new Map<string, { n: number; t: number }>()
-const WINDOW_MS = 10 * 60 * 1000
-const MAX = 5
+const WINDOW_MS = 5 * 60 * 1000
+const MAX = 10
 function rateOk(p: string): boolean {
   const now = Date.now()
   const r = rl.get(p)

@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic'
 
 // In-memory rate limit (resets on cold start — sufficient for spam protection)
 const rateLimitStore = new Map<string, { attempts: number; windowStart: number }>()
-const MAX_ATTEMPTS = 3
-const WINDOW_MS = 10 * 60 * 1000 // 10 minutes
+const MAX_ATTEMPTS = 10
+const WINDOW_MS = 5 * 60 * 1000 // 5 минут (короче окно — быстрее восстановление после лимита)
 
 function checkRateLimit(phone: string): { allowed: boolean; minutesLeft?: number } {
   const now = Date.now()
