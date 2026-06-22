@@ -897,6 +897,33 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </StaticGroup>
         )}
 
+        {/* ЦВЕТ — accessories (горшки/кашпо и пр.): палетка из pot_color, как у cut/film */}
+        {category === 'accessories' && !showFilmColors && (potColorEntries.length > 0 || potColors.length > 0) && (
+          <StaticGroup label="Цвет">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
+              {potColorEntries.map(([token, count]) => {
+                const selected = potColors.includes(token)
+                return (
+                  <div
+                    key={token}
+                    onClick={() => togglePotColor(token)}
+                    title={`${colorLabel(token)} (${count})`}
+                    style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      cursor: 'pointer', flexShrink: 0,
+                      background: colorSwatch(token),
+                      border: `1.5px solid ${isLightSwatch(token) ? '#D0D0D0' : 'rgba(0,0,0,0.12)'}`,
+                      outline: selected ? '2px solid var(--accent)' : 'none',
+                      outlineOffset: 2,
+                      transition: 'opacity 0.2s',
+                    }}
+                  />
+                )
+              })}
+            </div>
+          </StaticGroup>
+        )}
+
         {/* 3. ПОДКАТЕГОРИЯ */}
         <CollapsibleGroup
           label="Подкатегория"
@@ -977,16 +1004,6 @@ export default function FilterPanel({ products }: { products: Product[] }) {
               </CollapsibleGroup>
             )}
 
-            {(potColorEntries.length > 0 || potColors.length > 0) && (
-              <CollapsibleGroup
-                label="Цвет"
-                open={openGroups.potColor}
-                onToggle={() => tog('potColor')}
-                activeCount={potColors.length}
-              >
-                <FacetCheckList entries={potColorEntries} selected={potColors} onToggle={togglePotColor} labelFor={colorLabel} swatch />
-              </CollapsibleGroup>
-            )}
           </>
         )}
 
