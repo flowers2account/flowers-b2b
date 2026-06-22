@@ -72,7 +72,7 @@ export async function applyOrderStatus(
       const [{ data: orderData }, { data: historyRecord }] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, total, guest_name, guest_phone, fulfillment_type, assembly_photo_url, driver_name, driver_phone, driver_car_plate, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, is_removed, product:product_id(name))')
+          .select('id, total, guest_name, guest_phone, fulfillment_type, assembly_photo_url, driver_name, driver_phone, driver_car_plate, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, color, is_removed, product:product_id(name, display_name))')
           .eq('id', orderId)
           .single(),
         supabase
@@ -91,11 +91,18 @@ export async function applyOrderStatus(
       const total = orderData?.total ?? 0
       const orderIdStr = String(orderId)
 
-      const deliveredItems = status === 'delivered'
-        ? ((orderData?.order_items ?? []) as any[])
-            .filter(i => !i.is_removed)
-            .map(i => ({ name: (i.product as any)?.name ?? 'Товар', qty: i.qty_actual ?? i.qty_ordered ?? i.qty }))
-        : undefined
+      // Перечень позиций для уведомлений. Клиенту — витринное имя (display_name),
+      // менеджеру — имя из 1С (name); и там и там цвет (снимок order_items.color) + кол-во.
+      const liveItems = ((orderData?.order_items ?? []) as any[]).filter(i => !i.is_removed)
+      const qtyOf = (i: any) => i.qty_actual ?? i.qty_ordered ?? i.qty
+      const clientItems = liveItems.map(i => ({
+        name: (i.product as any)?.display_name ?? (i.product as any)?.name ?? 'Товар',
+        color: i.color ?? null, qty: qtyOf(i),
+      }))
+      const managerItems = liveItems.map(i => ({
+        name: (i.product as any)?.name ?? (i.product as any)?.display_name ?? 'Товар',
+        color: i.color ?? null, qty: qtyOf(i),
+      }))
 
       let clientNotificationsEnabled = true
       try {
@@ -113,11 +120,11 @@ export async function applyOrderStatus(
 
           const clientMessage =
             status === 'confirmed'
-              ? umnicoTemplates.orderConfirmedToClient({ orderId: orderIdStr })
+              ? umnicoTemplates.orderConfirmedToClient({ orderId: orderIdStr, items: clientItems })
               : status === 'assembled'
               ? (ff === 'pickup'
-                  ? umnicoTemplates.orderAssembledPickupToClient({ orderId: orderIdStr })
-                  : umnicoTemplates.orderAssembledDeliveryToClient({ orderId: orderIdStr }))
+                  ? umnicoTemplates.orderAssembledPickupToClient({ orderId: orderIdStr, items: clientItems })
+                  : umnicoTemplates.orderAssembledDeliveryToClient({ orderId: orderIdStr, items: clientItems }))
               : status === 'in_transit'
               ? umnicoTemplates.orderOnDeliveryToClient({
                   orderId: orderIdStr,
@@ -125,11 +132,12 @@ export async function applyOrderStatus(
                   driverPhone: (orderData as any)?.driver_phone ?? null,
                   driverCarPlate: (orderData as any)?.driver_car_plate ?? null,
                   deliveryDate: (orderData as any)?.delivery_date ?? null,
+                  items: clientItems,
                 })
               : status === 'delivered'
-              ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr })
+              ? umnicoTemplates.orderDeliveredToClient({ orderId: orderIdStr, items: clientItems })
               : status === 'cancelled'
-              ? umnicoTemplates.orderCancelledToClient({ orderId: orderIdStr })
+              ? umnicoTemplates.orderCancelledToClient({ orderId: orderIdStr, items: clientItems })
               : null
           // negotiation / assembling → клиенту НЕ шлём (менеджер сам / внутренний этап)
 
@@ -151,11 +159,11 @@ export async function applyOrderStatus(
         if (managerHasWhatsApp) {
           const managerMessage =
             status === 'confirmed'
-              ? umnicoTemplates.orderConfirmedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total })
+              ? umnicoTemplates.orderConfirmedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
               : status === 'assembled'
-              ? umnicoTemplates.orderPackedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total })
+              ? umnicoTemplates.orderPackedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
               : status === 'delivered'
-              ? umnicoTemplates.orderDeliveredToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: deliveredItems })
+              ? umnicoTemplates.orderDeliveredToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
               : null
 
           if (managerMessage) {

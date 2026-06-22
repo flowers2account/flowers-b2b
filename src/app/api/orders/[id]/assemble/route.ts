@@ -34,14 +34,21 @@ export async function PATCH(
 
   const { data: updatedItems, error: itemsSelectError } = await supabase
     .from('order_items')
-    .select('qty_actual, qty_ordered, price, is_removed')
+    .select('qty_actual, qty_ordered, price, color, is_removed, product:product_id(name, display_name)')
     .eq('order_id', orderId)
 
   if (itemsSelectError) console.error('ORDER_ITEMS SELECT ERROR:', itemsSelectError)
 
-  const newTotal = (updatedItems ?? [])
-    .filter((i: any) => !i.is_removed)
-    .reduce((sum: number, i: any) => sum + (i.qty_actual ?? i.qty_ordered) * i.price, 0)
+  const liveItems = (updatedItems ?? []).filter((i: any) => !i.is_removed)
+  const newTotal = liveItems.reduce((sum: number, i: any) => sum + (i.qty_actual ?? i.qty_ordered) * i.price, 0)
+  // Перечень для уведомлений: клиенту — витринное имя, менеджеру — 1С; + цвет + кол-во.
+  const qtyOf = (i: any) => i.qty_actual ?? i.qty_ordered ?? 0
+  const clientItems = liveItems.map((i: any) => ({
+    name: i.product?.display_name ?? i.product?.name ?? 'Товар', color: i.color ?? null, qty: qtyOf(i),
+  }))
+  const managerItems = liveItems.map((i: any) => ({
+    name: i.product?.name ?? i.product?.display_name ?? 'Товар', color: i.color ?? null, qty: qtyOf(i),
+  }))
 
   const { error: updateError } = await supabase
     .from('orders')
@@ -116,8 +123,8 @@ export async function PATCH(
           // Текст ветвится по способу получения; если есть фото сборки — шлём картинкой.
           const ff = (orderData as any)?.fulfillment_type
           const msg = ff === 'pickup'
-            ? umnicoTemplates.orderAssembledPickupToClient({ orderId: String(orderId) })
-            : umnicoTemplates.orderAssembledDeliveryToClient({ orderId: String(orderId) })
+            ? umnicoTemplates.orderAssembledPickupToClient({ orderId: String(orderId), items: clientItems })
+            : umnicoTemplates.orderAssembledDeliveryToClient({ orderId: String(orderId), items: clientItems })
           if (photoUrl) {
             await umnicoClient.sendImage(clientPhone, photoUrl, msg)
           } else {
@@ -135,7 +142,7 @@ export async function PATCH(
         if (managerHasWhatsApp) {
           await umnicoClient.sendMessage(
             managerPhone,
-            umnicoTemplates.orderPackedToManager({ orderId: String(orderId), managerName, total })
+            umnicoTemplates.orderPackedToManager({ orderId: String(orderId), managerName, total, items: managerItems })
           )
           console.log(`✓ Umnico: менеджеру о сборке заказа ${orderId}`)
         }

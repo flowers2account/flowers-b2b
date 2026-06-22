@@ -91,12 +91,18 @@ export async function POST(req: NextRequest) {
       const clientPhone = (orderFull?.client as any)?.phone ?? (orderFull as any)?.guest_phone ?? ''
       const clientName  = (orderFull?.client as any)?.name ?? (orderFull as any)?.guest_name ?? clientPhone
       const orderTotal  = Number(payment.amount).toLocaleString('ru-RU')
+      // Менеджеру (Telegram) — имя из 1С (name).
       const itemsList   = ((orderFull as any)?.order_items ?? [])
         .map((i: any) => {
-          const n = i.product?.display_name ?? i.product?.name ?? 'Товар'
+          const n = i.product?.name ?? i.product?.display_name ?? 'Товар'
           const c = i.color ? ` (${i.color})` : ''
           return `• ${n}${c} × ${i.qty} шт = ${(i.qty * i.price).toLocaleString('ru-RU')} ₸`
         }).join('\n')
+      // Клиенту — витринное имя (display_name) + цвет + кол-во.
+      const clientItems = ((orderFull as any)?.order_items ?? []).map((i: any) => ({
+        name: i.product?.display_name ?? i.product?.name ?? 'Товар',
+        color: i.color ?? null, qty: i.qty,
+      }))
 
       const tgText = [
         `🌸 Новый заказ #${payment.order_id} (ОПЛАЧЕН)`,
@@ -118,9 +124,10 @@ export async function POST(req: NextRequest) {
       if (process.env.UMNICO_MANAGER_PHONE && process.env.UMNICO_API_TOKEN && orderFull) {
         const { umnicoClient } = await import('@/lib/umnico/client')
         const { umnicoTemplates } = await import('@/lib/umnico/templates')
+        // Менеджеру — имя из 1С (name); цвет передаём отдельным полем (шаблон сам форматирует).
         const orderItems = ((orderFull as any).order_items ?? []).map((i: any) => ({
-          name: (i.product?.display_name ?? i.product?.name ?? 'Товар') + (i.color ? ` (${i.color})` : ''),
-          qty: i.qty, price: i.price,
+          name: i.product?.name ?? i.product?.display_name ?? 'Товар',
+          color: i.color ?? null, qty: i.qty, price: i.price,
         }))
         umnicoClient.checkContact(process.env.UMNICO_MANAGER_PHONE).then(has => {
           if (has) umnicoClient.sendMessage(
@@ -146,7 +153,7 @@ export async function POST(req: NextRequest) {
           umnicoClient.checkContact(clientPhone).then(has => {
             if (has) umnicoClient.sendMessage(
               clientPhone,
-              umnicoTemplates.orderPaidToClient(String(payment.order_id))
+              umnicoTemplates.orderPaidToClient({ orderId: String(payment.order_id), items: clientItems })
             )
           }).catch(() => {})
         }
