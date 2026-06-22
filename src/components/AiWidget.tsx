@@ -470,25 +470,38 @@ export default function AiWidget() {
         <button onClick={() => setOpen(false)} aria-label="Свернуть" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
+      {/* Гостю — постоянная аннотация: акцент на регистрации (разблокирует корзину/заказы) */}
+      {!isAuthed && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'var(--accent-light)', borderBottom: '1px solid var(--accent-mid)' }}>
+          <span style={{ flex: 1, fontSize: 11.5, lineHeight: 1.35, color: 'var(--accent-deep, #6E2A45)' }}>
+            🔓 Пройдите регистрацию, чтобы разблокировать корзину и заказы — займёт минуту.
+          </span>
+          <button onClick={() => openFormOnce('register-form')} style={{ ...primaryBtn, height: 28, fontSize: 11, padding: '0 11px', flexShrink: 0 }}>Регистрация</button>
+        </div>
+      )}
+
       {/* Сообщения */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg)' }}>
         {messages.map((m) => <Bubble key={m.id} m={m} onAdded={onAdded} onChip={send} onGuestAdd={onGuestAdd} />)}
         {pending && <Typing />}
-        {!isAuthed && messages.length <= 1 && (
-          <div style={{ fontSize: 11.5, color: 'var(--text-mid)', background: 'var(--bg2)', borderRadius: 10, padding: '8px 10px' }}>
-            Спрашивайте про товары — подскажу цены и наличие. Для корзины и заказов нужна быстрая регистрация (PIN придёт в WhatsApp) 🌸
-          </div>
-        )}
       </div>
 
-      {/* Стартовые быстрые чипы (первая — с искрой) */}
+      {/* Стартовые чипы: гостю — регистрация/вход (акцент); клиенту — категории товаров */}
       {messages.length <= 1 && (
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
-          {STARTERS.map((c, i) => (
-            <button key={c} onClick={() => send(c)} disabled={pending} style={chipStyle}>
-              {i === 0 ? '✨ ' : ''}{c}
-            </button>
-          ))}
+          {isAuthed ? (
+            STARTERS.map((c, i) => (
+              <button key={c} onClick={() => send(c)} disabled={pending} style={chipStyle}>
+                {i === 0 ? '✨ ' : ''}{c}
+              </button>
+            ))
+          ) : (
+            <>
+              <button onClick={() => openFormOnce('register-form')} style={chipStyle}>✨ Зарегистрироваться</button>
+              <button onClick={() => openFormOnce('login-form')} style={chipStyle}>Войти по PIN</button>
+              <button onClick={() => send('Условия доставки')} disabled={pending} style={chipStyle}>Условия доставки</button>
+            </>
+          )}
         </div>
       )}
 
