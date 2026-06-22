@@ -377,6 +377,10 @@ export default function AiWidget() {
       const products = d?.products as WidgetProduct[] | undefined
       const chips = Array.isArray(d?.chips) ? (d.chips as string[]) : undefined
       addMessage({ role: 'bot', text: (d?.text as string) || FALLBACK_MANAGER, products, chips })
+      // Правило: явный вопрос про регистрацию/вход → открыть форму в чате (только гостю).
+      if ((d?.action === 'register' || d?.action === 'login') && !isAuthed) {
+        useWidget.getState().openForm(d.action === 'register' ? 'register-form' : 'login-form')
+      }
     } catch {
       addMessage({ role: 'bot', text: 'Не получилось ответить, попробуйте ещё раз или напишите менеджеру.' })
     } finally {

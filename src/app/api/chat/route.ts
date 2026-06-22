@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       text,                             // null → вне зоны бота (мягко уводим к менеджеру на клиенте)
       products: reply.products ?? [],   // богатые карточки строятся из этого
       chips,                            // кликабельные варианты-уточнения
+      action: reply.action,             // 'register'|'login' → виджет открывает форму в чате
     })
   } catch (err) {
     console.error('[api/chat]', err instanceof Error ? err.message : err)

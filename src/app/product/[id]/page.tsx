@@ -11,6 +11,8 @@ import { useIsMobile } from '@/lib/use-mobile'
 import { COUNTRY_LABELS } from '@/lib/countries'
 import { leafForSubcat, unitForProduct } from '@/lib/category-tree'
 import FavHeart from '@/components/catalog/FavHeart'
+import AuthModal from '@/components/catalog/AuthModal'
+import { useAuthStore } from '@/lib/auth-store'
 import { company } from '@/config/company'
 
 const SUBCAT_RU: Record<string, string> = {
@@ -118,6 +120,8 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null) // выбор цвета (Вариант А)
   const [added, setAdded] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
+  const { isAuthed } = useAuthStore()
   const [tab, setTab] = useState<'description' | 'specs' | 'care'>('description')
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [related,    setRelated]    = useState<RelatedProduct[]>([])
@@ -230,6 +234,12 @@ export default function ProductPage() {
   }, [productId])
 
   function handleAddToCart() {
+    // Гость не может класть в корзину — сначала вход (как в каталоге/DetailPanel).
+    if (!isAuthed) { setShowAuth(true); return }
+    doAddToCart()
+  }
+
+  function doAddToCart() {
     if (!product) return
     if (colorRequired) return // в режиме select цвет обязателен
     const nm = product.display_name || product.name
@@ -878,6 +888,10 @@ export default function ProductPage() {
             </div>
           )}
         </div>
+      )}
+
+      {showAuth && (
+        <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => { setShowAuth(false); doAddToCart() }} />
       )}
     </div>
   )

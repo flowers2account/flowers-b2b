@@ -147,6 +147,21 @@ export interface BotReply {
   text: string | null
   products?: WidgetProduct[]
   photo?: { imageUrl: string; caption: string; productId: number }
+  // Виджет: явный вопрос про регистрацию/вход → открыть форму в чате (см. detectAuthAction).
+  action?: 'register' | 'login'
+}
+
+// Правило виджета: на ЯВНЫЙ вопрос про регистрацию/авторизацию отвечаем формой
+// (register-form / login-form), а не только текстом FAQ. Детект по ключевым словам
+// (ё→е). Регистрация имеет приоритет над входом при совпадении обоих.
+export function detectAuthAction(message: string): 'register' | 'login' | null {
+  const m = message.toLowerCase().replace(/ё/g, 'е')
+  // \b в JS не работает с кириллицей (она не \w) → для отдельных слов lookaround-границы.
+  const reg = /(регистрац|зарегистр|создать аккаунт|стать клиент|получить доступ|нет аккаунт|как.*регистр)/.test(m)
+  const login = /(?<![а-я])(войти|вход|логин)(?![а-я])|авториз|залогин|забыл.{0,5}пин|не могу войти|сменить пин|как.*войти/.test(m)
+  if (reg) return 'register'
+  if (login) return 'login'
+  return null
 }
 
 // Флаг отправки фото товара. По умолчанию ВЫКЛ.
@@ -475,6 +490,18 @@ export async function getAccessoriesReply(
 ): Promise<BotReply> {
   if (!message || !message.trim()) return { text: null }
   const channel: Channel = ctx?.channel ?? 'whatsapp'
+
+  // Правило (виджет): явный вопрос про регистрацию/вход → форма в чате + короткий текст.
+  // Короткое замыкание ДО классификации/Gemini — детерминированно. На WhatsApp формы нет.
+  if (channel === 'widget') {
+    const authAction = detectAuthAction(message)
+    if (authAction) {
+      const text = authAction === 'register'
+        ? 'Регистрация займёт минуту — заполните форму ниже, PIN придёт в WhatsApp 🌸'
+        : 'Вход по PIN — укажите номер в форме ниже, вышлем код в WhatsApp 🌸'
+      return { text, action: authAction }
+    }
+  }
 
   // История: инжектированная (виджет) приоритетна; иначе тянем из Umnico по leadId/realId (WhatsApp).
   let history: DialogMessage[] = []

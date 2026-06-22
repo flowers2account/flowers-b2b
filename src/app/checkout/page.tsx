@@ -29,7 +29,8 @@ const PH_ICON = (
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, total, clear } = useCart()
-  const { phone } = useAuthStore()
+  const { phone, isAuthed, init } = useAuthStore()
+  const [authReady, setAuthReady] = useState(false)
 
   const [method, setMethod] = useState<Method>('pickup')
   const [city, setCity] = useState<string>('Уральск')
@@ -47,6 +48,11 @@ export default function CheckoutPage() {
 
   // Префилл телефона получателя из профиля
   useEffect(() => { if (phone) setRecipientPhone(prev => prev || phone) }, [phone])
+
+  // Гость на чекауте — оформление недоступно без входа: сразу просим авторизацию
+  // (тот же AuthModal, что и при сабмите). init() гарантирует, что сессия восстановлена.
+  useEffect(() => { let m = true; init().finally(() => { if (m) setAuthReady(true) }); return () => { m = false } }, [])
+  useEffect(() => { if (authReady && !isAuthed) setShowAuth(true) }, [authReady, isAuthed])
 
   const sum = total()
   const isUralsk = method === 'pickup' || (method === 'delivery' && city === 'Уральск')
