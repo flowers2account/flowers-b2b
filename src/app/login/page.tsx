@@ -108,6 +108,10 @@ export default function LoginPage() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
                   <span>PIN-код можно сменить в личном кабинете после входа. Забыли — нажмите «Забыли PIN?», и менеджер пришлёт новый.</span>
                 </div>
+                <div className={s.rowBetween} style={{ marginTop: 14, justifyContent: 'center' }}>
+                  <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>Нет аккаунта?&nbsp;</span>
+                  <button className={s.flink} onClick={() => router.push('/register')}>Зарегистрироваться</button>
+                </div>
               </div>
             )}
 
