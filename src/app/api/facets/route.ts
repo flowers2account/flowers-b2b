@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { leafForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
+import { normalizeColor, isNonColor } from '@/lib/colors'
 
 export const dynamic = 'force-dynamic'
 
@@ -141,7 +142,8 @@ export async function POST(req: NextRequest) {
 
     const mSupplier = (p: RawProduct) => suppliers.length === 0 || (!!p.supplier && suppliers.includes(p.supplier))
     const mMaterial = (p: RawProduct) => materials.length === 0 || (!!p.pot_material && materials.includes(p.pot_material))
-    const mColor    = (p: RawProduct) => potColors.length === 0 || (!!p.pot_color && potColors.includes(p.pot_color))
+    // Цвет горшка группируем по нормализованному имени: «antraciet» = «Антрацит», и т.п.
+    const mColor    = (p: RawProduct) => potColors.length === 0 || (!!p.pot_color && potColors.includes(normalizeColor(p.pot_color)))
     const mVolume   = (p: RawProduct) => {
       if (volumes.length === 0) return true
       const r = accVolumeRange(Number(p.volume_l))
@@ -153,8 +155,10 @@ export async function POST(req: NextRequest) {
         supplierCounts[p.supplier] = (supplierCounts[p.supplier] || 0) + 1
       if (p.pot_material && mSupplier(p) && mColor(p) && mVolume(p))
         materialCounts[p.pot_material] = (materialCounts[p.pot_material] || 0) + 1
-      if (p.pot_color && mSupplier(p) && mMaterial(p) && mVolume(p))
-        potColorCounts[p.pot_color] = (potColorCounts[p.pot_color] || 0) + 1
+      if (p.pot_color && !isNonColor(p.pot_color) && mSupplier(p) && mMaterial(p) && mVolume(p)) {
+        const k = normalizeColor(p.pot_color)
+        potColorCounts[k] = (potColorCounts[k] || 0) + 1
+      }
       if (mSupplier(p) && mMaterial(p) && mColor(p)) {
         const r = accVolumeRange(Number(p.volume_l))
         if (r) volumeCounts[r] = (volumeCounts[r] || 0) + 1

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/cart-store'
 import { useFilters, type FilterCategory } from '@/lib/filter-store'
 import Link from 'next/link'
-import { COLORS, getColorMode, colorLabel, colorSwatch, isAssorti } from '@/lib/colors'
+import { COLORS, getColorMode, colorLabel, colorSwatch, isAssorti, isNonColor, usableColors } from '@/lib/colors'
 import { useIsMobile } from '@/lib/use-mobile'
 import { COUNTRY_LABELS } from '@/lib/countries'
 import { leafForSubcat, unitForProduct } from '@/lib/category-tree'
@@ -36,15 +36,6 @@ const SUBCAT_RU: Record<string, string> = {
 
 const CATEGORY_RU: Record<string, string> = {
   cut: 'Срезанные', pot: 'Горшечные', accessories: 'Расходники',
-}
-
-const POT_COLOR_RU: Record<string, string> = {
-  wit: 'белый', zwart: 'чёрный', rood: 'красный', groen: 'зелёный', geel: 'жёлтый',
-  oranje: 'оранжевый', roze: 'розовый', paars: 'фиолетовый', blauw: 'синий',
-  bruin: 'коричневый', zilver: 'серебряный', grijs: 'серый', antraciet: 'антрацит',
-  terracotta: 'терракотовый', beige: 'бежевый', creme: 'кремовый', naturel: 'натуральный',
-  transparant: 'прозрачный', bordeaux: 'бордовый', lichtgrijs: 'светло-серый',
-  donkergroen: 'тёмно-зелёный', mosgroen: 'мшисто-зелёный', taupe: 'тауп', ecru: 'экрю',
 }
 
 const POT_MATERIAL_RU: Record<string, string> = {
@@ -184,7 +175,7 @@ export default function ProductPage() {
   const productId = Number(params.id)
 
   // ── Выбор цвета (Вариант А: цвет — ярлык, не SKU) — переиспользуем colors.ts ──
-  const colorList = (product?.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
+  const colorList = usableColors(product?.colors)
   const colorMode = getColorMode(product?.colors)
   const colorValue: string | null =
     colorMode === 'assorti' ? 'ассорти'
@@ -215,7 +206,7 @@ export default function ProductPage() {
         setProduct(data as ProductData)
         setQuantity(data.pack_size || 1)
         // Один настоящий цвет — выбираем сразу; иначе сброс (новый товар по ссылке)
-        const cList = (data.colors ?? []).map((c: string) => c?.trim()).filter(Boolean) as string[]
+        const cList = usableColors(data.colors)
         setSelectedSlug(getColorMode(data.colors) === 'select' && cList.length === 1 ? cList[0] : null)
         setLoading(false)
         if (data.subcategory) {
@@ -320,7 +311,7 @@ export default function ProductPage() {
   const mainPhoto = colorOverride ?? images[photoIdx] ?? null
 
   const colorDefs = (product.colors ?? []).map(k => COLORS.find(c => c.key === k)).filter(Boolean) as typeof COLORS[number][]
-  const potColorVal = product.pot_color ? (POT_COLOR_RU[product.pot_color.toLowerCase()] ?? product.pot_color) : null
+  const potColorVal = product.pot_color && !isNonColor(product.pot_color) ? colorLabel(product.pot_color) : null
   const matVal = product.pot_material ? (POT_MATERIAL_RU[product.pot_material.toLowerCase()] ?? product.pot_material) : null
   const formVal = product.pot_form ? (POT_FORM_RU[product.pot_form.toLowerCase()] ?? product.pot_form) : null
   const substrVal = product.substrate ? (SUBSTRATE_RU[product.substrate.toLowerCase()] ?? product.substrate) : null

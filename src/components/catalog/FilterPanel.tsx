@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { useFilters } from '@/lib/filter-store'
-import { COLORS, colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
+import { COLORS, colorSwatch, colorLabel, isLightSwatch, isNonColor, normalizeColor } from '@/lib/colors'
 import { type Product, getAvailable } from './ProductCard'
 import { ORIGIN_LABELS } from '@/lib/filter-chips'
 import { CATEGORY_TREE as ACCESSORIES_TREE, leafForSubcat } from '@/lib/category-tree'
@@ -225,8 +225,9 @@ const VOLUME_SUBCATS = new Set(['pots', 'kashpo', 'soil'])
 const ACC_VOLUME_ORDER = ['до 1л', '1-3л', '3-6л', '6-12л', '12+л']
 
 // Строки чекбоксов для accessories-фасета (Производитель/Материал/Цвет/Объём)
-function FacetCheckList({ entries, selected, onToggle }: {
+function FacetCheckList({ entries, selected, onToggle, labelFor, swatch }: {
   entries: [string, number][]; selected: string[]; onToggle: (v: string) => void
+  labelFor?: (v: string) => string; swatch?: boolean
 }) {
   return (
     <>
@@ -240,7 +241,14 @@ function FacetCheckList({ entries, selected, onToggle }: {
             type="checkbox" checked={selected.includes(val)} onChange={() => onToggle(val)}
             style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
           />
-          <span style={{ flex: 1 }}>{val}</span>
+          {swatch && (
+            <span style={{
+              width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
+              background: colorSwatch(val),
+              border: `1px solid ${isLightSwatch(val) ? '#D0D0D0' : 'rgba(0,0,0,0.12)'}`,
+            }} />
+          )}
+          <span style={{ flex: 1 }}>{labelFor ? labelFor(val) : val}</span>
           <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{count}</span>
         </label>
       ))}
@@ -770,12 +778,20 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     for (const p of products) {
       if (leafForSubcat(p.subcategory)?.slug !== 'film') continue
       if (onlyAvailable && getAvailable(p.stock) <= 0) continue
+      // Группировка по нормализованному цвету: «Крем 02»+«крем» = один пункт,
+      // не-цвета (н/д, с рисунком) выкидываем. Один товар не считаем дважды за канон.
+      const seen = new Set<string>()
       for (const c of p.colors ?? []) {
-        const t = c?.trim()
-        if (t) counts.set(t, (counts.get(t) ?? 0) + 1)
+        if (!c?.trim() || isNonColor(c)) continue
+        const canon = normalizeColor(c)
+        if (seen.has(canon)) continue
+        seen.add(canon)
+        counts.set(canon, (counts.get(canon) ?? 0) + 1)
       }
     }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ru'))
+    return [...counts.entries()].sort(
+      (a, b) => b[1] - a[1] || colorLabel(a[0]).localeCompare(colorLabel(b[0]), 'ru'),
+    )
   }, [products, showFilmColors, onlyAvailable])
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
@@ -968,7 +984,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
                 onToggle={() => tog('potColor')}
                 activeCount={potColors.length}
               >
-                <FacetCheckList entries={potColorEntries} selected={potColors} onToggle={togglePotColor} />
+                <FacetCheckList entries={potColorEntries} selected={potColors} onToggle={togglePotColor} labelFor={colorLabel} swatch />
               </CollapsibleGroup>
             )}
           </>

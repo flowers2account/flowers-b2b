@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useCart, type CartItem } from '@/lib/cart-store'
-import { getColorMode, colorLabel } from '@/lib/colors'
+import { getColorMode, colorLabel, usableColors } from '@/lib/colors'
 
 // Единая модель «выбор цвета → корзина» (Вариант А: цвет — ярлык, не SKU).
 // Извлечена из DetailPanel, чтобы клетка грида использовала ТУ ЖЕ логику, а не свою копию.
@@ -23,7 +23,7 @@ interface Opts {
 export function useColorCart(product: ColorsLike, { available, packSize, makePayload, initialSlug }: Opts) {
   const { items, add, update } = useCart()
 
-  const colorList = (product.colors ?? []).map(c => c?.trim()).filter(Boolean) as string[]
+  const colorList = usableColors(product.colors)
   const colorMode = getColorMode(product.colors)
   // Предвыбор извне → иначе один настоящий цвет (срезка) выбираем сразу → иначе ничего.
   const [selectedSlug, setSelectedSlug] = useState<string | null>(

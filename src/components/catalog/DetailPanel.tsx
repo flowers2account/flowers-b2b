@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useProductsStore } from '@/lib/products-store'
 import { type Product, getAvailable, getPrice } from './ProductCard'
 import AuthModal from './AuthModal'
-import { COLORS, colorLabel, colorSwatch, isAssorti } from '@/lib/colors'
+import { COLORS, colorLabel, colorSwatch, isAssorti, isNonColor } from '@/lib/colors'
 import { useColorCart } from '@/lib/use-color-cart'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, labelForSubcat } from '@/lib/category-tree'
@@ -46,16 +46,6 @@ const DURATION_MAP: Record<string, string> = {
   '3-5': '3–5 дней',
   '5-7': '5–7 дней',
   '7+':  '7+ дней',
-}
-
-const POT_COLOR_RU: Record<string, string> = {
-  wit: 'белый', zwart: 'чёрный', rood: 'красный', groen: 'зелёный',
-  geel: 'жёлтый', oranje: 'оранжевый', roze: 'розовый', paars: 'фиолетовый',
-  blauw: 'синий', bruin: 'коричневый', zilver: 'серебряный', grijs: 'серый',
-  antraciet: 'антрацит', terracotta: 'терракотовый', beige: 'бежевый',
-  creme: 'кремовый', naturel: 'натуральный', transparant: 'прозрачный',
-  bordeaux: 'бордовый', lichtgrijs: 'светло-серый', donkergroen: 'тёмно-зелёный',
-  mosgroen: 'мшисто-зелёный', taupe: 'тауп', ecru: 'экрю',
 }
 
 const POT_MATERIAL_RU: Record<string, string> = {
@@ -455,7 +445,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
 
           {product.category === 'pot' && (() => {
             const p = product as any
-            const potColorVal = p.pot_color ? (POT_COLOR_RU[p.pot_color.toLowerCase()] ?? p.pot_color) : null
+            const potColorVal = p.pot_color && !isNonColor(p.pot_color) ? colorLabel(p.pot_color) : null
             const matVal      = p.pot_material ? (POT_MATERIAL_RU[p.pot_material.toLowerCase()] ?? p.pot_material) : null
             const formVal     = p.pot_form ? (POT_FORM_RU[p.pot_form.toLowerCase()] ?? p.pot_form) : null
             const substrVal   = p.substrate ? (SUBSTRATE_RU[p.substrate.toLowerCase()] ?? p.substrate) : null
@@ -607,7 +597,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             живые горшечные растения (category==='pot') обслуживает блок в шапке выше. */}
         {product.category !== 'pot' && (() => {
           const p = product as any
-          const potColorVal = p.pot_color ? (POT_COLOR_RU[p.pot_color.toLowerCase()] ?? p.pot_color) : null
+          const potColorVal = p.pot_color && !isNonColor(p.pot_color) ? colorLabel(p.pot_color) : null
           const matVal      = p.pot_material ? (POT_MATERIAL_RU[p.pot_material.toLowerCase()] ?? p.pot_material) : null
           const catLabel    = labelForSubcat(product.subcategory)
           const has = (v: any) => v != null && v !== ''

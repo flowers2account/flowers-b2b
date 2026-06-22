@@ -12,7 +12,7 @@ import { useFilterChips } from '@/lib/filter-chips'
 import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 import { type Product, getAvailable, getPrice } from './ProductCard'
-import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
+import { colorSwatch, colorLabel, isLightSwatch, usableColors, normalizeColor } from '@/lib/colors'
 import { useColorCart } from '@/lib/use-color-cart'
 import { COUNTRY_LABELS, countryFlag } from '@/lib/countries'
 import { unitForProduct, variantLabelForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
@@ -360,7 +360,7 @@ export function GridCard({
             })}
           </div>
         ) : (() => {
-          const keys = product.colors?.length ? product.colors : product.color ? [product.color] : []
+          const keys = usableColors(product.colors?.length ? product.colors : product.color ? [product.color] : [])
           if (!keys.length) return null
           const shown = keys.slice(0, 5)
           const extra = keys.length - shown.length
@@ -734,7 +734,14 @@ export default function ProductGrid({ products: initialProducts }: { products: P
         const vol = Number((p as any).volume_l)
         if (!vol || !volumeRanges.some(id => VOLUME_RANGE_TEST[id]?.(vol))) return false
       }
-      if (colors.length > 0 && !colors.some(c => p.colors?.includes(c) || p.color === c)) return false
+      if (colors.length > 0) {
+        // Матч по нормализованному цвету: фильтр «кремовый» ловит товарные «Крем 02»,
+        // «antraciet» = «антрацит» и т.п. (Слой 3 цветовой системы).
+        const want = new Set(colors.map(normalizeColor))
+        const has = (p.colors ?? []).some(pc => want.has(normalizeColor(pc)))
+          || (p.color != null && want.has(normalizeColor(p.color)))
+        if (!has) return false
+      }
       // Accessories-фасеты (И-логика; пустое поле просто не проходит свой активный фильтр)
       if (suppliers.length > 0) {
         const s = (p as any).supplier
@@ -746,7 +753,7 @@ export default function ProductGrid({ products: initialProducts }: { products: P
       }
       if (potColors.length > 0) {
         const c = (p as any).pot_color
-        if (!c || !potColors.includes(c)) return false
+        if (!c || !potColors.includes(normalizeColor(c))) return false
       }
       if (volumes.length > 0) {
         const r = accVolumeRange(Number((p as any).volume_l))
