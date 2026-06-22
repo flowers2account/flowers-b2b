@@ -61,11 +61,15 @@ const ghostBtn: React.CSSProperties = {
 }
 const REG_TYPES = ['ИП', 'ТОО', 'Физлицо']
 
-// Открыть интерактивный блок в ленте ровно один раз (защита от дубля при повторных тапах).
+// Открыть форму в ленте. Анти-дубль: блокируем только если ТА ЖЕ форма уже последний
+// интерактивный блок (фикс «плодится при повторных тапах»). Переключение
+// регистрация↔вход разрешено (иначе после открытия одной формы вторая кнопка мертва).
 function openFormOnce(kind: 'register-form' | 'login-form') {
   const w = useWidget.getState()
-  // Уже открыта любая форма/ввод PIN → не плодим вторую (фикс дубля при повторных тапах).
-  if (w.messages.some((m) => m.kind === 'register-form' || m.kind === 'login-form' || m.kind === 'pin-entry')) return
+  const lastForm = [...w.messages].reverse().find(
+    (m) => m.kind === 'register-form' || m.kind === 'login-form' || m.kind === 'pin-entry',
+  )
+  if (lastForm?.kind === kind) return
   w.addMessage({ role: 'bot', kind, text: '' })
 }
 
