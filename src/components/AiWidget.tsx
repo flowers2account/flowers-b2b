@@ -451,8 +451,9 @@ export default function AiWidget() {
     >
       {/* Шапка */}
       <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep, #6E2A45))', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-          🌸
+        <div style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: '#fff', overflow: 'hidden', flexShrink: 0, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-official.png" alt="Цветы Уральска" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           {/* онлайн-точка */}
           <span style={{ position: 'absolute', right: -1, bottom: -1, width: 10, height: 10, borderRadius: '50%', background: '#5ED39A', border: '2px solid var(--accent)' }} />
         </div>
