@@ -61,16 +61,10 @@ const ghostBtn: React.CSSProperties = {
 }
 const REG_TYPES = ['ИП', 'ТОО', 'Физлицо']
 
-// Открыть форму в ленте. Анти-дубль: блокируем только если ТА ЖЕ форма уже последний
-// интерактивный блок (фикс «плодится при повторных тапах»). Переключение
-// регистрация↔вход разрешено (иначе после открытия одной формы вторая кнопка мертва).
+// Открыть форму в ленте. В ленте одновременно только одна форма (регистрация ИЛИ вход):
+// повторный тап той же — no-op (ввод сохраняем), переключение — замена, без плодения.
 function openFormOnce(kind: 'register-form' | 'login-form') {
-  const w = useWidget.getState()
-  const lastForm = [...w.messages].reverse().find(
-    (m) => m.kind === 'register-form' || m.kind === 'login-form' || m.kind === 'pin-entry',
-  )
-  if (lastForm?.kind === kind) return
-  w.addMessage({ role: 'bot', kind, text: '' })
+  useWidget.getState().openForm(kind)
 }
 
 // Наджа: гость не может класть в корзину → быстрая регистрация (PIN в WhatsApp).

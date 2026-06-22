@@ -38,6 +38,7 @@ interface WidgetStore {
   markGreeted: () => void
   markNudgedAnon: () => void
   addMessage: (m: Omit<ChatMessage, 'id' | 'ts'>) => void
+  openForm: (kind: 'register-form' | 'login-form') => void
   setPending: (v: boolean) => void
   setPendingAdd: (v: PendingAdd | null) => void
   setRegPhone: (v: string | null) => void
@@ -58,6 +59,13 @@ export const useWidget = create<WidgetStore>((set) => ({
   addMessage: (m) => set((s) => ({
     messages: [...s.messages, { ...m, id: crypto.randomUUID(), ts: Date.now() }],
   })),
+  // Открыть форму регистрации/входа: в ленте одновременно только ОДНА форма.
+  // Та же форма уже есть → no-op (не дублируем, ввод сохраняем). Другая → заменяем.
+  openForm: (kind) => set((s) => {
+    if (s.messages.some((m) => m.kind === kind)) return s
+    const cleaned = s.messages.filter((m) => m.kind !== 'register-form' && m.kind !== 'login-form')
+    return { messages: [...cleaned, { id: crypto.randomUUID(), ts: Date.now(), role: 'bot', kind, text: '' }] }
+  }),
   setPending: (v) => set({ pending: v }),
   setPendingAdd: (v) => set({ pendingAdd: v }),
   setRegPhone: (v) => set({ regPhone: v }),
