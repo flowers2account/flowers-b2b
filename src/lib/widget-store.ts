@@ -1,6 +1,17 @@
 import { create } from 'zustand'
 import type { WidgetProduct } from '@/lib/bot/accessories-bot' // import type — серверный модуль не бандлится
 
+// Стабильный id гостя для привязки беседы (между визитами). Хранится в localStorage,
+// генерится лениво. Версия B Такт 1.
+export function getAnonId(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    let id = localStorage.getItem('aiw_anon_id')
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem('aiw_anon_id', id) }
+    return id
+  } catch { return '' }
+}
+
 // Что гость пытался добавить до регистрации — кладём в корзину после входа.
 export interface PendingAdd {
   id: number

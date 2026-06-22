@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccessoriesReply } from '@/lib/bot/accessories-bot'
 import type { DialogMessage } from '@/lib/umnico'
+import { resolveConversation, loadHistory, saveMessages } from '@/lib/bot/conversation-store'
 
 export const dynamic = 'force-dynamic'
 
-// Нативный AI-виджет сайта. Принимает { message, history[] } (история — из браузерной
-// сессии, НЕ из Umnico), вызывает тот же мозг getAccessoriesReply, возвращает
-// { text, products[] }. Gemini-ключ остаётся на сервере. Umnico-путь (WhatsApp) не задействован.
+// Нативный AI-виджет сайта. Принимает { message, history[], anon_id, phone }.
+// Версия B Такт 1: история диалога ПЕРСИСТИТСЯ в Supabase (conversations/messages) и
+// берётся оттуда (память между визитами). Беседа резолвится: залогинен (phone→client)
+// → по client_id; гость → по anon_id. Persistence graceful: если таблиц ещё нет
+// (миграция не применена) — работаем как раньше (история из тела). Umnico-путь (WhatsApp)
+// использует свой источник истории и НЕ затронут.
 export async function POST(req: NextRequest) {
   let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'bad json' }, { status: 400 }) }
@@ -14,21 +18,24 @@ export async function POST(req: NextRequest) {
   const message = typeof body?.message === 'string' ? body.message.trim() : ''
   if (!message) return NextResponse.json({ text: null, products: [] })
 
-  // История из тела: последние ~10 сообщений, нормализуем роли (client/bot/manager).
+  const anonId = typeof body?.anon_id === 'string' ? body.anon_id.trim() : ''
+  const phone = typeof body?.phone === 'string' ? body.phone.trim() : ''
+
+  // История из тела (легаси / фолбэк, если БД недоступна).
   const rawHist = Array.isArray(body?.history) ? body.history : []
-  const history: DialogMessage[] = rawHist
+  const bodyHistory: DialogMessage[] = rawHist
     .filter((m: any) => m && typeof m.text === 'string' && m.text.trim())
     .slice(-10)
-    .map((m: any) => ({
-      role: m.role === 'bot' || m.role === 'manager' ? m.role : 'client',
-      text: String(m.text),
-    }))
+    .map((m: any) => ({ role: m.role === 'bot' || m.role === 'manager' ? m.role : 'client', text: String(m.text) }))
+
+  // Беседа + история из БД (если таблицы есть). conv=null → деградация к bodyHistory.
+  const conv = await resolveConversation({ anonId: anonId || null, phone: phone || null })
+  const history = conv ? await loadHistory(conv.id) : bodyHistory
 
   try {
     const reply = await getAccessoriesReply(message, { history, channel: 'widget' })
 
-    // Чипы-уточнения: бот может закончить строкой «Варианты: A / B / C» → вынимаем в chips[]
-    // и убираем строку из текста.
+    // Чипы-уточнения: «Варианты: A / B / C» → chips[].
     let text = reply.text
     let chips: string[] = []
     if (text) {
@@ -39,11 +46,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Сохраняем диалог (user + bot). Неблокирующе.
+    if (conv) {
+      await saveMessages(conv.id, [
+        { role: 'user', text: message },
+        { role: 'bot', text, products: reply.products && reply.products.length ? reply.products : null },
+      ])
+    }
+
     return NextResponse.json({
-      text,                             // null → вне зоны бота (мягко уводим к менеджеру на клиенте)
-      products: reply.products ?? [],   // богатые карточки строятся из этого
-      chips,                            // кликабельные варианты-уточнения
-      action: reply.action,             // 'register'|'login' → виджет открывает форму в чате
+      text,
+      products: reply.products ?? [],
+      chips,
+      action: reply.action,          // 'register'|'login' → виджет открывает форму
+      conversation_id: conv?.id,     // на будущее (Такт 2 / клиент)
     })
   } catch (err) {
     console.error('[api/chat]', err instanceof Error ? err.message : err)

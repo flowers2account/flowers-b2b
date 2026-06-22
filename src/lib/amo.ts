@@ -219,6 +219,19 @@ export async function addNote(leadId: number, text: string): Promise<void> {
   })
 }
 
+// Примечание к произвольной сущности (контакт/сделка). Версия B Такт 1: отражение
+// диалога виджета в карточке контакта. Не трогает syncOrderToAmo.
+export async function addEntityNote(
+  entity: 'contacts' | 'leads',
+  id: number,
+  text: string,
+): Promise<void> {
+  await amoFetch(`/${entity}/${id}/notes`, {
+    method: 'POST',
+    body: JSON.stringify([{ note_type: 'common', params: { text } }]),
+  })
+}
+
 // ── High-level sync ───────────────────────────────────────────────────────────
 
 import { createAdminClient } from '@/lib/supabase/admin'

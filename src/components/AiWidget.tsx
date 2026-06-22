@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { useWidget, type ChatMessage } from '@/lib/widget-store'
+import { useWidget, getAnonId, type ChatMessage } from '@/lib/widget-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { useIsMobile } from '@/lib/use-mobile'
@@ -65,6 +65,24 @@ const REG_TYPES = ['ИП', 'ТОО', 'Физлицо']
 // повторный тап той же — no-op (ввод сохраняем), переключение — замена, без плодения.
 function openFormOnce(kind: 'register-form' | 'login-form') {
   useWidget.getState().openForm(kind)
+}
+
+// Отражение диалога в amoCRM (Версия B Такт 1, односторонне). Шлём на закрытии виджета
+// сводку: телефон + корзина. Сервер отражает только известных клиентов (есть контакт).
+function flushDialog(beacon: boolean) {
+  if (typeof window === 'undefined') return
+  if (!useAuthStore.getState().isAuthed) return
+  const ph = useAuthStore.getState().phone
+  if (!ph) return
+  const cart = useCart.getState().items.map((i) => ({ name: i.name, qty: i.qty }))
+  const payload = JSON.stringify({ anon_id: getAnonId(), phone: ph, cart })
+  try {
+    if (beacon && navigator.sendBeacon) {
+      navigator.sendBeacon('/api/chat/flush', new Blob([payload], { type: 'application/json' }))
+    } else {
+      fetch('/api/chat/flush', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {})
+    }
+  } catch { /* ignore */ }
 }
 
 // Наджа: гость не может класть в корзину → быстрая регистрация (PIN в WhatsApp).
@@ -321,7 +339,7 @@ function Typing() {
 
 export default function AiWidget() {
   const { open, messages, pending, greeted, setOpen, toggle, addMessage, setPending, markGreeted, setPendingAdd } = useWidget()
-  const { isAuthed } = useAuthStore()
+  const { isAuthed, phone } = useAuthStore()
   const isMobile = useIsMobile()
   const pathname = usePathname()
   const [input, setInput] = useState('')
@@ -341,23 +359,41 @@ export default function AiWidget() {
   }, [open, subdued])
   const dismissTip = () => { setTip(false); try { sessionStorage.setItem('aiw_tip_dismissed', '1') } catch {} }
 
-  // Приветствие при первом открытии.
+  // Приветствие при первом открытии. Залогинен → по имени (имя тянем с /api/me, в
+  // useAuthStore его нет) + строка про оптовые цены. Гость → без имени.
   useEffect(() => {
-    if (open && !greeted && messages.length === 0) {
-      markGreeted()
-      addMessage({
-        role: 'bot',
-        text: isAuthed
-          ? 'Здравствуйте! Рады видеть снова 🌸 Я ИИ-помощник «Цветы Уральска». Подскажу по расходке — упаковка, горшки, удобрения, и по работе сайта.'
-          : 'Здравствуйте! Я ИИ-помощник «Цветы Уральска», на связи 24/7 🌸 Помогу с расходкой и сайтом. По цветам и заказам — менеджер в рабочие часы.',
+    if (!(open && !greeted && messages.length === 0)) return
+    markGreeted()
+    const guestText = 'Здравствуйте! Я ИИ-помощник «Цветы Уральска», на связи 24/7 🌸 Помогу с расходкой и сайтом. По цветам и заказам — менеджер в рабочие часы.'
+    const authedDefault = 'Рады видеть снова! 🌸 Я ИИ-помощник «Цветы Уральска». Ваши оптовые цены и наличие уже доступны — подскажу по расходке и работе сайта.'
+    if (!isAuthed || !phone) { addMessage({ role: 'bot', text: guestText }); return }
+    let cancelled = false
+    fetch('/api/me', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) })
+      .then((r) => r.json()).then((d) => {
+        if (cancelled) return
+        const nm = typeof d?.name === 'string' ? d.name.trim() : ''
+        addMessage({
+          role: 'bot',
+          text: nm
+            ? `Рады видеть, ${nm}! 🌸 Я ИИ-помощник «Цветы Уральска». Ваши оптовые цены и наличие уже доступны — подскажу по расходке и работе сайта.`
+            : authedDefault,
+        })
       })
-    }
-  }, [open, greeted, messages.length, isAuthed, addMessage, markGreeted])
+      .catch(() => { if (!cancelled) addMessage({ role: 'bot', text: authedDefault }) })
+    return () => { cancelled = true }
+  }, [open, greeted, messages.length, isAuthed, phone, addMessage, markGreeted])
 
   // Автоскролл вниз.
   useEffect(() => {
     if (open && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [open, messages, pending])
+
+  // Отражение диалога в amoCRM при уходе со страницы (закрытие вкладки/навигация).
+  useEffect(() => {
+    const h = () => flushDialog(true)
+    window.addEventListener('beforeunload', h)
+    return () => window.removeEventListener('beforeunload', h)
+  }, [])
 
   async function send(text: string) {
     const t = text.trim()
@@ -371,7 +407,7 @@ export default function AiWidget() {
     try {
       const r = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: t, history: prior }),
+        body: JSON.stringify({ message: t, history: prior, anon_id: getAnonId(), phone: isAuthed ? (phone ?? '') : '' }),
       })
       const d = await r.json().catch(() => ({}))
       const products = d?.products as WidgetProduct[] | undefined
@@ -468,7 +504,7 @@ export default function AiWidget() {
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.15)', color: '#fff' }}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.46 14.27c-.24.65-1.39 1.25-1.93 1.33-.49.07-1.12.1-1.81-.11-.42-.13-.95-.31-1.64-.6-2.87-1.24-4.74-4.13-4.88-4.32-.14-.19-1.17-1.55-1.17-2.96s.74-2.1 1-2.39c.26-.29.57-.36.76-.36s.38 0 .55.01c.18 0 .41-.07.65.49.24.58.81 2 .88 2.15.07.14.12.31.02.5-.09.19-.14.3-.28.46-.14.16-.29.36-.42.48-.14.14-.28.29-.12.57.16.28.71 1.18 1.53 1.91 1.05.94 1.94 1.23 2.21 1.37.28.14.43.12.59-.07.16-.19.68-.79.86-1.07.18-.27.36-.23.61-.14.25.1 1.59.75 1.86.89.28.14.46.21.53.32.07.12.07.66-.18 1.3z" /></svg>
         </a>
-        <button onClick={() => setOpen(false)} aria-label="Свернуть" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={() => { flushDialog(false); setOpen(false) }} aria-label="Свернуть" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       {/* Гостю — постоянная аннотация: акцент на регистрации (разблокирует корзину/заказы) */}
