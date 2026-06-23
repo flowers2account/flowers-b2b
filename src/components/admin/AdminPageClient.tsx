@@ -118,8 +118,20 @@ export default function AdminPageClient() {
           🎨 Карточки
         </Link>
         <Link
-          href="/admin/cashier"
+          href="/admin/stats"
           className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 ml-auto"
+        >
+          📊 Статистика
+        </Link>
+        <Link
+          href="/admin/payments"
+          className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+        >
+          💳 Платежи
+        </Link>
+        <Link
+          href="/admin/cashier"
+          className="px-4 py-2 text-sm rounded-t font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50"
         >
           🖥️ Касса
         </Link>
