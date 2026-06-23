@@ -69,7 +69,7 @@ export async function getCabinetToken(): Promise<string> {
     grant_type: 'password',
     username,
     password,
-    scope: 'statement statistics',
+    scope: 'webapi usermanagement email_send verification statement statistics payment',
     client_id: clientId,
     client_secret: clientSecret,
   })
