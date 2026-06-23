@@ -9,7 +9,11 @@ import SiteFooter from '@/components/SiteFooter'
 import FavoritesGate from '@/components/FavoritesGate'
 import MobileTabBar from '@/components/MobileTabBar'
 import AiWidget from '@/components/AiWidget'
-import YandexMetrika, { YM_COUNTER_ID } from '@/components/YandexMetrika'
+import YandexMetrika from '@/components/YandexMetrika'
+
+// Номер счётчика Яндекс.Метрики (не секрет). Литерал, а НЕ импорт из
+// 'use client'-модуля: иначе сервер подставляет client-reference в inline-скрипт.
+const YM_COUNTER_ID = 110078269
 
 const golos = Golos_Text({
   subsets: ['latin', 'cyrillic'],
