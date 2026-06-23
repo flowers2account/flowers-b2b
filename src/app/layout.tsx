@@ -1,5 +1,5 @@
 import { Analytics } from "@vercel/analytics/next"
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Golos_Text, Lora, JetBrains_Mono, Playfair_Display } from 'next/font/google'
 import Script from 'next/script'
 import { Toaster } from 'react-hot-toast'
@@ -56,6 +56,21 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://uralskflowers.kz',
   },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
+}
+
+// themeColor в Next 15 — это viewport export (рендерит <meta name="theme-color">).
+export const viewport: Viewport = {
+  themeColor: '#8B3A5A',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
