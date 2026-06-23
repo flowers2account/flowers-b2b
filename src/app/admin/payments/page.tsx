@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { authHeaders } from '@/lib/api-token'
+import PaymentsRegistry from '@/components/admin/PaymentsRegistry'
 
 const AMO_BASE = 'https://tropinvladislav1.amocrm.ru/leads/detail'
 const PAGE_SIZE = 50
@@ -208,6 +209,7 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [detail, setDetail] = useState<Payment | null>(null)
+  const [view, setView] = useState<'site' | 'registry'>('site')
 
   // фильтры
   const [datePreset, setDatePreset] = useState<DatePreset>('')
@@ -227,7 +229,7 @@ export default function PaymentsPage() {
   useEffect(() => { setPage(0) }, [datePreset, customFrom, customTo, status, q])
 
   useEffect(() => {
-    if (!isAuthed) return
+    if (!isAuthed || view !== 'site') return
     let cancelled = false
     ;(async () => {
       setLoading(true)
@@ -252,7 +254,7 @@ export default function PaymentsPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [isAuthed, range.from, range.to, status, q, page])
+  }, [isAuthed, view, range.from, range.to, status, q, page])
 
   if (!isAuthed || (role !== 'admin' && role !== 'manager')) {
     return <div className="p-10 text-gray-500">Нет доступа</div>
@@ -265,9 +267,24 @@ export default function PaymentsPage() {
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => router.push('/admin')} className="text-xs text-gray-500 cursor-pointer">← Админка</button>
         <h1 className="text-lg font-bold m-0">💳 Платежи</h1>
-        <span className="text-xs text-gray-400">read-only · оплаты с сайта (epay)</span>
+        <span className="text-xs text-gray-400">read-only</span>
       </div>
 
+      {/* ── Вкладки: оплаты сайта / реестр банка ── */}
+      <div className="flex gap-2 mb-4 border-b border-gray-200">
+        {([['site', 'Оплаты с сайта'], ['registry', 'Реестр банка']] as const).map(([v, label]) => (
+          <button key={v} onClick={() => setView(v)}
+            className="px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors"
+            style={{
+              borderColor: view === v ? '#7a1c2e' : 'transparent',
+              color: view === v ? '#7a1c2e' : '#6b7280',
+            }}>{label}</button>
+        ))}
+      </div>
+
+      {view === 'registry' && <PaymentsRegistry />}
+
+      {view === 'site' && (<>
       {err && <div className="mb-3 p-4 bg-red-50 border border-red-200 rounded text-sm text-red-700">{err}</div>}
 
       {data && <SummaryCards s={data.summary} />}
@@ -374,6 +391,7 @@ export default function PaymentsPage() {
       </div>
 
       {detail && <DetailModal p={detail} onClose={() => setDetail(null)} />}
+      </>)}
     </div>
   )
 }
