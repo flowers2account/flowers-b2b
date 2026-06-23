@@ -101,6 +101,8 @@ NEXT_PUBLIC_EPAY_JS_URL  # сейчас test-epay.epayment.kz/payform/payment-ap
 NEXT_PUBLIC_PAYMENTS_MODE # сейчас 'test'
 # amoCRM
 AMO_ACCESS_TOKEN
+# Аналитика
+YANDEX_METRIKA_TOKEN     # OAuth (scope metrika:read), счётчик 110078269 — блок «Трафик» в /admin/stats. При перевыпуске: правим файл + pm2 reload flowers-b2b --update-env
 # Уведомления
 TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
