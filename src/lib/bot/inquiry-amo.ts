@@ -281,6 +281,12 @@ export async function summarizeConversation(
       .order('created_at', { ascending: true })
 
     const all = (allMsgs ?? []) as Array<{ role: string; text: string | null; products: any; created_at: string }>
+    // Стабильный порядок: по времени, а при равных метках (пара user/bot одного хода,
+    // сохранённая одним INSERT) — клиент раньше бота. Защита от исторических ничьих.
+    const roleRank = (r: string) => (r === 'user' ? 0 : r === 'bot' ? 1 : 2)
+    all.sort((a, b) => a.created_at === b.created_at
+      ? roleRank(a.role) - roleRank(b.role)
+      : (a.created_at < b.created_at ? -1 : 1))
     const since = conv.last_note_at ?? '1970-01-01T00:00:00Z'
     const hasNew = all.some((m) => m.created_at > since && m.role === 'user' && m.text && m.text.trim())
     if (!hasNew) return 'no-new'

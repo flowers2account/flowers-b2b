@@ -118,13 +118,17 @@ export async function saveMessages(
 ): Promise<void> {
   try {
     const admin = createAdminClient()
+    // created_at со смещением по индексу (user=base, bot=base+1мс): иначе обе строки
+    // пары получают одинаковый now() в одном INSERT → порядок в сводке скачет.
+    const base = Date.now()
     const rows = msgs
       .filter((m) => (m.text && m.text.trim()) || m.products)
-      .map((m) => ({
+      .map((m, i) => ({
         conversation_id: conversationId,
         role: m.role,
         text: m.text ?? null,
         products: m.products ?? null,
+        created_at: new Date(base + i).toISOString(),
       }))
     if (!rows.length) return
     await admin.from('messages').insert(rows)
