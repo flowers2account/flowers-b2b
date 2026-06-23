@@ -319,7 +319,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
 
             <div className="space-y-2.5">
               <a
-                href={`https://wa.me/77476108458?text=${encodeURIComponent(`Здравствуйте! Мне нужно активировать PIN-код для входа в каталог.\n\nМой телефон: ${phoneDisplay}`)}`}
+                href={`https://wa.me/77007575243?text=${encodeURIComponent(`Здравствуйте! Мне нужно активировать PIN-код для входа в каталог.\n\nМой телефон: ${phoneDisplay}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#25D366] text-white rounded-lg text-sm font-medium hover:bg-[#1EBE5E] transition-colors"
