@@ -451,12 +451,16 @@ export default function AiWidget() {
       .map((m) => ({ role: m.role === 'user' ? 'client' : 'bot', text: m.text }))
     addMessage({ role: 'user', text: t })
     setPending(true)
+    const payload = JSON.stringify({ message: t, history: prior, anon_id: getAnonId(), phone: isAuthed ? (phone ?? '') : '' })
+    const postChat = async () => {
+      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload })
+      return r.json().catch(() => ({} as any))
+    }
     try {
-      const r = await fetch('/api/chat', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: t, history: prior, anon_id: getAnonId(), phone: isAuthed ? (phone ?? '') : '' }),
-      })
-      const d = await r.json().catch(() => ({}))
+      // Одна повторная попытка на сетевой сбой (часто это редеплой/перезапуск в момент запроса).
+      let d: any
+      try { d = await postChat() }
+      catch { await new Promise((res) => setTimeout(res, 700)); d = await postChat() }
       const products = d?.products as WidgetProduct[] | undefined
       const chips = Array.isArray(d?.chips) ? (d.chips as string[]) : undefined
       addMessage({ role: 'bot', text: (d?.text as string) || FALLBACK_MANAGER, products, chips })
@@ -470,7 +474,8 @@ export default function AiWidget() {
         addMessage({ role: 'bot', kind: 'phone-capture', text: '' })
       }
     } catch {
-      addMessage({ role: 'bot', text: 'Не получилось ответить, попробуйте ещё раз или напишите менеджеру.' })
+      // Сетевой сбой даже после повтора — мягко, без «не получилось ответить».
+      addMessage({ role: 'bot', text: 'Похоже, связь на секунду прервалась 🌸 Повторите вопрос, пожалуйста, или напишите менеджеру в WhatsApp.' })
     } finally {
       setPending(false)
     }

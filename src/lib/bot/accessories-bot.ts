@@ -519,6 +519,9 @@ export async function getAccessoriesReply(
     console.log('[accessories-bot] history: 0 messages (no source)')
   }
 
+  // Защитный конвейер: любой неожиданный сбой (классификация/поиск/compose) НЕ должен
+  // ронять ответ. На исключении — мягкий переспрос, а не «не получилось ответить».
+  try {
   const cls = await classifyMessage(message, history)
   console.log('[accessories-bot] classify:', JSON.stringify(cls))
 
@@ -597,5 +600,14 @@ export async function getAccessoriesReply(
     products: products.length ? products : undefined,
     photo,
     meta: { intent: cls.intent, helped: answer != null },
+  }
+  } catch (err) {
+    console.error('[accessories-bot] pipeline failed:', err instanceof Error ? err.message : err)
+    // Мягкий переспрос — не «упал». Вне зоны/непонятно → менеджер подхватит.
+    return {
+      text: 'Не совсем понял вопрос 🌸 Уточните, что именно подобрать — например, плёнку, '
+        + 'горшок или удобрение? Или напишите менеджеру, поможем.',
+      meta: { intent: 'other', helped: false },
+    }
   }
 }

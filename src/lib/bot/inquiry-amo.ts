@@ -271,35 +271,56 @@ export async function summarizeConversation(
     if (!conv?.amo_entity_id) return 'skip'
     const entity = (conv.amo_entity_type === 'contacts' ? 'contacts' : 'leads') as 'contacts' | 'leads'
 
-    const since = conv.last_note_at ?? '1970-01-01T00:00:00Z'
-    const { data: msgs } = await admin
+    // ВСЕ сообщения беседы (полный лог по ролям), последние 80 — чтобы примечание не
+    // распухло. Запись гейтим по новизне (есть сообщения после last_note_at), но в
+    // примечание кладём ВЕСЬ диалог — менеджер видит весь путь, не только новый кусок.
+    const { data: allMsgs } = await admin
       .from('messages')
       .select('role, text, products, created_at')
       .eq('conversation_id', conversationId)
-      .gt('created_at', since)
       .order('created_at', { ascending: true })
 
-    const list = (msgs ?? []) as Array<{ role: string; text: string | null; products: any }>
-    const userMsgs = list.filter((m) => m.role === 'user' && m.text && m.text.trim())
-    if (userMsgs.length === 0) return 'no-new'
+    const all = (allMsgs ?? []) as Array<{ role: string; text: string | null; products: any; created_at: string }>
+    const since = conv.last_note_at ?? '1970-01-01T00:00:00Z'
+    const hasNew = all.some((m) => m.created_at > since && m.role === 'user' && m.text && m.text.trim())
+    if (!hasNew) return 'no-new'
 
-    const questions = userMsgs.map((m) => `• ${m.text!.trim()}`).slice(0, 12)
-    const shown = new Set<string>()
-    for (const m of list) {
-      if (m.role !== 'bot' || !Array.isArray(m.products)) continue
-      for (const p of m.products) { const n = p?.display_name; if (n && shown.size < 15) shown.add(String(n)) }
+    // «Бот не смог помочь» — реплика бота без товаров с фразой-фолбэком (NOT_FOUND / к менеджеру).
+    const NOT_HELPED = /не наш[её]л|не смог|лучше поможет менеджер|точную позицию не наш[её]л|обратитесь к менеджеру|напишите менеджеру|не получилось ответить/i
+    const log = all.slice(-80)
+    let notHelped = 0
+    const lines: string[] = []
+    for (const m of log) {
+      const role = m.role === 'user' ? 'Клиент' : m.role === 'manager' ? 'Менеджер' : 'Бот'
+      const t = (m.text ?? '').trim()
+      const hasProducts = Array.isArray(m.products) && m.products.length > 0
+      if (t) {
+        let mark = ''
+        if (m.role === 'bot' && !hasProducts && NOT_HELPED.test(t)) { mark = '   ⚠️ бот не помог'; notHelped++ }
+        lines.push(`${role}: ${t}${mark}`)
+      }
+      if (m.role === 'bot' && hasProducts) {
+        const names = m.products.map((p: any) => p?.display_name).filter(Boolean).slice(0, 5)
+        if (names.length) lines.push(`   🛍 показаны: ${names.join(', ')}`)
+      }
     }
+
     const cartLines = (opts.cart ?? [])
       .filter((c) => c?.name).map((c) => `• ${c!.name}${c!.qty ? ` — ${c!.qty}` : ''}`).slice(0, 20)
 
     const who = conv.client_id
       ? `Клиент · ${conv.phone ?? '—'}`
       : `Гость: ${shortAnon(conv.anon_id)}${conv.phone ? ` · ${conv.phone}` : ''}`
+    const events: string[] = []
+    // Телефон у анонима в беседе = он его оставил (захват застрявшего, без PIN).
+    if (!conv.client_id && conv.phone) events.push(`📞 Оставил телефон: ${conv.phone}`)
+    if (notHelped) events.push(`⚠️ Бот не смог помочь: ${notHelped} реплик(и) — нужен менеджер`)
+
     const summary = [
       '💬 Чат на сайте (AI-виджет)', who, '',
-      'Спрашивал:', ...questions,
-      shown.size ? `\nСмотрел товары: ${[...shown].join(', ')}` : '',
-      cartLines.length ? `\nДобавил в корзину:\n${cartLines.join('\n')}` : '',
+      '— История диалога —', ...lines,
+      events.length ? `\n${events.join('\n')}` : '',
+      cartLines.length ? `\n🛒 В корзине:\n${cartLines.join('\n')}` : '',
     ].filter((s) => s !== '').join('\n')
 
     await addEntityNote(entity, conv.amo_entity_id, summary)
