@@ -544,11 +544,11 @@ export default function AiWidget() {
     >
       {/* Шапка */}
       <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep, #6E2A45))', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: '#fff', overflow: 'hidden', flexShrink: 0, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+        <div style={{ position: 'relative', width: 46, height: 46, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/bot-logo.png" alt="Цветы Уральска" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src="/bot-logo.png" alt="Цветы Уральска" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           {/* онлайн-точка */}
-          <span style={{ position: 'absolute', right: -1, bottom: -1, width: 10, height: 10, borderRadius: '50%', background: '#5ED39A', border: '2px solid var(--accent)' }} />
+          <span style={{ position: 'absolute', right: 0, bottom: 0, width: 11, height: 11, borderRadius: '50%', background: '#5ED39A', border: '2px solid var(--accent)' }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
