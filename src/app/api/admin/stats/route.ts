@@ -3,12 +3,14 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAuthedWithRole } from '@/lib/api-auth'
+import { getMetrikaTraffic } from '@/lib/metrika'
 
 /**
- * Экран «Статистика» (/admin/stats) — READ-ONLY. Считает три блока за период:
+ * Экран «Статистика» (/admin/stats) — READ-ONLY. Считает четыре блока за период:
  *   1) Воронка заказов: создано → оплачено → собрано(assembled+) → выдано(delivered)
  *   2) Оплаты: success / failed / created (кол-во + суммы), % успешных, failed rate
  *   3) Топ-10 товаров (по числу заказов) и топ-10 клиентов (по сумме заказов)
+ *   4) Трафик из Яндекс.Метрики (визиты/посетители/просмотры + источники)
  *
  * Параметры:
  *   from,to — YYYY-MM-DD (включительно, по дате создания, таймзона Asia/Oral +05:00)
@@ -174,11 +176,15 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.total - a.total)
     .slice(0, 10)
 
+  // ── 4. Трафик из Яндекс.Метрики (тот же период; никогда не роняет ответ) ──
+  const traffic = await getMetrikaTraffic(from, to)
+
   return NextResponse.json({
     range: { from, to },
     funnel,
     payments: paymentsBlock,
     topProducts,
     topClients,
+    traffic,
   })
 }

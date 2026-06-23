@@ -23,12 +23,22 @@ type Payments = {
 }
 type TopProduct = { name: string; orders: number; qty: number }
 type TopClient = { label: string; phone: string | null; total: number; count: number }
+type TrafficTotals = {
+  visits: number; users: number; pageviews: number
+  bounceRate: number; pageDepth: number; avgDuration: number
+}
+type TrafficSource = { id: string; label: string; visits: number }
+type Traffic = {
+  available: boolean; reason: string | null
+  totals: TrafficTotals; sources: TrafficSource[]
+}
 type ApiData = {
   range: { from: string; to: string }
   funnel: Funnel
   payments: Payments
   topProducts: TopProduct[]
   topClients: TopClient[]
+  traffic: Traffic
 }
 
 type DatePreset = 'today' | 'last7' | 'last30' | 'custom'
@@ -193,6 +203,75 @@ function TopClientsBlock({ rows }: { rows: TopClient[] }) {
   )
 }
 
+// мм:сс / ч:мм:сс из секунд
+function fmtDur(sec: number): string {
+  if (!sec) return '0 сек'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  if (h) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function TrafficBlock({ t }: { t: Traffic }) {
+  if (!t.available) {
+    return (
+      <div className="text-sm text-gray-400 py-4 text-center">
+        Нет данных из Метрики
+        {t.reason && <div className="text-[11px] text-gray-300 mt-1">{t.reason}</div>}
+      </div>
+    )
+  }
+  if (t.totals.visits === 0) {
+    return (
+      <div className="text-sm text-gray-400 py-4 text-center">
+        Данные Метрики появятся по мере накопления
+        <div className="text-[11px] text-gray-300 mt-1">за выбранный период визитов пока нет</div>
+      </div>
+    )
+  }
+  const cards = [
+    { label: 'Посетители', value: t.totals.users.toLocaleString('ru-RU') },
+    { label: 'Визиты', value: t.totals.visits.toLocaleString('ru-RU') },
+    { label: 'Просмотры', value: t.totals.pageviews.toLocaleString('ru-RU') },
+    { label: 'Отказы', value: fmtPct(t.totals.bounceRate) },
+    { label: 'Глубина', value: t.totals.pageDepth.toLocaleString('ru-RU') },
+    { label: 'Ср. время', value: fmtDur(t.totals.avgDuration) },
+  ]
+  const maxV = Math.max(1, ...t.sources.map(s => s.visits))
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        {cards.map(c => (
+          <div key={c.label} className="bg-white border border-gray-200 rounded-lg p-3">
+            <div className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">{c.label}</div>
+            <div className="text-lg font-bold" style={{ color: ACCENT }}>{c.value}</div>
+          </div>
+        ))}
+      </div>
+      {t.sources.length > 0 && (
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Источники трафика · по визитам</div>
+          <div className="space-y-1.5">
+            {t.sources.map(s => (
+              <div key={s.id} className="flex items-center gap-3">
+                <div className="w-44 text-xs text-gray-600 shrink-0 truncate">{s.label}</div>
+                <div className="flex-1 bg-gray-100 rounded h-6 relative overflow-hidden">
+                  <div className="h-full rounded"
+                    style={{ width: `${Math.round((s.visits / maxV) * 100)}%`, background: ACCENT, minWidth: 2 }} />
+                  <div className="absolute inset-0 flex items-center px-2">
+                    <span className="text-xs font-semibold text-gray-800">{s.visits.toLocaleString('ru-RU')}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function StatsPage() {
   const router = useRouter()
   const { role, isAuthed, init } = useAuthStore()
@@ -296,6 +375,10 @@ export default function StatsPage() {
               <TopClientsBlock rows={data.topClients} />
             </Section>
           </div>
+
+          <Section title="4. Трафик" hint="Яндекс.Метрика · счётчик 110078269">
+            <TrafficBlock t={data.traffic} />
+          </Section>
         </>
       )}
     </div>
