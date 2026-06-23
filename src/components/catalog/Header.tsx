@@ -85,23 +85,13 @@ export default function Header() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
           </button>
 
-          {/* Логотип */}
-          <Link href="/" className="flex items-center gap-[8px] md:mr-9 mr-auto shrink-0 no-underline">
+          {/* Логотип-локап (фирменный знак + рукописное «Цветы Уральска» одной картинкой) */}
+          <Link href="/" aria-label="Цветы Уральска — на главную" className="flex items-center md:mr-9 mr-auto shrink-0 no-underline">
             <img
-              src="/logo.png"
+              src="/logo-lockup.png"
               alt="Цветы Уральска"
-              width={44}
-              height={44}
-              style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              style={{ height: 44, width: 'auto', display: 'block', flexShrink: 0 }}
             />
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 15, color: 'var(--accent)', lineHeight: 1.1 }}>
-                Цветы Уральска
-              </div>
-              <span style={{ display: 'block', fontSize: 8, fontWeight: 400, color: 'var(--accent-mid)', letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: 'var(--font-golos)', lineHeight: 1.6 }}>
-                оптовая база
-              </span>
-            </div>
           </Link>
 
           {/* Навигация — скрыта на мобильном */}

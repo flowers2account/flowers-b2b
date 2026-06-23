@@ -516,12 +516,13 @@ export default function AiWidget() {
         aria-label="Чат с ИИ-консультантом"
         style={{
           width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
-          background: '#12170F', color: '#fff', boxShadow: '0 8px 24px rgba(139,58,90,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', padding: 0,
+          background: 'var(--accent)', color: '#fff', boxShadow: '0 8px 24px rgba(139,58,90,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/bot-logo.png" alt="ИИ-помощник «Цветы Уральска»" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        </svg>
       </button>
     </div>
   )
@@ -545,7 +546,7 @@ export default function AiWidget() {
       <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep, #6E2A45))', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ position: 'relative', width: 34, height: 34, borderRadius: '50%', background: '#fff', overflow: 'hidden', flexShrink: 0, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-official.png" alt="Цветы Уральска" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src="/bot-logo.png" alt="Цветы Уральска" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           {/* онлайн-точка */}
           <span style={{ position: 'absolute', right: -1, bottom: -1, width: 10, height: 10, borderRadius: '50%', background: '#5ED39A', border: '2px solid var(--accent)' }} />
         </div>
