@@ -13,11 +13,12 @@ const TOKEN = process.env.AMO_ACCESS_TOKEN
 if (!TOKEN) { console.error('AMO_ACCESS_TOKEN not set'); process.exit(1) }
 
 const PIPELINE_NAME = 'Обращения с сайта'
+// color — ТОЛЬКО из фиксированной палитры amoCRM (иначе 400 NotSupportedChoice).
 const STAGES = [
   { key: 'AMO_INQUIRY_STATUS_NEW',        name: 'Новое обращение',  sort: 10, color: '#fffeb2' },
   { key: 'AMO_INQUIRY_STATUS_PHONE',      name: 'Оставил телефон',  sort: 20, color: '#ffeab2' },
   { key: 'AMO_INQUIRY_STATUS_REGISTERED', name: 'Зарегистрировался', sort: 30, color: '#d6eaff' },
-  { key: 'AMO_INQUIRY_STATUS_CLOSED',     name: 'Закрыто',          sort: 40, color: '#d6c9c9' },
+  { key: 'AMO_INQUIRY_STATUS_CLOSED',     name: 'Закрыто',          sort: 40, color: '#f2f3f4' },
 ]
 
 const headers = { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }
@@ -63,6 +64,8 @@ async function main() {
     body: JSON.stringify([{
       name: PIPELINE_NAME,
       is_main: false,
+      is_unsorted_on: true,   // обязательно для amoCRM (этап «Неразобранное»)
+      sort: 1000,             // обязательно: порядок воронки в списке
       _embedded: { statuses: STAGES.map((s) => ({ name: s.name, sort: s.sort, color: s.color })) },
     }]),
   })
