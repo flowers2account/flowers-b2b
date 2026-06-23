@@ -70,7 +70,7 @@ export const metadata: Metadata = {
 
 // themeColor в Next 15 — это viewport export (рендерит <meta name="theme-color">).
 export const viewport: Viewport = {
-  themeColor: '#8B3A5A',
+  themeColor: '#12170F',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
