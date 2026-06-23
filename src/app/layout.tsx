@@ -72,7 +72,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
 
             ym(${YM_COUNTER_ID}, "init", {
-              ssr:true,
               webvisor:true,
               clickmap:true,
               ecommerce:"dataLayer",
