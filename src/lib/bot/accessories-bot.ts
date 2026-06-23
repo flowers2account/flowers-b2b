@@ -149,6 +149,10 @@ export interface BotReply {
   photo?: { imageUrl: string; caption: string; productId: number }
   // Виджет: явный вопрос про регистрацию/вход → открыть форму в чате (см. detectAuthAction).
   action?: 'register' | 'login'
+  // Версия B Такт 1.5: метаданные хода для анонимных лидов amoCRM.
+  //   intent — классифицированный интент; helped — смог ли бот реально помочь
+  //   (false при NOT_FOUND / вне зоны / NO_ANSWER → повод предложить оставить телефон).
+  meta?: { intent: 'smalltalk' | 'accessories' | 'site_help' | 'other'; helped: boolean }
 }
 
 // Правило виджета: на ЯВНЫЙ вопрос про регистрацию/авторизацию отвечаем формой
@@ -499,7 +503,7 @@ export async function getAccessoriesReply(
       const text = authAction === 'register'
         ? 'Регистрация займёт минуту — заполните форму ниже, PIN придёт в WhatsApp 🌸'
         : 'Вход по PIN — укажите номер в форме ниже, вышлем код в WhatsApp 🌸'
-      return { text, action: authAction }
+      return { text, action: authAction, meta: { intent: 'site_help', helped: true } }
     }
   }
 
@@ -534,11 +538,11 @@ export async function getAccessoriesReply(
     const useShort = repeat && Boolean(SMALLTALK_REPLIES_REPEAT[sub])
     const reply = useShort ? SMALLTALK_REPLIES_REPEAT[sub] : (SMALLTALK_REPLIES[sub] ?? SMALLTALK_REPLIES.greeting)
     console.log(`[accessories-bot] smalltalk: sub=${sub} repeat=${repeat} (${reason}) → ${useShort ? 'short' : 'full'}`)
-    return { text: reply }
+    return { text: reply, meta: { intent: 'smalltalk', helped: true } }
   }
 
   // Прочее (живые цветы/букеты/статус заказа/жалоба) — молчим, диалог менеджеру.
-  if (cls.intent === 'other') return { text: null }
+  if (cls.intent === 'other') return { text: null, meta: { intent: 'other', helped: false } }
 
   // accessories / site_help → единый compose (каталог + FAQ).
   // Товары ищем только для accessories; для site_help список пустой (отвечаем по памятке).
@@ -557,12 +561,12 @@ export async function getAccessoriesReply(
           const text = channel === 'widget'
             ? `Точную позицию не нашёл, но посмотрите раздел «${leaf.label}» в каталоге. Что-то конкретное подсказать?`
             : CATEGORY_SUGGESTION(leaf.label, catalogUrlForGroup(groupId))
-          return { text }
+          return { text, meta: { intent: 'accessories', helped: true } }
         }
       }
-      // И раздел не угадался — честно к менеджеру.
+      // И раздел не угадался — честно к менеджеру (бот не помог → можно предложить телефон).
       console.log('[accessories-bot] not found → контакт менеджера')
-      return { text: NOT_FOUND_REPLY }
+      return { text: NOT_FOUND_REPLY, meta: { intent: 'accessories', helped: false } }
     }
   }
 
@@ -588,5 +592,10 @@ export async function getAccessoriesReply(
     sku: r.code_1c, url: `${SITE_URL}/product/${r.id}`,
   }))
 
-  return { text: answer, products: products.length ? products : undefined, photo }
+  return {
+    text: answer,
+    products: products.length ? products : undefined,
+    photo,
+    meta: { intent: cls.intent, helped: answer != null },
+  }
 }

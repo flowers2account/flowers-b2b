@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAccessoriesReply } from '@/lib/bot/accessories-bot'
 import type { DialogMessage } from '@/lib/umnico'
 import { resolveConversation, loadHistory, saveMessages } from '@/lib/bot/conversation-store'
+import { ensureInquiryLead, isSignificantIntent } from '@/lib/bot/inquiry-amo'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,11 +55,23 @@ export async function POST(req: NextRequest) {
       ])
     }
 
+    // Анонимные обращения в amoCRM (Версия B Такт 1.5). Только гость (нет clientId),
+    // только значимый ход (НЕ smalltalk). Дедуп по conversation внутри ensureInquiryLead.
+    const significant = isSignificantIntent(reply.meta?.intent)
+    if (conv && !conv.clientId && significant) {
+      await ensureInquiryLead(conv.id, { firstUserText: message })
+    }
+
+    // «Застрявший» аноним: бот не смог помочь по значимому запросу → предложить оставить
+    // телефон. Только гостю. Виджет покажет форму захвата контакта (НЕ полная регистрация).
+    const askPhone = !conv?.clientId && significant && reply.meta?.helped === false
+
     return NextResponse.json({
       text,
       products: reply.products ?? [],
       chips,
       action: reply.action,          // 'register'|'login' → виджет открывает форму
+      ask_phone: askPhone,           // true → виджет предлагает оставить телефон
       conversation_id: conv?.id,     // на будущее (Такт 2 / клиент)
     })
   } catch (err) {

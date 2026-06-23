@@ -5,6 +5,21 @@ const BASE = 'https://tropinvladislav1.amocrm.ru/api/v4'
 
 export const AMO_PIPELINE_ID = 10853806
 
+// ── Воронка «Обращения с сайта» (Версия B Такт 1.5) ───────────────────────────
+// ОТДЕЛЬНАЯ от воронки заказов (10853806). ID воронки и этапов — из env (создаются
+// скриптом scripts/amo-setup-inquiry-pipeline.mjs, который печатает значения).
+// Не заданы → inquiryConfigured()=false → анонимные лиды/захват телефона тихо
+// отключены (прод не падает; обычная регистрация и заказы не затронуты).
+export const AMO_INQUIRY_PIPELINE_ID     = Number(process.env.AMO_INQUIRY_PIPELINE_ID || 0)
+export const AMO_INQUIRY_STATUS_NEW        = Number(process.env.AMO_INQUIRY_STATUS_NEW || 0)         // «Новое обращение»
+export const AMO_INQUIRY_STATUS_PHONE      = Number(process.env.AMO_INQUIRY_STATUS_PHONE || 0)       // «Оставил телефон»
+export const AMO_INQUIRY_STATUS_REGISTERED = Number(process.env.AMO_INQUIRY_STATUS_REGISTERED || 0)  // «Зарегистрировался»
+export const AMO_INQUIRY_STATUS_CLOSED     = Number(process.env.AMO_INQUIRY_STATUS_CLOSED || 0)      // «Закрыто»
+
+export function inquiryConfigured(): boolean {
+  return AMO_INQUIRY_PIPELINE_ID > 0 && AMO_INQUIRY_STATUS_NEW > 0
+}
+
 // Этапы воронки 10853806 (GET /api/v4/leads/pipelines/10853806, перестроена 21.06.2026)
 // Порядок: Новый → Подтверждён → СОГЛАСОВАНИЕ → В сборке → Готово к выдаче → на доставке → Выдан/Отменён.
 // Этап «В брони» (85413466) УДАЛЁН из воронки.
@@ -167,7 +182,7 @@ export async function createContact(params: {
 export async function createLead(params: {
   name: string
   price: number
-  contactId: number
+  contactId?: number          // опционален: лид обращения может быть без контакта (аноним)
   pipelineId: number
   statusId: number
   customFields?: Array<{ field_id: number; values: Array<{ value: string }> }>
@@ -179,7 +194,7 @@ export async function createLead(params: {
     pipeline_id: params.pipelineId,
     status_id:   params.statusId,
     _embedded: {
-      contacts: [{ id: params.contactId }],
+      ...(params.contactId ? { contacts: [{ id: params.contactId }] } : {}),
       tags: (params.tags ?? []).map(name => ({ name })),
     },
   }
@@ -208,6 +223,39 @@ export function leadFieldValue(lead: any, fieldId: number): string | null {
   const f = (lead?.custom_fields_values ?? []).find((x: any) => x.field_id === fieldId)
   const v = f?.values?.map((x: any) => x.value).find((x: any) => x != null && String(x).trim() !== '')
   return v != null ? String(v) : null
+}
+
+// Передвинуть лид по этапу (и при необходимости сменить воронку). Идемпотентно.
+export async function patchLeadStage(leadId: number, statusId: number, pipelineId?: number): Promise<void> {
+  const body: Record<string, unknown> = { status_id: statusId }
+  if (pipelineId) body.pipeline_id = pipelineId
+  await amoFetch(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify(body) })
+}
+
+// Переименовать лид (при подхвате анонимного обращения регистрацией).
+export async function patchLeadName(leadId: number, name: string): Promise<void> {
+  await amoFetch(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify({ name }) })
+}
+
+// Привязать контакт к существующему лиду (lead-first сценарий: лид создан без контакта,
+// контакт появился позже — захват телефона / регистрация).
+export async function linkContactToLead(leadId: number, contactId: number): Promise<void> {
+  await amoFetch(`/leads/${leadId}/link`, {
+    method: 'POST',
+    body: JSON.stringify([{ to_entity_id: contactId, to_entity_type: 'contacts' }]),
+  })
+}
+
+// Добавить теги к лиду, не затирая существующие (PATCH _embedded.tags заменяет набор).
+export async function addLeadTags(leadId: number, tags: string[]): Promise<void> {
+  if (!tags.length) return
+  const lead = await getLead(leadId)
+  const existing: string[] = (lead?._embedded?.tags ?? []).map((t: any) => t.name).filter(Boolean)
+  const merged = [...new Set([...existing, ...tags])]
+  await amoFetch(`/leads/${leadId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ _embedded: { tags: merged.map((name) => ({ name })) } }),
+  })
 }
 
 // ── Notes ─────────────────────────────────────────────────────────────────────

@@ -673,6 +673,9 @@ src/
 | `NEXT_PUBLIC_GEMINI_MODEL` | Модель Gemini (`models/gemini-flash-lite-latest`) | Браузер + Backend |
 | `UMNICO_API_TOKEN` | JWT Umnico (Настройки → API) — ИИ-бот поддержки | Только сервер |
 | `UMNICO_BOT_USER_ID` | id сотрудника-бота в Umnico | Только сервер |
+| `UMNICO_MANAGER_PHONE` | Телефон менеджера для уведомлений (новый клиент, оставлен телефон, потерянный лид) | Только сервер |
+| `AMO_INQUIRY_PIPELINE_ID` | ID воронки «Обращения с сайта» (Такт 1.5); пусто → анонимные лиды выключены | Только сервер |
+| `AMO_INQUIRY_STATUS_NEW` / `_PHONE` / `_REGISTERED` / `_CLOSED` | ID этапов воронки обращений | Только сервер |
 
 ## ИИ-бот поддержки в Umnico (расходка) — актуально с 10.06.2026
 
@@ -732,11 +735,13 @@ src/
 | `src/app/api/chat/route.ts` | POST `{message, history[]}` → `getAccessoriesReply(…, {history, channel:'widget'})` → `{text, products[], chips[]}`. Парсит «Варианты: A / B / C» → `chips[]`. Gemini-ключ только на сервере. |
 | `src/components/AiWidget.tsx` | FAB + панель чата; смонтирован в `layout.tsx` на всех страницах. На `/checkout` приглушён. |
 | `src/components/widget/ProductCard.tsx` | Единый стандарт карточки, контракт `{sku,name,image,price,unit,stock,pack,url}`, `density: full\|mini\|compact`. |
-| `src/lib/widget-store.ts` | Zustand: история диалога **в сессии браузера** (без БД). |
+| `src/lib/widget-store.ts` | Zustand: лента сообщений **в сессии браузера** (история для контекста бота — в БД, см. ниже). |
 
 **Канал ответа** (`ctx.channel` в `getAccessoriesReply`): `widget` — текст разговорный,
 БЕЗ перечисления товаров и ссылок (карточки рисует UI, товары в `products[]`);
 `whatsapp` (дефолт) — поведение без изменений (Umnico-путь не трогаем).
+`getAccessoriesReply` дополнительно возвращает `meta: { intent, helped }` — для логики
+анонимных лидов (Такт 1.5).
 
 **Вошло в vA**: карточки 3 плотностей; бейдж наличия (≥6 зелёный `#3D6B50`, 1–5 янтарный,
 0 «под заказ»); «В корзину» → `useCart` (шаг `pack_size`) + «В корзине ✓» + подсказка
@@ -749,11 +754,70 @@ src/
 (расширение) → **trigram**. Это лечило «не нашёл цветную плёнку»: классификатор отдавал
 «плёнка» с ё, а ё рушил и ILIKE, и `word_similarity` trigram (теряло все плёнки).
 
-**Осталось на версию B**: имя клиента в приветствии (в `useAuthStore` только `phone`/`user.id`);
-`client_id` и персональные цены; оформление заказа прямо в чате; серверная история диалога
-(`conversations`/`messages` — НЕ созданы); «повторить заказ».
+**Осталось на версию B (дальше)**: имя клиента в приветствии (в `useAuthStore` только
+`phone`/`user.id`); `client_id` и персональные цены; оформление заказа прямо в чате;
+«повторить заказ»; двусторонний amoJo-канал (ждёт secret).
 
 Подробности — `docs/WIDGET_TECH_CONTEXT.md`.
+
+## Версия B: серверная история + обращения в amoCRM
+
+### Такт 1 (готов, 22.06.2026) — память диалога + сводки в amo для известных клиентов
+
+Серверная история диалога виджета **создана и пишется** (таблицы `conversations` /
+`messages`, миграция `20260622_widget_conversations.sql`). RLS включён без политик +
+`revoke from anon, authenticated` → только service-role.
+
+- `src/lib/bot/conversation-store.ts` — `resolveConversation` (залогинен → по `client_id`,
+  гость → по `anon_id`; бэкфилл `client_id` при входе), `loadHistory`, `saveMessages`.
+- `/api/chat` резолвит беседу, грузит историю из БД (фолбэк — история из тела), сохраняет
+  пару user/bot. Память переживает визиты; graceful — нет таблиц → работает как раньше.
+- `/api/chat/flush` (sendBeacon на закрытии виджета) → сводка-примечание в amoCRM.
+
+### Такт 1.5 (готов, 23.06.2026) — анонимные обращения в amoCRM
+
+Все обращения виджета видны в amo, включая анонимов, с подхватом при регистрации без
+дублей. Двусторонний amoJo НЕ трогаем.
+
+**Отдельная воронка «Обращения с сайта»** (НЕ воронка заказов 10853806). ID воронки и
+этапов — в env (`AMO_INQUIRY_PIPELINE_ID`, `AMO_INQUIRY_STATUS_NEW` / `_PHONE` /
+`_REGISTERED` / `_CLOSED`). Не заданы → `inquiryConfigured()=false` → анонимные лиды тихо
+отключены (прод не падает). Создать воронку и получить env:
+`node --env-file=.env.local scripts/amo-setup-inquiry-pipeline.mjs --create`.
+
+| Файл | Роль |
+|------|------|
+| `src/lib/bot/inquiry-amo.ts` | Оркестрация: `ensureInquiryLead`, `capturePhoneToInquiry`, `promoteInquiryOnRegister`, `summarizeConversation`, `runWidgetAmoSync`, `isSignificantIntent` |
+| `src/lib/amo.ts` | Конфиг воронки + `createLead` (contactId опционален), `patchLeadStage`, `patchLeadName`, `linkContactToLead`, `addLeadTags` |
+| `/api/chat/leave-phone` | Захват телефона застрявшего анонима (НЕ регистрация) |
+| `/api/cron/widget-amo-sync` | Крон-добивка (Bearer `CRON_SECRET`): досыл сводок + «потерянные» лиды |
+| `supabase/migrations/20260623_widget_inquiry_amo.sql` | Новые колонки `conversations` (⏳ применить вручную) |
+
+**Создание анонимного лида**: в `/api/chat` на ПЕРВЫЙ значимый ход гостя
+(`isSignificantIntent` — accessories / site_help / other; smalltalk **НЕ** триггерит) →
+`ensureInquiryLead` создаёт лид в воронке обращений, этап «Новое обращение», примечание
+(о чём спросил + показанные товары). **Дедуп**: если у беседы уже есть `amo_entity_id` —
+второй лид не создаётся. Привязка: `conversations.amo_entity_type='leads'`,
+`amo_entity_id`, `amo_pipeline_id`.
+
+**Захват телефона застрявшего**: бот не помог (`meta.helped=false` на значимом ходе) →
+`/api/chat` возвращает `ask_phone:true` → виджет показывает форму «оставьте номер»
+(1×/сессию, `widget-store.phoneAsked`, блок `kind:'phone-capture'`) →
+`/api/chat/leave-phone` → `capturePhoneToInquiry`: контакт+телефон привязываются к лиду,
+этап → «Оставил телефон», уведомление менеджеру (`UMNICO_MANAGER_PHONE`).
+
+**Подхват при регистрации (дедуп через `anon_id`)**: `/api/auth/self-register` принимает
+`anon_id` и до создания лида регистрации зовёт `promoteInquiryOnRegister` — находит лид
+обращения по `anon_id` (`conversations.amo_entity_id`) и **обновляет** его (имя, контакт,
+этап → «Зарегистрировался», тег `регистрация-сайт`) вместо создания дубля. Лида обращения
+не было → обычный путь регистрации (создать лид) сохранён. Контакт матчится по `anon_id`
+И по телефону → дубли контактов не плодятся.
+
+**Крон** (`/api/cron/widget-amo-sync`, `runWidgetAmoSync`): (1) досылает сводки по беседам
+с новыми сообщениями после `last_note_at` (клиент закрыл вкладку без flush); (2) помечает
+«застрявшие» обращения (есть лид, телефон не оставлен, давно молчат) → уведомление
+менеджеру. Идемпотентно: дедуп сводок по `last_note_at`, уведомлений по
+`stuck_notified_at`. Окно: `?stuck=<мин>&since=<часов>` (по умолч. 30 / 48).
 
 ## amoCRM интеграция — актуально с 04.06.2026
 

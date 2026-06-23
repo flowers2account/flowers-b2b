@@ -30,7 +30,7 @@ export interface ChatMessage {
   products?: WidgetProduct[]
   chips?: string[]                  // кликабельные варианты-уточнения под сообщением бота
   nudge?: boolean                   // наджа-карточка «зарегистрируйтесь, чтобы покупать»
-  kind?: 'register-form' | 'login-form' | 'pin-entry'  // интерактивные блоки регистрации/входа в ленте
+  kind?: 'register-form' | 'login-form' | 'pin-entry' | 'phone-capture'  // интерактивные блоки в ленте
   ts: number
 }
 
@@ -40,6 +40,7 @@ interface WidgetStore {
   open: boolean
   greeted: boolean                 // показали ли приветствие
   nudgedAnon: boolean              // показывали ли уже наджу гостю в этой сессии
+  phoneAsked: boolean              // предлагали ли гостю оставить телефон (1×/сессию)
   messages: ChatMessage[]
   pending: boolean
   pendingAdd: PendingAdd | null    // товар, который гость хотел добавить до регистрации
@@ -48,6 +49,7 @@ interface WidgetStore {
   toggle: () => void
   markGreeted: () => void
   markNudgedAnon: () => void
+  markPhoneAsked: () => void
   addMessage: (m: Omit<ChatMessage, 'id' | 'ts'>) => void
   openForm: (kind: 'register-form' | 'login-form') => void
   setPending: (v: boolean) => void
@@ -59,6 +61,7 @@ export const useWidget = create<WidgetStore>((set) => ({
   open: false,
   greeted: false,
   nudgedAnon: false,
+  phoneAsked: false,
   messages: [],
   pending: false,
   pendingAdd: null,
@@ -67,6 +70,7 @@ export const useWidget = create<WidgetStore>((set) => ({
   toggle: () => set((s) => ({ open: !s.open })),
   markGreeted: () => set({ greeted: true }),
   markNudgedAnon: () => set({ nudgedAnon: true }),
+  markPhoneAsked: () => set({ phoneAsked: true }),
   addMessage: (m) => set((s) => ({
     messages: [...s.messages, { ...m, id: crypto.randomUUID(), ts: Date.now() }],
   })),

@@ -7,6 +7,7 @@ import {
   findContactByPhone, createContact, createLead, addNote, normalizePhoneAmo,
   AMO_PIPELINE_ID, AMO_STATUS_NEW,
 } from '@/lib/amo'
+import { promoteInquiryOnRegister } from '@/lib/bot/inquiry-amo'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
   const client_type = TYPES.includes(body?.client_type) ? body.client_type : null
   const city = typeof body?.city === 'string' ? body.city.trim() : ''
   const rawPhone = typeof body?.phone === 'string' ? body.phone : ''
+  const anonId = typeof body?.anon_id === 'string' ? body.anon_id.trim() : ''   // подхват обращения
 
   if (!name) return NextResponse.json({ ok: false, error: 'Укажите имя' }, { status: 400 })
 
@@ -100,20 +102,32 @@ export async function POST(req: NextRequest) {
   try {
     let contactId = await findContactByPhone(normalizePhoneAmo(normalized))
     if (!contactId) contactId = await createContact({ name, phone: normalized })
-    amoLeadId = await createLead({
-      name: `Регистрация: ${name}${company_name ? ` (${company_name})` : ''}`,
-      price: 0, contactId, pipelineId: AMO_PIPELINE_ID, statusId: AMO_STATUS_NEW,
-      tags: ['регистрация-сайт'],
+
+    // Подхват анонимного обращения (Версия B Такт 1.5): если этот anon_id уже породил
+    // лид обращения — ОБНОВЛЯЕМ его (этап «Зарегистрировался», тег), НЕ создаём дубль.
+    const promotedLeadId = await promoteInquiryOnRegister({
+      anonId, phone: normalized, name, companyName: company_name || null, contactId,
     })
-    const note = [
-      'Новый клиент с сайта (виджет)',
-      `Имя: ${name}`, `Телефон: ${normalized}`,
-      company_name ? `Компания: ${company_name}` : '',
-      client_type ? `Тип: ${client_type}` : '',
-      city ? `Город: ${city}` : '',
-      `PIN ${delivered ? 'отправлен в WhatsApp' : 'НЕ доставлен (нет WhatsApp)'}`,
-    ].filter(Boolean).join('\n')
-    await addNote(amoLeadId, note)
+
+    if (promotedLeadId) {
+      amoLeadId = promotedLeadId   // дубль не создаём — обращение «дозрело» до регистрации
+    } else {
+      // Обращения не было (зарегистрировался сразу) — обычный лид регистрации.
+      amoLeadId = await createLead({
+        name: `Регистрация: ${name}${company_name ? ` (${company_name})` : ''}`,
+        price: 0, contactId, pipelineId: AMO_PIPELINE_ID, statusId: AMO_STATUS_NEW,
+        tags: ['регистрация-сайт'],
+      })
+      const note = [
+        'Новый клиент с сайта (виджет)',
+        `Имя: ${name}`, `Телефон: ${normalized}`,
+        company_name ? `Компания: ${company_name}` : '',
+        client_type ? `Тип: ${client_type}` : '',
+        city ? `Город: ${city}` : '',
+        `PIN ${delivered ? 'отправлен в WhatsApp' : 'НЕ доставлен (нет WhatsApp)'}`,
+      ].filter(Boolean).join('\n')
+      await addNote(amoLeadId, note)
+    }
   } catch (e) { console.error('[self-register] amo:', e instanceof Error ? e.message : e) }
 
   // Заявка в Supabase (учёт).

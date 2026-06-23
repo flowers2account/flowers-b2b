@@ -67,13 +67,13 @@ function openFormOnce(kind: 'register-form' | 'login-form') {
   useWidget.getState().openForm(kind)
 }
 
-// Отражение диалога в amoCRM (Версия B Такт 1, односторонне). Шлём на закрытии виджета
-// сводку: телефон + корзина. Сервер отражает только известных клиентов (есть контакт).
+// Отражение диалога в amoCRM (Версия B Такт 1/1.5, односторонне). Шлём на закрытии
+// виджета сводку: телефон + корзина. Сервер пишет в КОНТАКТ известного клиента или в
+// ЛИД анонимного обращения (если он был создан). Гость без лида → сервер тихо пропускает.
 function flushDialog(beacon: boolean) {
   if (typeof window === 'undefined') return
-  if (!useAuthStore.getState().isAuthed) return
-  const ph = useAuthStore.getState().phone
-  if (!ph) return
+  const authed = useAuthStore.getState().isAuthed
+  const ph = authed ? (useAuthStore.getState().phone ?? '') : ''
   const cart = useCart.getState().items.map((i) => ({ name: i.name, qty: i.qty }))
   const payload = JSON.stringify({ anon_id: getAnonId(), phone: ph, cart })
   try {
@@ -123,7 +123,7 @@ function RegisterForm() {
     try {
       const r = await fetch('/api/auth/self-register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: f.name, phone: f.phone, company_name: f.company, client_type: f.type, city: f.city }),
+        body: JSON.stringify({ name: f.name, phone: f.phone, company_name: f.company, client_type: f.type, city: f.city, anon_id: getAnonId() }),
       })
       const d = await r.json().catch(() => ({}))
       if (d.alreadyExists) {
@@ -278,11 +278,58 @@ function PinEntry() {
   )
 }
 
+// Захват телефона ЗАСТРЯВШЕГО гостя (Версия B Такт 1.5): бот не смог помочь → оставьте
+// номер, менеджер подберёт и свяжется. Это НЕ регистрация (без PIN) — просто контакт.
+function PhoneCaptureForm() {
+  const { addMessage } = useWidget()
+  const [f, setF] = useState({ name: '', phone: '' })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+  const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }))
+
+  const submit = async () => {
+    setErr('')
+    const digits = f.phone.replace(/\D/g, '')
+    if (!/^[78]\d{10}$/.test(digits)) { setErr('Телефон в формате +7XXXXXXXXXX'); return }
+    setBusy(true)
+    try {
+      const r = await fetch('/api/chat/leave-phone', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: f.phone, name: f.name, anon_id: getAnonId() }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (r.ok && d.ok) {
+        setDone(true)
+        addMessage({ role: 'system', text: 'Спасибо! Менеджер свяжется с вами в рабочие часы 🌸' })
+        return
+      }
+      setErr(d.error || 'Не удалось отправить. Попробуйте позже или напишите менеджеру.')
+    } catch {
+      setErr('Сеть недоступна, попробуйте ещё раз.')
+    } finally { setBusy(false) }
+  }
+
+  if (done) return null
+  return (
+    <div style={cardWrap}>
+      <div style={{ fontFamily: PLAYFAIR, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Оставьте номер — менеджер подберёт</div>
+      <div style={{ fontSize: 12, color: 'var(--text-mid)', lineHeight: 1.4 }}>Не нашёл точного ответа. Оставьте телефон — менеджер подберёт нужное и свяжется с вами.</div>
+      <input style={fieldStyle} placeholder="Имя" value={f.name} onChange={(e) => set('name', e.target.value)} />
+      <input style={fieldStyle} placeholder="Телефон* +7XXXXXXXXXX" value={f.phone} onChange={(e) => set('phone', e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') submit() }} inputMode="tel" />
+      {err && <div style={{ fontSize: 11.5, color: '#C0392B' }}>{err}</div>}
+      <button onClick={submit} disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{busy ? 'Отправляем…' : 'Жду звонка менеджера'}</button>
+    </div>
+  )
+}
+
 function Bubble({ m, onAdded, onChip, onGuestAdd }: { m: ChatMessage; onAdded: () => void; onChip: (c: string) => void; onGuestAdd: (p: CardProduct) => void }) {
   // Интерактивные блоки регистрации.
   if (m.kind === 'register-form') return <div style={{ width: '100%' }}><RegisterForm /></div>
   if (m.kind === 'login-form') return <div style={{ width: '100%' }}><LoginForm /></div>
   if (m.kind === 'pin-entry') return <div style={{ width: '100%' }}><PinEntry /></div>
+  if (m.kind === 'phone-capture') return <div style={{ width: '100%' }}><PhoneCaptureForm /></div>
   // Служебная подсказка в ленте — по центру, мелким серым.
   if (m.role === 'system') {
     return <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-mid)', padding: '2px 0' }}>{m.text}</div>
@@ -416,6 +463,11 @@ export default function AiWidget() {
       // Правило: явный вопрос про регистрацию/вход → открыть форму в чате (только гостю).
       if ((d?.action === 'register' || d?.action === 'login') && !isAuthed) {
         useWidget.getState().openForm(d.action === 'register' ? 'register-form' : 'login-form')
+      }
+      // Бот не смог помочь гостю (ask_phone) → предлагаем оставить телефон (1×/сессию).
+      if (d?.ask_phone && !isAuthed && !useWidget.getState().phoneAsked) {
+        useWidget.getState().markPhoneAsked()
+        addMessage({ role: 'bot', kind: 'phone-capture', text: '' })
       }
     } catch {
       addMessage({ role: 'bot', text: 'Не получилось ответить, попробуйте ещё раз или напишите менеджеру.' })
