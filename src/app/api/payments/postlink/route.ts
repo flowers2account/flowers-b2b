@@ -61,6 +61,27 @@ export async function POST(req: NextRequest) {
     const reference = paymentNested.referenceId ?? body.reference ?? null
     const now = new Date().toISOString()
 
+    // Доп. поля банка из postlink → отдельные колонки (для экрана «Платежи»/отчётов).
+    // Пустые строки банка ("") нормализуем в null. raw_postlink сохраняется как есть.
+    const str = (v: unknown): string | null => {
+      const t = v == null ? '' : String(v).trim()
+      return t ? t : null
+    }
+    const int = (v: unknown): number | null => {
+      const t = str(v)
+      return t != null && /^-?\d+$/.test(t) ? parseInt(t, 10) : null
+    }
+    const bankFields = {
+      approval_code: str(paymentNested.approvalCode ?? body.approvalCode),
+      card_type:     str(paymentNested.cardType ?? body.cardType),
+      issuer:        str(paymentNested.issuer ?? body.issuer),
+      bank_datetime: str(paymentNested.dateTime ?? body.dateTime),
+      reason_code:   int(paymentNested.reasonCode ?? body.reasonCode),
+      payer_name:    str(paymentNested.name ?? body.name),
+      payer_phone:   str(paymentNested.phone ?? body.phone),
+      payer_email:   str(paymentNested.email ?? body.email),
+    }
+
     if (isSuccess) {
       // Update payments → success
       await supabase.from('payments').update({
@@ -70,6 +91,7 @@ export async function POST(req: NextRequest) {
         card_mask: cardMask,
         reference,
         raw_postlink: body,
+        ...bankFields,
       }).eq('id', payment.id)
 
       // Update order → paid
@@ -166,6 +188,7 @@ export async function POST(req: NextRequest) {
         status: 'failed',
         reason: String(reason).slice(0, 500),
         raw_postlink: body,
+        ...bankFields,
       }).eq('id', payment.id)
     }
 
