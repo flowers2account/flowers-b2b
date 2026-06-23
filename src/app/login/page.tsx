@@ -153,7 +153,7 @@ export default function LoginPage() {
             )}
           </div>
         </div>
-        <div className={s.foot}>Нужна помощь? <a href="https://wa.me/77476108458" target="_blank" rel="noopener noreferrer">Напишите в WhatsApp</a></div>
+        <div className={s.foot}>Нужна помощь? <a href="https://wa.me/77007575243" target="_blank" rel="noopener noreferrer">Напишите в WhatsApp</a></div>
       </div>
     </div>
   )
