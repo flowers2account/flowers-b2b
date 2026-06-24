@@ -128,7 +128,8 @@ export default function Header() {
             })}
           </nav>
 
-          {/* Контакт офиса — общий для всех (гость и залогиненный). Номер из company.ts */}
+          {/* Контакт офиса — только гостю. После входа здесь — номер клиента (см. блок ниже). */}
+          {!isAuthed && (
           <div className="hidden sm:flex items-center gap-2 shrink-0 mr-2">
             <a
               href={SHOP_WA}
@@ -152,6 +153,7 @@ export default function Header() {
               Позвонить
             </a>
           </div>
+          )}
 
           {/* User / Auth */}
           {isAuthed ? (
@@ -165,16 +167,28 @@ export default function Header() {
                   ⚙️ Админка
                 </Link>
               )}
-              {/* Аватар + дропдаун профиля (свой номер — здесь, не в шапке) */}
+              {/* Номер клиента в шапке + аватар с дропдауном профиля */}
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileMenu(o => !o)}
                   aria-label="Меню профиля"
                   aria-expanded={profileMenu}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0 border-none cursor-pointer"
-                  style={{ background: 'var(--accent)' }}
+                  className="flex items-center gap-2 shrink-0 border-none cursor-pointer bg-transparent p-0"
                 >
-                  👤
+                  {phone && (
+                    <span
+                      className="hidden sm:inline text-[13px] font-semibold"
+                      style={{ color: 'var(--text, #2a2226)', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {phone}
+                    </span>
+                  )}
+                  <span
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    👤
+                  </span>
                 </button>
                 {profileMenu && (
                   <div

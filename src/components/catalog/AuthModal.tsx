@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { normalizePhone } from '@/lib/phone'
 
@@ -14,6 +15,7 @@ interface Props {
 const PIN_LEN = 6
 
 export default function AuthModal({ onSuccess, onClose }: Props) {
+  const router = useRouter()
   const [screen, setScreen] = useState<Screen>('phone')
   const [phoneDisplay, setPhoneDisplay] = useState('')
 
@@ -160,7 +162,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
 
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <span className="text-sm font-semibold text-gray-700">
-            {screen === 'phone' && 'Вход в личный кабинет'}
+            {screen === 'phone' && 'Вход или регистрация'}
             {screen === 'pin' && (clientName ? `Привет, ${clientName}!` : 'Введите PIN-код')}
           </span>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
@@ -221,6 +223,18 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
               >
                 {loading ? 'Проверяем...' : 'Войти'}
               </button>
+
+              {/* Регистрация — для новых клиентов прямо из окна входа */}
+              <div className="text-center text-sm text-gray-500 pt-1">
+                Нет аккаунта?{' '}
+                <button
+                  onClick={() => { onClose(); router.push('/register') }}
+                  className="font-semibold cursor-pointer bg-transparent border-none p-0"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Зарегистрироваться
+                </button>
+              </div>
             </>
           )}
 
