@@ -54,12 +54,28 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Дедуп: телефон уже зарегистрирован → не плодим аккаунт.
+  // Высылка PIN существующему клиенту в WhatsApp. Возвращает true, если отправлено.
+  const sendExistingPin = async (clientName: string, clientPin: string | null): Promise<boolean> => {
+    if (!clientPin) return false
+    try {
+      if (await umnicoClient.checkContact(digits)) {
+        return await umnicoClient.sendMessage(digits, authPinToClient(clientName || name, clientPin))
+      }
+    } catch (e) { console.error('[self-register] resend pin (exists):', e instanceof Error ? e.message : e) }
+    return false
+  }
+
+  // Дедуп: телефон уже зарегистрирован → не плодим аккаунт, а СРАЗУ высылаем PIN в
+  // WhatsApp, чтобы человек мог войти (раньше PIN не слался — клиент видел «введите PIN
+  // из WhatsApp», которого не присылали, и застревал).
   const { data: existing } = await admin
-    .from('clients').select('id')
+    .from('clients').select('id, name, pin')
     .or(`phone.eq.${normalized},phone.eq.${digits}`)
     .maybeSingle()
-  if (existing) return NextResponse.json({ ok: false, alreadyExists: true })
+  if (existing) {
+    const delivered = await sendExistingPin(existing.name || '', existing.pin)
+    return NextResponse.json({ ok: false, alreadyExists: true, delivered, phone: normalized })
+  }
 
   // Создание аккаунта (как в /api/admin/clients POST).
   const email = `${digits}@flowers.local`
@@ -69,7 +85,13 @@ export async function POST(req: NextRequest) {
   })
   if (authError) {
     const dup = authError.message.includes('already registered') || (authError as { code?: string }).code === 'email_exists'
-    if (dup) return NextResponse.json({ ok: false, alreadyExists: true })
+    if (dup) {
+      // auth-юзер уже есть → найдём клиента и тоже вышлем PIN (на случай рассинхрона дедупа выше).
+      const { data: dupClient } = await admin
+        .from('clients').select('name, pin').or(`phone.eq.${normalized},phone.eq.${digits}`).maybeSingle()
+      const delivered = await sendExistingPin(dupClient?.name || '', dupClient?.pin ?? null)
+      return NextResponse.json({ ok: false, alreadyExists: true, delivered, phone: normalized })
+    }
     console.error('[self-register] createUser:', authError.message)
     return NextResponse.json({ ok: false, error: 'Не удалось создать аккаунт' }, { status: 500 })
   }
