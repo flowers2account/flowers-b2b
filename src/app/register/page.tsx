@@ -53,8 +53,10 @@ export default function RegisterPage() {
       })
       const d = await r.json().catch(() => ({}))
       if (d.alreadyExists) {
-        setRegPhone(normalized); setStep('pin')
-        setNote('На этот номер уже есть доступ. Введите PIN из WhatsApp, чтобы войти, или вышлите код повторно.')
+        setRegPhone(d.phone || normalized); setStep('pin')
+        setNote(d.delivered
+          ? `Вы уже зарегистрированы 🌸 Выслали PIN в WhatsApp на ${d.phone || normalized}. Введите его ниже, чтобы войти.`
+          : `Вы уже зарегистрированы. PIN не удалось отправить автоматически на ${d.phone || normalized} — нажмите «Выслать повторно» или напишите менеджеру.`)
         return
       }
       if (d.ok) {

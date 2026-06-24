@@ -127,8 +127,10 @@ function RegisterForm() {
       })
       const d = await r.json().catch(() => ({}))
       if (d.alreadyExists) {
-        setDone(true); setRegPhone(normalized)
-        addMessage({ role: 'bot', text: 'На этот номер уже есть доступ 🌸 Введите PIN из WhatsApp, чтобы войти, или вышлите код повторно.', kind: 'pin-entry' })
+        setDone(true); setRegPhone(d.phone || normalized)
+        addMessage({ role: 'bot', kind: 'pin-entry', text: d.delivered
+          ? `Вы уже зарегистрированы 🌸 Выслали PIN в WhatsApp на ${d.phone || normalized}. Введите его ниже, чтобы войти.`
+          : 'Вы уже зарегистрированы. PIN не удалось отправить автоматически — нажмите «Выслать повторно» или напишите менеджеру.' })
         return
       }
       if (d.ok) {
