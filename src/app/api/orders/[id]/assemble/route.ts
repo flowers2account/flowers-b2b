@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { umnicoClient } from '@/lib/umnico/client'
+import { umnicoClient, notifyOrderChain } from '@/lib/umnico/client'
 import { umnicoTemplates } from '@/lib/umnico/templates'
 
 export const dynamic = 'force-dynamic'
@@ -136,19 +136,11 @@ export async function PATCH(
         console.log('⚠ Umnico: clientPhone not found, skipping client notification')
       }
 
-      if (managerPhone) {
-        const managerHasWhatsApp = await umnicoClient.checkContact(managerPhone)
-        console.log('Manager hasWhatsApp:', managerHasWhatsApp)
-        if (managerHasWhatsApp) {
-          await umnicoClient.sendMessage(
-            managerPhone,
-            umnicoTemplates.orderPackedToManager({ orderId: String(orderId), managerName, total, items: managerItems })
-          )
-          console.log(`✓ Umnico: менеджеру о сборке заказа ${orderId}`)
-        }
-      } else {
-        console.log('⚠ Umnico: UMNICO_MANAGER_PHONE not set, skipping manager notification')
-      }
+      // Менеджеру И кладовщику (→ orderNotifyPhones)
+      await notifyOrderChain(
+        umnicoTemplates.orderPackedToManager({ orderId: String(orderId), managerName, total, items: managerItems })
+      )
+      console.log(`✓ Umnico: менеджеру+кладовщику о сборке заказа ${orderId}`)
     } catch (err) {
       console.error('Umnico assembled notification failed:', err)
     }

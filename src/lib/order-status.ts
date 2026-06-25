@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { umnicoClient } from '@/lib/umnico/client'
+import { umnicoClient, notifyOrderChain } from '@/lib/umnico/client'
 import { umnicoTemplates } from '@/lib/umnico/templates'
 
 // Единая точка смены статуса заказа (раньше жила инлайном в PATCH /api/orders/[id]).
@@ -153,24 +153,19 @@ export async function applyOrderStatus(
         }
       }
 
-      const managerPhone = process.env.UMNICO_MANAGER_PHONE
-      if (managerPhone) {
-        const managerHasWhatsApp = await umnicoClient.checkContact(managerPhone)
-        if (managerHasWhatsApp) {
-          const managerMessage =
-            status === 'confirmed'
-              ? umnicoTemplates.orderConfirmedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
-              : status === 'assembled'
-              ? umnicoTemplates.orderPackedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
-              : status === 'delivered'
-              ? umnicoTemplates.orderDeliveredToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
-              : null
+      // Менеджеру И кладовщику (вся цепочка статусов → orderNotifyPhones)
+      const managerMessage =
+        status === 'confirmed'
+          ? umnicoTemplates.orderConfirmedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
+          : status === 'assembled'
+          ? umnicoTemplates.orderPackedToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
+          : status === 'delivered'
+          ? umnicoTemplates.orderDeliveredToManager({ orderId: orderIdStr, managerName, clientName, companyName, total, items: managerItems })
+          : null
 
-          if (managerMessage) {
-            await umnicoClient.sendMessage(managerPhone, managerMessage)
-            console.log(`✓ Umnico: менеджеру (заказ ${orderId}, статус ${status})`)
-          }
-        }
+      if (managerMessage) {
+        await notifyOrderChain(managerMessage)
+        console.log(`✓ Umnico: менеджеру+кладовщику (заказ ${orderId}, статус ${status})`)
       }
     } catch (err) {
       console.error('Umnico notification failed:', err)

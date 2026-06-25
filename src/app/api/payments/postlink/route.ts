@@ -142,28 +142,25 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: tgText }),
       }).catch(e => console.error('Telegram notify failed:', e))
 
-      // WhatsApp менеджеру
-      if (process.env.UMNICO_MANAGER_PHONE && process.env.UMNICO_API_TOKEN && orderFull) {
-        const { umnicoClient } = await import('@/lib/umnico/client')
+      // WhatsApp — менеджеру И кладовщику (вся цепочка заказа → orderNotifyPhones)
+      if (process.env.UMNICO_API_TOKEN && orderFull) {
+        const { notifyOrderChain } = await import('@/lib/umnico/client')
         const { umnicoTemplates } = await import('@/lib/umnico/templates')
         // Менеджеру — имя из 1С (name); цвет передаём отдельным полем (шаблон сам форматирует).
         const orderItems = ((orderFull as any).order_items ?? []).map((i: any) => ({
           name: i.product?.name ?? i.product?.display_name ?? 'Товар',
           color: i.color ?? null, qty: i.qty, price: i.price,
         }))
-        umnicoClient.checkContact(process.env.UMNICO_MANAGER_PHONE).then(has => {
-          if (has) umnicoClient.sendMessage(
-            process.env.UMNICO_MANAGER_PHONE!,
-            umnicoTemplates.newOrderToManager({
-              orderId: String(payment.order_id),
-              clientName, clientPhone,
-              companyName: (orderFull?.client as any)?.company_name ?? undefined,
-              total: Number(payment.amount),
-              items: orderItems,
-              adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://uralskflowers.kz'}/admin`
-            })
-          )
-        }).catch(() => {})
+        notifyOrderChain(
+          umnicoTemplates.newOrderToManager({
+            orderId: String(payment.order_id),
+            clientName, clientPhone,
+            companyName: (orderFull?.client as any)?.company_name ?? undefined,
+            total: Number(payment.amount),
+            items: orderItems,
+            adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://uralskflowers.kz'}/admin`
+          })
+        ).catch(() => {})
       }
 
       // WhatsApp клиенту — уведомление об оплате

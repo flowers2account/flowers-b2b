@@ -137,3 +137,39 @@ export const umnicoClient = new UmnicoClient({
   apiToken: process.env.UMNICO_API_TOKEN || '',
   whatsappSaId: parseInt(process.env.UMNICO_WHATSAPP_SA_ID || '0')
 })
+
+// ── Получатели уведомлений ПО ЗАКАЗАМ (вся цепочка статусов) ───────────────────
+// UMNICO_MANAGER_PHONE — менеджер/владелец; UMNICO_WAREHOUSE_PHONE — кладовщик.
+// Каждая переменная поддерживает несколько номеров через запятую. Дедуп по цифрам.
+// Не-заказные уведомления (новый клиент, потерянный лид) кладовщику НЕ шлём — они
+// продолжают использовать только UMNICO_MANAGER_PHONE напрямую.
+export function orderNotifyPhones(): string[] {
+  const raw = [process.env.UMNICO_MANAGER_PHONE, process.env.UMNICO_WAREHOUSE_PHONE]
+    .filter(Boolean).join(',')
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const p of raw.split(/[,;\s]+/)) {
+    const phone = p.trim()
+    if (!phone) continue
+    const key = phone.replace(/[\s+\-()]/g, '')
+    if (!key || seen.has(key)) continue
+    seen.add(key); out.push(phone)
+  }
+  return out
+}
+
+// Текст всем получателям заказов. checkContact + sendMessage по каждому; ошибки не валят.
+export async function notifyOrderChain(text: string): Promise<void> {
+  for (const phone of orderNotifyPhones()) {
+    try { if (await umnicoClient.checkContact(phone)) await umnicoClient.sendMessage(phone, text) }
+    catch (e) { console.error('notifyOrderChain failed:', phone, e instanceof Error ? e.message : e) }
+  }
+}
+
+// Картинка всем получателям заказов (для «собран» с фото; подпись = текст шаблона).
+export async function notifyOrderChainImage(imageUrl: string, caption?: string): Promise<void> {
+  for (const phone of orderNotifyPhones()) {
+    try { if (await umnicoClient.checkContact(phone)) await umnicoClient.sendImage(phone, imageUrl, caption) }
+    catch (e) { console.error('notifyOrderChainImage failed:', phone, e instanceof Error ? e.message : e) }
+  }
+}

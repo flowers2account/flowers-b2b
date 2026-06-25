@@ -108,6 +108,7 @@ TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 UMNICO_API_TOKEN
 UMNICO_MANAGER_PHONE
+UMNICO_WAREHOUSE_PHONE   # кладовщик — дублируем ВСЮ цепочку уведомлений по заказам (только заказы; не клиенты/лиды)
 UMNICO_WHATSAPP_SA_ID
 # AI / поиск фото
 GOOGLE_API_KEY
