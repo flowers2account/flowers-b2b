@@ -42,10 +42,12 @@ interface ClientStatusDetails {
 
 export const umnicoTemplates = {
   newOrderToManager: (details: OrderDetails): string => {
-    return `🆕 ЗАКАЗ #${details.orderId}
+    // Шлётся ТОЛЬКО после успешной оплаты (postlink) → явно помечаем «ОПЛАЧЕН».
+    // «Резерв 30 мин» убран — это логика ДО оплаты, для оплаченного заказа неверна.
+    return `🆕 ЗАКАЗ #${details.orderId} ✅ ОПЛАЧЕН
 👤 ${details.clientName}${details.companyName ? ` | ${details.companyName}` : ''}
 📞 ${details.clientPhone}${fmtItems(details.items)}
-💰 ${details.total.toLocaleString('ru-RU')} ₸ | Резерв 30 мин
+💰 Оплачено: ${details.total.toLocaleString('ru-RU')} ₸
 🔗 ${details.adminUrl}`
   },
 
