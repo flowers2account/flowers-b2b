@@ -55,29 +55,32 @@ export const umnicoTemplates = {
   orderPaidToClient: ({ orderId, items }: ClientStatusDetails): string =>
     `✅ Заказ #${orderId} оплачен. Спасибо! Принят в работу, скоро подтвердим.${fmtItems(items)}\n_Цветы Уральска_`,
 
-  // confirmed (Подтверждён)
-  orderConfirmedToClient: ({ orderId, items }: ClientStatusDetails): string =>
-    `✅ Заказ #${orderId} подтверждён, собираем.${fmtItems(items)}\n_Цветы Уральска_`,
+  // Состав заказа — ТОЛЬКО в первом («оплачен»/«новый заказ») и последнем («выдан»)
+  // уведомлениях. В промежуточных (подтверждён/собран/в пути/отменён) — без перечня.
 
-  orderConfirmedToManager: ({ orderId, managerName, clientName, companyName, total, items }: ManagerStatusDetails): string =>
+  // confirmed (Подтверждён)
+  orderConfirmedToClient: ({ orderId }: ClientStatusDetails): string =>
+    `✅ Заказ #${orderId} подтверждён, собираем.\n_Цветы Уральска_`,
+
+  orderConfirmedToManager: ({ orderId, managerName, clientName, companyName, total }: ManagerStatusDetails): string =>
     `✅ Заказ #${orderId} подтверждён
 👤 ${clientName ?? '—'}${companyName ? ` | ${companyName}` : ''}
-👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸${fmtItems(items)}`,
+👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
   // assembled (Готово) — ветвится по способу получения. Фото заказа прикрепляется отдельно (sendImage).
-  orderAssembledPickupToClient: ({ orderId, items }: ClientStatusDetails): string =>
-    `📦 Заказ #${orderId} собран и готов к выдаче! Забрать: г. Уральск, ул. Каримуллина, 11. Часы: пн–пт 9:00–18:00, сб–вс 10:00–17:00. Назовите номер заказа.${fmtItems(items)}\n_Цветы Уральска_`,
+  orderAssembledPickupToClient: ({ orderId }: ClientStatusDetails): string =>
+    `📦 Заказ #${orderId} собран и готов к выдаче! Забрать: г. Уральск, ул. Каримуллина, 11. Часы: пн–пт 9:00–18:00, сб–вс 10:00–17:00. Назовите номер заказа.\n_Цветы Уральска_`,
 
-  orderAssembledDeliveryToClient: ({ orderId, items }: ClientStatusDetails): string =>
-    `📦 Заказ #${orderId} собран! Передаём в доставку, сообщим, когда выедет курьер.${fmtItems(items)}\n_Цветы Уральска_`,
+  orderAssembledDeliveryToClient: ({ orderId }: ClientStatusDetails): string =>
+    `📦 Заказ #${orderId} собран! Передаём в доставку, сообщим, когда выедет курьер.\n_Цветы Уральска_`,
 
-  orderPackedToManager: ({ orderId, managerName, clientName, companyName, total, items }: ManagerStatusDetails): string =>
+  orderPackedToManager: ({ orderId, managerName, clientName, companyName, total }: ManagerStatusDetails): string =>
     `📦 Заказ #${orderId} собран
 👤 ${clientName ?? '—'}${companyName ? ` | ${companyName}` : ''}
-👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸${fmtItems(items)}`,
+👔 ${managerName} | 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
   // in_transit (На доставке) — пустые строки скрываются
-  orderOnDeliveryToClient: ({ orderId, driverName, driverPhone, driverCarPlate, deliveryDate, items }: {
+  orderOnDeliveryToClient: ({ orderId, driverName, driverPhone, driverCarPlate, deliveryDate }: {
     orderId: string
     driverName?: string | null; driverPhone?: string | null
     driverCarPlate?: string | null; deliveryDate?: string | null
@@ -90,7 +93,7 @@ export const umnicoTemplates = {
       driverCarPlate ? `Авто: ${driverCarPlate}` : '',
       deliveryDate   ? `Ожидайте к ${deliveryDate}.` : '',
     ].filter(Boolean)
-    return `${lines.join('\n')}${fmtItems(items)}\n_Цветы Уральска_`
+    return `${lines.join('\n')}\n_Цветы Уральска_`
   },
 
   // delivered (Выдан)
@@ -104,8 +107,8 @@ export const umnicoTemplates = {
 💰 ${total.toLocaleString('ru-RU')} ₸`,
 
   // cancelled (Отменён)
-  orderCancelledToClient: ({ orderId, items }: ClientStatusDetails): string =>
-    `❌ Заказ #${orderId} отменён. Если это ошибка — напишите нам.${fmtItems(items)}\n_Цветы Уральска_`,
+  orderCancelledToClient: ({ orderId }: ClientStatusDetails): string =>
+    `❌ Заказ #${orderId} отменён. Если это ошибка — напишите нам.\n_Цветы Уральска_`,
 }
 
 export function authPinToClient(clientName: string, pin: string): string {
