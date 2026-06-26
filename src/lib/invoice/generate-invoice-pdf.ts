@@ -6,10 +6,11 @@ import PDFDocument from 'pdfkit'
 import QRCode from 'qrcode'
 import { company } from '@/config/company'
 import { amountInWords } from './amount-in-words'
+import { PT_SANS_REGULAR_B64, PT_SANS_BOLD_B64 } from './fonts-data'
 
-const FONT_DIR = path.join(process.cwd(), 'src', 'lib', 'invoice', 'fonts')
-const FONT_REGULAR = path.join(FONT_DIR, 'PTSans-Regular.ttf')
-const FONT_BOLD = path.join(FONT_DIR, 'PTSans-Bold.ttf')
+// Шрифты — из base64 (а не fs), чтобы работать в standalone-сборке на VPS, где нет src/.
+const FONT_REGULAR = Buffer.from(PT_SANS_REGULAR_B64, 'base64')
+const FONT_BOLD = Buffer.from(PT_SANS_BOLD_B64, 'base64')
 
 const MM = 2.834645669 // 1 мм в пунктах PDF
 const mm = (v: number) => v * MM
