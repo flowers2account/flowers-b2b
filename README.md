@@ -1,206 +1,88 @@
-# 🌹 Flowers B2B — Оптовый склад цветов
+# 🌹 Flowers B2B — «Цветы Уральска»
 
-[![Deploy](https://img.shields.io/badge/Vercel-Deployed-brightgreen)](https://flowers-b2b.vercel.app)
-[![License](https://img.shields.io/badge/License-MIT-blue)](#)
+B2B-платформа оптовой торговли цветами и расходными материалами: каталог, корзина, заказы, резервирование остатков, онлайн-оплата, предзаказы, AI-консультант.
 
-Современная B2B платформа для оптовой торговли цветами. Система управления каталогом товаров, заказами, резервированием остатков и отгрузкой.
+> Старт-контекст для разработки — **[`CONTEXT_FOR_NEW_SESSION.md`](./CONTEXT_FOR_NEW_SESSION.md)**.  
+> Полная техдока — **[`CLAUDE.md`](./CLAUDE.md)**. Статус — [`PROJECT_STATUS.md`](./PROJECT_STATUS.md).
 
-## 🎯 Функциональность
+## Функциональность
 
-- 📦 **Каталог товаров** — розы, гвоздики и другие цветы по сортам
-- 🛒 **Корзина и заказы** — добавление товаров, управление заказами
-- ⏱️ **Резервирование** — 30-минутное резервирование при добавлении в корзину
-- 📊 **Управление остатками** — отслеживание доступного количества в реальном времени
-- 👥 **Профили клиентов** — история заказов, профиль компании
-- 🔐 **Безопасность** — RLS политики в Supabase, аутентификация через Supabase Auth
-- 📱 **Уведомления** — интеграция с WhatsApp
+- 📦 **Каталог** — срезка (`cut`), горшечные (`pot`), расходка/аксессуары (`accessories`)
+- 🛒 **Корзина и заказы** — оформление гостем (по телефону) или клиентом, выбор цвета
+- ⏱️ **Резервирование** — 30 мин при оформлении (`reservations`)
+- 📊 **Остатки** — плоская модель `products.qty`, доступность через view `stock_available`
+- 💳 **Оплата** — ePay/Halyk + счета на оплату (`invoices`)
+- 🎁 **Предзаказы** — закрытые комнаты-кампании OZ (вход по коду)
+- 🤖 **AI-виджет** + Umnico-бот расходки, AI-перевод названий (Gemini)
+- 🔗 **Интеграции** — amoCRM, Umnico/WhatsApp, Telegram, Яндекс.Метрика, 1С-импорт
+- 🔐 **Auth** — телефон + PIN (Supabase Auth), роли admin/manager/client, RLS
 
-## 🛠️ Стек технологий
+## Стек
 
-| Компонент | Технология |
-|-----------|------------|
-| **Frontend** | Next.js 16, React, Tailwind CSS, Zustand |
-| **Backend** | Next.js API Routes (serverless) |
-| **База данных** | Supabase (PostgreSQL) |
-| **Аутентификация** | Supabase Auth |
-| **Хостинг** | Vercel |
-| **Язык** | TypeScript |
+| Слой | Технология |
+|------|------------|
+| Frontend | Next.js 16 (App Router), React 19, Tailwind, Zustand |
+| Backend | Next.js API Routes (`output: 'standalone'`, Node-сервер) |
+| БД | Supabase (PostgreSQL + RLS), проект `jwastcmasactymmzojhi` |
+| Prod | VPS hoster.kz (Node 22 + pm2 + nginx), деплой push→main через GitHub Actions |
+| Preview | Vercel (`flowers-b2b-phi`) — авто-деплой с `main` **отключён** |
+| Язык | TypeScript |
 
-## 📋 Структура проекта
+## Быстрый старт
 
-```
-src/
-├── app/
-│   ├── api/                    # API маршруты
-│   │   ├── checkout/          # Создание заказов
-│   │   ├── cancel-order/      # Отмена заказов
-│   │   ├── confirm-order/     # Подтверждение заказов
-│   │   ├── products/          # Каталог товаров
-│   │   ├── my-orders/         # Мои заказы
-│   │   └── ...
-│   └── (pages)/               # Страницы приложения
-├── components/                # React компоненты
-├── lib/
-│   ├── supabase/             # Клиент Supabase
-│   └── hooks/                # Custom React hooks
-├── types/                     # TypeScript типы
-└── store/                     # Zustand глобальное состояние
-```
-
-## 🚀 Быстрый старт
-
-### Требования
-- Node.js 18+
-- npm или yarn
-- Supabase проект
-
-### Установка
-
-1. **Клонируй репозиторий**
 ```bash
 git clone https://github.com/cvety-uralska/flowers-b2b.git
 cd flowers-b2b
-```
-
-2. **Установи зависимости**
-```bash
 npm install
+npm run dev          # http://localhost:3000
 ```
 
-3. **Настрой переменные окружения**
-
-Создай `.env.local`:
+`.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # для локальных тестов
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...      # нужен большинству серверных роутов (работает и на проде)
+CRON_SECRET=...                       # защита /api/cron/*
+# AI/интеграции — см. CLAUDE.md → Environment Variables
 ```
 
-4. **Запусти dev сервер**
-```bash
-npm run dev
-```
+## Сборка и деплой
 
-Приложение будет доступно на `http://localhost:3000`
-
-## 📦 Сборка и деплой
-
-### Локальная сборка
 ```bash
 npm run build
 npm run start
 ```
 
-### Деплой на Vercel
+- **Prod:** push в `main` → GitHub Actions (`.github/workflows/deploy-vps.yml`) собирает и деплоит на VPS (`pm2 reload`). См. [`docs/INFRA.md`](./docs/INFRA.md).
+- **Preview:** Vercel-проект `flowers-b2b-phi` (стейджинг).
+- ⚠️ `SUPABASE_SERVICE_ROLE_KEY` **используется** в десятках API-роутов и работает на проде (старое утверждение об обратном устарело).
 
-Репозиторий автоматически связан с Vercel. При push на `main` начинается деплой:
+## Архитектура (кратко)
 
-```bash
-git push origin main
-```
+- **Остатки** — плоская схема: остаток в `products.qty`, цена в `products.price`. Таблиц `batches`/`stock` нет. Резерв — `reservations` (30 мин), доступность — view `stock_available`.
+- **Доступ к БД** — `createAdminClient()` (service-role, обходит RLS) для серверных роутов; `createClient()` (anon + RLS) для read-роутов витрины; часть admin-операций через SECURITY DEFINER RPC.
+- **Auth** — email `{цифры_телефона}@flowers.local` + PIN (Supabase Auth).
 
-⚠️ **Важно**: В Vercel Settings добавь только:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+Подробности — [`CONTEXT_FOR_NEW_SESSION.md`](./CONTEXT_FOR_NEW_SESSION.md) и [`CLAUDE.md`](./CLAUDE.md).
 
-НЕ добавляй `SUPABASE_SERVICE_ROLE_KEY` (не работает в serverless)
-
-## 📚 API Документация
-
-### Основные маршруты
-
-| Маршрут | Метод | Описание |
-|---------|-------|---------|
-| `/api/products` | GET | Получить каталог товаров |
-| `/api/checkout` | POST | Создать заказ и резервирование |
-| `/api/cancel-order` | POST | Отменить заказ |
-| `/api/confirm-order` | POST | Подтвердить заказ |
-| `/api/update-order-qty` | POST | Изменить количество в заказе |
-| `/api/my-orders` | GET | Получить мои заказы |
-
-Подробная документация в [`CLAUDE.md`](./CLAUDE.md)
-
-## 🔐 Архитектура безопасности
-
-- **Аутентификация**: Supabase Auth (email/password)
-- **Авторизация**: RLS (Row Level Security) на уровне БД
-- **Роли**: admin, manager, client
-- **Client-side**: Используется `createClient()` (client role) + RLS политики
-- ⚠️ Service role key НЕ используется на production (не работает на Vercel)
-
-## 🐛 Known Issues
-
-- ⚠️ [SUPABASE_SERVICE_ROLE_KEY не работает в Vercel serverless](./CLAUDE.md#-supabase_service_role_key-не-работает-в-vercel-serverless)
-- ⚠️ [Realtime обновления каталога не работают](./CLAUDE.md#-realtime-обновления-каталога-не-работают-pricetable)
-- ⚠️ [WhatsApp уведомление требует разрешение всплывающих окон](./CLAUDE.md#-whatsapp-уведомление-открывается-только-с-разрешением-всплывающих-окон)
-
-## 👤 Роли и доступ
+## Роли
 
 | Роль | Права |
 |------|-------|
-| **admin** | Полный доступ, управление товарами, импорт из Excel |
-| **manager** | Управление остатками, подтверждение заказов |
-| **client** | Просмотр каталога, создание и управление своими заказами |
+| admin | Полный доступ, импорт, управление товарами |
+| manager | Остатки, подтверждение/сборка заказов |
+| client | Каталог, свои заказы |
 
-## 📖 Документация
+## Документация
 
-- [`CLAUDE.md`](./CLAUDE.md) — полная техническая документация для разработчиков
-- [`AGENTS.md`](./AGENTS.md) — информация о Next.js версии и особенности
+- [`CLAUDE.md`](./CLAUDE.md) — полная техдока
+- [`CONTEXT_FOR_NEW_SESSION.md`](./CONTEXT_FOR_NEW_SESSION.md) — старт-контекст
+- [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) — статус, known issues, roadmap
+- [`DOCS_AUDIT_REPORT.md`](./DOCS_AUDIT_REPORT.md) — аудит доков vs реальность
+- `docs/` — INFRA, PAYMENTS, STOCK_MANAGEMENT, IMPORT_SYSTEM, AI_TRANSLATOR, UMNICO_BOT, WIDGET_TECH_CONTEXT, OZ_*, SECURITY-RLS-PLAN и др.
 
-## 🤝 Контрибьюция
+## Контакты
 
-1. Создай ветку для фичи: `git checkout -b feature/amazing-feature`
-2. Коммитни изменения: `git commit -m 'Add amazing feature'`
-3. Запушь в репозиторий: `git push origin feature/amazing-feature`
-4. Открой Pull Request
-
-## 📧 Контакты
-
-- **Email**: opt.uralsk@gmail.com
-- **GitHub**: [@cvety-uralska](https://github.com/cvety-uralska)
-
-## 📄 Лицензия
-
-Проект под лицензией MIT. Подробнее см. [`LICENSE`](./LICENSE)
-
----
-
-Сделано с ❤️ для оптовых продавцов цветов
-
-<!-- OLD NEXTJS TEMPLATE BELOW -->
-[Next.js](https://nextjs.org project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Email:** opt.uralsk@gmail.com
+- **Тел:** +7 700 757 5243
+</content>

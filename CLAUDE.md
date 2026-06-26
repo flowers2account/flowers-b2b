@@ -312,11 +312,15 @@ EOF
 
 Роли хранятся в `profiles.role`, проверяются на клиенте через `useAuthStore`.
 
-## RLS статус (актуально на 01.05.2026)
+## RLS статус (актуально на 26.06.2026)
 
-RLS **отключён** на таблицах: `clients`, `orders`, `order_items`, `reservations`, `products`, `varieties`, `inventory_ledger`
+⚠️ Прежняя запись («RLS отключён почти везде, включён только на profiles») **устарела** — RLS роллаут проведён в июне. Факт на 26.06:
 
-RLS **включён только** на: `profiles`
+RLS **включён** на: `products`, `orders`, `order_items`, `reservations`, `clients`, `profiles`, `inventory_ledger`, `order_history`, `translation_memory`, `campaigns`, `campaign_items`, `campaign_orders`, `campaign_order_items`, `campaign_access`, `conversations`, `messages`, `invoices`, `payments`, `payment_operations`, `registration_requests`, `access_requests`, `bot_enabled_leads`.
+
+RLS **выключен** на: `app_settings`, `campaign_staging`, `favorites`, все `*_backup_*`/`dedup_*`.
+
+Политики: `products` — anon читает `is_active=true`, admin/manager — всё (`is_admin_or_manager()`); `orders`/`order_items`/`clients`/`inventory_ledger` — только `is_admin_or_manager()` (клиентские данные читаются через service-role роуты, не клиентским RLS); `reservations` — own (`client_id=auth.uid()`) + admin. Полная карта — `RLS_POLICIES_SETUP.md`. ⚠️ Многие write-роуты на `createAdminClient()` не проверяют сессию, а admin-RPC (SECURITY DEFINER) открыты anon — нужен auth-аудит (`DOCS_AUDIT_REPORT.md` §5).
 
 ## OZ Export — предзаказы (source='oz_preorder') — актуально с 31.05.2026
 
@@ -538,7 +542,7 @@ pending → confirmed → in_transit → arrived → assembling → assembled �
 
 - `products.oz_product_code text UNIQUE`
 - `campaign_items` доп. колонки: `oz_line_id`, `oz_stock_type`, `oz_delivery_date`, `oz_available_stems`, `oz_purchase_eur`, `markup_percent`, `eur_kzt_rate`
-- `app_settings` ключи: `preorder_markup_percent='35'`, `preorder_eur_kzt_rate='525'`, `preorder_round_to='1'`
+- `app_settings` ключи (факт на 26.06.2026): `preorder_markup_percent='35'`, `preorder_eur_kzt_rate='562'` (не 525), `preorder_round_to='1'`, `eur_rate_extra_percent='2'`. Источник правды — таблица `app_settings`.
 - Функция `calc_preorder_price_kzt(purchase_eur, markup_pct, rate, round_to)` → ₸/стебель
 
 ### Phase 2 (не реализовано)
@@ -582,8 +586,9 @@ JSONL-файлы — вывод парсера `waterdrinker-scraper` (Desktop).
 ⚠️ **Дата вылета — критична.** Листинг категорий и наличие OZ зависят от выбранной
 в сессии даты вылета (см. `docs/OZ_INTERNAL_API.md`: эндпоинт
 `DepartureDateComponentController/updateDepartureDate`). Парсер и ночной
-`oz_price_refresh.py` читают `app_settings.oz_target_departure_date` (сейчас `2026-06-29`,
-только будни) и ставят её в сессии перед обходом — иначе каталог и цены окажутся на
+`oz_price_refresh.py` читают `app_settings.oz_target_departure_date` (в БД на 26.06.2026 =
+`2026-06-18` — ⚠️ дата в прошлом, риск рассинхрона цен/наличия; `oz_price_deactivate_enabled=false`)
+и ставят её в сессии перед обходом — иначе каталог и цены окажутся на
 разных датах (тот же механизм давал 84% ложных деактиваций). Каждой карточке
 проставляется `products.oz_departure_date`. UPDATE — строгий whitelist (НЕ трогает
 `display_name`/`subcategory`/`name`/`is_active`/`qty`/`price`).
@@ -941,7 +946,7 @@ is_active = true AND source IN ('uralsk_site', 'uralsk_1c')
 ### Выбор цвета — ярлык, не SKU (Вариант «А», 14.06.2026)
 
 Цвет — **подпись к позиции**, а НЕ складская единица: цена и остаток общие на товар,
-у цвета нет своего остатка. Остатки/резервы/`products_available`/импорт 1С/`pack_size`
+у цвета нет своего остатка. Остатки/резервы/`stock_available`/импорт 1С/`pack_size`
 **не затронуты**. Цвет выбирается в UI и сохраняется снимком в `order_items.color` (text,
 nullable). Включается для **любого** товара с заполненным `products.colors` (не только
 аксессуары).

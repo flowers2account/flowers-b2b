@@ -1,152 +1,76 @@
 # PROJECT_STATUS.md — Flowers B2B
 
-## Что сделано
+> **Обновлено:** 2026-06-26 (сверено с живым кодом и БД).  
+> История изменений по сессиям — в `CLAUDE.md` и git log. Здесь — снимок «что работает / что болит / куда дальше».
 
-### Сессия 14 июня 2026 — выбор цвета (Вариант «А»)
-- ✅ **Цвет как ярлык, не SKU** — выбор цвета у товаров с заполненным `products.colors`,
-  снимок в новый столбец `order_items.color` (text, nullable). Остатки/резервы/1С/`pack_size`
-  не затронуты. **Заменил прежнюю модель «Б»** (`colorQtys` → `orders.notes`) — удалена.
-- ✅ `src/lib/colors.ts` — хелперы `getColorMode()` (`none`/`assorti`/`select`),
-  `colorLabel()`, `colorSwatch()` (матч по слагу и по подписи)
-- ✅ `cart-store.ts` — `CartItem.color`, **составной ключ** `${id}__${color}`;
-  `add`/`update`/`remove` с опциональным `color` (по умолчанию `null` — быстрое добавление
-  не меняется); `migrate` (persist v1) приводит старые корзины к `color=null`
-- ✅ `DetailPanel.tsx` — бейдж «Ассорти» / чипсы выбора; кнопка «В корзину» заблокирована до
-  выбора в режиме `select`; один цвет авто-выбирается; корзина-сабвью показывает цвет
-- ✅ `useOrderCheckout.ts` шлёт `color` по строке; `/api/checkout` пишет в `order_items.color`
-  (остался `createAdminClient()`), резерв агрегируется суммарно по `product_id`
-- ✅ Цвет в уведомлении (Telegram+WhatsApp, `/api/payments/postlink`), Excel-выгрузке
-  (`/api/export-orders`, столбец «Цвет») и листе сборки (`/print/order/[id]`)
-- ✅ Затронуты также `cart/page.tsx`, `CartSidebar.tsx`, `checkout/page.tsx` (составной ключ + показ цвета)
-- ⚠️ Предусловие (применяет владелец): `ALTER TABLE order_items ADD COLUMN color text;`
+## Что работает (production)
 
-### Сессия 14 июня 2026 (продолжение) — атомарность чекаута + цвет на /product/[id]
-- ✅ **A2 — атомарное создание заказа**: вставка `order_items` в `/api/checkout` теперь
-  проверяется; при сбое заказ откатывается (`DELETE orders`) + возвращается реальная ошибка
-  (`detail`) вместо тихого пустого заказа. Гард на отсутствие `SUPABASE_SERVICE_ROLE_KEY` →
-  503 до создания заказа. Чинит «заказы-сироты» (диагностированы на preview: №73 пустой)
-- ✅ **B — выбор цвета на `/product/[id]`**: переиспользует `getColorMode()`/`colorLabel()`/
-  `colorSwatch()` и UI из DetailPanel (бейдж «Ассорти» / чипсы + блок кнопки до выбора,
-  авто-выбор единственного цвета); `handleAddToCart` прокидывает цвет, корзина — по
-  составному ключу
-- ℹ️ Диагностика: 500 на `/api/payments/init` (preview) = `TypeError: fetch failed` на
-  OAuth-вызове к Halyk — окружение preview (банк недоступен), не регрессия. Кодом не чиним.
+### Каталог и заказы
+- ✅ Каталог 3 категорий (`cut`/`pot`/`accessories`), витрина = `is_active AND source IN ('uralsk_site','uralsk_1c')`.
+- ✅ Плоская модель остатков (`products.qty`), резервы 30 мин (`reservations`), view `stock_available`.
+- ✅ Корзина (Zustand `cart-store`, persist), оформление заказа гостем (по телефону) и клиентом.
+- ✅ Выбор цвета как ярлык (`order_items.color`), палитра `src/lib/colors.ts`.
+- ✅ Серверный поиск (`/api/search` → RPC `search_products`), фасеты (`/api/facets`).
+- ✅ Жизненный цикл заказа: `cart → pending → reserved → confirmed → assembling → assembled → delivered` (+ `cancelled`, + преордерные `in_transit`/`arrived`, + `negotiation`). Сборка/корректировка/выдача в `/admin`.
 
-### Сессия 23–24 мая 2026
-- ✅ **Очистка дублей партий** — найдено 52 группы дублей (104 партии → 52): суммированы остатки в первую партию, дубли деактивированы (`is_active = false`), записано в `inventory_ledger`
-- ✅ **Исправлен `sync_stock_from_1c`** — новая логика без дублей:
-  - Поиск партии только по `(product_id, price)`, **без** `arrival_date`
-  - Партия найдена → `UPDATE stock = новое_кол-во`, `arrival_date` **не меняется**
-  - Партия не найдена → `INSERT` новой партии с датой из XLS
-  - Убран параметр `p_category`, добавлен нормализованный поиск (`LOWER/TRIM` + trigram fallback > 0.85)
-  - `stock` таблица обновляется через `UPSERT` с пересчётом суммы по всем активным партиям
+### Оплата и счета
+- ✅ Оплата ePay/Halyk (тестовый контур): `/api/payments/init` → checkout → `/api/payments/postlink`; уведомления (Telegram+WhatsApp) только после подтверждения оплаты.
+- ✅ Реестр банка `/admin/payments` (`payments`, `payment_operations`).
+- ✅ Счета на оплату (`invoices`, нумерация с 9000001).
+- ⏳ Ждём боевые ключи Halyk + DNS (`uralskflowers.kz`).
 
-### Сессия 7 мая 2026
-- ✅ Правая панель `DetailPanel.tsx` — 3 состояния: пусто / карточка товара / корзина
-- ✅ `detail-store.ts` — Zustand стор (panel, product, setProduct, setPanel, flashCart)
-- ✅ `products-store.ts` — хранит список товаров и filteredCount для bottom bar
-- ✅ `filter-chips.ts` — хук `useFilterChips()` для десктопа и мобильного
-- ✅ `use-mobile.ts` — хук `useIsMobile()` (< 768px)
-- ✅ Мобильная адаптация: CatalogLayout одна колонка + bottom sheets (фильтр / деталь)
-- ✅ Bottom bar: кнопки «Фильтры» и «Корзина» с суммой
-- ✅ FilterPanel — сворачиваемые группы, sticky кнопка сброса, авто-раскрытие при активном фильтре
-- ✅ Кружки цветов в GridCard и DetailPanel (colors[] + fallback на color)
-- ✅ Роль и происхождение товара в GridCard
-- ✅ Миниатюры товаров в корзине (image_url в CartItem)
-- ✅ Поиск перенесён в тулбар (2 строки на мобильном)
-- ✅ Режим сетки: убран 3-колоночный, остались 4-кол (desktopтоп) / 2-кол (мобильный) + список
-- ✅ Скрытие остатков и цен для неавторизованных
-- ✅ colors, subcategory, variety_type, floral_role, origin и др. добавлены в SELECT
+### Предзаказы
+- ✅ Закрытые комнаты-кампании OZ (вход по коду), pricing EUR→KZT, стейджинг, сборка/выдача, конвертация в заказы. Активных кампаний в БД: 1.
 
-### Сессия 2 мая 2026
-- ✅ Редизайн фаза 2 — двухуровневый хедер: L1 белый (логотип, навигация, кнопки авторизации), L2 бордовый #8B1A1A (категории, корзина с бейджем)
-- ✅ Редизайн фаза 3 — layout каталога: левый FilterSidebar + сетка карточек ProductCard
-- ✅ `filter-store.ts` — Zustand стор фильтров (category, onlyAvailable, onlyDiscount, search)
-- ✅ `FilterSidebar.tsx` — sticky панель фильтров: поиск, категория, наличие/уценка
-- ✅ `ProductCard.tsx` — карточка товара: фото, остаток, цена (зачёркнутая при уценке), кнопки −/qty/+
-- ✅ `PriceTable.tsx` — переведён на grid карточек, внутренний поиск/табы убраны, подключён filter-store
-- ✅ Кнопка «Передать клиенту» (переименована с «Выдан»)
+### AI / интеграции
+- ✅ AI-виджет-консультант на сайте (история в `conversations`/`messages`), анонимные обращения → amoCRM «Обращения с сайта».
+- ✅ Umnico-бот расходки (WhatsApp), цепочка уведомлений менеджеру + кладовщику.
+- ✅ AI-перевод названий (`translation_memory`, Gemini), `display_name` через триггер.
+- ✅ amoCRM: лиды/контакты/этапы для заказов и предзаказов.
+- ✅ Яндекс.Метрика (110078269) в SPA-режиме, блок «Трафик» в `/admin/stats`.
 
-### Сессия 1 мая 2026 (продолжение)
-- ✅ Редизайн фаза 1 — CSS-токены, шрифты Inter/Montserrat
-- ✅ Каталог использует `stock_available` view: `available_qty` + `previous_price`
-- ✅ Отслеживание снижения цены при импорте, бейдж «Уценка» в каталоге
-- ✅ Страница кассира (`CashierView`) — планшетный UI, мгновенное подтверждение заказа
-- ✅ Кнопка печати и страница накладной `/print/order/[id]`
-- ✅ Проверка остатков перед созданием менеджерского заказа
-- ✅ API `/api/search-products`, используется в `NewOrderModal`
-- ✅ Модальное окно быстрого заказа менеджера (`NewOrderModal`)
-- ✅ Диалог подтверждения перед импортом XLS (предупреждение о сбросе остатков)
-- ✅ Экспорт выданных заказов в Excel (`/api/export-orders`)
-- ✅ Убрана auth-проверка из `confirm-order` API
-- ✅ Кнопка статуса «Выдан» переименована в «Передать клиенту»
-- ✅ Множество фиксов импорта XLS: суммирование qty, обнуление категорий, pack_size
+### Импорт / каталог поставщиков
+- ✅ Импорт XLS из 1С (staging `stock_import_rows` → апрув → `products`), категория по имени файла.
+- ✅ 1С-интеграция `/api/integrations/1c/stock` (snapshot, авто-матч по коду/алиасу/имени).
+- ✅ Сбор каталогов OZ/Waterdrinker (карточки `source='oz_catalog'/'waterdrinker'`, `is_active=false` до прихода в 1С).
+- ✅ Инвентаризация и списания (`writeoffs`, `inventory_*`).
 
-### Сессия 1 мая 2026
-- ✅ Новая система авторизации: телефон + PIN через Supabase Auth
-- ✅ AuthModal (телефон + PIN), auth-store Zustand, singleton Supabase client
-- ✅ Убран @supabase/ssr, используется @supabase/supabase-js напрямую
-- ✅ Защита /admin через useAuthStore на клиенте
-- ✅ Личный кабинет /cabinet — показывает заказы клиента
-- ✅ Серверные auth проверки убраны из checkout, cabinet, import-xls
-- ✅ Создан src/lib/phone.ts с единой normalizePhone()
-- ✅ Единый формат телефона везде: +7XXXXXXXXXX
-- ✅ Импорт XLS работает (userId передаётся из клиента)
+### Инфраструктура
+- ✅ Прод на VPS (pm2/nginx), деплой push→main через GitHub Actions.
+- ✅ RLS включён на ~24 таблицах (роллаут июнь).
+- ✅ Самохостинг фото на VPS (часть) + Supabase Storage.
 
-### Сессия 30 апреля 2026
-- ✅ RLS почищен — убраны 4 дублирующих политики на таблице stock (было 5, стало 1)
-- ✅ Авторизация по телефону — гость может оформить заказ без регистрации
-- ✅ Данные клиента сохраняются в таблице clients (phone, name)
-- ✅ Убран FK constraint clients_id_fkey (мешал созданию клиентов без auth аккаунта)
-- ✅ Добавлен DEFAULT gen_random_uuid() для clients.id
-- ✅ WhatsApp открывается по клику на кнопку, не автоматически
-- ✅ Telegram уведомление менеджеру при новом заказе (бот + chat_id настроены)
+## Снимок данных (на 26.06.2026)
 
-### Ранее
-- ✅ Базовый каталог товаров с фото и сортами
-- ✅ Корзина и оформление заказа
-- ✅ Резервирование остатков (30 мин, cron cleanup каждые 5 мин)
-- ✅ Подтверждение и отмена заказов
-- ✅ Импорт товаров из XLS (частично работает)
-- ✅ Cron-задача очистки истёкших резервирований
+- `products`: 8181 всего, 4709 активных, 4708 с остатком > 0.
+- По источникам: `oz_catalog` 5158, `waterdrinker` 1124, `uralsk_1c` 1051, `uralsk_site` 651, `null` 183, `oz_preorder` 10, `oz_export` 3, `1c_manual` 1.
+- Активная витрина (`uralsk_site`+`uralsk_1c`): 719 товаров.
+- `orders`: 43 · `campaigns`: 1 · `translation_memory`: 453.
 
----
+## Known issues / риски (см. `DOCS_AUDIT_REPORT.md` §5)
 
-## Known Issues
+### 🟠 Безопасность / авторизация
+- Многие мутирующие роуты на `createAdminClient()` (service-role) **без проверки сессии/роли** (`/api/checkout`, `/api/manager-order`, `/api/orders/[id]`, `/api/campaigns` root/PATCH/DELETE, `/api/payments/postlink`). Защита — серверность + неочевидность. Нужен auth-аудит до публичного запуска.
+- SECURITY DEFINER RPC (`admin_*`, `get_admin_preorders`, `get_preorder_room`) открыты для anon; защита — клиентский гард `/admin`.
+- `favorites` без RLS; PIN хранится открытым текстом в `clients.pin`.
 
-### 🔴 Критические (починить до предзаказов)
-- **checkout не работает в DetailPanel** — корзина в правой панели не отправляет заказ
-- **PIN не синхронизируется** — изменение PIN в AdminTable не обновляет Supabase Auth
-- **Фото обрезается в DetailPanel** — object-fit/position требует дополнительной настройки
-- **Иконка корзины в хедере** — не открывает правую панель на десктопе
+### 🟡 Данные / БД
+- Мёртвые функции `sync_stock_from_1c` / `sync_stock_from_batches` / `sync_stock_reserves` ссылаются на удалённые `stock`/`batches` — кандидаты на DROP.
+- Backup-таблицы в `public` (`_backup_*_pre_rebuild`, `products_backup_*`, `*_backup_dedup_*`, `dedup_mapping_*`) — мусор, висят в проде.
+- `app_settings.oz_target_departure_date = 2026-06-18` — в прошлом → риск рассинхрона OZ-цен/наличия (`oz_price_deactivate_enabled=false` снижает урон).
+- `confirm_order_fifo` — имя историческое, FIFO нет (простое списание). Переименовать/документировать.
+- `order_status` содержит незадокументированное `negotiation` (нет в маппинге amoCRM).
 
-### 🟡 Некритические
-- **Импорт XLS** — qty суммируется вместо замены для некоторых позиций (исправлено в sync_stock_from_1c)
-- **WhatsApp уведомление** — ссылка не открывается, если отключены popup'ы в браузере
-- **Realtime обновления каталога** — цены не обновляются без перезагрузки страницы
+### 🟢 Прочее
+- Realtime обновления каталога не работают — нужна перезагрузка страницы.
+- WhatsApp-уведомление требует разрешения всплывающих окон.
 
----
+## Roadmap (актуальные направления)
 
-## Roadmap
-
-### 🔴 Этап 1 — Текущие баги (до предзаказов)
-1. Починить checkout в DetailPanel
-2. Синхронизация PIN при изменении в AdminTable
-3. Фото в DetailPanel
-4. Кнопка корзины в хедере
-
-### 🟡 Этап 2 — Нормализация каталога (минимальная версия)
-5. **Поле `name_display`** — добавить TEXT в products: чистое название для клиента ("Altai Yellow" вместо "хризантема ветковая алтай LINFLOWERS"); в каталоге показывать если заполнено
-6. **Stop words в импорте XLS** — убирать LINFLOWERS/zento/2кор/оф/bunch/box из названий при парсинге
-7. **Импорт ОЗ Голландия (.xlsx)** — автозаполнение color/origin/farm/image_url/name_display из инвойса
-
-### ⏸ Отложено до масштабирования
-- Таблица aliases (словарь raw_name → product_id)
-- Полный dictionary pipeline
-- AI matching названий
-
-### 🟢 Следующий спринт
-8. Загрузить реальные аккаунты клиентов (Supabase Auth + profiles)
-9. Форма управления клиентами в /admin
-10. Realtime обновления каталога — WebSocket подписка на products и stock
-11. Личный кабинет — история заказов клиента с деталями
+1. **Auth-аудит API** — закрыть write-роуты и SECURITY DEFINER RPC ролевыми проверками.
+2. **Маппинг 1С → каталог** — таблица алиасов `raw_name → product_id` (частично есть `stock_aliases`); первичная привязка через UI + AI.
+3. **Боевая оплата Halyk** — ключи + DNS `uralskflowers.kz` + certbot.
+4. **Чистка БД** — DROP мёртвых функций и backup-таблиц, ревизия `negotiation`.
+5. **Переводы OZ-товаров** — `display_name` для англоязычных карточек.
+6. **Нормализация дублей** — слияние товаров с одним сортом, разными `name`.
+</content>

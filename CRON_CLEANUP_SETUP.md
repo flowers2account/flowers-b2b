@@ -1,93 +1,45 @@
-# Cron Cleanup Setup для Vercel
+# Cron — настройка и фактическое расписание (Flowers B2B)
 
-## Описание
+> **Обновлено:** 2026-06-26 (сверено с `vercel.json` и `src/app/api/cron/*`).  
+> ⚠️ Старая версия обещала запуск «каждые 5 минут» и правку `stock.qty_reserved`. Фактически: раз в сутки, таблицы `stock` нет.
 
-Автоматический cron job, который каждые 5 минут удаляет истекшие резервирования и пересчитывает доступное количество товара.
+## `vercel.json`
 
-## Endpoint: /api/cron/cleanup
-
-- **Метод**: GET
-- **Расписание**: каждые 5 минут (`*/5 * * * *`)
-- **Защита**: Bearer token в заголовке `Authorization`
-- **Ответ**:
 ```json
 {
-  "success": true,
-  "deleted_count": 15,
-  "affected_products": 8,
-  "timestamp": "2026-04-25T10:00:00.000Z"
+  "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 0 * * *" }],
+  "git": { "deploymentEnabled": { "main": false } }
 }
 ```
 
-## Настройка в Vercel
+- **Один** крон: `/api/cron/cleanup`, `0 0 * * *` — **раз в сутки**, 00:00 UTC = 05:00 Asia/Oral. (Vercel Hobby допускает только суточные кроны.)
+- Авто-деплой Vercel с `main` отключён (прод — на VPS через GitHub Actions).
 
-1. **Переменная окружения CRON_SECRET**:
-   - Перейдите в Vercel Settings → Environment Variables
-   - Добавьте переменную `CRON_SECRET` с случайной строкой (рекомендуется 32+ символов)
-   - Пример: `CRON_SECRET=abc123def456ghi789jkl012mno345pqr`
+## `/api/cron/cleanup` (GET)
 
-2. **Файл vercel.json**:
-   - Уже создан в корне проекта
-   - Содержит расписание cron job
-   - Vercel автоматически распознает и активирует после deploy
-
-3. **Service Role Key для cron**:
-   - Cron job использует `SUPABASE_SERVICE_ROLE_KEY` для мутаций
-   - Ключ должен быть доступен в Vercel settings
-   - ⚠️ Используется ТОЛЬКО для cron, не для других endpoints
-
-## Тестирование локально
+- **Что делает:** удаляет просроченные резервы — `DELETE FROM reservations WHERE expires_at < now()`. Логирует число удалённых. Никакой синхронизации `qty_reserved`/`stock` не нужно: доступность считается на лету во view `stock_available`.
+- **Клиент БД:** raw `createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`.
+- **Защита:** заголовок `Authorization: Bearer ${CRON_SECRET}`.
 
 ```bash
-# В .env.local
-CRON_SECRET=your-test-secret
-
-# Тестовый запрос
-curl -H "Authorization: Bearer your-test-secret" http://localhost:3000/api/cron/cleanup
+# локальный тест (PowerShell)
+Invoke-RestMethod -Uri http://localhost:3000/api/cron/cleanup `
+  -Headers @{ Authorization = "Bearer $env:CRON_SECRET" }
 ```
 
-## SQL: Проверка структуры stock таблицы
+## `/api/cron/widget-amo-sync` (GET)
 
-Убедитесь, что таблица `stock` имеет колонку `qty_reserved`:
+- **Что делает:** `runWidgetAmoSync()` — (1) досылает в amoCRM сводки бесед виджета с новыми сообщениями после `last_note_at`; (2) помечает «застрявшие» анонимные обращения (есть лид, телефон не оставлен, давно молчат) → уведомление менеджеру. Идемпотентно. Параметры `?stuck=<мин>&since=<часов>`.
+- **Защита:** `Authorization: Bearer ${CRON_SECRET}`.
+- **Запуск:** НЕ из `vercel.json` — внешним планировщиком (VPS-крон, по образцу flowers-cleanup, ~каждые 10 мин). См. `docs/INFRA.md`.
 
-```sql
--- Проверить структуру
-\d stock;
+## ENV
 
--- Если колонки нет, добавить:
-ALTER TABLE stock ADD COLUMN qty_reserved INTEGER DEFAULT 0;
-
--- Создать индекс для быстрого поиска
-CREATE INDEX IF NOT EXISTS idx_stock_product_id ON stock(product_id);
-```
-
-## SQL: Проверка reservations таблицы
-
-```sql
--- Убедитесь, что есть индекс на expires_at для быстрого поиска истекших
-CREATE INDEX IF NOT EXISTS idx_reservations_expires_at ON reservations(expires_at);
-
--- Проверить структуру
-\d reservations;
-```
-
-## Мониторинг
-
-Vercel автоматически логирует результаты cron jobs. Вы можете проверить логи:
-
-1. Перейдите в Vercel Dashboard → Project
-2. Откройте вкладку "Deployments"
-3. Нажмите на текущий deployment
-4. Откройте вкладку "Functions"
-5. Найдите `/api/cron/cleanup` и смотрите логи
+- `CRON_SECRET` — защита обоих кронов.
+- `SUPABASE_SERVICE_ROLE_KEY` — мутации.
 
 ## Отладка
 
-**Если cron не выполняется:**
-- Проверьте, что `CRON_SECRET` установлена в Vercel settings
-- Убедитесь, что `SUPABASE_SERVICE_ROLE_KEY` доступна
-- Проверьте логи в Vercel Dashboard
-
-**Если есть ошибки удаления:**
-- Проверьте RLS политики на таблице `reservations`
-- Убедитесь, что service role имеет доступ к удалению
+- Логи Vercel: Deployments → Functions → `/api/cron/cleanup`.
+- Резервы по-прежнему «висят»? Проверить, что cron отработал: `SELECT count(*) FROM reservations WHERE expires_at < now();` (должно быть ~0 после запуска). До суточного запуска просроченные резервы всё равно не влияют на доступность — `stock_available` учитывает только `expires_at > now()`.
+</content>

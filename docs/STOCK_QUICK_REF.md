@@ -1,160 +1,48 @@
 # Остатки — Quick Reference
 
-> **Дата:** 24 мая 2026  
-> **Полная документация:** [STOCK_MANAGEMENT_FEATURE.md](./STOCK_MANAGEMENT_FEATURE.md)
+> **Обновлено:** 2026-06-26. Полная версия — [STOCK_MANAGEMENT.md](./STOCK_MANAGEMENT.md).  
+> ⚠️ Старая версия описывала `stock`/`batches`/FIFO — всё удалено (rebuild ~25.05.2026).
 
----
-
-## 🎯 Архитектура (3 уровня)
+## Модель (плоская)
 
 ```
-PRODUCTS (каталог)
-    ↓
-STOCK (текущие остатки) ← главная точка правды
-    ↓
-BATCHES (партии для FIFO)
-    ↓
-STOCK_AVAILABLE (VIEW для клиента)
+products.qty (остаток) + products.price (цена)
+        │
+   reservations (TTL 30 мин)
+        │
+   VIEW stock_available  →  available_qty = GREATEST(0, qty − Σ активных резервов)
 ```
 
----
+- Остаток — `products.qty` (int, NOT NULL). Цена — `products.price`. Никаких `stock`/`batches`.
+- `pack_size` DEFAULT **5** (кратность заказа).
+- Доступность — view `stock_available` (`product_id, qty, qty_reserved, available_qty, is_active`; **без price**).
+- Резерв — `reservations.expires_at` (30 мин). Чистит cron `0 0 * * *` (раз в сутки).
 
-## 📊 Ключевые таблицы
+## Списание при подтверждении заказа
 
-### `stock`
-- `qty` — общий остаток
-- `qty_reserved` — резерв системы ⚠️ не очищается автоматически
-- `price` — текущая цена
-
-### `batches`
-- `stock` — остаток в партии
-- `arrival_date` — для FIFO
-- `price` — цена партии
-- `is_active` — false = списана
-
-### `stock_available` (VIEW)
-```sql
-available_qty = stock.qty 
-              - stock.qty_reserved 
-              - SUM(активные reservations)
+`orders.status → confirmed` ⇒ триггер `trg_order_confirm` ⇒ `confirm_order_fifo(id)`:
 ```
-
-### `reservations`
-- TTL: 30 минут
-- Очистка: cron раз в день
-
----
-
-## 🔴 Критические баги
-
-### 1. FIFO сломан
-**Проблема:**
-```sql
-WHERE batches.price = order_items.price
+products.qty := GREATEST(0, qty − ordered)   -- НЕТ FIFO, НЕТ партий
+→ inventory_ledger (action='sale')
+→ DELETE reservations заказа
 ```
-При изменении цены старые партии **зависают**.
+Переход статуса — через RPC `apply_order_transition` (advisory-lock + проверка остатков для `confirmed`).
 
-**Решение:** Убрать фильтр по цене
-```sql
-ORDER BY arrival_date ASC  -- чистый FIFO
-```
+## Тег «Акция»
 
----
+`products.previous_price > price` ⇒ UI показывает зачёркнутую старую цену. `previous_price` заполняет импорт при снижении цены.
 
-### 2. qty_reserved не очищается
-**Проблема:** Cron удаляет `reservations`, но триггер на UPDATE stock отсутствует.
-
-**Решение:**
-```sql
-CREATE TRIGGER trg_sync_reserved_delete
-AFTER DELETE ON reservations
-FOR EACH ROW
-EXECUTE FUNCTION sync_reserved_on_delete();
-```
-
----
-
-### 3. Импорт XLS суммирует qty
-**Проблема:** При повторном импорте создаётся новая партия → qty удваивается.
-
-**Нужно:** Определить логику — замена или пополнение?
-
----
-
-## 🔧 SQL функции
-
-### `sync_stock_from_batches()`
-Синхронизирует `stock.qty = SUM(batches.stock WHERE is_active)`
-
-### `sync_stock_reserves()`
-Пересчитывает `qty_reserved` из активных резервов
-
-### `confirm_order_fifo(order_id)`
-FIFO списание при подтверждении заказа
-
----
-
-## 🧪 SQL диагностика
+## Диагностика
 
 ```sql
--- Проверка синхронизации stock ↔ batches
-SELECT p.name, s.qty, SUM(b.stock) as batches_sum
-FROM products p
-JOIN stock s ON s.product_id = p.id
-LEFT JOIN batches b ON b.product_id = p.id AND b.is_active = true
-GROUP BY p.id, s.qty
-HAVING s.qty != COALESCE(SUM(b.stock), 0);
-
--- Зависшие партии (is_active = true, stock = 0)
-SELECT p.name, b.price, b.arrival_date
-FROM batches b
-JOIN products p ON p.id = b.product_id
-WHERE b.is_active = true AND b.stock = 0;
-
--- Расхождения qty_reserved
-SELECT p.name, s.qty_reserved, SUM(r.qty) as actual
-FROM stock s
-JOIN products p ON p.id = s.product_id
-LEFT JOIN reservations r ON r.product_id = p.id AND r.expires_at > now()
-GROUP BY p.id, s.qty_reserved
-HAVING s.qty_reserved != COALESCE(SUM(r.qty), 0);
-
--- Oversell (available_qty < 0)
-SELECT p.name, sa.available_qty
-FROM stock_available sa
-JOIN products p ON p.id = sa.product_id
-WHERE sa.available_qty < 0;
+SELECT product_id, available_qty FROM stock_available WHERE available_qty < 0;     -- oversell
+SELECT product_id, sum(qty) FROM reservations WHERE expires_at < now() GROUP BY 1; -- зависшие резервы
+SELECT * FROM inventory_ledger WHERE product_id = :id ORDER BY created_at DESC;     -- движение
 ```
 
----
+## Чего НЕТ (вопреки старым докам)
 
-## 📝 Checklist перед деплоем
-
-- [ ] FIFO исправлен (убран фильтр `WHERE price = ?`)
-- [ ] Триггер `sync_reserved_on_delete` создан
-- [ ] Импорт XLS проверен (замена vs пополнение)
-- [ ] Cron cleanup работает
-- [ ] `stock_available` VIEW корректен
-
----
-
-## 🎯 План исправлений
-
-### 🔥 Фаза 1 (срочно)
-1. Исправить FIFO — убрать `WHERE price = item.price`
-2. Добавить триггер на DELETE reservations
-3. Проверить импорт XLS
-
-### 🟡 Фаза 2 (следующий спринт)
-4. Клиентский таймер для резервов
-5. Автозаполнение `inventory_ledger`
-6. Low stock alerts
-
-### 🟢 Фаза 3 (потом)
-7. Batch expiry (срок годности)
-8. Price history VIEW
-9. Inventory count UI
-
----
-
-**Полная версия:** [STOCK_MANAGEMENT_FEATURE.md](./STOCK_MANAGEMENT_FEATURE.md)
+- ❌ таблиц `stock`, `batches`; ❌ колонки `qty_reserved` в products; ❌ FIFO; ❌ view `products_available`.
+- ❌ бага `WHERE price = item.price` (жил в batches-версии, удалён).
+- ⚠️ Функции `sync_stock_from_1c/from_batches/reserves` остались в БД, но **мёртвые** (ссылаются на удалённые таблицы).
+</content>

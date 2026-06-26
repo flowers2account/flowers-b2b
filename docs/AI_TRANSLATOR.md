@@ -1,21 +1,23 @@
 # AI Переводчик накладных поставщиков — Текущее состояние
 
-**Дата:** 2026-05-20  
+**Дата:** 2026-06-26 (сверено с живой БД)  
 **Версия:** 1.1 (Production)  
 **Статус:** ✅ Работает в продакшене с интеграцией справочников
+
+> Факты на 26.06.2026: в `translation_memory` — **453 строки**. Существуют views `translation_memory_enriched` и `translation_memory_context`, триггеры авто-парсинга структуры (`trg_auto_parse_structure`, `trg_normalize_translated`, `trg_set_normalized_original`). Боевой роут — `POST /api/translations/batch` (rule-based → DB exact → Gemini `models/gemini-flash-lite-latest`). `display_name` товара собирает триггер `generate_product_display_name` (species_ru + cultivar из TM). Справочники: `species`, `characteristic_colors`/`_countries`/`_lengths`, `flower_types`.
 
 ---
 
 ## 📊 Краткая сводка
 
 **Что работает:**
-- ✅ 127 переводов в базе (56 → 127 за сессию)
-- ✅ AI перевод через Google Gemini Flash Lite
-- ✅ Ручные правки с защитой от перезаписи
-- ✅ Двунаправленный поиск (англ↔рус)
-- ✅ **НОВОЕ:** Автоматическое распознавание структуры товара
-- ✅ **НОВОЕ:** Справочники (25 видов, 14 цветов, 13 стран)
-- ✅ **НОВОЕ:** Формат 7flowers для экспорта
+- ✅ 453 строки переводов в базе (на 26.06.2026)
+- ✅ AI перевод через Google Gemini Flash Lite (`NEXT_PUBLIC_GEMINI_MODEL`)
+- ✅ Ручные правки с защитой от перезаписи (`source='manual'`, `is_flagged`)
+- ✅ Двунаправленный поиск (англ↔рус, по `normalized_original`/`normalized_translated`)
+- ✅ Автоматическое распознавание структуры товара (триггеры)
+- ✅ Справочники видов/цветов/стран
+- ✅ View `translation_memory_enriched` — сборка `display_name_7flowers`
 
 **Точность:**
 - 37% товаров распознаны автоматически (species)
