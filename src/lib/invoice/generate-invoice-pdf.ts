@@ -22,6 +22,7 @@ export type InvoiceData = {
   buyer: { companyName?: string | null; bin?: string | null }
   lines: InvoiceLine[]
   qrLink: string                        // готовая ссылка OnlineDuken
+  amount?: number                       // итог к оплате (orders.total со скидкой); по умолчанию — сумма позиций
 }
 
 const money = (n: number) =>
@@ -39,7 +40,9 @@ function formatDate(d?: Date | string): string {
 /** Сгенерировать PDF-счёт. Возвращает Buffer. */
 export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   const lines = data.lines ?? []
-  const total = lines.reduce((s, l) => s + Number(l.qty) * Number(l.price), 0)
+  const linesSum = lines.reduce((s, l) => s + Number(l.qty) * Number(l.price), 0)
+  const total = data.amount != null ? Number(data.amount) : linesSum
+  const discount = Math.max(0, linesSum - total)
   const qrPng = await QRCode.toBuffer(data.qrLink, { errorCorrectionLevel: 'M', margin: 1, width: 420 })
 
   const doc = new PDFDocument({ size: 'A4', margin: mm(15) })
@@ -126,6 +129,10 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   doc.moveDown(0.6)
   // ── Итого ──
+  if (discount > 0) {
+    doc.font('reg').fontSize(10).text(`Сумма позиций: ${money(linesSum)} тг`, left, doc.y, { width, align: 'right' })
+    doc.font('reg').fontSize(10).text(`Скидка: −${money(discount)} тг`, { width, align: 'right' })
+  }
   doc.font('bold').fontSize(11).text(`Итого: ${money(total)} тг`, left, doc.y, { width, align: 'right' })
   doc.font('reg').fontSize(9.5).text(`Всего к оплате: ${amountInWords(total)}`, { width })
   doc.moveDown(1)
