@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAuthedUser } from '@/lib/api-auth'
 import { normalizePhone } from '@/lib/phone'
-import { ensureInvoiceForOrder, getInvoiceForOrder } from '@/lib/invoice/create-invoice'
+import { ensureInvoiceForOrder, getInvoiceForOrder, markInvoicePaidByOrder } from '@/lib/invoice/create-invoice'
 
 export const dynamic = 'force-dynamic'
+
+/** Только сотрудник (admin/manager). */
+async function requireStaff(req: NextRequest): Promise<boolean> {
+  const authed = await getAuthedUser(req)
+  if (!authed) return false
+  const sb = createAdminClient()
+  const { data: prof } = await sb.from('profiles').select('role').eq('id', authed.userId).maybeSingle()
+  return ['admin', 'manager'].includes((prof?.role as string) ?? '')
+}
 
 const statusFor = (reason: string) =>
   reason === 'NO_BIN' ? 400 : reason === 'ERROR' ? 500 : 404
@@ -51,5 +60,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const res = await ensureInvoiceForOrder(orderId, { withPdf })
   if (!res.ok) return NextResponse.json(res, { status: statusFor(res.reason) })
+  return NextResponse.json(res)
+}
+
+// Ручное подтверждение оплаты счёта (для переводов по реквизитам — API банка их не видит).
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const orderId = parseInt((await params).id)
+  if (!Number.isFinite(orderId)) return NextResponse.json({ error: 'bad id' }, { status: 400 })
+  if (!(await requireStaff(req))) return NextResponse.json({ error: 'Только для сотрудников' }, { status: 403 })
+
+  const body = await req.json().catch(() => ({}))
+  if (body?.action !== 'mark-paid') return NextResponse.json({ error: 'Неизвестное действие' }, { status: 400 })
+
+  const res = await markInvoicePaidByOrder(orderId, 'manual')
+  if (!res.ok) return NextResponse.json(res, { status: res.reason === 'NOT_FOUND' ? 404 : 500 })
   return NextResponse.json(res)
 }

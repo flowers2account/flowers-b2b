@@ -69,6 +69,44 @@ async function sign(sb: ReturnType<typeof createAdminClient>, path: string | nul
   return data?.signedUrl ?? null
 }
 
+export type MarkPaidResult =
+  | { ok: true; invoice: InvoiceRow; alreadyPaid: boolean }
+  | { ok: false; reason: 'NOT_FOUND' | 'ERROR'; message: string }
+
+/**
+ * Отметить счёт оплаченным (ручное подтверждение или ответ API OnlineDuken).
+ * Идемпотентно: если уже paid — ничего не меняет, alreadyPaid=true.
+ * Каскад: invoices(status=paid, paid_at, paid_source) + orders(payment_status=paid, paid_at).
+ */
+export async function markInvoicePaidByOrder(
+  orderId: number,
+  source: 'manual' | 'onlineduken_api' = 'manual',
+): Promise<MarkPaidResult> {
+  const sb = createAdminClient()
+  const { data: invoice } = await sb.from('invoices').select('*').eq('order_id', orderId).maybeSingle()
+  if (!invoice) return { ok: false, reason: 'NOT_FOUND', message: 'Счёт по заказу не найден' }
+  if (invoice.status === 'paid') return { ok: true, invoice: invoice as InvoiceRow, alreadyPaid: true }
+
+  const now = new Date().toISOString()
+  // Гонка: обновляем только пока не paid — параллельные клики не задвоят.
+  const { data: upd, error } = await sb
+    .from('invoices')
+    .update({ status: 'paid', paid_at: now, paid_source: source })
+    .eq('id', invoice.id)
+    .neq('status', 'paid')
+    .select('*')
+    .maybeSingle()
+  if (error) return { ok: false, reason: 'ERROR', message: error.message }
+  // Кто-то успел раньше — это всё равно успех (идемпотентность).
+  const finalInvoice = (upd ?? invoice) as InvoiceRow
+
+  // Связанный заказ → payment_status=paid (тоже идемпотентно).
+  await sb.from('orders').update({ payment_status: 'paid', paid_at: now }).eq('id', orderId).neq('payment_status', 'paid')
+
+  console.log(`[invoice] № ${finalInvoice.invoice_number} (order ${orderId}) → paid, source=${source}`)
+  return { ok: true, invoice: finalInvoice, alreadyPaid: false }
+}
+
 /** Прочитать счёт заказа без создания. null-счёт, если его ещё нет. */
 export async function getInvoiceForOrder(orderId: number): Promise<
   { ok: true; invoice: InvoiceRow | null; downloadUrl: string | null } | { ok: false; reason: 'ERROR'; message: string }
