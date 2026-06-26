@@ -7,6 +7,7 @@ import { authHeaders } from '@/lib/api-token'
 import NewOrderModal from './NewOrderModal'
 import AssemblyModal from './AssemblyModal'
 import OrderEditModal from './OrderEditModal'
+import AdminInvoiceButton from './AdminInvoiceButton'
 
 type HistoryEntry = {
   id: number
@@ -29,7 +30,7 @@ type OrderItem = {
   product: { name: string; pack_size: number } | null
 }
 
-type Client = { name: string | null; phone: string | null; company_name: string | null } | null
+type Client = { name: string | null; phone: string | null; company_name: string | null; bin: string | null } | null
 
 type Order = {
   id: number
@@ -166,7 +167,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name, bin), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) console.error('Orders error:', error)
@@ -506,6 +507,12 @@ export default function OrdersPanel() {
               ))}
             </tbody>
           </table>
+
+          {order.client?.company_name && (
+            <div className="pt-1">
+              <AdminInvoiceButton orderId={order.id} />
+            </div>
+          )}
 
           {order.assembly_photo_url && (order.status === 'assembled' || order.status === 'delivered') && (
             <div className="flex items-center gap-2">

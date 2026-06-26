@@ -7,7 +7,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { authHeaders } from '@/lib/api-token'
 import { company } from '@/config/company'
-import HalykQrBlock from '@/components/HalykQrBlock'
+import PaymentFork from '@/components/PaymentFork'
 import s from './order.module.css'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
@@ -202,9 +202,9 @@ export default function OrderPage() {
               )}
             </div>
 
-            {/* QR-оплата для юр. лиц (Halyk OnlineBank) — пока неоплачен и клиент юрлицо */}
+            {/* Развилка оплаты для юр. лиц: Halyk QR + счёт PDF — пока неоплачен и клиент юрлицо */}
             {!isPaid && client?.company_name && (
-              <HalykQrBlock order={{ id: order.id, total: totalPaid }} client={{ bin: client.bin }} />
+              <PaymentFork orderId={order.id} client={{ company_name: client.company_name, bin: client.bin }} />
             )}
 
             <div className={s.box}>
@@ -225,11 +225,6 @@ export default function OrderPage() {
             <div className={s.box}>
               <h3>Документы</h3>
               <div className={s.docs}>
-                <div className={s.doc}>
-                  <span className={s.ic}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg></span>
-                  Счёт на оплату
-                  <span className={s.soon}>по запросу</span>
-                </div>
                 <div className={s.doc}>
                   <span className={s.ic}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg></span>
                   Накладная
