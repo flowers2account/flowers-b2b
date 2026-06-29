@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import { getCityDeliveryFee, computeDeliveryCost } from '@/lib/delivery'
+import { computeOrderTotal } from '@/lib/order-total'
 import { umnicoClient } from '@/lib/umnico/client'
 import { umnicoTemplates } from '@/lib/umnico/templates'
 
@@ -95,20 +96,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: reserveErrors.join(', ') }, { status: 409 })
   }
 
-  // Сумма + скидка 1% для Уральска (самовывоз или доставка по городу).
-  // Сервер — источник суммы к оплате: payments/init берёт order.total.
-  const rawTotal = items.reduce((sum: number, i: any) => sum + i.qty * i.price, 0)
-  const isUralsk = delivery?.method === 'pickup'
-    || (delivery?.method === 'delivery' && delivery?.city === 'Уральск')
-  const discountPct = isUralsk ? 1 : 0
-  const goodsTotal = Math.round(rawTotal * (1 - discountPct / 100))
-
   // Доставка считается на сервере (клиенту не доверяем). По городу — фикс из
   // app_settings.city_delivery_fee; межгород → null = «по согласованию» (в сумму не входит,
   // менеджер проставит позже); самовывоз → 0.
   const cityFee = await getCityDeliveryFee(supabase)
   const deliveryCost = computeDeliveryCost(delivery?.method, delivery?.city, cityFee)
-  const total = goodsTotal + (deliveryCost ?? 0)
+
+  // Сумма + скидка 1% для Уральска (самовывоз или доставка по городу). Единый расчёт
+  // (общий с правкой состава в пульте оператора). Сервер — источник суммы к оплате:
+  // payments/init берёт order.total.
+  const { rawTotal, discountPct, goodsTotal, total } = computeOrderTotal({
+    items,
+    fulfillmentType: delivery?.method,
+    deliveryCity: delivery?.city,
+    deliveryCost,
+  })
 
   // Заметка для менеджера: способ получения, получатель, скидка (флоу чекаута)
   const noteLines: string[] = []
