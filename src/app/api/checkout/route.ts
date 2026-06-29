@@ -191,15 +191,15 @@ export async function POST(req: NextRequest) {
   }
 
   // amoCRM sync (non-fatal — ошибка не роняет заказ).
-  // Ветка invoice: НЕ создаём сделку-продажу на «Новый». Сделка на стадии «Счёт выставлен»
-  // (INVOICE_ISSUED) создаётся отдельно (см. часть 4 — после создания стадии в воронке).
-  if (!isInvoice) {
-    try {
-      const { syncOrderToAmo } = await import('@/lib/amo')
-      await syncOrderToAmo(orderId)
-    } catch (err) {
-      console.error('[checkout] amoCRM sync failed:', err instanceof Error ? err.message : err)
-    }
+  // Ветка invoice: сделка создаётся на стадии «Счёт выставлен» (документ, не продажа),
+  // с тегом. На «Новый» её двигает подтверждение оплаты. Прочие способы — на «Новый», как было.
+  try {
+    const { syncOrderToAmo, AMO_STATUS_INVOICE_ISSUED } = await import('@/lib/amo')
+    await syncOrderToAmo(orderId, isInvoice
+      ? { statusId: AMO_STATUS_INVOICE_ISSUED, extraTags: ['Счёт выставлен'] }
+      : {})
+  } catch (err) {
+    console.error('[checkout] amoCRM sync failed:', err instanceof Error ? err.message : err)
   }
 
   // Резерв остатков: только для реальных заказов. Счёт-документ склад НЕ держит.

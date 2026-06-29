@@ -101,7 +101,22 @@ export async function markInvoicePaidByOrder(
   const finalInvoice = (upd ?? invoice) as InvoiceRow
 
   // Связанный заказ → payment_status=paid (тоже идемпотентно).
+  const { data: order } = await sb.from('orders').select('status, amo_lead_id').eq('id', orderId).maybeSingle()
   await sb.from('orders').update({ payment_status: 'paid', paid_at: now }).eq('id', orderId).neq('payment_status', 'paid')
+
+  // Счёт-документ оплачен → заказ становится реальным: cart→pending (появляется в панели
+  // оператора), а сделка amoCRM двигается «Счёт выставлен» → «Новый» (входит в воронку продаж).
+  if (order?.status === 'cart') {
+    await sb.from('orders').update({ status: 'pending' }).eq('id', orderId).eq('status', 'cart')
+    if (order.amo_lead_id) {
+      try {
+        const { patchLeadStage, AMO_STATUS_NEW } = await import('@/lib/amo')
+        await patchLeadStage(order.amo_lead_id as number, AMO_STATUS_NEW)
+      } catch (e) {
+        console.error('[invoice] amo stage move (Счёт выставлен→Новый) failed:', e instanceof Error ? e.message : e)
+      }
+    }
+  }
 
   console.log(`[invoice] № ${finalInvoice.invoice_number} (order ${orderId}) → paid, source=${source}`)
   return { ok: true, invoice: finalInvoice, alreadyPaid: false }
