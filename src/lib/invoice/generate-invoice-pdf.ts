@@ -138,18 +138,32 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   doc.font('reg').fontSize(9.5).text(`Всего к оплате: ${amountInWords(total)}`, { width })
   doc.moveDown(1)
 
-  // ── QR + подпись ──
+  // ── QR + брендовая подпись OnlineDuken / Halyk Bank ──
+  // Заметная метка над QR — по просьбе банка (Halyk): видно, что QR относится к OnlineDuken.
+  // Сам формат QR-ссылки не трогаем (проверен банком), меняется только визуальная подпись.
+  const HALYK_GREEN = '#0F8A3C'
+  doc.font('bold').fontSize(10.5).fillColor(HALYK_GREEN)
+    .text('Оплата через OnlineDuken · Halyk Bank', left, doc.y, { width })
+  doc.fillColor('#000')
+  doc.moveDown(0.4)
+
   const qrSize = mm(40)
   const qrY = doc.y
   doc.image(qrPng, left, qrY, { width: qrSize, height: qrSize })
   // рамка-блок вокруг QR (≥17×22мм; здесь с запасом)
   doc.lineWidth(0.5).strokeColor('#000')
     .rect(left - mm(1.5), qrY - mm(1.5), qrSize + mm(3), qrSize + mm(3)).stroke()
+  // мелкая логотип-подпись под QR — закрепляет принадлежность к OnlineDuken/Halyk
+  doc.font('bold').fontSize(7.5).fillColor(HALYK_GREEN)
+    .text('OnlineDuken', left - mm(1.5), qrY + qrSize + mm(2.2), { width: qrSize + mm(3), align: 'center' })
+  doc.font('reg').fontSize(6.5).fillColor('#7A7780')
+    .text('Halyk Bank', left - mm(1.5), doc.y, { width: qrSize + mm(3), align: 'center' })
+  doc.fillColor('#000')
 
   const capX = left + qrSize + mm(6)
-  doc.font('reg').fontSize(9).text(
-    `Оплатите сканированием QR в приложении Onlinebank, либо переводом по указанным ` +
-    `реквизитам с обязательным указанием номера счёта ${data.invoiceNumber} в назначении платежа.`,
+  doc.font('reg').fontSize(9).fillColor('#000').text(
+    `Оплатите сканированием QR в приложении Onlinebank (OnlineDuken · Halyk Bank), либо переводом ` +
+    `по указанным реквизитам с обязательным указанием номера счёта ${data.invoiceNumber} в назначении платежа.`,
     capX, qrY, { width: right - capX },
   )
 
