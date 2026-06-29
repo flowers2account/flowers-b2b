@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
+import { homePathForRole } from '@/lib/home-path'
 import s from './login.module.css'
 
 export default function LoginPage() {
@@ -25,7 +26,8 @@ export default function LoginPage() {
   const [arOk, setArOk] = useState(false)
 
   useEffect(() => { init() }, [])
-  useEffect(() => { if (isAuthed) router.replace('/cabinet') }, [isAuthed, router])
+  // Маршрутизация по роли: manager → пульт оператора, admin → админка, client → кабинет
+  useEffect(() => { if (isAuthed) router.replace(homePathForRole(useAuthStore.getState().role)) }, [isAuthed, router])
 
   async function handleLogin() {
     setError('')
@@ -35,7 +37,7 @@ export default function LoginPage() {
     const res = await login(phone, pin)
     setLoading(false)
     if (res.error) setError('Неверный номер или PIN-код. Проверьте данные или запросите новый PIN.')
-    else router.replace('/cabinet')
+    else router.replace(homePathForRole(useAuthStore.getState().role))
   }
 
   async function handleAccess() {
