@@ -36,6 +36,24 @@ export async function getAuthedUser(req: NextRequest): Promise<AuthedUser | null
   return { userId: data.user.id, phone }
 }
 
+/**
+ * Supabase-клиент, привязанный к access-токену запроса (anon-ключ + Bearer).
+ * Все запросы выполняются ОТ ИМЕНИ пользователя: работает RLS и `auth.uid()`
+ * (нужно, чтобы триггер log_order_status_change писал changed_by сам).
+ * Используется для мутаций оператора вместо service-role.
+ */
+export function sessionClient(req: NextRequest) {
+  const token = bearer(req)
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  )
+}
+
 /** Как getAuthedUser, но дополнительно проверяет роль (profiles.role). */
 export async function getAuthedWithRole(
   req: NextRequest,

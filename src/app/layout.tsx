@@ -4,11 +4,7 @@ import { Golos_Text, Lora, JetBrains_Mono, Playfair_Display } from 'next/font/go
 import Script from 'next/script'
 import { Toaster } from 'react-hot-toast'
 import './globals.css'
-import Header from '@/components/catalog/Header'
-import SiteFooter from '@/components/SiteFooter'
-import FavoritesGate from '@/components/FavoritesGate'
-import MobileTabBar from '@/components/MobileTabBar'
-import AiWidget from '@/components/AiWidget'
+import SiteChrome from '@/components/SiteChrome'
 import YandexMetrika from '@/components/YandexMetrika'
 
 // Номер счётчика Яндекс.Метрики (не секрет). Литерал, а НЕ импорт из
@@ -104,13 +100,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </noscript>
         <YandexMetrika />
-        <Header />
-        {children}
-        <SiteFooter />
-        <MobileTabBar />
-        <FavoritesGate />
-        {/* Нативный AI-виджет-консультант (заменил виджет Umnico на сайте). */}
-        <AiWidget />
+        {/* Сайтовый chrome (шапка/футер/таб-бар/AI-виджет) — кроме киоск-роута /admin/console */}
+        <SiteChrome>{children}</SiteChrome>
         <Toaster position="bottom-center" toastOptions={{ style: { fontSize: 13 } }} />
         <Analytics />
       </body>

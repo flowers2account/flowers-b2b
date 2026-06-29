@@ -15,12 +15,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isAuthed) return
-    if (role !== 'admin' && role !== 'manager') {
-      router.replace('/')
-    }
+    // Полная админка — только для admin. Оператор (manager) уходит на свой пульт.
+    if (role === 'manager') { router.replace('/admin/console'); return }
+    if (role !== 'admin') { router.replace('/'); return }
   }, [isAuthed, role])
 
-  if (!isAuthed) return null
+  if (!isAuthed || role !== 'admin') return null
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
