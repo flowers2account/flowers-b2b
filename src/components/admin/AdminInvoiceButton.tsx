@@ -31,7 +31,7 @@ export default function AdminInvoiceButton({ orderId }: { orderId: number | stri
       if (d?.ok) {
         setInv(d.invoice); setUrl(d.downloadUrl)
         if (d.downloadUrl) window.open(d.downloadUrl, '_blank', 'noopener')
-      } else if (d?.reason === 'NO_BIN') setMsg('Не заполнен БИН клиента (12 цифр)')
+      } else if (d?.reason === 'NO_BIN') setMsg('Не заполнены реквизиты клиента (организация + БИН)')
       else setMsg(d?.message ?? 'Ошибка формирования счёта')
     } catch { setMsg('Сеть недоступна') } finally { setBusy(false) }
   }

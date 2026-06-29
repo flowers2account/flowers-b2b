@@ -202,9 +202,11 @@ export default function OrderPage() {
               )}
             </div>
 
-            {/* Развилка оплаты для юр. лиц: Halyk QR + счёт PDF — пока неоплачен и клиент юрлицо */}
-            {!isPaid && client?.company_name && (
-              <PaymentFork orderId={order.id} client={{ company_name: client.company_name, bin: client.bin }} />
+            {/* Развилка оплаты для юр. лиц: Halyk QR + счёт PDF. Показываем для заказов «По счёту»
+                (payment_method='invoice') ИЛИ если у клиента уже заполнена организация. Реквизиты
+                (компания + БИН) при необходимости запросим прямо в блоке. */}
+            {!isPaid && (order.payment_method === 'invoice' || client?.company_name) && (
+              <PaymentFork orderId={order.id} client={{ company_name: client?.company_name ?? null, bin: client?.bin ?? null }} />
             )}
 
             <div className={s.box}>
