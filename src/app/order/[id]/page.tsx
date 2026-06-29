@@ -8,6 +8,7 @@ import { useCart } from '@/lib/cart-store'
 import { authHeaders } from '@/lib/api-token'
 import { company } from '@/config/company'
 import PaymentFork from '@/components/PaymentFork'
+import AuthModal from '@/components/catalog/AuthModal'
 import s from './order.module.css'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
@@ -55,11 +56,17 @@ export default function OrderPage() {
   const [order, setOrder] = useState<Order | null>(null)
   const [client, setClient] = useState<{ company_name: string | null; bin: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authReady, setAuthReady] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
 
-  useEffect(() => { init() }, [])
+  // Дожидаемся восстановления сессии из localStorage, прежде чем решать про доступ.
+  // Раньше тут был мгновенный router.push('/') → прямые ссылки на /order/[id] выбрасывало
+  // на главную ещё до гидрации авторизации (владелец не видел заказ/форму реквизитов).
+  useEffect(() => { let m = true; init().finally(() => { if (m) setAuthReady(true) }); return () => { m = false } }, [])
+  useEffect(() => { if (authReady && !isAuthed) setShowAuth(true) }, [authReady, isAuthed])
 
   useEffect(() => {
-    if (!isAuthed || !phone) { router.push('/'); return }
+    if (!isAuthed || !phone) return   // ждём авторизацию — не редиректим
     ;(async () => {
       const headers = await authHeaders()  // владелец резолвится из токена на сервере
       try {
@@ -71,9 +78,24 @@ export default function OrderPage() {
       } catch { setOrder(null) }
       finally { setLoading(false) }
     })()
-  }, [isAuthed, phone, params.id, router])
+  }, [isAuthed, phone, params.id])
 
-  if (!isAuthed) return null
+  // Пока сессия не восстановлена — спиннер (не редиректим)
+  if (!authReady) {
+    return <main className={s.page}><div className={s.shell}><div className={s.state}><div className={s.stateP}>Загрузка…</div></div></div></main>
+  }
+  // Сессия восстановлена, но гость — предлагаем войти прямо тут (AuthModal), не выкидываем
+  if (!isAuthed) {
+    return (
+      <main className={s.page}><div className={s.shell}><div className={s.state}>
+        <div className={s.stateH}>Войдите, чтобы открыть заказ</div>
+        <p className={s.stateP}>Заказ доступен после входа по номеру телефона и PIN.</p>
+        <button className={s.stateBtn} onClick={() => setShowAuth(true)}>Войти</button>
+      </div></div>
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />}
+      </main>
+    )
+  }
 
   if (loading) {
     return <main className={s.page}><div className={s.shell}><div className={s.state}><div className={s.stateP}>Загрузка…</div></div></div></main>
