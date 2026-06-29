@@ -115,7 +115,7 @@ export default function PaymentFork({
             fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
           }}>Удобно</span>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, margin: '2px 0 10px' }}>
-            Оплатить по Halyk QR
+            Оплата через OnlineDuken · Halyk Bank
           </div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             {qrImg
@@ -135,7 +135,7 @@ export default function PaymentFork({
             </ul>
           </div>
           <p style={{ fontSize: 12, color: C.sub, margin: '10px 0 0', lineHeight: 1.5 }}>
-            Оплата со счёта организации через приложение Onlinebank.
+            Оплата со счёта организации через приложение Onlinebank (OnlineDuken · Halyk Bank).
             {invoice && <> Счёт № {invoice.invoice_number}.</>}
           </p>
         </div>
