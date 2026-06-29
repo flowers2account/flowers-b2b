@@ -35,6 +35,7 @@ type Client = { name: string | null; phone: string | null; company_name: string 
 type Order = {
   id: number
   status: string
+  payment_status: string | null
   total: number
   notes: string | null
   created_at: string
@@ -102,7 +103,10 @@ export default function OrdersPanel() {
   }
 
   const filteredOrders = useMemo(() => {
-    let result = orders
+    // Черновики-документы скрыты из панели (как в канбане): счёт-черновик (status='cart')
+    // и неоплаченные pending. Они становятся видимы только после подтверждения оплаты.
+    let result = orders.filter(o =>
+      o.status !== 'cart' && !(o.status === 'pending' && o.payment_status === 'unpaid'))
 
     if (datePreset) {
       const now = new Date()
@@ -167,7 +171,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name, bin), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, payment_status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name, bin), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) console.error('Orders error:', error)

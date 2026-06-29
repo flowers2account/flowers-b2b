@@ -166,6 +166,13 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     `по указанным реквизитам с обязательным указанием номера счёта ${data.invoiceNumber} в назначении платежа.`,
     capX, qrY, { width: right - capX },
   )
+  // Срок действия счёта (склад под счёт не резервируется — наличие нужно подтверждать).
+  doc.moveDown(0.6)
+  doc.font('reg').fontSize(8.5).fillColor('#7A7780').text(
+    'Счёт действителен в течение 3 календарных дней. Перед оплатой уточните актуальность наличия товаров.',
+    capX, doc.y, { width: right - capX },
+  )
+  doc.fillColor('#000')
 
   doc.end()
   return done
