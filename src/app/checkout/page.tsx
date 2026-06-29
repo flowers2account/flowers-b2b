@@ -45,9 +45,18 @@ export default function CheckoutPage() {
   const [showDelivery, setShowDelivery] = useState(false)
   // Способ оплаты: карта (ePay) или по счёту/QR для юр.лиц
   const [payMethod, setPayMethod] = useState<'card' | 'invoice'>('card')
+  // Стоимость доставки по городу (app_settings.city_delivery_fee, fallback 2000).
+  // Только для отображения — авторитетный расчёт суммы на сервере (/api/checkout).
+  const [deliveryFee, setDeliveryFee] = useState(2000)
 
   // Префилл телефона получателя из профиля
   useEffect(() => { if (phone) setRecipientPhone(prev => prev || phone) }, [phone])
+  useEffect(() => {
+    fetch('/api/settings/delivery-fee')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && Number.isFinite(d.fee)) setDeliveryFee(d.fee) })
+      .catch(() => {})
+  }, [])
 
   // Гость на чекауте — оформление недоступно без входа: сразу просим авторизацию
   // (тот же AuthModal, что и при сабмите). init() гарантирует, что сессия восстановлена.
@@ -57,7 +66,11 @@ export default function CheckoutPage() {
   const sum = total()
   const isUralsk = method === 'pickup' || (method === 'delivery' && city === 'Уральск')
   const discount = Math.round(sum * (isUralsk ? 0.01 : 0))
-  const toPay = sum - discount
+  // Доставка: по городу (Уральск) — фикс; межгород — «по согласованию» (в сумму не входит);
+  // самовывоз — 0.
+  const isCityDelivery = method === 'delivery' && city === 'Уральск'
+  const deliveryAmount = isCityDelivery ? deliveryFee : 0
+  const toPay = sum - discount + deliveryAmount
 
   const checkout = useOrderCheckout({
     items,
@@ -192,8 +205,8 @@ export default function CheckoutPage() {
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>
                       Доставка
                     </div>
-                    <div className={s.optDs}>По Уральску, а также в Актобе и Атырау. Сроки и стоимость по согласованию.</div>
-                    <div className={s.optPr}>от 0 ₸ (см.{' '}
+                    <div className={s.optDs}>По Уральску — {fmt(deliveryFee)}. В Актобе и Атырау — по согласованию.</div>
+                    <div className={s.optPr}>{fmt(deliveryFee)} (см.{' '}
                       <span
                         role="button"
                         tabIndex={0}
@@ -333,7 +346,9 @@ export default function CheckoutPage() {
             )}
             <div className={s.sline}>
               <span>Доставка</span>
-              <span className={s.free}>{method === 'pickup' ? 'Самовывоз' : (city === 'Уральск' ? 'По городу' : `В ${city}`)}</span>
+              <span className={s.free}>{method === 'pickup'
+                ? 'Самовывоз'
+                : (isCityDelivery ? fmt(deliveryFee) : 'по согласованию')}</span>
             </div>
             <div className={s.sdiv} />
             <div className={s.total}><span className={s.k}>К оплате</span><span className={s.tv}>{fmt(toPay)}</span></div>

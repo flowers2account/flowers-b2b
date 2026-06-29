@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
+import { getCityDeliveryFee, computeDeliveryCost } from '@/lib/delivery'
 import { umnicoClient } from '@/lib/umnico/client'
 import { umnicoTemplates } from '@/lib/umnico/templates'
 
@@ -100,7 +101,14 @@ export async function POST(req: NextRequest) {
   const isUralsk = delivery?.method === 'pickup'
     || (delivery?.method === 'delivery' && delivery?.city === 'Уральск')
   const discountPct = isUralsk ? 1 : 0
-  const total = Math.round(rawTotal * (1 - discountPct / 100))
+  const goodsTotal = Math.round(rawTotal * (1 - discountPct / 100))
+
+  // Доставка считается на сервере (клиенту не доверяем). По городу — фикс из
+  // app_settings.city_delivery_fee; межгород → null = «по согласованию» (в сумму не входит,
+  // менеджер проставит позже); самовывоз → 0.
+  const cityFee = await getCityDeliveryFee(supabase)
+  const deliveryCost = computeDeliveryCost(delivery?.method, delivery?.city, cityFee)
+  const total = goodsTotal + (deliveryCost ?? 0)
 
   // Заметка для менеджера: способ получения, получатель, скидка (флоу чекаута)
   const noteLines: string[] = []
@@ -111,18 +119,22 @@ export async function POST(req: NextRequest) {
     if (delivery.date)    noteLines.push(`Желаемая дата: ${delivery.date}`)
     if (delivery.address) noteLines.push(`Адрес: ${delivery.address}`)
     if (delivery.comment) noteLines.push(`Комментарий курьеру: ${delivery.comment}`)
+    noteLines.push(`Стоимость доставки: ${deliveryCost === null
+      ? 'по согласованию (проставить вручную)'
+      : `${deliveryCost.toLocaleString('ru-RU')} ₸`}`)
   }
   if (recipient) {
     const r = [recipient.name, recipient.phone, recipient.email].filter(Boolean).join(', ')
     if (r) noteLines.push(`Получатель: ${r}`)
   }
   if (discountPct > 0) {
-    noteLines.push(`Скидка ${discountPct}% (Уральск): −${(rawTotal - total).toLocaleString('ru-RU')} ₸`)
+    noteLines.push(`Скидка ${discountPct}% (Уральск): −${(rawTotal - goodsTotal).toLocaleString('ru-RU')} ₸`)
   }
   const notes = noteLines.length ? noteLines.join('\n') : null
 
   // Структурные поля доставки/получателя (машинно разбираемые) — параллельно с notes.
-  // driver_*/delivery_cost при создании не заполняем (их вносит менеджер позже).
+  // delivery_cost: город → фикс, межгород → null («по согласованию», менеджер проставит),
+  // самовывоз → 0. driver_* при создании не заполняем (их вносит менеджер позже).
   const clean = (v: unknown) => {
     const s = typeof v === 'string' ? v.trim() : ''
     return s === '' ? null : s
@@ -134,6 +146,7 @@ export async function POST(req: NextRequest) {
     delivery_address: isDelivery ? clean(delivery?.address) : null,
     delivery_date:    isDelivery ? clean(delivery?.date) : null,
     courier_comment:  isDelivery ? clean(delivery?.comment) : null,
+    delivery_cost:    deliveryCost,
     recipient_name:   clean(recipient?.name),
     recipient_phone:  clean(recipient?.phone),
   }
