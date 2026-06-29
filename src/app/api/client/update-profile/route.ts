@@ -2,19 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import { getAuthedUser } from '@/lib/api-auth'
+import { syncClientRequisitesToAmo } from '@/lib/amo'
 
 export const dynamic = 'force-dynamic'
 
+// Частичное обновление профиля: ЛК шлёт name+company+bin, форма реквизитов на оплате —
+// company+bin (без name). Обновляем только присланные поля. После сохранения — синк
+// реквизитов в контакт amoCRM (неблокирующе).
 export async function POST(req: NextRequest) {
-  const { name, company_name, bin } = await req.json().catch(() => ({}))
+  const body = await req.json().catch(() => ({}))
+  const { name, company_name, bin } = body
 
   // Менять можно только свой профиль — владелец берётся из токена, не из тела
   const authed = await getAuthedUser(req)
   if (!authed?.phone) return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 })
-  if (!name?.trim()) return NextResponse.json({ success: false, error: 'Укажите имя' }, { status: 400 })
 
-  // БИН/ИИН организации — необязателен, но если задан, ровно 12 цифр
-  const binClean = typeof bin === 'string' ? bin.trim() : ''
+  const nameProvided = typeof name === 'string'
+  const nameClean = nameProvided ? name.trim() : ''
+  if (nameProvided && !nameClean) {
+    return NextResponse.json({ success: false, error: 'Укажите имя' }, { status: 400 })
+  }
+
+  // БИН/ИИН организации — если задан, ровно 12 цифр
+  const binProvided = typeof bin === 'string'
+  const binClean = binProvided ? bin.trim() : ''
   if (binClean && !/^\d{12}$/.test(binClean)) {
     return NextResponse.json({ success: false, error: 'БИН/ИИН — 12 цифр' }, { status: 400 })
   }
@@ -32,20 +43,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Клиент не найден' }, { status: 404 })
   }
 
-  // Update clients.name and clients.company_name
-  const { error: updateError } = await admin
-    .from('clients')
-    .update({
-      name: name.trim(),
-      company_name: company_name?.trim() || '',
-      bin: binClean || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', client.id)
+  // Обновляем только присланные поля (partial update)
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (nameProvided) update.name = nameClean
+  if (typeof company_name === 'string') update.company_name = company_name.trim()
+  if (binProvided) update.bin = binClean || null
 
+  const { error: updateError } = await admin.from('clients').update(update).eq('id', client.id)
   if (updateError) {
     console.error('[update-profile] clients update:', updateError.message)
     return NextResponse.json({ success: false, error: 'Ошибка сохранения' }, { status: 500 })
+  }
+
+  // Синк реквизитов в карточку контакта amoCRM (неблокирующе — не валим сохранение).
+  try {
+    await syncClientRequisitesToAmo(client.id)
+  } catch (e) {
+    console.error('[update-profile] amo sync:', e instanceof Error ? e.message : e)
   }
 
   return NextResponse.json({ success: true })

@@ -70,6 +70,11 @@ export const CF_POLUCHATEL_PHONE   = 1394595   // POLUCHATEL_PHONE (textarea)
 export const CF_ADRES_POLUCHATELYA = 1394597   // АДРЕС_ПОЛУЧАТЕЛЯ (textarea)
 export const CF_KOMMENTARII        = 1394607   // КОММЕНТАРИЙ (textarea)
 
+// Контактные кастомные поля (from /api/v4/contacts/custom_fields) — реквизиты юр.лица.
+// Созданы 29.06.2026 скриптом (раньше БИН/компании на контакте не было).
+export const CF_CONTACT_BIN        = 1681921   // «БИН/ИИН» (text) → clients.bin
+export const CF_CONTACT_COMPANY    = 1681923   // «Организация» (text) → clients.company_name
+
 // ── HTTP helpers ─────────────────────────────────────────────────────────────
 
 function token(): string {
@@ -175,6 +180,21 @@ export async function createContact(params: {
   const id = data?._embedded?.contacts?.[0]?.id
   if (!id) throw new Error('amoCRM: createContact — no id returned')
   return id
+}
+
+// PATCH кастомных полей контакта (реквизиты). Пустые значения шлём как [] — очищают поле.
+export async function patchContactFields(
+  contactId: number,
+  fields: Array<{ field_id: number; value: string }>,
+): Promise<void> {
+  const custom_fields_values = fields.map((f) => ({
+    field_id: f.field_id,
+    values: f.value ? [{ value: f.value }] : [],
+  }))
+  await amoFetch(`/contacts/${contactId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ custom_fields_values }),
+  })
 }
 
 // ── Leads ─────────────────────────────────────────────────────────────────────
@@ -559,4 +579,44 @@ export async function updateLeadStage(orderId: number): Promise<void> {
     method: 'PATCH',
     body: JSON.stringify({ status_id: statusId }),
   })
+}
+
+// ── Реквизиты клиента → карточка контакта amoCRM ──────────────────────────────
+
+/**
+ * Синхронизировать реквизиты юр.лица (компания + БИН) в контакт amoCRM.
+ * Резолвит контакт: clients.amo_contact_id → поиск по телефону → создание; найденный/
+ * созданный ID сохраняет обратно в clients.amo_contact_id (раньше связи не было).
+ * PATCH-ит контактные поля «Организация» и «БИН/ИИН». Синк ЗАКАЗОВ не затрагивается.
+ * Бросает при ошибке — вызывающий оборачивает в try/catch (неблокирующе).
+ */
+export async function syncClientRequisitesToAmo(clientId: string): Promise<void> {
+  const supabase = createAdminClient()
+  const { data: client } = await supabase
+    .from('clients')
+    .select('id, phone, name, company_name, bin, amo_contact_id')
+    .eq('id', clientId)
+    .maybeSingle()
+  if (!client?.phone) return
+
+  // 1. Резолв контакта: сохранённый ID → по телефону → создать
+  let contactId: number | null = client.amo_contact_id ?? null
+  if (!contactId) {
+    contactId = await findContactByPhone(normalizePhoneAmo(client.phone))
+    if (!contactId) {
+      contactId = await createContact({
+        name: client.name || client.company_name || client.phone,
+        phone: client.phone,
+      })
+    }
+    // Сохраняем связь клиент↔контакт (чтобы дальше не искать по телефону)
+    await supabase.from('clients').update({ amo_contact_id: contactId }).eq('id', clientId)
+  }
+
+  // 2. Имя контакта (если было пустым/телефоном) + реквизиты в кастомные поля
+  if (client.name) await ensureContactName(contactId, client.name)
+  await patchContactFields(contactId, [
+    { field_id: CF_CONTACT_COMPANY, value: (client.company_name ?? '').trim() },
+    { field_id: CF_CONTACT_BIN, value: (client.bin ?? '').trim() },
+  ])
 }

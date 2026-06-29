@@ -125,6 +125,9 @@ export async function POST(req: NextRequest) {
     let contactId = await findContactByPhone(normalizePhoneAmo(normalized))
     if (!contactId) contactId = await createContact({ name, phone: normalized })
 
+    // Сохраняем связь клиент↔контакт amoCRM (раньше contactId нигде не сохранялся).
+    await admin.from('clients').update({ amo_contact_id: contactId }).eq('auth_user_id', userId)
+
     // Подхват анонимного обращения (Версия B Такт 1.5): если этот anon_id уже породил
     // лид обращения — ОБНОВЛЯЕМ его (этап «Зарегистрировался», тег), НЕ создаём дубль.
     const promotedLeadId = await promoteInquiryOnRegister({

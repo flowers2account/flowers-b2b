@@ -130,9 +130,11 @@ export async function ensureInvoiceForOrder(
   if ('error' in ctx && ctx.error) return { ok: false, ...ctx.error }
   const { sb, client, lines, amount } = ctx as Required<Awaited<ReturnType<typeof loadContext>>>
 
+  // Реквизиты юр.лица обязательны: компания + БИН (12 цифр). Без них счёт/QR не строим.
   const bin = (client.bin ?? '').trim()
-  if (!/^\d{12}$/.test(bin)) {
-    return { ok: false, reason: 'NO_BIN', message: 'Не заполнен БИН организации (12 цифр)' }
+  const company = (client.company_name ?? '').trim()
+  if (!company || !/^\d{12}$/.test(bin)) {
+    return { ok: false, reason: 'NO_BIN', message: 'Не заполнены реквизиты организации (название + БИН 12 цифр)' }
   }
 
   // Идемпотентность: один заказ = один счёт.
