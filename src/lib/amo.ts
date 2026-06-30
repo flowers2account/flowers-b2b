@@ -144,6 +144,28 @@ export async function findContactByPhone(phones: string[]): Promise<number | nul
   return null
 }
 
+// Best-effort: найти сделку контакта в указанной воронке по телефону (для аутрич-захвата).
+// Возвращает { leadId, contactId } первой подходящей сделки или null. Не кидает на «не найдено».
+export async function findLeadByPhoneInPipeline(
+  phones: string[],
+  pipelineId: number,
+): Promise<{ leadId: number; contactId: number } | null> {
+  const contactId = await findContactByPhone(phones)
+  if (!contactId) return null
+  const cRes = await amoFetch(`/contacts/${contactId}?with=leads`)
+  if (cRes.status === 204) return null
+  const cData = await cRes.json()
+  const leadIds: number[] = (cData?._embedded?.leads ?? [])
+    .map((l: any) => l.id).filter((x: any) => Number.isFinite(x))
+  if (!leadIds.length) return null
+  const qs = leadIds.map((id) => `filter[id][]=${id}`).join('&')
+  const lRes = await amoFetch(`/leads?${qs}&filter[pipeline_id]=${pipelineId}&limit=1`)
+  if (lRes.status === 204) return null
+  const lData = await lRes.json()
+  const lead = lData?._embedded?.leads?.[0]
+  return lead?.id ? { leadId: lead.id, contactId } : null
+}
+
 // Проверяет, выглядит ли строка как номер телефона (без имени)
 function looksLikePhone(s: string): boolean {
   return /^[\d\s\+\-\(\)]{7,}$/.test(s.trim())
