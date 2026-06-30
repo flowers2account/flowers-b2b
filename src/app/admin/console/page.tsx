@@ -204,12 +204,15 @@ export default function ConsolePage() {
   const [confirm, setConfirm] = useState<ConfirmCfg | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [authReady, setAuthReady] = useState(false)
 
-  useEffect(() => { init() }, [init])
+  // Дожидаемся восстановления сессии, прежде чем решать про доступ. Раньше на холодной
+  // загрузке / разлогиненным страница возвращала null → пустой белый экран без подсказки.
+  useEffect(() => { let m = true; init().finally(() => { if (m) setAuthReady(true) }); return () => { m = false } }, [init])
   useEffect(() => {
-    if (!isAuthed) return
+    if (!authReady || !isAuthed) return
     if (role !== 'admin' && role !== 'manager') router.replace('/')
-  }, [isAuthed, role, router])
+  }, [authReady, isAuthed, role, router])
 
   const reload = useCallback(async () => {
     try {
@@ -247,8 +250,22 @@ export default function ConsolePage() {
 
   const current = openId != null ? orders.find((o) => o.id === openId) : null
 
-  if (!isAuthed) return null
-  if (role !== 'admin' && role !== 'manager') return null
+  // Вместо пустого белого экрана — внятные состояния: спиннер на гидрации, форма входа
+  // гостю, сообщение при нехватке прав.
+  const screen = (node: React.ReactNode) => (
+    <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
+      <div>{node}</div>
+    </div>
+  )
+  if (!authReady) return screen(<span style={{ color: C.stone }}>Загрузка…</span>)
+  if (!isAuthed) return screen(
+    <>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Пульт оператора</div>
+      <div style={{ color: C.stone, marginBottom: 14 }}>Войдите как сотрудник, чтобы открыть пульт.</div>
+      <a href="/login" style={{ display: 'inline-block', background: C.wine, color: '#fff', padding: '10px 20px', borderRadius: 10, textDecoration: 'none', fontWeight: 600 }}>Войти</a>
+    </>
+  )
+  if (role !== 'admin' && role !== 'manager') return screen(<span style={{ color: C.stone }}>Недостаточно прав. Перенаправление…</span>)
 
   return (
     <div style={{ background: C.bg, color: C.ink, minHeight: '100vh' }}>
