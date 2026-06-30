@@ -153,12 +153,18 @@ export async function POST(req: NextRequest) {
     recipient_phone:  clean(recipient?.phone),
   }
 
-  // Always create a new order
+  // «По счёту» — это ДОКУМЕНТ-предложение, а не заказ/сделка. Поэтому ветка invoice
+  // создаёт заказ-черновик (status='cart'): он СКРЫТ из обеих панелей оператора, НЕ
+  // резервирует склад и НЕ синкается в amoCRM как продажа. Заказ становится «реальным»
+  // (cart→pending) + появляется в панели + двигается в воронке только при подтверждении
+  // оплаты (postlink/ручное/OnlineDuken). epay/card/cash — без изменений (status='pending').
+  const isInvoice = payment_method === 'invoice'
+
   const { data: order, error: orderError } = await supabase
     .from('orders')
     .insert({
       client_id: clientId,
-      status: 'pending',
+      status: isInvoice ? 'cart' : 'pending',
       total,
       ...structured,
       ...(notes ? { notes } : {}),
@@ -184,28 +190,35 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // amoCRM sync (non-fatal — ошибка не роняет заказ)
+  // amoCRM sync (non-fatal — ошибка не роняет заказ).
+  // Ветка invoice: сделка создаётся на стадии «Счёт выставлен» (документ, не продажа),
+  // с тегом. На «Новый» её двигает подтверждение оплаты. Прочие способы — на «Новый», как было.
   try {
-    const { syncOrderToAmo } = await import('@/lib/amo')
-    await syncOrderToAmo(orderId)
+    const { syncOrderToAmo, AMO_STATUS_INVOICE_ISSUED } = await import('@/lib/amo')
+    await syncOrderToAmo(orderId, isInvoice
+      ? { statusId: AMO_STATUS_INVOICE_ISSUED, extraTags: ['Счёт выставлен'] }
+      : {})
   } catch (err) {
     console.error('[checkout] amoCRM sync failed:', err instanceof Error ? err.message : err)
   }
 
-  // Create reservations (replace any existing client reservations for these products).
-  // По product_id с суммарным qty — цвет в резерв не входит.
-  for (const [productId, totalQty] of qtyByProduct) {
-    await supabase.from('reservations').delete()
-      .eq('product_id', productId)
-      .eq('client_id', clientId)
+  // Резерв остатков: только для реальных заказов. Счёт-документ склад НЕ держит.
+  if (!isInvoice) {
+    // Create reservations (replace any existing client reservations for these products).
+    // По product_id с суммарным qty — цвет в резерв не входит.
+    for (const [productId, totalQty] of qtyByProduct) {
+      await supabase.from('reservations').delete()
+        .eq('product_id', productId)
+        .eq('client_id', clientId)
 
-    await supabase.from('reservations').insert({
-      product_id: productId,
-      qty: totalQty,
-      client_id: clientId,
-      expires_at,
-      order_id: orderId,
-    })
+      await supabase.from('reservations').insert({
+        product_id: productId,
+        qty: totalQty,
+        client_id: clientId,
+        expires_at,
+        order_id: orderId,
+      })
+    }
   }
 
   // Уведомления НЕ отправляются здесь — только после подтверждения оплаты в /api/payments/postlink

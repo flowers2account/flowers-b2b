@@ -37,6 +37,7 @@ type Order = {
 }
 
 const STATUS: Record<string, { label: string; cls?: string }> = {
+  cart: { label: 'Ожидает оплаты' },  // счёт-документ: оформлен, ждёт оплаты
   pending: { label: 'В обработке' }, reserved: { label: 'В обработке' },
   confirmed: { label: 'Подтверждён' }, assembling: { label: 'Собирается' },
   assembled: { label: 'Готов к выдаче' }, delivered: { label: 'Выдан', cls: 'done' },

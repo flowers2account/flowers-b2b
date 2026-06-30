@@ -23,6 +23,7 @@ export function inquiryConfigured(): boolean {
 // Этапы воронки 10853806 (GET /api/v4/leads/pipelines/10853806, перестроена 21.06.2026)
 // Порядок: Новый → Подтверждён → СОГЛАСОВАНИЕ → В сборке → Готово к выдаче → на доставке → Выдан/Отменён.
 // Этап «В брони» (85413466) УДАЛЁН из воронки.
+export const AMO_STATUS_INVOICE_ISSUED = 86847106  // Счёт выставлен (документ, не продажа; перед «Новый»)
 export const AMO_STATUS_NEW         = 85413462  // Новый
 export const AMO_STATUS_CONFIRMED   = 85413470  // Подтверждён
 export const AMO_STATUS_NEGOTIATION = 86646726  // СОГЛАСОВАНИЕ (новый)
@@ -425,7 +426,13 @@ export async function syncPreorderToAmo(orderId: number): Promise<void> {
 
 // ── Витринный заказ (orders) → amoCRM ────────────────────────────────────────
 
-export async function syncOrderToAmo(orderId: number): Promise<void> {
+// opts.statusId — стадия создаваемой сделки (по умолч. «Новый»). Ветка счёта-документа
+// передаёт AMO_STATUS_INVOICE_ISSUED → сделка на «Счёт выставлен», не на продаже.
+// opts.extraTags — добавочные теги (напр. «Счёт выставлен»).
+export async function syncOrderToAmo(
+  orderId: number,
+  opts: { statusId?: number; extraTags?: string[] } = {},
+): Promise<void> {
   const supabase = createAdminClient()
 
   // 1. Читаем заказ (идемпотентность)
@@ -510,9 +517,9 @@ export async function syncOrderToAmo(orderId: number): Promise<void> {
       price:      Number(order.total ?? 0),
       contactId,
       pipelineId: AMO_PIPELINE_ID,
-      statusId:   AMO_STATUS_NEW,
+      statusId:   opts.statusId ?? AMO_STATUS_NEW,
       customFields: cf,
-      tags: ['Источник: Сайт', ...(fulfillmentTag ? [fulfillmentTag] : [])],
+      tags: ['Источник: Сайт', ...(fulfillmentTag ? [fulfillmentTag] : []), ...(opts.extraTags ?? [])],
     })
 
     // 6. Примечание с позициями (для кладовщика — СКЛАДСКОЕ имя + артикул code_1c)

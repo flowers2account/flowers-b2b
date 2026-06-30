@@ -31,6 +31,7 @@ const CAMPAIGN_STATUS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Отменён', cls: 'cancelled' },
 }
 const ORDER_ST: Record<string, { label: string; cls: string }> = {
+  cart:      { label: 'Ожидает оплаты', cls: 'proc' },  // счёт-документ: оформлен, ждёт оплаты
   pending:   { label: 'В обработке', cls: 'proc' },
   reserved:  { label: 'В обработке', cls: 'proc' },
   confirmed: { label: 'Подтверждён', cls: 'new' },
