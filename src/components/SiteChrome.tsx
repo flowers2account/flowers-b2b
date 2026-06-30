@@ -8,17 +8,19 @@ import FavoritesGate from '@/components/FavoritesGate'
 import AiWidget from '@/components/AiWidget'
 
 // Сайтовый chrome (шапка/навигация, футер, моб. таб-бар, AI-виджет) монтируется
-// здесь, а не в корневом layout, чтобы можно было его НЕ рендерить на «киоск»-роутах.
-// Пульт оператора /admin/console — автономный экран без сайтовой навигации и виджета.
-function isKiosk(pathname: string | null): boolean {
-  return !!pathname && pathname.startsWith('/admin/console')
+// здесь, а не в корневом layout, чтобы можно было его НЕ рендерить на автономных роутах:
+//  • /admin/console — киоск-пульт оператора;
+//  • /print/*       — печатные документы (накладная). Иначе подвал сайта (оферта, политика,
+//    «с 2008 года» и т.п.) уходил в хвост печатного документа после подписей «Сдал/Принял».
+function isBare(pathname: string | null): boolean {
+  return !!pathname && (pathname.startsWith('/admin/console') || pathname.startsWith('/print'))
 }
 
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  if (isKiosk(pathname)) {
-    // Киоск: только содержимое страницы, никакого сайтового chrome и AI-виджета.
+  if (isBare(pathname)) {
+    // Только содержимое страницы: никакого сайтового chrome, футера и AI-виджета.
     return <>{children}</>
   }
 
