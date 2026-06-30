@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAccessoriesReply, CHANNEL_POLICY, type ChannelMode } from '@/lib/bot/accessories-bot'
 import { isLeadEnabled, enableLead, disableLead } from '@/lib/bot/lead-gate'
 import { sendMessage, sendPhoto, addTag } from '@/lib/umnico'
+import { captureOutreachEvent } from '@/lib/outreach/capture'
 
 // Дедуп доставок одного messageId. In-memory — переживает только тёплый инстанс,
 // достаточно для защиты от повторных ретраев Umnico за короткое окно.
@@ -42,11 +43,6 @@ function pick<T = unknown>(obj: Record<string, unknown> | undefined, ...keys: st
 const BOT_ENABLED = process.env.UMNICO_BOT_ENABLED === 'true'
 
 export async function POST(req: NextRequest) {
-  if (!BOT_ENABLED) {
-    console.log('[umnico webhook] disabled (UMNICO_BOT_ENABLED != true) — игнор')
-    return NextResponse.json({ ok: true, disabled: true })
-  }
-
   let body: UmnicoWebhook
   try {
     body = await req.json()
@@ -56,6 +52,22 @@ export async function POST(req: NextRequest) {
 
   // Сырой payload целиком — чтобы сверить реальные имена полей Umnico с парсером.
   console.log('[umnico webhook] raw:', JSON.stringify(body))
+
+  // ── Capture WhatsApp-аутрича в outreach-таблицы (ИЗОЛИРОВАННО, write-only) ──
+  // Работает ВСЕГДА, в т.ч. при выключенном боте. Своя обработка ошибок: любой сбой
+  // записи в Supabase не влияет на bot-логику и на ответ вебхука (всегда 200).
+  // Никакой автоотправки — только зеркалим события.
+  try {
+    await captureOutreachEvent(body)
+  } catch (e) {
+    console.error('[outreach capture] failed:', (e as Error)?.message)
+  }
+
+  // ── AI-бот: отвечает только при включённом kill-switch (логику НЕ трогаем) ──
+  if (!BOT_ENABLED) {
+    console.log('[umnico webhook] bot disabled (UMNICO_BOT_ENABLED != true) — только capture')
+    return NextResponse.json({ ok: true, disabled: true })
+  }
 
   try {
     const type = body.type ?? body.event
