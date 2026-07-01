@@ -11,14 +11,20 @@ export const ACCESSORIES_LABEL_SHORT = '📦 Уход · Упак. · Декор
 
 export const CATEGORY_TREE: Group[] = [
   { id: 'packaging', label: 'Упаковка и флористика', leaves: [
-    { slug: 'film',       label: 'Плёнка',             members: ['film'] },
-    { slug: 'paper',      label: 'Бумага',             members: ['paper'] },
-    { slug: 'film_bags',  label: 'Пакеты',             members: ['film_bags','bags'] },
-    { slug: 'gift_boxes', label: 'Подарочные коробки', members: ['gift_boxes'], variant: 'Размер' },
-    { slug: 'paints',     label: 'Краски и спреи',     members: ['paints'] },
-    { slug: 'pkg_other',  label: 'Прочее', hidden: true, members:
-        ['ribbon','napkins','cards_toppers','floristry_items','floral_foam',
-         'tissue','mesh','jute','felt','organza','fillers','foamiran'] },
+    { slug: 'film',          label: 'Плёнка',              members: ['film'], unit: 'пог. м' },
+    { slug: 'paper',         label: 'Бумага',              members: ['paper'] },
+    { slug: 'tissue',        label: 'Тишью',               members: ['tissue'] },
+    { slug: 'film_bags',     label: 'Пакеты',              members: ['film_bags','bags'] },
+    { slug: 'gift_boxes',    label: 'Подарочные коробки',  members: ['gift_boxes'] },
+    { slug: 'ribbon',        label: 'Ленты',               members: ['ribbon','organza'] },
+    { slug: 'napkins',       label: 'Салфетки',            members: ['napkins'] },
+    { slug: 'cards_toppers', label: 'Открытки и вставки',  members: ['cards_toppers'] },
+    { slug: 'paints',        label: 'Краски и спреи',      members: ['paints'] },
+    { slug: 'floral_foam',   label: 'Оазис (флор. пена)',  members: ['floral_foam'] },
+    { slug: 'jute',          label: 'Джут и бечёвка',      members: ['jute'] },
+    { slug: 'mesh',          label: 'Сетка',               members: ['mesh'] },
+    { slug: 'pkg_other',     label: 'Прочее', hidden: true,
+        members: ['floristry_items','felt','fillers','foamiran'] },
   ]},
   { id: 'pots', label: 'Горшки и кашпо', leaves: [
     { slug: 'pots',       label: 'Горшки', members: ['pots'] },
