@@ -27,8 +27,10 @@ jobs:
           NEXT_PUBLIC_EPAY_ENV: ${{ secrets.NEXT_PUBLIC_EPAY_ENV }}
           NEXT_PUBLIC_PAYMENTS_MODE: ${{ secrets.NEXT_PUBLIC_PAYMENTS_MODE }}
           NEXT_PUBLIC_SITE_URL: https://uralskflowers.kz
-          # Оплата «По счёту» (для юр.лиц) включена — реквизиты+счёт+QR готовы. QR пока тестовый.
+          # Оплата «По счёту» (для юр.лиц) включена — реквизиты+счёт+QR готовы.
           NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED: 'true'
+          # Боевой QR Halyk OnlineDuken (активирован банком 30.06.2026): prod = public.onlinebank.kz
+          NEXT_PUBLIC_HALYK_QR_ENV: 'prod'
 
       - name: Package artifacts
         run: |
