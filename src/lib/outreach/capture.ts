@@ -32,40 +32,31 @@ function looksLikePhone(s: unknown): boolean {
   return typeof s === 'string' && (s.replace(/\D/g, '').length >= 10)
 }
 
-// Вытащить телефон контакта из payload по набору вероятных путей. Точное имя поля
-// уточняется на живом тесте по сырому payload — поэтому ищем широко и терпимо.
-function extractPhone(top: Record<string, unknown>, msg: Record<string, unknown>,
-                      src: Record<string, unknown>): string | null {
-  const client = asObj(msg.client ?? top.client)
-  const contact = asObj(msg.contact ?? top.contact)
-  const candidates = [
-    pick<string>(src, 'chatId', 'chat_id', 'phone', 'realId', 'real_id', 'identifier'),
-    pick<string>(client, 'phone', 'chatId', 'identifier'),
-    pick<string>(contact, 'phone', 'chatId', 'identifier'),
-    pick<string>(msg, 'chatId', 'chat_id', 'phone', 'from'),
-    pick<string>(top, 'phone', 'chatId', 'from'),
-  ]
-  for (const c of candidates) {
-    if (typeof c === 'string' && looksLikePhone(c)) return normalizePhone(c)
-  }
-  return null
+// Телефон КЛИЕНТА (не наш). Структура payload Umnico (whatsapp2), подтверждена по логам:
+//   message.sender.socialId  = "77718678067"      ← номер клиента (цифры)
+//   message.source.sender    = "77718678067"      ← он же
+//   message.source.id        = "77718678067@c.us" ← он же с суффиксом
+// ⚠️ message.source.identifier и message.sa.login = НАШ номер компании — их НЕ берём.
+function extractPhone(sender: Record<string, unknown>, src: Record<string, unknown>): string | null {
+  const raw =
+    pick<string | number>(sender, 'socialId', 'social_id', 'phone')
+    ?? pick<string | number>(src, 'sender')
+    ?? (pick<string>(src, 'id')?.split('@')[0])
+  if (raw == null) return null
+  const s = String(raw)
+  return looksLikePhone(s) ? normalizePhone(s) : null
 }
 
-function extractName(top: Record<string, unknown>, msg: Record<string, unknown>,
-                     src: Record<string, unknown>): string | null {
-  const client = asObj(msg.client ?? top.client)
-  const contact = asObj(msg.contact ?? top.contact)
-  const n = pick<string>(client, 'name', 'fullName')
-        ?? pick<string>(contact, 'name', 'fullName')
-        ?? pick<string>(src, 'name')
-        ?? pick<string>(msg, 'clientName', 'name')
+// Имя клиента: message.sender.name / login (напр. "Аида").
+function extractName(sender: Record<string, unknown>): string | null {
+  const n = pick<string>(sender, 'name', 'login', 'fullName')
   return n && !looksLikePhone(n) ? n.trim() : null
 }
 
 // Время сообщения из payload (unix s/ms или ISO) → ISO; иначе null (БД проставит created_at).
 function extractSentAt(...objs: Record<string, unknown>[]): string | null {
   for (const o of objs) {
-    const v = pick<string | number>(o, 'createdAt', 'created_at', 'timestamp', 'time', 'date')
+    const v = pick<string | number>(o, 'datetime', 'createdAt', 'created_at', 'timestamp', 'time', 'date')
     if (v === undefined) continue
     if (typeof v === 'number') {
       const ms = v < 1e12 ? v * 1000 : v
@@ -98,6 +89,7 @@ export async function captureOutreachEvent(body: unknown): Promise<void> {
     const inner = asObj(msg.message ?? msg)
     const src = asObj(msg.source)
     const sa = asObj(msg.sa)
+    const sender = asObj(msg.sender)
 
     // Только WhatsApp-каналы (аутрич идёт по whatsapp2). Прочее (виджет и т.п.) не зеркалим.
     const channel = pick<string>(sa, 'type')
@@ -110,8 +102,8 @@ export async function captureOutreachEvent(body: unknown): Promise<void> {
     const deliveryStatus = pick<string>(msg, 'status') ?? pick<string>(inner, 'status') ?? null
     const sentAt       = extractSentAt(inner, msg, top)
 
-    const phone = extractPhone(top, msg, src)
-    const name  = extractName(top, msg, src)
+    const phone = extractPhone(sender, src)
+    const name  = extractName(sender)
     const leadIdStr = umnicoLeadId !== undefined ? String(umnicoLeadId) : null
 
     const sb = createAdminClient()
