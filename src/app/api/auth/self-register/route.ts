@@ -18,8 +18,8 @@ export const dynamic = 'force-dynamic'
 
 // In-memory rate limit по телефону (сброс на cold start — норм для анти-спама).
 const rl = new Map<string, { n: number; t: number }>()
-const WINDOW_MS = 5 * 60 * 1000
-const MAX = 10
+const WINDOW_MS = 60 * 60 * 1000   // 1 час
+const MAX = 3                       // не больше 3 запросов PIN в час на номер (анти-спам)
 function rateOk(p: string): boolean {
   const now = Date.now()
   const r = rl.get(p)
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   }, { onConflict: 'id' })
 
   const { error: clientErr } = await admin.from('clients').insert({
-    phone: normalized, name, company_name: company_name || null, pin, auth_user_id: userId,
+    phone: normalized, name, company_name: company_name || null, city: city || null, pin, auth_user_id: userId,
   })
   if (clientErr) {
     await admin.auth.admin.deleteUser(userId)   // откат, чтобы не осталось auth-сироты

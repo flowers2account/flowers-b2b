@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 // реквизитов в контакт amoCRM (неблокирующе).
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
-  const { name, company_name, bin } = body
+  const { name, company_name, bin, city } = body
 
   // Менять можно только свой профиль — владелец берётся из токена, не из тела
   const authed = await getAuthedUser(req)
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
   if (nameProvided) update.name = nameClean
   if (typeof company_name === 'string') update.company_name = company_name.trim()
   if (binProvided) update.bin = binClean || null
+  if (typeof city === 'string') update.city = city.trim() || null
 
   const { error: updateError } = await admin.from('clients').update(update).eq('id', client.id)
   if (updateError) {

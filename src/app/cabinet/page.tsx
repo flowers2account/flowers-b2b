@@ -60,7 +60,7 @@ export default function CabinetPage() {
   const [loading, setLoading] = useState(true)
   const [pinModalOpen, setPinModalOpen] = useState(false)
   const [editProfileOpen, setEditProfileOpen] = useState(false)
-  const [clientInfo, setClientInfo] = useState<{ name: string | null; company_name: string | null; bin: string | null } | null>(null)
+  const [clientInfo, setClientInfo] = useState<{ name: string | null; company_name: string | null; bin: string | null; city: string | null } | null>(null)
 
   useEffect(() => { init() }, [])
 
@@ -68,7 +68,7 @@ export default function CabinetPage() {
   async function loadClientInfo() {
     const headers = await authHeaders()
     const d = await fetch('/api/cabinet', { headers }).then(r => r.json()).catch(() => null)
-    if (d?.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name, bin: d.client.bin ?? null })
+    if (d?.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name, bin: d.client.bin ?? null, city: d.client.city ?? null })
   }
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function CabinetPage() {
       await Promise.allSettled([
         fetch('/api/cabinet', { headers }).then(r => r.json()).then(d => {
           setOrders(d.orders ?? [])
-          if (d.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name, bin: d.client.bin ?? null })
+          if (d.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name, bin: d.client.bin ?? null, city: d.client.city ?? null })
         }).catch(() => {}),
         fetch('/api/campaigns/orders', { headers }).then(r => r.json()).then(d => {
           const list: CampaignOrder[] = (d.orders ?? []).map((o: any) => ({ ...o, items: o.items ?? [], converted_to_order_id: o.converted_to_order_id ?? null }))
@@ -212,6 +212,7 @@ export default function CabinetPage() {
         {clientInfo?.company_name && (
           <div className={s.kv}><div className={s.k}>Реквизиты / организация</div><div className={s.v}>{clientInfo.company_name}</div></div>
         )}
+        <div className={s.kv}><div className={s.k}>Город</div><div className={s.v}>{clientInfo?.city || '—'}</div></div>
         <div className={s.kv}>
           <div className={s.k}>БИН/ИИН организации</div>
           <div className={s.v}>{clientInfo?.bin || <span style={{ color: '#A8A4AD' }}>не заполнен — нужен для оплаты по QR</span>}</div>
@@ -279,6 +280,7 @@ export default function CabinetPage() {
         currentName={clientInfo?.name || ''}
         currentCompany={clientInfo?.company_name || ''}
         currentBin={clientInfo?.bin || ''}
+        currentCity={clientInfo?.city || ''}
         onSuccess={() => { loadClientInfo(); setEditProfileOpen(false) }}
       />
     </main>

@@ -1,10 +1,10 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { normalizePhone } from '@/lib/phone'
+import { CITY_OPTIONS } from '@/lib/cities'
 
-type Screen = 'phone' | 'pin'
+type Screen = 'phone' | 'register' | 'pin'
 
 interface Props {
   onSuccess?: () => void
@@ -15,7 +15,6 @@ interface Props {
 const PIN_LEN = 6
 
 export default function AuthModal({ onSuccess, onClose }: Props) {
-  const router = useRouter()
   const [screen, setScreen] = useState<Screen>('phone')
   const [phoneDisplay, setPhoneDisplay] = useState('')
 
@@ -26,8 +25,14 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
   const [criticalError, setCriticalError] = useState<{ title: string; message: string } | null>(null)
   const [sendingPin, setSendingPin] = useState(false)
   const [pinSentMessage, setPinSentMessage] = useState('')
-  const [notFound, setNotFound] = useState(false)
-  const [notFoundName, setNotFoundName] = useState('')
+
+  // Экран мгновенной регистрации (незарегистрированный номер)
+  const [regName, setRegName] = useState('')
+  const [regCompany, setRegCompany] = useState('')
+  const [regCity, setRegCity] = useState('')
+  const [registering, setRegistering] = useState(false)
+  const [regError, setRegError] = useState('')
+  const [pinNotDelivered, setPinNotDelivered] = useState(false)
 
   const pinRefs = Array.from({ length: PIN_LEN }, () => useRef<HTMLInputElement>(null)) // eslint-disable-line react-hooks/rules-of-hooks
 
@@ -39,7 +44,6 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
       ? '+' + raw.slice(1).replace(/\D/g, '').slice(0, 15)
       : raw.replace(/\D/g, '').slice(0, 15)
     setPhoneDisplay(cleaned)
-    if (notFound) setNotFound(false)
   }
 
   // ── Screen 1: Phone ───────────────────────────────────────────────
@@ -47,7 +51,6 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
   async function handleCheckPhone() {
     setError('')
     setCriticalError(null)
-    setNotFound(false)
     let normalized: string
     try { normalized = normalizePhone(phoneDisplay) }
     catch { setError('Введите корректный номер телефона'); return }
@@ -75,13 +78,62 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
           message: 'Ваш аккаунт найден, но PIN-код ещё не создан.\nПожалуйста, свяжитесь с администратором для активации доступа.',
         })
       } else {
-        // Номер не найден в базе → предложить написать в WhatsApp (самрегистрация отключена)
-        setNotFound(true)
+        // Номер не найден → мгновенная регистрация прямо в модалке (без слов «не найден»)
+        setRegError('')
+        setPinNotDelivered(false)
+        setScreen('register')
       }
     } catch {
       setError('Ошибка сервера. Попробуйте ещё раз.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ── Screen: мгновенная регистрация ────────────────────────────────
+  // Переиспользуем готовый /api/auth/self-register: он создаёт клиента, генерит
+  // 6-значный PIN и сам шлёт его в WhatsApp через umnicoClient. Здесь только форма.
+  async function handleRegister() {
+    setRegError('')
+    setPinNotDelivered(false)
+    if (!regName.trim()) { setRegError('Укажите имя'); return }
+    let normalized: string
+    try { normalized = normalizePhone(phoneDisplay) } catch { setRegError('Введите корректный номер телефона'); return }
+    if (normalized.replace(/\D/g, '').length !== 11) { setRegError('Введите корректный номер телефона'); return }
+
+    setRegistering(true)
+    try {
+      const res = await fetch('/api/auth/self-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Ключи под контракт роута: name/phone/company_name/city/client_type.
+        // client_type — необязательное поле (идёт в заявку/amo); дефолт 'ИП'.
+        body: JSON.stringify({
+          name: regName.trim(),
+          phone: normalized,
+          company_name: regCompany.trim(),
+          city: regCity,
+          client_type: 'ИП',
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.ok || data.alreadyExists) {
+        if (data.delivered) {
+          // PIN ушёл в WhatsApp → сразу к вводу PIN (номер уже известен).
+          setClientName(regName.trim())
+          setScreen('pin')
+          setTimeout(() => pinRefs[0].current?.focus(), 80)
+        } else {
+          // Нет WhatsApp на номере — фолбэк на ручную отправку.
+          setPinNotDelivered(true)
+        }
+      } else {
+        setRegError(data.error || 'Не удалось зарегистрировать. Попробуйте позже.')
+      }
+    } catch {
+      setRegError('Ошибка соединения')
+    } finally {
+      setRegistering(false)
     }
   }
 
@@ -163,6 +215,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <span className="text-sm font-semibold text-gray-700">
             {screen === 'phone' && 'Вход или регистрация'}
+            {screen === 'register' && 'Регистрация'}
             {screen === 'pin' && (clientName ? `Привет, ${clientName}!` : 'Введите PIN-код')}
           </span>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
@@ -187,34 +240,6 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
               </div>
               {error && <p className="text-red-500 text-sm">{error}</p>}
 
-              {notFound && (
-                <div className="p-3 rounded-lg" style={{ background: '#FFF8E1', border: '1px solid #FCE8B2' }}>
-                  <p className="text-sm text-gray-700 mb-1">Номер не найден в системе.</p>
-                  <p className="text-xs text-gray-500 mb-3">
-                    Напишите нам в WhatsApp — добавим вас в базу и вышлем PIN-код.
-                  </p>
-                  <input
-                    type="text"
-                    value={notFoundName}
-                    onChange={e => setNotFoundName(e.target.value)}
-                    placeholder="Ваше имя"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:border-pink-400"
-                  />
-                  <a
-                    href={`https://wa.me/77007575243?text=${encodeURIComponent('Здравствуйте! Хочу добавиться в базу. Имя: ' + (notFoundName || '—') + '. Мой номер: ' + (phoneDisplay || ''))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white no-underline"
-                    style={{ backgroundColor: '#25D366' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                    </svg>
-                    Написать в WhatsApp
-                  </a>
-                </div>
-              )}
-
               <button
                 onClick={handleCheckPhone}
                 disabled={loading || phoneDisplay.replace(/\D/g, '').length < 10}
@@ -228,13 +253,115 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
               <div className="text-center text-sm text-gray-500 pt-1">
                 Нет аккаунта?{' '}
                 <button
-                  onClick={() => { onClose(); router.push('/register') }}
+                  onClick={() => { setRegError(''); setPinNotDelivered(false); setScreen('register') }}
                   className="font-semibold cursor-pointer bg-transparent border-none p-0"
                   style={{ color: 'var(--accent)' }}
                 >
                   Зарегистрироваться
                 </button>
               </div>
+            </>
+          )}
+
+          {/* ── Экран: Мгновенная регистрация ─────────────────── */}
+          {screen === 'register' && (
+            <>
+              <div>
+                <p className="text-sm text-gray-700 font-medium">Пара секунд — и вы в системе 🌸</p>
+                <p className="text-xs text-gray-500 mt-1">Введите имя — вышлем PIN в WhatsApp, войдёте сразу.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">Номер телефона</label>
+                <input
+                  type="tel"
+                  value={phoneDisplay}
+                  onChange={e => handlePhoneInput(e.target.value)}
+                  placeholder="+77001234567"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-pink-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">
+                  Ваше имя <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={regName}
+                  onChange={e => setRegName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleRegister()}
+                  placeholder="Как к вам обращаться"
+                  autoFocus
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-pink-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">Название магазина</label>
+                <input
+                  type="text"
+                  value={regCompany}
+                  onChange={e => setRegCompany(e.target.value)}
+                  placeholder="Необязательно"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-pink-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">Город</label>
+                <select
+                  value={regCity}
+                  onChange={e => setRegCity(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-pink-400 bg-white"
+                >
+                  <option value="">Необязательно</option>
+                  {CITY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              {regError && <p className="text-red-500 text-sm">{regError}</p>}
+
+              {pinNotDelivered ? (
+                <div className="p-3 rounded-lg space-y-2" style={{ background: '#FFF8E1', border: '1px solid #FCE8B2' }}>
+                  <p className="text-sm text-gray-700">
+                    Не смогли отправить PIN на этот номер. Напишите нам — вышлем вручную.
+                  </p>
+                  <a
+                    href={`https://wa.me/77007575243?text=${encodeURIComponent('Здравствуйте! Зарегистрировался(ась) на сайте, не пришёл PIN. Имя: ' + (regName || '—') + '. Номер: ' + (phoneDisplay || ''))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white no-underline"
+                    style={{ backgroundColor: '#25D366' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                    Написать в WhatsApp
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleRegister}
+                    disabled={registering || !regName.trim()}
+                    className="w-full py-3 text-white font-medium rounded-lg transition disabled:opacity-50"
+                    style={BRAND}
+                  >
+                    {registering ? 'Отправляем…' : 'Получить PIN в WhatsApp'}
+                  </button>
+                  <p className="text-xs text-gray-400 text-center">
+                    Остальное можно заполнить в личном кабинете
+                  </p>
+                </>
+              )}
+
+              <button
+                onClick={() => { setScreen('phone'); setRegError(''); setPinNotDelivered(false) }}
+                className="w-full text-xs text-gray-400 hover:text-gray-600 py-1"
+              >
+                Назад
+              </button>
             </>
           )}
 
