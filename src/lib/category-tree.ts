@@ -23,6 +23,7 @@ export const CATEGORY_TREE: Group[] = [
     { slug: 'floral_foam',   label: 'Оазис (флор. пена)',  members: ['floral_foam'] },
     { slug: 'jute',          label: 'Джут и бечёвка',      members: ['jute'] },
     { slug: 'mesh',          label: 'Сетка',               members: ['mesh'] },
+    { slug: 'tools',         label: 'Инструменты',         members: ['tools'] },
     { slug: 'pkg_other',     label: 'Прочее', hidden: true,
         members: ['floristry_items','felt','fillers','foamiran'] },
   ]},
@@ -45,7 +46,7 @@ export const CATEGORY_TREE: Group[] = [
     { slug: 'soil',             label: 'Грунты',          members: ['soil'],                     variant: 'Фасовка' },
     { slug: 'fertilizers',      label: 'Удобрения',       members: ['fertilizers','growth_stim'], variant: 'Фасовка' },
     { slug: 'plant_protection', label: 'Защита растений', members: ['plant_protection'],         variant: 'Объём' },
-    { slug: 'garden_care',      label: 'Садовый уход',    members: ['garden_care','garden','tools','freshcut'] },
+    { slug: 'garden_care',      label: 'Садовый уход',    members: ['garden_care','garden','freshcut'] },
   ]},
   { id: 'lawn', label: 'Газоны и укрытие', leaves: [
     { slug: 'artificial_grass', label: 'Искусственный газон',   members: ['artificial_grass'], unit: 'пог. м' },
