@@ -5,7 +5,7 @@ import { useFilters } from '@/lib/filter-store'
 import { COLORS, colorSwatch, colorLabel, isLightSwatch, isNonColor, normalizeColor } from '@/lib/colors'
 import { type Product, getAvailable } from './ProductCard'
 import { ORIGIN_LABELS } from '@/lib/filter-chips'
-import { CATEGORY_TREE as ACCESSORIES_TREE, leafForSubcat } from '@/lib/category-tree'
+import { CATEGORY_TREE as ACCESSORIES_TREE, leafForSubcat, slugsForGroup, subcatInLeaves } from '@/lib/category-tree'
 
 // ── category tree ─────────────────────────────────────────────────────────────
 
@@ -736,7 +736,7 @@ function AccessoriesLeaves({ products }: { products: Product[] }) {
 
 export default function FilterPanel({ products }: { products: Product[] }) {
   const {
-    category, subcat, varietyType, selectedLeaves, subgroup,
+    category, group, subcat, varietyType, selectedLeaves, subgroup,
     colors, lengths, origins, farms, potSizes, volumeRanges, tags,
     suppliers, materials, potColors, volumes,
     seasons, onlyAvailable, facets,
@@ -769,14 +769,20 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     return [...inOrder, ...rest]
   }, [products, subcat])
 
-  // Фильтр цвета для листа film (Плёнка): токены и counts считаем клиентски из products,
-  // скоупом по листу (facets по листьям не считаются). colors[] у film — русские токены.
-  const showFilmColors = category === 'accessories' && selectedLeaves.includes('film')
-  const filmColors = useMemo<[string, number][]>(() => {
-    if (!showFilmColors) return []
+  // Фильтр цвета для accessories: токены и counts считаем клиентски из products.colors,
+  // скоупом по ТЕКУЩЕМУ разделу — выбранные листья или вся группа (раньше показывалось
+  // только на листе «Плёнка»; теперь работает и на уровне группы, напр. «Упаковка»).
+  const accColorScope = useMemo<string[]>(() => (
+    selectedLeaves.length > 0
+      ? selectedLeaves
+      : (group && group !== 'all' ? slugsForGroup(group) : [])
+  ), [selectedLeaves, group])
+
+  const accColors = useMemo<[string, number][]>(() => {
+    if (category !== 'accessories') return []
     const counts = new Map<string, number>()
     for (const p of products) {
-      if (leafForSubcat(p.subcategory)?.slug !== 'film') continue
+      if (accColorScope.length > 0 && !subcatInLeaves(p.subcategory, accColorScope)) continue
       if (onlyAvailable && getAvailable(p.stock) <= 0) continue
       // Группировка по нормализованному цвету: «Крем 02»+«крем» = один пункт,
       // не-цвета (н/д, с рисунком) выкидываем. Один товар не считаем дважды за канон.
@@ -792,7 +798,7 @@ export default function FilterPanel({ products }: { products: Product[] }) {
     return [...counts.entries()].sort(
       (a, b) => b[1] - a[1] || colorLabel(a[0]).localeCompare(colorLabel(b[0]), 'ru'),
     )
-  }, [products, showFilmColors, onlyAvailable])
+  }, [products, category, accColorScope, onlyAvailable])
 
   const [openGroups, setOpenGroups] = useState({ ...DEFAULT_OPEN })
 
@@ -870,11 +876,12 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </StaticGroup>
         )}
 
-        {/* ЦВЕТ — лист film (Плёнка): русские токены из products, count=0 просто не показываются */}
-        {showFilmColors && filmColors.length > 0 && (
+        {/* ЦВЕТ — accessories (плёнка/ленты и пр.): русские токены из products.colors по текущему
+            разделу/группе, count=0 просто не показываются */}
+        {category === 'accessories' && accColors.length > 0 && (
           <StaticGroup label="Цвет">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
-              {filmColors.map(([token, count]) => {
+              {accColors.map(([token, count]) => {
                 const selected = colors.includes(token)
                 return (
                   <div
@@ -897,8 +904,8 @@ export default function FilterPanel({ products }: { products: Product[] }) {
           </StaticGroup>
         )}
 
-        {/* ЦВЕТ — accessories (горшки/кашпо и пр.): палетка из pot_color, как у cut/film */}
-        {category === 'accessories' && !showFilmColors && (potColorEntries.length > 0 || potColors.length > 0) && (
+        {/* ЦВЕТ — accessories (горшки/кашпо и пр.): палетка из pot_color, когда у товаров нет colors[] */}
+        {category === 'accessories' && accColors.length === 0 && (potColorEntries.length > 0 || potColors.length > 0) && (
           <StaticGroup label="Цвет">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
               {potColorEntries.map(([token, count]) => {
