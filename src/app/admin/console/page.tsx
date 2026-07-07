@@ -8,6 +8,7 @@ import {
   Package, Clock, User, ChevronRight, ChevronLeft, Plus, Minus,
   CheckCircle2, AlertCircle, Phone, Building2, MapPin, Calendar, Wallet,
   FileText, QrCode, Banknote, Receipt, Printer, Truck, Search, Camera, X, Save, Gauge,
+  Users, ShoppingBag,
 } from 'lucide-react'
 
 /* ───────── Бренд ───────── */
@@ -70,6 +71,10 @@ const fmtKZT = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n
 const fmtDateTime = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleString('ru-RU', {
     timeZone: 'Asia/Oral', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  }) : '—'
+const fmtDate = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('ru-RU', {
+    timeZone: 'Asia/Oral', day: '2-digit', month: '2-digit', year: 'numeric',
   }) : '—'
 function fmtDur(ms: number | null) {
   if (ms == null) return '—'
@@ -198,7 +203,10 @@ function SlideOver({ children, onClose }: { children: any; onClose: () => void }
 export default function ConsolePage() {
   const router = useRouter()
   const { role, isAuthed, init } = useAuthStore()
+  const [tab, setTab] = useState<'orders' | 'clients'>('orders')
   const [orders, setOrders] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
+  const [clientsLoaded, setClientsLoaded] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [openId, setOpenId] = useState<number | null>(null)
   const [confirm, setConfirm] = useState<ConfirmCfg | null>(null)
@@ -229,7 +237,25 @@ export default function ConsolePage() {
     }
   }, [])
 
+  const reloadClients = useCallback(async () => {
+    try {
+      const headers = await authHeaders()
+      const r = await fetch('/api/admin/console/clients', { headers, cache: 'no-store' })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { setErr(d.error || 'Не удалось загрузить клиентов'); return }
+      setClients(d.clients || [])
+      setErr('')
+    } catch {
+      setErr('Ошибка сети')
+    } finally {
+      setClientsLoaded(true)
+    }
+  }, [])
+
   useEffect(() => { if (isAuthed && (role === 'admin' || role === 'manager')) reload() }, [isAuthed, role, reload])
+  useEffect(() => {
+    if (tab === 'clients' && isAuthed && (role === 'admin' || role === 'manager') && !clientsLoaded) reloadClients()
+  }, [tab, isAuthed, role, clientsLoaded, reloadClients])
 
   const api = useCallback(async (path: string, body: any) => {
     setBusy(true)
@@ -278,10 +304,27 @@ export default function ConsolePage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={reload} disabled={busy} className="rounded-lg px-3 py-1.5 text-sm font-medium" style={{ background: C.blush, color: C.wine }}>Обновить</button>
+          <button onClick={() => (tab === 'clients' ? reloadClients() : reload())} disabled={busy} className="rounded-lg px-3 py-1.5 text-sm font-medium" style={{ background: C.blush, color: C.wine }}>Обновить</button>
           <button onClick={() => useAuthStore.getState().logout().then(() => router.replace('/login'))} className="rounded-lg px-3 py-1.5 text-sm font-medium" style={{ background: C.blush, color: C.stone }}>Выйти</button>
         </div>
       </header>
+
+      <div className="mx-auto max-w-6xl px-5 pt-3">
+        <div className="flex items-center gap-1">
+          {([
+            { k: 'orders', label: 'Заказы', Icon: ShoppingBag },
+            { k: 'clients', label: 'Клиенты', Icon: Users },
+          ] as const).map((t) => (
+            <button key={t.k} onClick={() => setTab(t.k)}
+              className="flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-semibold transition"
+              style={tab === t.k
+                ? { background: '#fff', color: C.wine, borderBottom: '2px solid ' + C.wine }
+                : { background: 'transparent', color: C.stone }}>
+              <t.Icon size={15} /> {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {err && (
         <div className="mx-auto max-w-6xl px-5 pt-3">
@@ -290,10 +333,18 @@ export default function ConsolePage() {
       )}
 
       <main className="mx-auto max-w-6xl px-5 py-5">
-        {!loaded ? (
-          <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ background: '#fff', border: '1px solid ' + C.line, color: C.stone }}>Загрузка…</div>
+        {tab === 'orders' ? (
+          !loaded ? (
+            <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ background: '#fff', border: '1px solid ' + C.line, color: C.stone }}>Загрузка…</div>
+          ) : (
+            <PipelineView orders={orders} onOpen={setOpenId} />
+          )
         ) : (
-          <PipelineView orders={orders} onOpen={setOpenId} />
+          !clientsLoaded ? (
+            <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ background: '#fff', border: '1px solid ' + C.line, color: C.stone }}>Загрузка…</div>
+          ) : (
+            <ClientsView clients={clients} />
+          )
         )}
       </main>
 
@@ -404,6 +455,88 @@ function PipelineView({ orders, onOpen }: { orders: any[]; onOpen: (id: number) 
           <div className="space-y-2 opacity-60">{cancelled.map((o) => <Row key={o.id} o={o} />)}</div>
         </section>
       )}
+    </div>
+  )
+}
+
+/* ───────── Клиенты ───────── */
+const CLIENT_STATUS: Record<string, { label: string; color: string }> = {
+  active: { label: 'Активен', color: C.fern },
+  inactive: { label: 'Неактивен', color: C.stone },
+  blocked: { label: 'Заблокирован', color: '#9a3346' },
+}
+function ClientStatusChip({ status }: { status?: string | null }) {
+  const s = CLIENT_STATUS[status || ''] || { label: status || '—', color: C.stone }
+  return (
+    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: s.color + '1A', color: s.color }}>
+      {s.label}
+    </span>
+  )
+}
+
+function ClientsView({ clients }: { clients: any[] }) {
+  const [q, setQ] = useState('')
+  const term = q.trim().toLowerCase()
+  const filtered = term
+    ? clients.filter((c) =>
+        [c.name, c.phone, c.company_name].some((v) => String(v || '').toLowerCase().includes(term)))
+    : clients
+
+  const Th = ({ children, right }: any) => (
+    <th className={'whitespace-nowrap px-3 py-2 text-xs font-semibold ' + (right ? 'text-right' : 'text-left')} style={{ color: C.stone }}>{children}</th>
+  )
+  const Td = ({ children, right, muted }: any) => (
+    <td className={'whitespace-nowrap px-3 py-2 text-sm ' + (right ? 'text-right' : 'text-left')} style={{ color: muted ? C.stone : C.ink }}>{children}</td>
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl px-3 py-2" style={{ background: '#fff', border: '1px solid ' + C.line }}>
+        <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ background: C.bg }}>
+          <Search size={14} style={{ color: C.stone }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: имя, телефон, компания"
+            className="bg-transparent text-sm outline-none" style={{ width: 220 }} />
+        </div>
+        <span className="text-xs" style={{ color: C.stone }}>Всего: {filtered.length}</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl" style={{ background: '#fff', border: '1px solid ' + C.line }}>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr style={{ borderBottom: '1px solid ' + C.line, background: C.bg }}>
+              <Th>Имя</Th>
+              <Th>Телефон</Th>
+              <Th>Компания</Th>
+              <Th>БИН</Th>
+              <Th>Город</Th>
+              <Th right>Лимит</Th>
+              <Th>Статус</Th>
+              <Th>Регистрация</Th>
+              <Th right>Заказов</Th>
+              <Th right>Сумма</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c) => (
+              <tr key={c.id} style={{ borderBottom: '1px solid ' + C.line }}>
+                <Td>{c.name || '—'}</Td>
+                <Td muted>{c.phone || '—'}</Td>
+                <Td>{c.company_name ? <span className="inline-flex items-center gap-1"><Building2 size={12} style={{ color: C.wine }} />{c.company_name}</span> : <span style={{ color: C.stone }}>—</span>}</Td>
+                <Td muted>{c.bin || '—'}</Td>
+                <Td muted>{c.city || '—'}</Td>
+                <Td right muted>{c.credit_limit ? fmtKZT(Number(c.credit_limit)) : '—'}</Td>
+                <Td><ClientStatusChip status={c.status} /></Td>
+                <Td muted>{fmtDate(c.created_at)}</Td>
+                <Td right>{c.order_count}</Td>
+                <Td right>{c.order_sum ? fmtKZT(c.order_sum) : '—'}</Td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-sm" style={{ color: C.stone }}>Клиенты не найдены</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
