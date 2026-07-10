@@ -106,7 +106,11 @@ export default async function CategoriesPage() {
           {CATEGORY_TREE.map(group => {
             const meta = GROUP_META[group.id]
             const c = meta?.c ?? '#8B3A5A'
-            const leaves = group.leaves.filter(l => !l.hidden)
+            // На лендинге показываем только листья с готовой обложкой; карточки без
+            // фото (градиентные «розовые» заглушки) скрываем. Полный набор подкатегорий
+            // доступен по кнопке «Смотреть всё» (ведёт в каталог группы).
+            const leaves = group.leaves.filter(l => !l.hidden && SUB_PHOTOS.has(l.slug))
+            if (leaves.length === 0) return null
             const total = leaves.reduce((sum, l) => sum + (counts[l.slug] ?? 0), 0)
             return (
               <section key={group.id} className={s.group} style={{ ['--c' as string]: c } as React.CSSProperties}>
