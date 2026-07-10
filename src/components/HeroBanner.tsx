@@ -31,7 +31,7 @@ function RoutePlate() {
       <span className={styles.rt}>{HERO_ROUTE.label}</span>
       {HERO_ROUTE.legs.map((leg) => (
         <span key={leg.city} className={`${styles.leg}${leg.mid ? ` ${styles.legMid}` : ''}`}>
-          {leg.arrow && <span className={styles.ar}>↓</span>}
+          {leg.arrow !== 'none' && <span className={styles.ar}>{leg.arrow === 'up' ? '↑' : '↓'}</span>}
           <b>{leg.city}</b>{'note' in leg && leg.note ? ` · ${leg.note}` : ''}
         </span>
       ))}
