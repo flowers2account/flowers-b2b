@@ -65,6 +65,17 @@ function fulfillCat(o: any) {
   const city = (o.delivery_city || '').trim()
   return city && city !== HOME_CITY ? 'intercity' : 'delivery'
 }
+// Следующий статус по маршруту выдачи. Межгород: перед выдачей — «В пути» (передача
+// курьеру, требует данные водителя). Самовывоз и доставка по городу — сразу «Выдан».
+function nextStepKey(o: any): string | null {
+  if (o.status === 'pending') return 'reserved'
+  if (o.status === 'assembled') return fulfillCat(o) === 'intercity' ? 'in_transit' : 'delivered'
+  if (o.status === 'in_transit') return 'delivered'
+  const i = stageIndex(o.status)
+  return i >= 0 && i < STAGES.length - 1 ? STAGES[i + 1].key : null
+}
+// Позиция в линейном прогрессе для полос/таймлайна: «В пути» показываем на уровне «Собран».
+const pipelinePos = (status: string) => stageIndex(status === 'in_transit' ? 'assembled' : status)
 
 /* ───────── Утилиты ───────── */
 const fmtKZT = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n || 0)) + ' ₸'
@@ -148,7 +159,7 @@ function StageChip({ k, big }: { k: string; big?: boolean }) {
   )
 }
 function MiniTimeline({ order }: { order: any }) {
-  const cur = stageIndex(order.status)
+  const cur = pipelinePos(order.status)
   const dur = stageDurations(order)
   return (
     <div className="flex items-center gap-1">
@@ -180,6 +191,51 @@ function ConfirmDialog({ cfg, onClose }: { cfg: ConfirmCfg; onClose: () => void 
           <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm font-medium" style={{ background: C.blush, color: C.wine }}>Отмена</button>
           <button onClick={() => { cfg.onConfirm(); onClose() }} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white" style={{ background: color }}>
             {cfg.label || 'Подтвердить'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+// Поле формы водителя. На уровне модуля (не внутри DriverDialog) — иначе при каждом
+// нажатии клавиши компонент пересоздавался бы, инпут перемонтировался и терял фокус.
+function DriverField({ Icon, label, value, set, placeholder }: any) {
+  return (
+    <label className="block">
+      <span className="mb-1 flex items-center gap-1.5 text-xs font-medium" style={{ color: C.stone }}><Icon size={13} /> {label}</span>
+      <input value={value} onChange={(e) => set(e.target.value)} placeholder={placeholder}
+        className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ border: '1px solid ' + C.line }} />
+    </label>
+  )
+}
+// Форма данных водителя — обязательна перед передачей курьеру (межгород → «В пути»).
+// Без всех трёх полей кнопка неактивна. Значения уходят в orders.driver_* и далее в amoCRM.
+function DriverDialog({ order, busy, onClose, onSubmit }: {
+  order: any; busy: boolean; onClose: () => void
+  onSubmit: (d: { driver_name: string; driver_car_plate: string; driver_phone: string }) => void
+}) {
+  const [name, setName] = useState(order.driver_name || '')
+  const [plate, setPlate] = useState(order.driver_car_plate || '')
+  const [phone, setPhone] = useState(order.driver_phone || '')
+  const ready = name.trim() && plate.trim() && phone.trim()
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center px-4" style={{ background: 'rgba(28,28,28,0.45)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="text-base font-bold" style={{ color: C.ink }}>Передать курьеру · #{order.id}</div>
+        <div className="mt-1 text-sm" style={{ color: C.stone }}>Межгород — внесите данные водителя. Уйдут в amoCRM и сдвинут сделку на «на доставке».</div>
+        <div className="mt-4 space-y-3">
+          <DriverField Icon={User} label="Имя водителя" value={name} set={setName} placeholder="Напр. Иван" />
+          <DriverField Icon={Truck} label="Номер машины" value={plate} set={setPlate} placeholder="Напр. 123 ABC 05" />
+          <DriverField Icon={Phone} label="Контактный телефон" value={phone} set={setPhone} placeholder="+7 7XX XXX XX XX" />
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm font-medium" style={{ background: C.blush, color: C.wine }}>Отмена</button>
+          <button
+            onClick={() => ready && onSubmit({ driver_name: name.trim(), driver_car_plate: plate.trim(), driver_phone: phone.trim() })}
+            disabled={!ready || busy}
+            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+            style={{ background: ready ? C.wine : '#C9B9BD', cursor: ready ? 'pointer' : 'not-allowed' }}>
+            Передать курьеру
           </button>
         </div>
       </div>
@@ -354,7 +410,7 @@ export default function ConsolePage() {
             order={current}
             busy={busy}
             ask={setConfirm}
-            onStatus={(to: string) => api('/api/admin/console/status', { order_id: current.id, to })}
+            onStatus={(to: string, extra?: any) => api('/api/admin/console/status', { order_id: current.id, to, ...(extra || {}) })}
             onPaid={() => api('/api/admin/console/pay', { order_id: current.id })}
             onSaveItems={(items: any[]) => api('/api/admin/console/items', { order_id: current.id, items })}
             onPrint={() => window.open(`/print/order/${current.id}`, '_blank')}
@@ -546,11 +602,12 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
   const [draft, setDraft] = useState<any[]>(order.items || [])
   useEffect(() => { setDraft(order.items || []) }, [order.id, order.items])
 
+  const [driverOpen, setDriverOpen] = useState(false)
   const dur = stageDurations(order)
-  const inPipeline = stageIndex(order.status) >= 0
   const isLast = order.status === 'delivered'
   const isCancelled = order.status === 'cancelled'
-  const nextStage = inPipeline && !isLast ? STAGES[stageIndex(order.status) + 1] : null
+  // Следующий шаг по маршруту выдачи (межгород вставляет «В пути» перед «Выдан»).
+  const nextKey = !isLast && !isCancelled ? nextStepKey(order) : null
   const legal = orderIsLegal(order)
   const info = payInfo(order.payment_method)
   const unpaid = order.payment_status !== 'paid'
@@ -563,9 +620,11 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
   const editItem = (iid: number, sign: number) => setDraft((p) => p.map((it) =>
     it.id === iid ? { ...it, qty: Math.max(itemPack(it), Number(it.qty) + sign * itemPack(it)) } : it))
 
-  const confirmAdvance = () => {
-    const to = order.status === 'pending' ? 'reserved' : nextStage?.key
+  const advance = () => {
+    const to = nextKey
     if (!to) return
+    // Межгород → передача курьеру: сначала форма данных водителя (обязательна).
+    if (to === 'in_transit') { setDriverOpen(true); return }
     ask({
       title: order.status === 'pending' ? 'Взять заказ в работу?' : 'Перевести заказ?',
       message: '#' + order.id + ': ' + statusMeta(order.status).label + ' → ' + statusMeta(to).label + '.',
@@ -740,13 +799,28 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
             <button onClick={confirmCancel} disabled={busy} title="Отменить заказ" className="flex items-center justify-center rounded-xl px-3 py-3" style={{ background: C.blush, color: '#9a3346' }}>
               <X size={16} />
             </button>
-            {inPipeline && nextStage && (
-              <button onClick={confirmAdvance} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 font-semibold text-white" style={{ background: C.wine }}>
-                {order.status === 'pending' ? 'Взять в работу' : 'Перевести → ' + nextStage.label}
+            {nextKey && (
+              <button onClick={advance} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 font-semibold text-white" style={{ background: C.wine }}>
+                {order.status === 'pending'
+                  ? 'Взять в работу'
+                  : nextKey === 'in_transit'
+                  ? 'Передать курьеру'
+                  : order.status === 'in_transit'
+                  ? 'Отметить выданным'
+                  : 'Перевести → ' + statusMeta(nextKey).label}
               </button>
             )}
           </div>
         </div>
+      )}
+
+      {driverOpen && (
+        <DriverDialog
+          order={order}
+          busy={busy}
+          onClose={() => setDriverOpen(false)}
+          onSubmit={(d) => { setDriverOpen(false); onStatus('in_transit', d) }}
+        />
       )}
     </div>
   )

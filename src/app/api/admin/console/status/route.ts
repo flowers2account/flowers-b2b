@@ -18,10 +18,21 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedWithRole(req, ['admin', 'manager'])
   if (!authed) return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
 
-  const { order_id, to } = await req.json().catch(() => ({}))
+  const { order_id, to, driver_name, driver_phone, driver_car_plate } = await req.json().catch(() => ({}))
   const id = Number(order_id)
   if (!id || !to || !ALLOWED.has(to)) {
     return NextResponse.json({ error: 'order_id и корректный статус обязательны' }, { status: 400 })
+  }
+
+  // Передача курьеру (межгород → «В пути») требует данных водителя.
+  const dName  = typeof driver_name === 'string' ? driver_name.trim() : ''
+  const dPhone = typeof driver_phone === 'string' ? driver_phone.trim() : ''
+  const dPlate = typeof driver_car_plate === 'string' ? driver_car_plate.trim() : ''
+  if (to === 'in_transit' && (!dName || !dPhone || !dPlate)) {
+    return NextResponse.json(
+      { error: 'Для передачи курьеру заполните имя, номер машины и телефон водителя' },
+      { status: 400 },
+    )
   }
 
   const sb = sessionClient(req)
@@ -32,8 +43,15 @@ export async function POST(req: NextRequest) {
   if (!cur) return NextResponse.json({ error: 'Заказ не найден' }, { status: 404 })
   if (cur.status === to) return NextResponse.json({ ok: true, status: to })
 
+  // Данные водителя пишем в той же операции — до notify, чтобы уведомление «в пути»
+  // и пуш в amoCRM подхватили их из свежей строки заказа.
+  const patch: Record<string, unknown> = { status: to }
+  if (dName)  patch.driver_name = dName
+  if (dPhone) patch.driver_phone = dPhone
+  if (dPlate) patch.driver_car_plate = dPlate
+
   const { data, error } = await sb
-    .from('orders').update({ status: to }).eq('id', id).select('id, status').single()
+    .from('orders').update(patch).eq('id', id).select('id, status').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Переход реальный (статус отличался) → шлём уведомления (WhatsApp клиенту/менеджеру/

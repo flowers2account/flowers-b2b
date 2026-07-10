@@ -595,7 +595,7 @@ export async function updateLeadStage(orderId: number): Promise<void> {
 
   const { data: order } = await supabase
     .from('orders')
-    .select('amo_lead_id, status')
+    .select('amo_lead_id, status, driver_name, driver_phone, driver_car_plate')
     .eq('id', orderId)
     .single()
 
@@ -603,10 +603,17 @@ export async function updateLeadStage(orderId: number): Promise<void> {
   const statusId = ORDER_STATUS_TO_AMO[order.status ?? '']
   if (!statusId) return // статус не в маппинге — не двигаем
 
+  // Поля водителя (межгород, «в пути») — в кастомные поля сделки вместе со сдвигом этапа.
+  // Пишем только заполненные; на прочих статусах массив пуст → PATCH только этапа.
+  const cfv: Array<{ field_id: number; values: Array<{ value: string }> }> = []
+  if (order.driver_name)      cfv.push({ field_id: CF_DRIVER_NAME, values: [{ value: String(order.driver_name) }] })
+  if (order.driver_phone)     cfv.push({ field_id: CF_DRIVER_PHONE, values: [{ value: String(order.driver_phone) }] })
+  if (order.driver_car_plate) cfv.push({ field_id: CF_CAR_PLATE, values: [{ value: String(order.driver_car_plate) }] })
+
   // PATCH безопасен (идемпотентен) — шлём даже если этап уже такой
   await amoFetch(`/leads/${order.amo_lead_id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status_id: statusId }),
+    body: JSON.stringify(cfv.length ? { status_id: statusId, custom_fields_values: cfv } : { status_id: statusId }),
   })
 }
 
