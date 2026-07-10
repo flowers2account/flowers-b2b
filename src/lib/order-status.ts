@@ -65,8 +65,27 @@ export async function applyOrderStatus(
     return { ok: true }
   }
 
-  // 3) WhatsApp-уведомления (та же логика) + шаблон in_transit. Только при реальном переходе
-  //    (сюда попадаем лишь когда RPC вернул changed=true) → дубли невозможны.
+  // 3) Уведомления (WhatsApp клиенту/менеджеру/кладовщику) + сдвиг сделки в amoCRM.
+  //    Только при реальном переходе (сюда — лишь при changed=true, дубли невозможны).
+  //    Вынесено в notifyOrderStatusChange — ТЕМ ЖЕ путём шлёт и пульт оператора,
+  //    который делает переход сессионным клиентом (RLS + changed_by=оператор в истории).
+  await notifyOrderStatusChange(orderId, status, { skipAmoPush: opts.skipAmoPush })
+
+  return { ok: true }
+}
+
+// Побочные эффекты перехода статуса: WhatsApp-уведомления + сдвиг сделки amoCRM.
+// Отдельно от самого перехода, чтобы вызыватели, которые двигают статус своим путём
+// (пульт оператора — сессионный UPDATE ради changed_by), тоже слали уведомления.
+// Идемпотентность самого перехода — забота вызывателя (шлём только при реальной смене).
+export async function notifyOrderStatusChange(
+  orderId: number,
+  status: string,
+  opts: { skipAmoPush?: boolean } = {},
+): Promise<void> {
+  const supabase = createAdminClient()
+
+  // WhatsApp-уведомления + шаблон in_transit.
   if (process.env.UMNICO_API_TOKEN) {
     try {
       const [{ data: orderData }, { data: historyRecord }] = await Promise.all([
@@ -173,7 +192,6 @@ export async function applyOrderStatus(
   }
 
   // amoCRM: двигаем сделку по воронке (сайт→CRM). Для вебхука CRM→сайт пропускаем.
-  // Сюда доходим только при реальном переходе (changed=true).
   if (!opts.skipAmoPush) {
     try {
       const { updateLeadStage } = await import('@/lib/amo')
@@ -182,6 +200,4 @@ export async function applyOrderStatus(
       console.error('[order-status] amoCRM stage update failed:', err instanceof Error ? err.message : err)
     }
   }
-
-  return { ok: true }
 }

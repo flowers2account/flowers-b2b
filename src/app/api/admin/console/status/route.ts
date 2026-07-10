@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthedWithRole, sessionClient } from '@/lib/api-auth'
+import { notifyOrderStatusChange } from '@/lib/order-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,12 @@ export async function POST(req: NextRequest) {
   const { data, error } = await sb
     .from('orders').update({ status: to }).eq('id', id).select('id, status').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Переход реальный (статус отличался) → шлём уведомления (WhatsApp клиенту/менеджеру/
+  // кладовщику) и двигаем сделку amoCRM. Сам UPDATE делаем сессионным клиентом, чтобы
+  // триггер записал changed_by=оператор; побочные эффекты — общий helper (как в applyOrderStatus).
+  // Ошибки внутри helper заглушены — не валят смену статуса.
+  await notifyOrderStatusChange(id, to)
 
   return NextResponse.json({ ok: true, status: data.status })
 }
