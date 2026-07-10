@@ -90,13 +90,14 @@ export const CAMPAIGNS: Record<string, Campaign> = {
 export const CURRENT_CAMPAIGN_ID = 'first-order-free'
 export const CAMPAIGN: Campaign = CAMPAIGNS[CURRENT_CAMPAIGN_ID]
 
-// Плашка маршрута (общая для обеих страниц).
+// Плашка маршрута (общая для обеих страниц). Уральск — центральный склад-хаб:
+// рейсы расходятся из него вверх (Актобе) и вниз (Атырау).
 export const HERO_ROUTE = {
   label: 'Ближайший рейс',
   legs: [
-    { city: 'Актобе', arrow: false, mid: false },
-    { city: 'Уральск', note: 'склад', arrow: true, mid: true },
-    { city: 'Атырау', arrow: true, mid: false },
+    { city: 'Актобе', arrow: 'up', mid: false },
+    { city: 'Уральск', note: 'склад', arrow: 'none', mid: true },
+    { city: 'Атырау', arrow: 'down', mid: false },
   ],
 } as const
 
