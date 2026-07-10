@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { company } from '@/config/company'
 import AccessRequestForm from '@/components/catalog/AccessRequestForm'
+import HeroBanner from '@/components/HeroBanner'
+import { HERO } from '@/components/hero-banner-content'
 import s from './about/about.module.css'
 
 export const metadata: Metadata = {
@@ -49,6 +51,18 @@ export default function HomePage() {
   return (
     <main className={s.page}>
       <div className={s.shell}>
+
+        {/* PROMO HERO BANNER — первая секция, до hero «О компании» */}
+        <HeroBanner
+          variant="home"
+          eyebrow={HERO.eyebrow}
+          title={HERO.title}
+          titleAccent={HERO.titleAccent}
+          subtitle={HERO.subtitleHome}
+          cta={HERO.ctaHome}
+          fine={HERO.fine}
+          showPerks
+        />
 
         {/* HERO */}
         <section className={s.hero}>

@@ -5,6 +5,8 @@ import ProductGrid from '@/components/catalog/ProductGrid'
 import DetailPanel from '@/components/catalog/DetailPanel'
 import CatalogLayout from '@/components/catalog/CatalogLayout'
 import { resolveCatalogSection, ogImageQuery, type CatalogParams } from '@/lib/catalog-meta'
+import HeroBanner from '@/components/HeroBanner'
+import { HERO, CATALOG_GRID_ANCHOR_ID } from '@/components/hero-banner-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -124,7 +126,25 @@ export default async function CatalogPage() {
   return (
     <CatalogLayout
       left={<FilterPanel products={list} />}
-      center={<ProductGrid products={list} />}
+      center={
+        <>
+          {/* Промо-баннер над тулбаром/сеткой (в потоке, скроллится); CTA — к сетке товаров */}
+          <div style={{ padding: '14px 16px 0' }}>
+            <HeroBanner
+              variant="catalog"
+              eyebrow={HERO.eyebrow}
+              title={HERO.title}
+              titleAccent={HERO.titleAccent}
+              subtitle={HERO.subtitleCatalog}
+              cta={HERO.ctaCatalog}
+            />
+          </div>
+          {/* Якорь для скролла CTA: сюда прыгает «Смотреть наличие» */}
+          <div id={CATALOG_GRID_ANCHOR_ID} style={{ height: '100%' }}>
+            <ProductGrid products={list} />
+          </div>
+        </>
+      }
       right={<DetailPanel />}
     />
   )
