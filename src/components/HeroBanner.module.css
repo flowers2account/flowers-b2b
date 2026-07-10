@@ -46,10 +46,11 @@
   overflow: hidden; box-shadow: var(--sh-pop); min-height: 360px;
   display: flex; align-items: center;
 }
+/* Фото занимает ~60% (справа), текст — левые ~40%: скрим гаснет раньше. */
 .promobanner .scrim {
   background: linear-gradient(100deg,
-    rgba(251,247,243,.97) 0%, rgba(251,247,243,.9) 26%, rgba(251,247,243,.55) 40%,
-    rgba(251,247,243,.12) 52%, transparent 64%);
+    rgba(251,247,243,.97) 0%, rgba(251,247,243,.9) 20%, rgba(251,247,243,.5) 32%,
+    rgba(251,247,243,.12) 42%, transparent 52%);
 }
 .promobanner .route {
   right: 26px; top: 24px; border-radius: 14px; padding: 13px 17px; gap: 5px;
@@ -58,7 +59,8 @@
 .promobanner .rt { font-size: 10px; margin-bottom: 2px; }
 .promobanner .leg { font-size: 13px; }
 
-.pbContent { position: relative; z-index: 2; padding: 44px 56px; max-width: 54%; }
+/* Текст занимает не более ~40% ширины, слева больше воздуха (padding-left). */
+.pbContent { position: relative; z-index: 2; padding: 46px 44px 46px 60px; max-width: 42%; }
 .pbEyebrow {
   font-family: var(--font-jetbrains), monospace; font-size: 12px; letter-spacing: .16em;
   text-transform: uppercase; color: var(--accent); font-weight: 600;
@@ -71,7 +73,14 @@
 }
 .pbSub { margin-top: 18px; font-size: 17px; line-height: 1.55; color: var(--ink-2); max-width: 32ch; }
 .pbActs { margin-top: 28px; display: flex; }
-.pbFine { margin-top: 18px; font-size: 13px; color: var(--ink-3); max-width: 34ch; line-height: 1.5; }
+.pbFine { margin-top: 14px; font-size: 13px; color: var(--ink-3); max-width: 34ch; line-height: 1.5; }
+
+/* Строка доверия под CTA (B2B-сигнал) */
+.trust {
+  margin-top: 14px; display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; color: var(--fern-deep);
+}
+.trust svg { flex: none; }
 
 /* CTA-капсула */
 .btn {
@@ -109,6 +118,8 @@
   .promobanner .scrim { background: linear-gradient(180deg, rgba(251,247,243,.6), transparent 55%, rgba(40,20,30,.25)); }
   .promobanner .route { right: 14px; top: 14px; padding: 10px 13px; }
   .pbContent { max-width: 100%; padding: 26px 22px; background: var(--paper); }
+  /* Заголовок на телефоне мельче — не более ~4 строк даже на узких экранах */
+  .pbTitle { font-size: clamp(21px, 6.2vw, 30px); line-height: 1.14; text-wrap: balance; }
   .pbSub { max-width: none; }
   .pbActs { width: 100%; }
   .pbActs .btn { width: 100%; justify-content: center; }
@@ -125,7 +136,7 @@
 }
 .catban .scrim {
   background: linear-gradient(100deg,
-    rgba(251,247,243,.97) 0%, rgba(251,247,243,.88) 30%, rgba(251,247,243,.4) 46%, transparent 62%);
+    rgba(251,247,243,.97) 0%, rgba(251,247,243,.86) 24%, rgba(251,247,243,.4) 38%, transparent 50%);
 }
 .catban .route {
   right: 22px; top: 18px; border-radius: 12px; padding: 10px 14px; gap: 4px;
@@ -133,7 +144,7 @@
 .catban .rt { font-size: 9px; }
 .catban .leg { font-size: 12px; gap: 6px; }
 
-.cbContent { position: relative; z-index: 2; padding: 26px 34px; max-width: 60%; }
+.cbContent { position: relative; z-index: 2; padding: 26px 34px; max-width: 46%; }
 .cbEyebrow {
   font-family: var(--font-jetbrains), monospace; font-size: 11px; letter-spacing: .15em;
   text-transform: uppercase; color: var(--accent); font-weight: 600;
@@ -159,6 +170,7 @@
   .catban .img { object-position: center; }
   .catban .scrim { background: linear-gradient(180deg, rgba(251,247,243,.5), transparent 60%); }
   .cbContent { max-width: 100%; padding: 20px; background: var(--bg-card); }
+  .cbTitle { font-size: clamp(20px, 5.6vw, 28px); line-height: 1.14; text-wrap: balance; }
   .catban .route { right: 12px; top: 12px; padding: 8px 11px; }
   .cbCta { width: 100%; justify-content: center; }
 }
