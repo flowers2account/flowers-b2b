@@ -143,9 +143,17 @@ export const umnicoClient = new UmnicoClient({
 // Каждая переменная поддерживает несколько номеров через запятую. Дедуп по цифрам.
 // Не-заказные уведомления (новый клиент, потерянный лид) кладовщику НЕ шлём — они
 // продолжают использовать только UMNICO_MANAGER_PHONE напрямую.
+//
+// Кладовщик по умолчанию: серверный env на VPS правится вручную, а CI несёт только
+// NEXT_PUBLIC_*. Пока UMNICO_WAREHOUSE_PHONE не задан в env VPS — используем фолбэк,
+// чтобы кладовщик получал заказы автоматически. Заданный env всегда имеет приоритет.
+const DEFAULT_WAREHOUSE_PHONE = '77780079630'
+
 export function orderNotifyPhones(): string[] {
-  const raw = [process.env.UMNICO_MANAGER_PHONE, process.env.UMNICO_WAREHOUSE_PHONE]
-    .filter(Boolean).join(',')
+  const raw = [
+    process.env.UMNICO_MANAGER_PHONE,
+    process.env.UMNICO_WAREHOUSE_PHONE || DEFAULT_WAREHOUSE_PHONE,
+  ].filter(Boolean).join(',')
   const out: string[] = []
   const seen = new Set<string>()
   for (const p of raw.split(/[,;\s]+/)) {

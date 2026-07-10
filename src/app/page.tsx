@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { company } from '@/config/company'
 import AccessRequestForm from '@/components/catalog/AccessRequestForm'
+import HeroBanner from '@/components/HeroBanner'
 import s from './about/about.module.css'
 
 export const metadata: Metadata = {
@@ -50,7 +51,36 @@ export default function HomePage() {
     <main className={s.page}>
       <div className={s.shell}>
 
-        {/* HERO */}
+        {/* PROMO HERO BANNER — главный экран: первая секция сайта */}
+        <HeroBanner variant="home" showPerks />
+
+        {/* WHAT WE SUPPLY — категории идут сразу после баннера (внимание ещё горячее) */}
+        <section className={s.sec}>
+          <div className={s.secHead}>
+            <div className={s.secEyebrow}>Что мы поставляем</div>
+            <h2 className={s.secH2}>Основные товарные группы на складе</h2>
+            <p className={s.intro}>Собрали ассортимент, который чаще всего нужен цветочным магазинам, флористам и садовым отделам. Большинство позиций постоянно есть на складе.</p>
+          </div>
+          <div className={s.supply}>
+            {SUPPLY.map(it => (
+              <Link key={it.t} href={catHref(it.group)} className={s.supplyItem} style={{ '--c': it.c } as React.CSSProperties}>
+                <span className={s.supplyPh} style={{ backgroundImage: `url(/category-photos/${it.group}.jpg)` }} />
+                <span className={s.supplyIc}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{it.ic}</svg>
+                </span>
+                <span className={s.supplyAr}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </span>
+                <span className={s.supplyText}>
+                  <span className={s.supplyT}>{it.t}</span>
+                  <span className={s.supplyD}>{it.d}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* HERO «О компании» + цифры — контекст/доверие, ниже категорий */}
         <section className={s.hero}>
           <div>
             <div className={s.eyebrow}>О компании · Цветы Уральска</div>
@@ -83,32 +113,6 @@ export default function HomePage() {
           <div className={s.stat}><div className={s.statN}>6</div><div className={s.statL}>основных товарных групп</div></div>
           <div className={s.stat}><div className={s.statN}>2<span>×</span></div><div className={s.statL}>поставки цветов каждую неделю</div></div>
           <div className={s.stat}><div className={s.statN}>150<span>+</span></div><div className={s.statL}>магазинов и флористов закупаются регулярно</div></div>
-        </section>
-
-        {/* WHAT WE SUPPLY */}
-        <section className={s.sec}>
-          <div className={s.secHead}>
-            <div className={s.secEyebrow}>Что мы поставляем</div>
-            <h2 className={s.secH2}>Основные товарные группы на складе</h2>
-            <p className={s.intro}>Собрали ассортимент, который чаще всего нужен цветочным магазинам, флористам и садовым отделам. Большинство позиций постоянно есть на складе.</p>
-          </div>
-          <div className={s.supply}>
-            {SUPPLY.map(it => (
-              <Link key={it.t} href={catHref(it.group)} className={s.supplyItem} style={{ '--c': it.c } as React.CSSProperties}>
-                <span className={s.supplyPh} style={{ backgroundImage: `url(/category-photos/${it.group}.jpg)` }} />
-                <span className={s.supplyIc}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{it.ic}</svg>
-                </span>
-                <span className={s.supplyAr}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-                </span>
-                <span className={s.supplyText}>
-                  <span className={s.supplyT}>{it.t}</span>
-                  <span className={s.supplyD}>{it.d}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
         </section>
 
         {/* DELIVERIES */}
