@@ -40,6 +40,7 @@ function sanitizeFilename(name: string): string {
 export default function GenerateCardsPage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -59,18 +60,45 @@ export default function GenerateCardsPage() {
 
   useEffect(() => {
     async function load() {
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 20;
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, display_name, image_url, campaign_image_url, category, subcategory, country_iso, colors, pack_size, stems_per_pack, length_cm, price, qty, unit')
-        .eq('is_active', true)
-        .gt('qty', 0)
-        .order('category')
-        .order('name');
+      const productsById = new Map<number, Product>();
 
-      if (error) { console.error(error); setLoading(false); return; }
+      setLoadError(null);
 
-      setAllProducts((data ?? []) as Product[]);
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, name, display_name, image_url, campaign_image_url, category, subcategory, country_iso, colors, pack_size, stems_per_pack, length_cm, price, qty, unit')
+          .eq('is_active', true)
+          .gt('qty', 0)
+          .order('category')
+          .order('name')
+          .range(from, to);
+
+        if (error) {
+          console.error(error);
+          setLoadError('Не удалось загрузить товары для генерации карточек.');
+          setLoading(false);
+          return;
+        }
+
+        const pageProducts = (data ?? []) as Product[];
+        pageProducts.forEach(product => productsById.set(product.id, product));
+
+        if (pageProducts.length < PAGE_SIZE) {
+          setAllProducts(Array.from(productsById.values()));
+          setLoading(false);
+          return;
+        }
+      }
+
+      const message = `Загрузка остановлена: достигнут лимит ${MAX_PAGES * PAGE_SIZE} товаров.`;
+      console.error(message);
+      setLoadError(message);
       setLoading(false);
     }
     load();
@@ -200,6 +228,20 @@ export default function GenerateCardsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 mx-auto mb-3" style={{ borderColor: '#7a1c2e' }} />
           <p className="text-gray-500 text-sm">Загрузка товаров...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <div className="max-w-md rounded-xl border border-red-200 bg-red-50 p-5 text-center">
+          <h1 className="text-base font-semibold text-red-800">Ошибка загрузки товаров</h1>
+          <p className="mt-2 text-sm text-red-700">{loadError}</p>
+          <Link href="/admin" className="mt-4 inline-flex text-sm font-medium text-red-800 hover:underline">
+            Вернуться в админку
+          </Link>
         </div>
       </div>
     );
