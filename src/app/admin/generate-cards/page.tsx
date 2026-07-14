@@ -47,8 +47,9 @@ export default function GenerateCardsPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  const [catCut, setCatCut] = useState(true);
-  const [catPot, setCatPot] = useState(true);
+  const [catAcc, setCatAcc] = useState(true);  // расходники включены (активный склад)
+  const [catCut, setCatCut] = useState(false); // срезка выключена по умолчанию
+  const [catPot, setCatPot] = useState(false); // горшки выключены
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [minStock, setMinStock] = useState(5);
 
@@ -81,11 +82,12 @@ export default function GenerateCardsPage() {
     return allProducts.filter(p => {
       if (!catCut && p.category === 'cut') return false;
       if (!catPot && p.category === 'pot') return false;
+      if (!catAcc && p.category === 'accessories') return false;
       if (countryFilter !== 'all' && p.country_iso !== countryFilter) return false;
       if (p.qty < minStock) return false;
       return true;
     });
-  }, [allProducts, catCut, catPot, countryFilter, minStock]);
+  }, [allProducts, catCut, catPot, catAcc, countryFilter, minStock]);
 
   useEffect(() => {
     setSelectedIds(prev => {
@@ -207,6 +209,10 @@ export default function GenerateCardsPage() {
             <div>
               <p className="text-xs font-medium text-gray-500 mb-2">Категория</p>
               <div className="space-y-1.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={catAcc} onChange={e => setCatAcc(e.target.checked)} className="rounded" style={{ accentColor: '#7a1c2e' }} />
+                  <span className="text-sm">📦 Расходники</span>
+                </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input type="checkbox" checked={catCut} onChange={e => setCatCut(e.target.checked)} className="rounded" style={{ accentColor: '#7a1c2e' }} />
                   <span className="text-sm">✂️ Срез</span>
