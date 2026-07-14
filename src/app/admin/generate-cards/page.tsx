@@ -5,6 +5,7 @@ import Link from 'next/link';
 import JSZip from 'jszip';
 import { createClient } from '@/lib/supabase/client';
 import { generateProductCard } from '@/lib/card-generator';
+import { unitForProduct } from '@/lib/category-tree';
 import { COUNTRY_LABELS } from '@/lib/countries';
 
 interface Product {
@@ -14,6 +15,7 @@ interface Product {
   image_url: string | null;
   campaign_image_url: string | null;
   category: string;
+  subcategory: string | null;
   country_iso: string | null;
   colors: string[] | null;
   pack_size: number;
@@ -21,6 +23,7 @@ interface Product {
   length_cm: number | null;
   price: number;
   qty: number;
+  unit: string | null;
 }
 
 interface GeneratedCard {
@@ -44,6 +47,7 @@ export default function GenerateCardsPage() {
 
   const [downloading, setDownloading] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<GeneratedCard[] | null>(null);
+  const [generationErrors, setGenerationErrors] = useState<string[]>([]);
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -58,7 +62,7 @@ export default function GenerateCardsPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, display_name, image_url, campaign_image_url, category, country_iso, colors, pack_size, stems_per_pack, length_cm, price, qty')
+        .select('id, name, display_name, image_url, campaign_image_url, category, subcategory, country_iso, colors, pack_size, stems_per_pack, length_cm, price, qty, unit')
         .eq('is_active', true)
         .gt('qty', 0)
         .order('category')
@@ -66,7 +70,7 @@ export default function GenerateCardsPage() {
 
       if (error) { console.error(error); setLoading(false); return; }
 
-      setAllProducts(((data ?? []) as Product[]).filter(p => p.image_url));
+      setAllProducts((data ?? []) as Product[]);
       setLoading(false);
     }
     load();
@@ -117,34 +121,48 @@ export default function GenerateCardsPage() {
     setProgress(0);
     setProgressTotal(toGenerate.length);
     setGeneratedCards(null);
+    setGenerationErrors([]);
 
     const cards: GeneratedCard[] = [];
+    const errors: string[] = [];
 
     for (let i = 0; i < toGenerate.length; i++) {
       const p = toGenerate[i];
-      if (p.image_url) {
-        try {
-          const blob = await generateProductCard({
-            id: p.id,
-            name: p.display_name || p.name,
-            length_cm: p.length_cm,
-            price: p.price,
-            country_iso: p.country_iso,
-            colors: p.colors,
-            availableQty: p.qty,
-            packSize: p.pack_size,
-            stemsPerPack: p.stems_per_pack,
-            imageUrl: p.campaign_image_url || p.image_url,
-          });
-          cards.push({ blob, url: URL.createObjectURL(blob), name: p.display_name || p.name });
-        } catch (err) {
-          console.error(`Card error for ${p.name}:`, err);
-        }
+      const imageUrl = p.image_url || p.campaign_image_url;
+      const productName = p.display_name || p.name;
+
+      if (!imageUrl) {
+        errors.push(`Нет изображения для товара: ${productName}`);
+        setProgress(i + 1);
+        continue;
+      }
+
+      try {
+        const blob = await generateProductCard({
+          id: p.id,
+          name: productName,
+          category: p.category,
+          subcategory: p.subcategory,
+          length_cm: p.length_cm,
+          price: p.price,
+          country_iso: p.country_iso,
+          colors: p.colors,
+          availableQty: p.qty,
+          packSize: p.pack_size,
+          stemsPerPack: p.stems_per_pack,
+          unit: unitForProduct(p),
+          imageUrl,
+        });
+        cards.push({ blob, url: URL.createObjectURL(blob), name: productName });
+      } catch (err) {
+        console.error(`Card error for ${p.name}:`, err);
+        errors.push(`Не удалось создать карточку: ${productName}`);
       }
       setProgress(i + 1);
     }
 
     setGenerating(false);
+    setGenerationErrors(errors);
     setGeneratedCards(cards);
   };
 
@@ -270,6 +288,7 @@ export default function GenerateCardsPage() {
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-96 overflow-y-auto pr-1">
               {filtered.map(p => {
                 const selected = selectedIds.has(p.id);
+                const imageUrl = p.image_url || p.campaign_image_url;
                 return (
                   <div
                     key={p.id}
@@ -287,7 +306,13 @@ export default function GenerateCardsPage() {
                       />
                     </div>
                     <div className="aspect-square bg-gray-50 overflow-hidden">
-                      <img src={p.image_url!} alt={p.display_name || p.name} className="w-full h-full object-cover" />
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={p.display_name || p.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center px-2 text-center text-[10px] text-red-500">
+                          Нет фото
+                        </div>
+                      )}
                     </div>
                     <div className="px-1.5 py-1">
                       <p className="text-[10px] font-medium text-gray-700 truncate leading-tight">{p.display_name || p.name}</p>
@@ -340,6 +365,17 @@ export default function GenerateCardsPage() {
                   style={{ width: `${(progress / progressTotal) * 100}%`, backgroundColor: '#7a1c2e' }}
                 />
               </div>
+            </div>
+          )}
+
+          {generationErrors.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+              {generationErrors.slice(0, 5).map(error => (
+                <p key={error}>{error}</p>
+              ))}
+              {generationErrors.length > 5 && (
+                <p>И еще {generationErrors.length - 5} товаров без генерации.</p>
+              )}
             </div>
           )}
         </div>

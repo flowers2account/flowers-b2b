@@ -4,13 +4,16 @@ import { COUNTRY_LABELS } from '@/lib/countries';
 export interface CardData {
   id: number;
   name: string;
+  category?: string | null;
+  subcategory?: string | null;
   length_cm: number | null;
   price: number;
   country_iso: string | null;
   colors: string[] | null;
-  availableQty: number;
+  availableQty: number | null;
   packSize: number;
   stemsPerPack: number | null;
+  unit?: string | null;
   imageUrl: string;
 }
 
@@ -73,7 +76,7 @@ function wrapText(
   return lines;
 }
 
-function drawImageCover(
+function drawImageContain(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   x: number,
@@ -83,24 +86,18 @@ function drawImageCover(
 ) {
   const imgRatio = img.naturalWidth / img.naturalHeight;
   const boxRatio = w / h;
-  let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+  let dw = w;
+  let dh = h;
 
   if (imgRatio > boxRatio) {
-    // Clip sides
-    sw = img.naturalHeight * boxRatio;
-    sx = (img.naturalWidth - sw) / 2;
+    dh = w / imgRatio;
   } else {
-    // Clip top/bottom
-    sh = img.naturalWidth / boxRatio;
-    sy = (img.naturalHeight - sh) / 2;
+    dw = h * imgRatio;
   }
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x, y, w, h);
-  ctx.clip();
-  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
-  ctx.restore();
+  const dx = x + (w - dw) / 2;
+  const dy = y + (h - dh) / 2;
+  ctx.drawImage(img, dx, dy, dw, dh);
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -130,6 +127,7 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   const INFO_H = 280;
   const FOOTER_H = 60;
   const PAD = 20;
+  const isAccessories = data.category === 'accessories';
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -151,7 +149,9 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   ctx.fillRect(0, PHOTO_Y, W, PHOTO_H);
   try {
     const img = await loadImage(data.imageUrl);
-    drawImageCover(ctx, img, 0, PHOTO_Y, W, PHOTO_H);
+    const photoSize = Math.min(W, PHOTO_H);
+    const photoX = (W - photoSize) / 2;
+    drawImageContain(ctx, img, photoX, PHOTO_Y, photoSize, photoSize);
   } catch {
     ctx.fillStyle = '#e5e7eb';
     ctx.fillRect(0, PHOTO_Y, W, PHOTO_H);
@@ -201,7 +201,8 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   // Product name
   ctx.font = `500 22px ${FONT_HEADING}`;
   ctx.fillStyle = BRAND;
-  const nameLines = wrapText(ctx, cleanName.toUpperCase(), textW).slice(0, 2);
+  const displayName = isAccessories ? data.name.replace(/\s+/g, ' ').trim() : cleanName;
+  const nameLines = wrapText(ctx, displayName.toUpperCase(), textW).slice(0, 2);
   for (const line of nameLines) {
     ctx.fillText(line, PAD, cy);
     cy += 26;
@@ -212,9 +213,14 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   const colorList = data.colors ?? [];
   const countryStr = data.country_iso ? (COUNTRY_LABELS[data.country_iso] ?? data.country_iso) : null;
   const metaParts: string[] = [];
-  if (countryStr) metaParts.push(countryStr);
+  if (!isAccessories && countryStr) metaParts.push(countryStr);
   if (colorList.length > 0) metaParts.push(colorList.map(c => colorEmoji(c)).join(' '));
   if (data.length_cm && data.length_cm > 0) metaParts.push(`${data.length_cm} см`);
+
+  if (isAccessories) {
+    metaParts.length = 0;
+    if (colorList.length > 0) metaParts.push(colorList.map(c => colorEmoji(c)).join(' '));
+  }
 
   if (metaParts.length > 0) {
     ctx.font = `400 14px ${FONT_BODY}`;
@@ -228,24 +234,39 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   // Price
   ctx.font = `700 32px ${FONT_BODY}`;
   ctx.fillStyle = BRAND;
-  ctx.fillText(`${data.price.toLocaleString('ru-RU')} ₸`, PAD, cy);
+  const unit = data.unit || '\u0448\u0442';
+  if (isAccessories) {
+    ctx.fillText(`${data.price.toLocaleString('ru-RU')} \u20b8 / ${unit}`, PAD, cy);
+  } else {
+    ctx.fillText(`${data.price.toLocaleString('ru-RU')} ₸`, PAD, cy);
+  }
   cy += 42;
 
   // Stock
   ctx.font = `400 13px ${FONT_BODY}`;
-  ctx.fillStyle = GREEN;
-  ctx.fillText(`✓  В наличии: ${data.availableQty} шт`, PAD, cy);
-  cy += 20;
+  if (data.availableQty != null) {
+    ctx.fillStyle = GREEN;
+    if (isAccessories) {
+      ctx.fillText(`\u2713  \u0412 \u043d\u0430\u043b\u0438\u0447\u0438\u0438: ${data.availableQty} ${unit}`, PAD, cy);
+    } else {
+      ctx.fillText(`✓  В наличии: ${data.availableQty} шт`, PAD, cy);
+    }
+    cy += 20;
+  }
 
   // Pack size
   if (data.packSize > 1) {
     ctx.fillStyle = STONE;
-    ctx.fillText(`📦  Кратность: ${data.packSize} шт`, PAD, cy);
+    if (isAccessories) {
+      ctx.fillText(`\u{1F4E6}  \u041a\u0440\u0430\u0442\u043d\u043e\u0441\u0442\u044c: ${data.packSize} ${unit}`, PAD, cy);
+    } else {
+      ctx.fillText(`📦  Кратность: ${data.packSize} шт`, PAD, cy);
+    }
     cy += 20;
   }
 
   // Stems per pack
-  if (data.stemsPerPack && data.stemsPerPack > 0) {
+  if (!isAccessories && data.stemsPerPack && data.stemsPerPack > 0) {
     ctx.fillStyle = STONE;
     ctx.fillText(`🌸  В упаковке: ${data.stemsPerPack} стебл.`, PAD, cy);
   }
