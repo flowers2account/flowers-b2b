@@ -110,6 +110,28 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
 function waitFonts(): Promise<void> {
   if (typeof document !== 'undefined' && document.fonts) {
     return document.fonts.ready.then(() => undefined);
@@ -269,6 +291,62 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   if (!isAccessories && data.stemsPerPack && data.stemsPerPack > 0) {
     ctx.fillStyle = STONE;
     ctx.fillText(`🌸  В упаковке: ${data.stemsPerPack} стебл.`, PAD, cy);
+    cy += 20;
+  }
+
+  const FOOTER_Y = H - FOOTER_H;
+
+  // Delivery CTA: use only the free white space between product info and footer.
+  const deliveryBlockX = PAD;
+  const deliveryBlockWidth = qrX - deliveryBlockX - 24;
+  const deliveryBlockBottom = FOOTER_Y - 18;
+  const deliveryTopLimit = cy + 14;
+  const deliveryVariants = [
+    { height: 92, padX: 16, iconW: 120, iconH: 50, iconY: 21 },
+    { height: 84, padX: 14, iconW: 112, iconH: 46, iconY: 19 },
+    { height: 76, padX: 12, iconW: 96, iconH: 40, iconY: 18 },
+  ];
+  const deliveryLayout = deliveryVariants
+    .map(variant => ({
+      ...variant,
+      y: deliveryBlockBottom - variant.height,
+    }))
+    .find(variant => variant.y >= deliveryTopLimit && deliveryBlockWidth >= 300);
+
+  if (deliveryLayout) {
+    const deliveryBlockY = deliveryLayout.y;
+    const iconX = deliveryBlockX + deliveryLayout.padX;
+    const iconY = deliveryBlockY + deliveryLayout.iconY;
+    const iconRight = iconX + deliveryLayout.iconW;
+    const textX = iconRight + 16;
+    const centerY = deliveryBlockY + deliveryLayout.height / 2;
+
+    ctx.fillStyle = 'rgba(122, 28, 46, 0.035)';
+    roundedRect(ctx, deliveryBlockX, deliveryBlockY, deliveryBlockWidth, deliveryLayout.height, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(122, 28, 46, 0.22)';
+    ctx.lineWidth = 1;
+    roundedRect(ctx, deliveryBlockX, deliveryBlockY, deliveryBlockWidth, deliveryLayout.height, 14);
+    ctx.stroke();
+
+    try {
+      const truckRoute = await loadImage('/icons/truck-route.svg');
+      drawImageContain(ctx, truckRoute, iconX, iconY, deliveryLayout.iconW, deliveryLayout.iconH);
+    } catch {
+      // CTA text is still useful if the route icon cannot be loaded.
+    }
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#7A2138';
+    ctx.font = `700 18px ${FONT_BODY}`;
+    ctx.fillText('ДОСТАВКА КАЖДУЮ НЕДЕЛЮ', textX, centerY - 19);
+    ctx.fillStyle = INK;
+    ctx.font = `500 17px ${FONT_BODY}`;
+    ctx.fillText('Атырау • Актобе', textX, centerY + 4);
+    ctx.fillStyle = STONE;
+    ctx.font = `400 14px ${FONT_BODY}`;
+    ctx.fillText('Смотрите ассортимент на сайте', textX, centerY + 25);
   }
 
   // Draw QR + caption
@@ -282,14 +360,13 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   }
 
   // ── Footer ───────────────────────────────────────────────────────
-  const FOOTER_Y = H - FOOTER_H;
   ctx.fillStyle = BRAND_LIGHT;
   ctx.fillRect(0, FOOTER_Y, W, FOOTER_H);
   ctx.fillStyle = INK;
   ctx.font = `600 18px ${FONT_BODY}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('📱  +7 700 757 52 43', W / 2, FOOTER_Y + FOOTER_H / 2);
+  ctx.fillText('📱  +7 778 007 96 30', W / 2, FOOTER_Y + FOOTER_H / 2);
 
   // ── Export ───────────────────────────────────────────────────────
   return new Promise<Blob>((resolve, reject) => {
