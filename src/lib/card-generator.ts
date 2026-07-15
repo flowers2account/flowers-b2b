@@ -137,12 +137,11 @@ export async function generateProductCard(data: CardData): Promise<Blob> {
   // ── Header ──────────────────────────────────────────────────────
   ctx.fillStyle = BRAND;
   ctx.fillRect(0, 0, W, HEADER_H);
-  try {
-    const logo = await loadImage('/brand/logo.png');
-    drawImageContain(ctx, logo, (W - 220) / 2, (HEADER_H - 38) / 2, 220, 38);
-  } catch {
-    // Keep the header clean if the brand asset cannot be loaded.
-  }
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `600 18px ${FONT_BODY}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🌸  Цветы Уральска', W / 2, HEADER_H / 2);
 
   // ── Photo ────────────────────────────────────────────────────────
   const PHOTO_Y = HEADER_H;
