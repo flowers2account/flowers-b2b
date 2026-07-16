@@ -74,7 +74,7 @@ async function pollStatus(invoice: string): Promise<PollResult> {
   return { status: 'timeout', timedOut: true }
 }
 
-async function runPaymentStep(orderId: number): Promise<{
+export async function runPaymentStep(orderId: number): Promise<{
   ok: boolean
   invoiceId?: string
   result?: PollResult
@@ -189,7 +189,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
       } else if (pay.result?.timedOut) {
         setStep('timeout')
       } else {
-        setPayError(pay.result?.status === 'failed' ? (pay.result as any).reason ?? '' : '')
+        setPayError(pay.result?.status === 'failed' ? pay.result.reason ?? '' : '')
         setStep('failed')
       }
     } catch (err) {
@@ -222,7 +222,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
       } else if (pay.result?.timedOut) {
         setStep('timeout')
       } else {
-        setPayError(pay.result?.status === 'failed' ? (pay.result as any).reason ?? '' : '')
+        setPayError(pay.result?.status === 'failed' ? pay.result.reason ?? '' : '')
         setStep('failed')
       }
     } catch (err) {

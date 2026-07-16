@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
 import { authHeaders } from '@/lib/api-token'
 import { company } from '@/config/company'
+import { runPaymentStep } from '@/hooks/useOrderCheckout'
 import PaymentFork from '@/components/PaymentFork'
 import AuthModal from '@/components/catalog/AuthModal'
 import s from './order.module.css'
@@ -59,27 +60,30 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(true)
   const [authReady, setAuthReady] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
+  const [payBusy, setPayBusy] = useState(false)
+  const [payError, setPayError] = useState('')
+  const [payNotice, setPayNotice] = useState('')
 
   // Дожидаемся восстановления сессии из localStorage, прежде чем решать про доступ.
   // Раньше тут был мгновенный router.push('/') → прямые ссылки на /order/[id] выбрасывало
   // на главную ещё до гидрации авторизации (владелец не видел заказ/форму реквизитов).
-  useEffect(() => { let m = true; init().finally(() => { if (m) setAuthReady(true) }); return () => { m = false } }, [])
+  useEffect(() => { let m = true; init().finally(() => { if (m) setAuthReady(true) }); return () => { m = false } }, [init])
   useEffect(() => { if (authReady && !isAuthed) setShowAuth(true) }, [authReady, isAuthed])
 
-  useEffect(() => {
+  const loadOrder = useCallback(async () => {
     if (!isAuthed || !phone) return   // ждём авторизацию — не редиректим
-    ;(async () => {
+    try {
       const headers = await authHeaders()  // владелец резолвится из токена на сервере
-      try {
-        const r = await fetch('/api/cabinet', { headers })
-        const data = await r.json()
-        const found = (data.orders ?? []).find((o: Order) => String(o.id) === String(params.id))
-        setOrder(found ?? null)
-        setClient(data.client ? { company_name: data.client.company_name, bin: data.client.bin ?? null } : null)
-      } catch { setOrder(null) }
-      finally { setLoading(false) }
-    })()
+      const r = await fetch('/api/cabinet', { headers })
+      const data = await r.json()
+      const found = (data.orders ?? []).find((o: Order) => String(o.id) === String(params.id))
+      setOrder(found ?? null)
+      setClient(data.client ? { company_name: data.client.company_name, bin: data.client.bin ?? null } : null)
+    } catch { setOrder(null) }
+    finally { setLoading(false) }
   }, [isAuthed, phone, params.id])
+
+  useEffect(() => { loadOrder() }, [loadOrder])
 
   // Пока сессия не восстановлена — спиннер (не редиректим)
   if (!authReady) {
@@ -121,6 +125,38 @@ export default function OrderPage() {
   // Для «По счёту»/QR (invoice) подтверждение ручное → пока unpaid стадия не активна.
   const isPaid = order.payment_status === 'paid' || !!order.paid_at
   const st = STATUS[order.status] ?? { label: order.status }
+  const canPayOnline =
+    !isPaid &&
+    ['card', 'epay'].includes(order.payment_method || '') &&
+    ['pending', 'reserved', 'confirmed'].includes(order.status)
+
+  async function payOnline() {
+    const currentOrder = order
+    if (payBusy || !currentOrder) return
+    setPayBusy(true)
+    setPayError('')
+    setPayNotice('')
+    try {
+      const pay = await runPaymentStep(Number(currentOrder.id))
+      if (!pay.ok) {
+        setPayError(pay.error ?? 'Не удалось запустить оплату')
+        return
+      }
+      if (pay.result?.status === 'success') {
+        setPayNotice('Оплата прошла успешно. Обновляем заказ…')
+        await loadOrder()
+      } else if (pay.result?.timedOut) {
+        setPayNotice('Платёж обрабатывается. Статус обновится в течение 1–3 минут.')
+        await loadOrder()
+      } else {
+        setPayError(pay.result?.reason || 'Оплата не прошла. Можно попробовать ещё раз.')
+      }
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Не удалось запустить оплату')
+    } finally {
+      setPayBusy(false)
+    }
+  }
 
   // Таймлайн
   const steps = [
@@ -222,6 +258,16 @@ export default function OrderPage() {
               <div className={s.total}><span className={s.k}>{isPaid ? 'Итого оплачено' : 'К оплате'}</span><span className={s.tv}>{fmt(totalPaid)}</span></div>
               {isPaid && (
                 <span className={s.paid}>✓ Оплачено{order.payment_method === 'card' ? ' картой' : order.payment_method === 'invoice' ? ' по счёту' : ''}</span>
+              )}
+              {canPayOnline && (
+                <div className={s.payRetry}>
+                  <button onClick={payOnline} disabled={payBusy} className={s.payBtn}>
+                    {payBusy ? 'Открываем оплату…' : 'Оплатить картой'}
+                  </button>
+                  <p>Заказ создан, но оплата не завершена. Можно повторить оплату без повторного оформления.</p>
+                  {payError && <div className={s.payErr}>{payError}</div>}
+                  {payNotice && <div className={s.payOk}>{payNotice}</div>}
+                </div>
               )}
             </div>
 
