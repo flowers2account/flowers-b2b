@@ -74,7 +74,7 @@ export default function OrderPage() {
     if (!isAuthed || !phone) return   // ждём авторизацию — не редиректим
     try {
       const headers = await authHeaders()  // владелец резолвится из токена на сервере
-      const r = await fetch('/api/cabinet', { headers })
+      const r = await fetch('/api/cabinet', { headers, cache: 'no-store' })
       const data = await r.json()
       const found = (data.orders ?? []).find((o: Order) => String(o.id) === String(params.id))
       setOrder(found ?? null)

@@ -62,12 +62,12 @@ export default function CabinetPage() {
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [clientInfo, setClientInfo] = useState<{ name: string | null; company_name: string | null; bin: string | null; city: string | null } | null>(null)
 
-  useEffect(() => { init() }, [])
+  useEffect(() => { init() }, [init])
 
   // Имя/организация — из ответа /api/cabinet (резолв по токену на сервере), без прямого select из clients (RLS step 2)
   async function loadClientInfo() {
     const headers = await authHeaders()
-    const d = await fetch('/api/cabinet', { headers }).then(r => r.json()).catch(() => null)
+    const d = await fetch('/api/cabinet', { headers, cache: 'no-store' }).then(r => r.json()).catch(() => null)
     if (d?.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name, bin: d.client.bin ?? null, city: d.client.city ?? null })
   }
 
@@ -76,12 +76,16 @@ export default function CabinetPage() {
     ;(async () => {
       const headers = await authHeaders()
       await Promise.allSettled([
-        fetch('/api/cabinet', { headers }).then(r => r.json()).then(d => {
+        fetch('/api/cabinet', { headers, cache: 'no-store' }).then(r => r.json()).then(d => {
           setOrders(d.orders ?? [])
           if (d.client) setClientInfo({ name: d.client.name, company_name: d.client.company_name, bin: d.client.bin ?? null, city: d.client.city ?? null })
         }).catch(() => {}),
         fetch('/api/campaigns/orders', { headers }).then(r => r.json()).then(d => {
-          const list: CampaignOrder[] = (d.orders ?? []).map((o: any) => ({ ...o, items: o.items ?? [], converted_to_order_id: o.converted_to_order_id ?? null }))
+          const list: CampaignOrder[] = ((d.orders ?? []) as Partial<CampaignOrder>[]).map((o) => ({
+            ...o,
+            items: o.items ?? [],
+            converted_to_order_id: o.converted_to_order_id ?? null,
+          })) as CampaignOrder[]
           list.sort((a, b) => {
             if (a.status === 'pending' && b.status !== 'pending') return -1
             if (b.status === 'pending' && a.status !== 'pending') return 1

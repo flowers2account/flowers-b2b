@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import { getAuthedUser } from '@/lib/api-auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   // Владелец резолвится ИЗ токена, phone из query игнорируется (защита от IDOR)
   const authed = await getAuthedUser(req)
