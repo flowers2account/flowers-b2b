@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { authHeaders } from '@/lib/api-token'
+import { computeOrderTotal } from '@/lib/order-total'
 import {
   Package, Clock, User, ChevronRight, ChevronLeft, Plus, Minus,
   CheckCircle2, AlertCircle, Phone, Building2, MapPin, Calendar, Wallet,
@@ -613,10 +614,23 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
   const unpaid = order.payment_status !== 'paid'
   const canEditItems = EDITABLE.has(order.status)
 
-  const draftTotal = goodsTotal(draft)
-  const savedTotal = goodsTotal(order.items || [])
+  const draftGoodsTotal = goodsTotal(draft)
+  const savedGoodsTotal = goodsTotal(order.items || [])
   const dirty = JSON.stringify(draft.map((d) => [d.id, d.qty])) !== JSON.stringify((order.items || []).map((d: any) => [d.id, d.qty]))
-  const deliveryCost = order.fulfillment_type === 'delivery' ? Number(order.delivery_cost) || 0 : 0
+  const pricingBase = {
+    fulfillmentType: order.fulfillment_type,
+    deliveryCity: order.delivery_city,
+    deliveryCost: order.delivery_cost,
+  }
+  const draftPricing = computeOrderTotal({
+    items: draft.filter((it) => !it.is_removed),
+    ...pricingBase,
+  })
+  const savedPricing = computeOrderTotal({
+    items: (order.items || []).filter((it: any) => !it.is_removed),
+    ...pricingBase,
+  })
+  const deliveryCost = draftPricing.deliveryCost
   const editItem = (iid: number, sign: number) => setDraft((p) => p.map((it) =>
     it.id === iid ? { ...it, qty: Math.max(itemPack(it), Number(it.qty) + sign * itemPack(it)) } : it))
 
@@ -639,7 +653,7 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
   })
   const confirmSave = () => ask({
     title: 'Сохранить правки состава?',
-    message: 'Новая сумма товаров: ' + fmtKZT(draftTotal) + ' (было ' + fmtKZT(savedTotal) + ').',
+    message: 'Новая сумма к оплате: ' + fmtKZT(draftPricing.total) + ' (было ' + fmtKZT(savedPricing.total) + ').',
     label: 'Сохранить', color: C.wine,
     onConfirm: () => onSaveItems(draft.map((d) => ({ id: d.id, qty: d.qty }))),
   })
@@ -741,14 +755,20 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
           <div className="mt-2 space-y-1 border-t pt-2 text-sm" style={{ borderColor: C.line }}>
             <div className="flex justify-between" style={{ color: C.stone }}>
               <span>Товары</span>
-              <span>{dirty && <span className="mr-1 line-through" style={{ color: '#B6AEB1' }}>{fmtKZT(savedTotal)}</span>}{fmtKZT(draftTotal)}</span>
+              <span>{dirty && <span className="mr-1 line-through" style={{ color: '#B6AEB1' }}>{fmtKZT(savedGoodsTotal)}</span>}{fmtKZT(draftGoodsTotal)}</span>
             </div>
+            {draftPricing.discount > 0 && (
+              <div className="flex justify-between" style={{ color: C.fern }}>
+                <span>Скидка {draftPricing.discountPct}%</span>
+                <span>{dirty && savedPricing.discount > 0 && <span className="mr-1 line-through" style={{ color: '#B6AEB1' }}>−{fmtKZT(savedPricing.discount)}</span>}−{fmtKZT(draftPricing.discount)}</span>
+              </div>
+            )}
             {deliveryCost > 0 && (
               <div className="flex justify-between" style={{ color: C.stone }}><span>Доставка</span><span>{fmtKZT(deliveryCost)}</span></div>
             )}
             <div className="flex justify-between font-bold">
               <span>К оплате</span>
-              <span style={{ color: C.wine }}>{fmtKZT(draftTotal + deliveryCost)}</span>
+              <span style={{ color: C.wine }}>{dirty && <span className="mr-1 line-through text-sm font-normal" style={{ color: '#B6AEB1' }}>{fmtKZT(savedPricing.total)}</span>}{fmtKZT(draftPricing.total)}</span>
             </div>
           </div>
           {dirty && canEditItems && (

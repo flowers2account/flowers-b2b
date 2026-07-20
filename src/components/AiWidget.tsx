@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { useWidget, getAnonId, type ChatMessage } from '@/lib/widget-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCart } from '@/lib/cart-store'
+import { useDetailStore } from '@/lib/detail-store'
 import { useIsMobile } from '@/lib/use-mobile'
 import { company } from '@/config/company'
 import type { WidgetProduct } from '@/lib/bot/accessories-bot'
@@ -389,6 +390,7 @@ function Typing() {
 export default function AiWidget() {
   const { open, messages, pending, greeted, setOpen, toggle, addMessage, setPending, markGreeted, setPendingAdd } = useWidget()
   const { isAuthed, phone } = useAuthStore()
+  const catalogPanel = useDetailStore(s => s.panel)
   const isMobile = useIsMobile()
   const pathname = usePathname()
   const [input, setInput] = useState('')
@@ -501,7 +503,8 @@ export default function AiWidget() {
 
   // ── Плавающая кнопка + пузырь-подсказка ──
   const fabBottom = isMobile ? 76 : 24   // на мобиле над таб-баром
-  const fab = !open && (
+  const hideFabForMobileCart = isMobile && catalogPanel === 'cart'
+  const fab = !open && !hideFabForMobileCart && (
     <div style={{ position: 'fixed', right: isMobile ? 16 : 24, bottom: fabBottom, zIndex: 2147483000, display: 'flex', alignItems: 'flex-end', gap: 10, opacity: subdued ? 0.45 : 1, transition: 'opacity .2s' }}>
       {/* Подсказка слева от FAB */}
       {tip && !isMobile && (
