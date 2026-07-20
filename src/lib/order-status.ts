@@ -88,25 +88,16 @@ export async function notifyOrderStatusChange(
   // WhatsApp-уведомления + шаблон in_transit.
   if (process.env.UMNICO_API_TOKEN) {
     try {
-      const [{ data: orderData }, { data: historyRecord }] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id, total, guest_name, guest_phone, fulfillment_type, assembly_photo_url, driver_name, driver_phone, driver_car_plate, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, color, is_removed, product:product_id(name, display_name))')
-          .eq('id', orderId)
-          .single(),
-        supabase
-          .from('order_history')
-          .select('manager_name')
-          .eq('order_id', orderId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ])
+      const { data: orderData } = await supabase
+        .from('orders')
+        .select('id, total, guest_name, guest_phone, fulfillment_type, assembly_photo_url, driver_name, driver_phone, driver_car_plate, delivery_date, clients(name, phone, company_name), order_items(qty_actual, qty_ordered, qty, price, color, is_removed, product:product_id(name, display_name))')
+        .eq('id', orderId)
+        .single()
 
       const clientPhone = (orderData?.clients as any)?.phone ?? orderData?.guest_phone
       const clientName = (orderData?.clients as any)?.name ?? orderData?.guest_name ?? 'Уважаемый клиент'
       const companyName = (orderData?.clients as any)?.company_name ?? undefined
-      const managerName = (historyRecord as any)?.manager_name || 'Менеджер'
+      const managerName = 'Менеджер'
       const total = orderData?.total ?? 0
       const orderIdStr = String(orderId)
 
