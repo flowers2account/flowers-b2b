@@ -153,12 +153,17 @@ export async function notifyOrderStatusChange(
 
           if (clientMessage) {
             // assembled с фото заказа → шлём картинкой (подпись = текст шаблона); иначе текст.
+            let sent = false
             if (status === 'assembled' && photoUrl) {
-              await umnicoClient.sendImage(clientPhone, photoUrl, clientMessage)
+              sent = await umnicoClient.sendImage(clientPhone, photoUrl, clientMessage)
             } else {
-              await umnicoClient.sendMessage(clientPhone, clientMessage)
+              sent = await umnicoClient.sendMessage(clientPhone, clientMessage)
             }
-            console.log(`✓ Umnico: клиенту (заказ ${orderId}, статус ${status})`)
+            if (!sent) {
+              console.error(`Umnico: client message not sent (order ${orderId}, status ${status}, phone ${clientPhone})`)
+            } else {
+              console.log(`✓ Umnico: клиенту (заказ ${orderId}, статус ${status})`)
+            }
           }
         }
       }
@@ -174,8 +179,12 @@ export async function notifyOrderStatusChange(
           : null
 
       if (managerMessage) {
-        await notifyOrderChain(managerMessage)
-        console.log(`✓ Umnico: менеджеру+кладовщику (заказ ${orderId}, статус ${status})`)
+        const sent = await notifyOrderChain(managerMessage)
+        if (!sent) {
+          console.error(`Umnico: manager chain message not fully sent (order ${orderId}, status ${status})`)
+        } else {
+          console.log(`✓ Umnico: менеджеру+кладовщику (заказ ${orderId}, статус ${status})`)
+        }
       }
     } catch (err) {
       console.error('Umnico notification failed:', err)

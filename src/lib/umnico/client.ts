@@ -1,5 +1,22 @@
 import { UmnicoConfig, UmnicoSendMessageRequest, UmnicoCheckContactRequest } from './types'
 
+const DEFAULT_TIMEOUT_MS = 15_000
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function responseSnippet(response: Response): Promise<string> {
+  const text = await response.text().catch(() => '')
+  return text.replace(/\s+/g, ' ').trim().slice(0, 500)
+}
+
 class UmnicoClient {
   private baseUrl = 'https://api.umnico.com/v1.3'
   private apiToken: string
@@ -14,7 +31,7 @@ class UmnicoClient {
     try {
       const cleanPhone = phone.replace(/[\s\+\-\(\)]/g, '')
 
-      const response = await fetch(`${this.baseUrl}/messaging/check-contact`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/messaging/check-contact`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -26,7 +43,11 @@ class UmnicoClient {
         } as UmnicoCheckContactRequest)
       })
 
-      return response.status === 200
+      if (response.status === 200) return true
+      if (response.status >= 500) {
+        console.error('Umnico checkContact failed:', response.status, await responseSnippet(response))
+      }
+      return false
     } catch (error) {
       console.error('Umnico checkContact error:', error)
       return false
@@ -45,7 +66,7 @@ class UmnicoClient {
       const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
       const filename = noQuery.split('/').pop() || 'order.jpg'
 
-      const post = (src: string) => fetch(`${this.baseUrl}/messaging/post`, {
+      const post = (src: string) => fetchWithTimeout(`${this.baseUrl}/messaging/post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `bearer ${this.apiToken}` },
         body: JSON.stringify({
@@ -86,7 +107,7 @@ class UmnicoClient {
       const fd = new FormData()
       fd.append('file', new File([blob], filename, { type: mime }))
       fd.append('saId', String(this.whatsappSaId))
-      const up = await fetch(`${this.baseUrl}/messaging/upload`, {
+      const up = await fetchWithTimeout(`${this.baseUrl}/messaging/upload`, {
         method: 'POST',
         headers: { 'Authorization': `bearer ${this.apiToken}` }, // Content-Type выставит FormData (boundary)
         body: fd,
@@ -106,7 +127,7 @@ class UmnicoClient {
     try {
       const cleanPhone = phone.replace(/[\s\+\-\(\)]/g, '')
 
-      const response = await fetch(`${this.baseUrl}/messaging/post`, {
+      const response = await fetchWithTimeout(`${this.baseUrl}/messaging/post`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,14 +141,13 @@ class UmnicoClient {
       })
 
       if (!response.ok) {
-        const error = await response.text()
-        console.error('Umnico sendMessage failed:', error)
+        console.error('Umnico sendMessage failed:', response.status, await responseSnippet(response))
         return false
       }
 
       return true
     } catch (error) {
-      console.error('Umnico sendMessage error:', error)
+      console.error('Umnico sendMessage error:', error instanceof Error ? error.message : error)
       return false
     }
   }
@@ -167,17 +187,45 @@ export function orderNotifyPhones(): string[] {
 }
 
 // Текст всем получателям заказов. checkContact + sendMessage по каждому; ошибки не валят.
-export async function notifyOrderChain(text: string): Promise<void> {
+export async function notifyOrderChain(text: string): Promise<boolean> {
+  let attempted = 0
+  let failed = 0
   for (const phone of orderNotifyPhones()) {
-    try { if (await umnicoClient.checkContact(phone)) await umnicoClient.sendMessage(phone, text) }
-    catch (e) { console.error('notifyOrderChain failed:', phone, e instanceof Error ? e.message : e) }
+    try {
+      const hasContact = await umnicoClient.checkContact(phone)
+      if (!hasContact) {
+        failed += 1
+        console.error('notifyOrderChain skipped: contact not found or unavailable', phone)
+        continue
+      }
+      attempted += 1
+      if (!(await umnicoClient.sendMessage(phone, text))) failed += 1
+    } catch (e) {
+      failed += 1
+      console.error('notifyOrderChain failed:', phone, e instanceof Error ? e.message : e)
+    }
   }
+  return attempted > 0 && failed === 0
 }
 
 // Картинка всем получателям заказов (для «собран» с фото; подпись = текст шаблона).
-export async function notifyOrderChainImage(imageUrl: string, caption?: string): Promise<void> {
+export async function notifyOrderChainImage(imageUrl: string, caption?: string): Promise<boolean> {
+  let attempted = 0
+  let failed = 0
   for (const phone of orderNotifyPhones()) {
-    try { if (await umnicoClient.checkContact(phone)) await umnicoClient.sendImage(phone, imageUrl, caption) }
-    catch (e) { console.error('notifyOrderChainImage failed:', phone, e instanceof Error ? e.message : e) }
+    try {
+      const hasContact = await umnicoClient.checkContact(phone)
+      if (!hasContact) {
+        failed += 1
+        console.error('notifyOrderChainImage skipped: contact not found or unavailable', phone)
+        continue
+      }
+      attempted += 1
+      if (!(await umnicoClient.sendImage(phone, imageUrl, caption))) failed += 1
+    } catch (e) {
+      failed += 1
+      console.error('notifyOrderChainImage failed:', phone, e instanceof Error ? e.message : e)
+    }
   }
+  return attempted > 0 && failed === 0
 }
