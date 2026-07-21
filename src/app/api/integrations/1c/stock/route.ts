@@ -28,6 +28,54 @@ function normName(s: string): string {
   return (s ?? '').toLowerCase().trim().replace(/\s+/g, ' ')
 }
 
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
+async function zeroUnmatchedCodeLess1cAccessories(
+  supabase: ReturnType<typeof createAdminClient>,
+  matchedProductIds: Set<number>
+): Promise<number> {
+  const idsToZero: number[] = []
+
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .eq('source', 'uralsk_1c')
+      .eq('category', 'accessories')
+      .is('code_1c', null)
+      .gt('qty', 0)
+      .order('id')
+      .range(from, from + 999)
+
+    if (error) throw error
+    if (!data || data.length === 0) break
+
+    for (const product of data) {
+      if (!matchedProductIds.has(product.id)) idsToZero.push(product.id)
+    }
+
+    if (data.length < 1000) break
+  }
+
+  let zeroed = 0
+  for (const ids of chunks(idsToZero, 500)) {
+    const { data, error } = await supabase
+      .from('products')
+      .update({ qty: 0 })
+      .in('id', ids)
+      .select('id')
+
+    if (error) throw error
+    zeroed += data?.length ?? ids.length
+  }
+
+  return zeroed
+}
+
 export async function POST(req: NextRequest) {
   // 1) секрет
   const secret = req.headers.get('x-integration-secret')
@@ -136,23 +184,30 @@ export async function POST(req: NextRequest) {
 
   // Приоритет матча: code_1c (точный артикул) → alias (norm) → exact products.name (norm)
   let matched = 0
+  const matchedProductIds = new Set<number>()
   for (const r of rows) {
     const code = r.code_1c as string
     const n = r.norm_name as string
     if (code && productByCode.has(code)) {
-      r.matched_product_id = productByCode.get(code)!
+      const productId = productByCode.get(code)!
+      r.matched_product_id = productId
       r.status = 'matched'
       r.match_source = 'code_1c'
+      matchedProductIds.add(productId)
       matched++
     } else if (aliasByNorm.has(n)) {
-      r.matched_product_id = aliasByNorm.get(n)!
+      const productId = aliasByNorm.get(n)!
+      r.matched_product_id = productId
       r.status = 'matched'
       r.match_source = 'alias'
+      matchedProductIds.add(productId)
       matched++
     } else if (productByNorm.has(n)) {
-      r.matched_product_id = productByNorm.get(n)!
+      const productId = productByNorm.get(n)!
+      r.matched_product_id = productId
       r.status = 'matched'
       r.match_source = 'exact_name'
+      matchedProductIds.add(productId)
       matched++
     }
   }
@@ -181,6 +236,7 @@ export async function POST(req: NextRequest) {
 
   // 6) Авто-применение к витрине (ТОЛЬКО 1c-ip = расходка). Синхронно, без ручного подтверждения.
   //    Зеркало склада: matched(price>0)→qty/price; нет в снимке (по code_1c)→qty=0; price<=0→qty=0.
+  //    Old uralsk_1c accessories without code_1c are also zeroed when they are not matched by this snapshot.
   //    Не трогает is_active / cut/pot. Ошибка авто-применения НЕ валит приём снимка (он уже сохранён).
   let autoApply: Record<string, unknown> | null = null
   if (source === '1c-ip') {
@@ -190,6 +246,14 @@ export async function POST(req: NextRequest) {
       autoApply = { error: applyErr.message }
     } else {
       autoApply = applyRes as Record<string, unknown>
+      try {
+        const orphanCodeNullZeroed = await zeroUnmatchedCodeLess1cAccessories(supabase, matchedProductIds)
+        autoApply = { ...autoApply, orphan_code_null_zeroed: orphanCodeNullZeroed }
+      } catch (orphanErr) {
+        const message = orphanErr instanceof Error ? orphanErr.message : String(orphanErr)
+        console.error(`[1c/stock] code-less orphan zero error import_id=${importId}:`, message)
+        autoApply = { ...autoApply, orphan_code_null_zero_error: message }
+      }
       console.log(`[1c/stock] auto-apply import_id=${importId}:`, JSON.stringify(autoApply))
     }
   }
