@@ -9,10 +9,10 @@ import { useOrderCheckout } from '@/hooks/useOrderCheckout'
 import { company } from '@/config/company'
 import AuthModal from '@/components/catalog/AuthModal'
 import DeliveryTermsModal from '@/components/DeliveryTermsModal'
+import { CITY_OPTIONS } from '@/lib/cities'
 import s from './checkout.module.css'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
-const CITIES = ['Уральск', 'Актобе', 'Атырау'] as const
 type Method = 'pickup' | 'delivery'
 
 // Вкладка оплаты «По счёту (для организаций)» — путь ещё не готов (QR без боевого
@@ -230,7 +230,7 @@ export default function CheckoutPage() {
                       <div className={s.field}>
                         <label>Город</label>
                         <select value={city} onChange={e => setCity(e.target.value)}>
-                          {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          {CITY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                       <div className={s.field}>
