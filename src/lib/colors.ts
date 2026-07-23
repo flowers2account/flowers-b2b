@@ -224,6 +224,28 @@ export function isAssorti(slug: string): boolean {
 
 /** CSS-фон свотча по сырому токену. Красит ВСЕХ: одиночные, голландский, составные. */
 export function colorSwatch(slugOrLabel: string): string {
+  const pastelDirect: Record<string, string> = {
+    'пыльно розовый': '#C99AA4',
+    'пыльно-розовый': '#C99AA4',
+    'глициния': '#B9A0D8',
+    'зеленый чай': '#B8C98A',
+    'зелёный чай': '#B8C98A',
+    'марсала': '#9B4B57',
+    'светлый лосось': '#F0A08E',
+    'бамбук': '#B9C983',
+    'розово персиковый': '#F2B6A6',
+    'розово-персиковый': '#F2B6A6',
+    'лилово розовый': '#D6A2C8',
+    'лилово-розовый': '#D6A2C8',
+    'светло коралловый': '#F69A8D',
+    'светло-коралловый': '#F69A8D',
+    'ярко розовый': '#F26AA5',
+    'ярко-розовый': '#F26AA5',
+    'красный': '#D9292F',
+  }
+  const direct = pastelDirect[slugOrLabel.trim().toLowerCase().replace(/ё/g, 'е')]
+  if (direct) return direct
+
   const n = normalizeColor(slugOrLabel)
   if (n === NONCOLOR) return NEUTRAL
   if (MIX_SET.has(n) || isAssorti(n)) return MIX
