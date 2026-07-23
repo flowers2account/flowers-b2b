@@ -15,11 +15,6 @@ import s from './checkout.module.css'
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
 type Method = 'pickup' | 'delivery'
 
-// Вкладка оплаты «По счёту (для организаций)» — путь ещё не готов (QR без боевого
-// OnlineDuken, подтверждение оплаты ручное), поэтому по умолчанию ВЫКЛ → бейдж «скоро»/disabled.
-// Чтобы включить (когда допилим) — задать env NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED=true (build-time).
-const LEGAL_PAYMENT_ENABLED = process.env.NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED === 'true'
-
 const PH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.5-3.5L9 20" />
@@ -302,24 +297,14 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-                {LEGAL_PAYMENT_ENABLED ? (
-                  <div className={`${s.payOpt} ${payMethod === 'invoice' ? s.on : ''}`}
-                    onClick={() => setPayMethod('invoice')} role="radio" aria-checked={payMethod === 'invoice'}>
-                    <span className={s.payRadio} />
-                    <div className={s.payBody}>
-                      <div className={s.payTt}>По счёту (для организаций)</div>
-                      <div className={s.payDd}>Оплата по счёту с полным пакетом документов. Работаем с ИП, ТОО и другими организациями.<br />Для клиентов Halyk Bank — оплата по QR без комиссии через OnlineBank (QR-код покажем в заказе).</div>
-                    </div>
+                <div className={`${s.payOpt} ${payMethod === 'invoice' ? s.on : ''}`}
+                  onClick={() => setPayMethod('invoice')} role="radio" aria-checked={payMethod === 'invoice'}>
+                  <span className={s.payRadio} />
+                  <div className={s.payBody}>
+                    <div className={s.payTt}>По счёту (для организаций)</div>
+                    <div className={s.payDd}>Оплата по счёту с полным пакетом документов. Работаем с ИП, ТОО и другими организациями.<br />Для клиентов Halyk Bank — оплата по QR без комиссии через OnlineBank (QR-код покажем в заказе).</div>
                   </div>
-                ) : (
-                  <div className={`${s.payOpt} ${s.disabled}`} aria-disabled="true">
-                    <span className={s.payRadio} />
-                    <div className={s.payBody}>
-                      <div className={s.payTt}>По счёту (для организаций) <span className={s.soon}>скоро</span></div>
-                      <div className={s.payDd}>Оплата по счёту с полным пакетом документов. Работаем с ИП, ТОО и другими организациями.<br />Для клиентов Halyk Bank — оплата без комиссии и рассрочка через OnlineDuken.</div>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
