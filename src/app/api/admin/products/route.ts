@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, name, display_name, length_cm, category, subcategory,
       pack_size, stems_per_pack, image_url, campaign_image_url, colors, color_images, country_iso, farm,
-      price, previous_price, qty, is_active, arrival_date
+      price, previous_price, qty, site_qty, is_active, arrival_date
     `)
     .order('name')
     .order('length_cm', { ascending: true, nullsFirst: false })
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (search)      query = query.ilike('name', `%${search}%`)
   if (category)    query = query.eq('category', category)
   if (subcategory) query = query.eq('subcategory', subcategory)
-  if (inStock)     query = query.gt('qty', 0)
+  if (inStock)     query = query.or('qty.gt.0,site_qty.gt.0')
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -49,14 +49,16 @@ export async function GET(req: NextRequest) {
 
   const today = new Date().toISOString().split('T')[0]
   const products = (data ?? []).map((p: any) => {
+    const stockQty = Math.max(Number(p.qty) || 0, Number(p.site_qty) || 0)
     const qty_reserved = reservedMap.get(p.id) ?? 0
-    const available_qty = Math.max(0, p.qty - qty_reserved)
+    const available_qty = Math.max(0, stockQty - qty_reserved)
     return {
       ...p,
+      qty: stockQty,
       is_new: p.arrival_date === today,
       stock: {
         price: p.price ?? 0,
-        qty: p.qty ?? 0,
+        qty: stockQty,
         qty_reserved,
         available_qty,
         is_available: available_qty > 0,

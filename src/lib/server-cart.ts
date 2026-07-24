@@ -15,7 +15,7 @@ export type ServerCartItem = {
   color?: string | null
 }
 
-const PRODUCT_SELECT = 'id, name, display_name, price, qty, category, subcategory, image_url, campaign_image_url, unit, is_active, source'
+const PRODUCT_SELECT = 'id, name, display_name, price, qty, site_qty, category, subcategory, image_url, campaign_image_url, unit, is_active, source'
 
 function cleanItem(raw: any): ServerCartItem | null {
   const id = Number(raw?.id ?? raw?.product_id)
@@ -100,7 +100,7 @@ async function productMap(sb: SupabaseClient, productIds: number[]) {
 function hydrate(saved: any, product: any | undefined): ServerCartItem {
   const price = Number(product?.price ?? saved.price) || 0
   const qty = Math.max(1, Number(saved.qty) || 1)
-  const available = Math.max(0, Number(product?.qty ?? 0) || 0)
+  const available = Math.max(0, Number(product?.qty ?? 0) || 0, Number(product?.site_qty ?? 0) || 0)
   const name = String(product?.display_name || product?.name || saved.name || '')
   return {
     id: Number(saved.product_id),
@@ -141,7 +141,7 @@ export async function replaceClientCart(sb: SupabaseClient, clientId: string, ra
   const products = await productMap(sb, items.map((i) => i.id))
   const rows = items.map((item) => {
     const product = products.get(item.id)
-    const available = Math.max(0, Number(product?.qty ?? item.available) || 0)
+    const available = Math.max(0, Number(product?.qty ?? 0) || 0, Number(product?.site_qty ?? 0) || 0, Number(item.available) || 0)
     return {
       order_id: orderId,
       product_id: item.id,

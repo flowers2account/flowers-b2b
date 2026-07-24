@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   for (const [productId, wantQty] of qtyByProduct) {
     const { data: product } = await supabase
       .from('products')
-      .select('qty')
+      .select('qty, site_qty')
       .eq('id', productId)
       .single()
 
@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
       .neq('client_id', clientId)
 
     const othersReserved = (otherRes ?? []).reduce((s: number, r: any) => s + r.qty, 0)
-    const available = product.qty - othersReserved
+    const stockQty = Math.max(Number(product.qty) || 0, Number((product as any).site_qty) || 0)
+    const available = stockQty - othersReserved
     if (wantQty > available) {
       reserveErrors.push(`${nameById.get(productId) ?? productId}: доступно только ${available} шт`)
     }

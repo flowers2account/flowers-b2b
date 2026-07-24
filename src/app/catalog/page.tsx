@@ -26,7 +26,7 @@ async function sectionOgImage(
       .select('image_url, campaign_image_url')
       .eq('is_active', true)
       .in('source', ['uralsk_site', 'uralsk_1c'])
-      .gt('qty', 0)
+      .or('qty.gt.0,site_qty.gt.0')
     if (pick.category) qb = qb.eq('category', pick.category)
     if (pick.subcats?.length) qb = qb.in('subcategory', pick.subcats)
     if (pick.q) {
@@ -80,7 +80,7 @@ export async function generateMetadata(
   }
 }
 
-const SELECT_FIELDS = `id, name, display_name, length_cm, pot_diameter, pot_height, category, subcategory, variety_type, pack_size, stems_per_pack, weight_gram, colors, color_images, image_url, campaign_image_url, extra_images, arrival_date, price, previous_price, qty, country_iso, tags, farm, supplier, container_code, quality_grade, min_plants_per_pot, min_flowers_per_pot, pot_color, pot_material, pot_form, substrate, variant, description, subgroup, unit, price_per_m, price_per_m2, volume_l, short_description, source`
+const SELECT_FIELDS = `id, name, display_name, length_cm, pot_diameter, pot_height, category, subcategory, variety_type, pack_size, stems_per_pack, weight_gram, colors, color_images, image_url, campaign_image_url, extra_images, arrival_date, price, previous_price, qty, site_qty, country_iso, tags, farm, supplier, container_code, quality_grade, min_plants_per_pot, min_flowers_per_pot, pot_color, pot_material, pot_form, substrate, variant, description, subgroup, unit, price_per_m, price_per_m2, volume_l, short_description, source`
 
 async function fetchAllProducts(supabase: Awaited<ReturnType<typeof createClient>>) {
   const PAGE = 900
@@ -92,7 +92,7 @@ async function fetchAllProducts(supabase: Awaited<ReturnType<typeof createClient
       .select(SELECT_FIELDS)
       .eq('is_active', true)
       .in('source', ['uralsk_site', 'uralsk_1c'])
-      .gt('qty', 0)
+      .or('qty.gt.0,site_qty.gt.0')
       .order('name')
       .order('length_cm')
       .range(from, from + PAGE - 1)
@@ -109,19 +109,23 @@ export default async function CatalogPage() {
   const data = await fetchAllProducts(supabase)
 
   const today = new Date().toISOString().split('T')[0]
-  const list = data.map((p: any) => ({
-    ...p,
-    variety_name: null,
-    length_str: null,
-    is_new: p.arrival_date === today,
-    stock: {
-      price: p.price ?? 0,
-      qty: p.qty ?? 0,
-      qty_reserved: 0,
-      is_available: (p.qty ?? 0) > 0,
-      available_qty: p.qty ?? 0,
-    },
-  }))
+  const list = data.map((p: any) => {
+    const qty = Math.max(Number(p.qty) || 0, Number(p.site_qty) || 0)
+    return {
+      ...p,
+      qty,
+      variety_name: null,
+      length_str: null,
+      is_new: p.arrival_date === today,
+      stock: {
+        price: p.price ?? 0,
+        qty,
+        qty_reserved: 0,
+        is_available: qty > 0,
+        available_qty: qty,
+      },
+    }
+  })
 
   return (
     <CatalogLayout

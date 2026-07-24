@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     .from('products')
     .select(`
       id, name, display_name, length_cm, category, subcategory, variety_type, pack_size, stems_per_pack, weight_gram,
-      colors, color_images, image_url, campaign_image_url, extra_images, arrival_date, price, previous_price, qty, country_iso, tags, farm,
+      colors, color_images, image_url, campaign_image_url, extra_images, arrival_date, price, previous_price, qty, site_qty, country_iso, tags, farm,
       pot_diameter, pot_height, container_code, quality_grade, min_plants_per_pot, min_flowers_per_pot,
       pot_color, pot_material, pot_form, substrate, variant, supplier, description,
       subgroup, unit, price_per_m, price_per_m2, volume_l, short_description, source
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     .order('length_cm')
 
   if (!catalogMode) {
-    query = query.gt('qty', 0)
+    query = query.or('qty.gt.0,site_qty.gt.0')
   }
 
   query = query.limit(5000)
@@ -53,13 +53,14 @@ export async function GET(request: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
   const result = (data ?? []).map((p: any) => ({
     ...p,
+    qty: Math.max(Number(p.qty) || 0, Number(p.site_qty) || 0),
     is_new: p.arrival_date === today,
     stock: {
       price: p.price,
-      qty: p.qty,
+      qty: Math.max(Number(p.qty) || 0, Number(p.site_qty) || 0),
       qty_reserved: 0,
-      is_available: p.qty > 0,
-      available_qty: p.qty,
+      is_available: Math.max(Number(p.qty) || 0, Number(p.site_qty) || 0) > 0,
+      available_qty: Math.max(Number(p.qty) || 0, Number(p.site_qty) || 0),
     },
   }))
   return NextResponse.json(result)
