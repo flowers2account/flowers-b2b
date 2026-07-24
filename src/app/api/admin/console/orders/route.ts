@@ -23,13 +23,13 @@ export async function GET(req: NextRequest) {
       items:order_items ( id, qty, qty_ordered, qty_actual, is_removed, price, color,
         product:product_id ( name, display_name, pack_size ) )
     `)
-    .neq('status', 'cart')
     .order('id', { ascending: false })
     .limit(1000)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const ids = (orders ?? []).map((o: any) => o.id)
+  const visibleOrders = (orders ?? []).filter((o: any) => o.notes !== '[customer_cart]')
+  const ids = visibleOrders.map((o: any) => o.id)
   let history: any[] = []
   if (ids.length) {
     const { data: h } = await sb
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     ;(histByOrder[h.order_id] ||= []).push({ ...h, changed_by_name: names[h.changed_by] || null })
   }
 
-  const result = (orders ?? []).map((o: any) => {
+  const result = visibleOrders.map((o: any) => {
     const hist = histByOrder[o.id] || []
     // «Оператор заказа» = кто перевёл его в работу (reserved); иначе последний менявший
     const took = [...hist].reverse().find((h) => h.status_to === 'reserved' && h.changed_by_name)

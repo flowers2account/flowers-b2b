@@ -49,6 +49,7 @@ type Order = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  cart: 'Счёт / не оплачен',
   pending: 'Новый',
   reserved: 'В работе',
   confirmed: 'Подтверждён',
@@ -68,7 +69,7 @@ const DATE_PRESETS: { id: DatePreset; label: string }[] = [
   { id: 'custom',    label: 'Период'   },
 ]
 
-const ALL_STATUSES = ['pending', 'reserved', 'confirmed', 'assembling', 'assembled', 'delivered', 'cancelled']
+const ALL_STATUSES = ['cart', 'pending', 'reserved', 'confirmed', 'assembling', 'assembled', 'delivered', 'cancelled']
 
 export default function OrdersPanel() {
   const { user } = useAuthStore()
@@ -103,10 +104,7 @@ export default function OrdersPanel() {
   }
 
   const filteredOrders = useMemo(() => {
-    // Черновики-документы скрыты из панели (как в канбане): счёт-черновик (status='cart')
-    // и неоплаченные pending. Они становятся видимы только после подтверждения оплаты.
-    let result = orders.filter(o =>
-      o.status !== 'cart' && !(o.status === 'pending' && o.payment_status === 'unpaid'))
+    let result = orders.filter(o => o.notes !== '[customer_cart]')
 
     if (datePreset) {
       const now = new Date()
@@ -255,6 +253,7 @@ export default function OrdersPanel() {
   }
 
   const statusLabel: Record<string, string> = {
+    cart: '🧾 Счёт / не оплачен',
     pending: '⏳ Новый',
     reserved: '🔒 В брони',
     confirmed: '✅ Подтверждён',
@@ -265,6 +264,7 @@ export default function OrdersPanel() {
   }
 
   const statusColor: Record<string, string> = {
+    cart: 'bg-amber-100 text-amber-800',
     pending: 'bg-yellow-100 text-yellow-800',
     reserved: 'bg-purple-100 text-purple-800',
     confirmed: 'bg-green-100 text-green-800',

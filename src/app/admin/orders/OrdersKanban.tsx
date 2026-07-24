@@ -18,6 +18,7 @@ import OrderCard, { type KanbanOrder } from './OrderCard'
 // ── Status → column mapping ────────────────────────────────────────
 
 const COLUMN_FOR: Record<string, string> = {
+  cart:      'pending',
   pending:   'pending',
   reserved:  'reserved',
   confirmed: 'confirmed',
@@ -38,6 +39,7 @@ const COLUMN_LABEL: Record<string, string> = Object.fromEntries(COLUMNS.map(c =>
 // ── Transition validation ──────────────────────────────────────────
 
 const ALLOWED: Record<string, string[]> = {
+  cart:      ['pending'],
   pending:   ['reserved'],
   reserved:  ['pending', 'confirmed'],
   confirmed: ['delivered'],
@@ -67,7 +69,7 @@ export default function OrdersKanban({ onOrderClick }: Props) {
     const { data, error } = await supabase
       .from('orders')
       .select(`
-        id, status, payment_status, total, created_at, guest_phone, guest_name,
+        id, status, payment_status, total, notes, created_at, guest_phone, guest_name,
         client:client_id(name, phone, company_name),
         order_items(id, qty, is_removed),
         reservations(expires_at)
@@ -77,9 +79,8 @@ export default function OrdersKanban({ onOrderClick }: Props) {
       .limit(300)
 
     if (error) console.error('[OrdersKanban]', error)
-    // Скрываем заказы ожидающие оплаты (pending + unpaid) — появятся только после подтверждения
     const visible = ((data as KanbanOrder[] | null) ?? [])
-      .filter(o => !(o.status === 'pending' && (o as any).payment_status === 'unpaid'))
+      .filter(o => (o as any).notes !== '[customer_cart]')
     setOrders(visible)
     setLoading(false)
   }, [])

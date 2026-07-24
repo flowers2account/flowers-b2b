@@ -3,6 +3,8 @@
 export type KanbanOrder = {
   id: number
   status: string
+  payment_status?: string | null
+  notes?: string | null
   total: number
   created_at: string
   guest_phone: string | null
@@ -13,6 +15,7 @@ export type KanbanOrder = {
 }
 
 export const STATUS_BADGE: Record<string, { cls: string; label: string }> = {
+  cart:       { cls: 'bg-amber-100 text-amber-800',  label: 'Счёт / не оплачен' },
   assembling: { cls: 'bg-orange-100 text-orange-700', label: '🔧 Сборка' },
   assembled:  { cls: 'bg-teal-100 text-teal-800',    label: '📦 Готов'  },
 }

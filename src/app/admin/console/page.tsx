@@ -314,6 +314,16 @@ export default function ConsolePage() {
   useEffect(() => {
     if (tab === 'clients' && isAuthed && (role === 'admin' || role === 'manager') && !clientsLoaded) reloadClients()
   }, [tab, isAuthed, role, clientsLoaded, reloadClients])
+  useEffect(() => {
+    if (!isAuthed || (role !== 'admin' && role !== 'manager') || tab !== 'orders') return
+    const id = window.setInterval(() => { reload() }, 15000)
+    const onFocus = () => reload()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [isAuthed, role, tab, reload])
 
   const api = useCallback(async (path: string, body: any) => {
     setBusy(true)
