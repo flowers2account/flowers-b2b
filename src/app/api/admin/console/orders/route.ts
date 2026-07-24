@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       guest_name, guest_phone, client_id,
       client:client_id ( id, name, company_name, bin, phone, city, address ),
       items:order_items ( id, qty, qty_ordered, qty_actual, is_removed, price, color,
-        product:product_id ( name, display_name, pack_size ) )
+        product:product_id ( name, display_name, pack_size, image_url, campaign_image_url ) )
     `)
     .order('id', { ascending: false })
     .limit(1000)

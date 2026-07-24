@@ -109,6 +109,7 @@ function stageDurations(o: any): Record<string, number | null> {
 }
 const itemName = (it: any) => it.product?.display_name || it.product?.name || `Товар #${it.product_id || it.id}`
 const itemPack = (it: any) => Math.max(1, Number(it.product?.pack_size) || 1)
+const itemImage = (it: any) => it.product?.campaign_image_url || it.product?.image_url || null
 const clientLabel = (o: any) => o.client?.company_name || o.client?.name || o.guest_name || o.guest_phone || 'Гость'
 const goodsTotal = (items: any[]) =>
   items.filter((it) => !it.is_removed).reduce((s, it) => s + Number(it.qty) * Number(it.price), 0)
@@ -952,15 +953,25 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
             {draft.map((it) => {
               const orig = (order.items || []).find((x: any) => x.id === it.id)
               const changed = orig && orig.qty !== it.qty
+              const imageUrl = itemImage(it)
               return (
-                <div key={it.id} className={'flex items-center justify-between rounded-lg px-3 py-2 ' + (it.is_removed ? 'line-through opacity-40' : '')} style={{ border: '1px solid ' + (changed ? C.amber + '66' : C.line) }}>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm">{itemName(it)}{it.color ? ` (${it.color})` : ''}</div>
-                    <div className="text-xs" style={{ color: C.stone }}>
-                      {fmtKZT(Number(it.price))} · шаг {itemPack(it)}{changed && <span style={{ color: C.amber }}> · оформлено {orig.qty}</span>}
+                <div key={it.id} className={'flex items-center justify-between gap-3 rounded-lg px-3 py-2 ' + (it.is_removed ? 'line-through opacity-40' : '')} style={{ border: '1px solid ' + (changed ? C.amber + '66' : C.line) }}>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg" style={{ background: C.bg, border: '1px solid ' + C.line }}>
+                      {imageUrl ? (
+                        <img src={imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <Package size={18} style={{ color: C.stone }} />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm">{itemName(it)}{it.color ? ` (${it.color})` : ''}</div>
+                      <div className="text-xs" style={{ color: C.stone }}>
+                        {fmtKZT(Number(it.price))} · шаг {itemPack(it)}{changed && <span style={{ color: C.amber }}> · оформлено {orig.qty}</span>}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     {canEditItems && !it.is_removed ? (
                       <>
                         <button onClick={() => editItem(it.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-md" style={{ background: C.blush, color: C.wine }}><Minus size={14} /></button>
