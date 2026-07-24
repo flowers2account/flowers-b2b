@@ -5,6 +5,7 @@ import Header from '@/components/catalog/Header'
 import SiteFooter from '@/components/SiteFooter'
 import MobileTabBar from '@/components/MobileTabBar'
 import FavoritesGate from '@/components/FavoritesGate'
+import CartSync from '@/components/CartSync'
 import AiWidget from '@/components/AiWidget'
 
 // Сайтовый chrome (шапка/навигация, футер, моб. таб-бар, AI-виджет) монтируется
@@ -31,6 +32,7 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
       <SiteFooter />
       <MobileTabBar />
       <FavoritesGate />
+      <CartSync />
       {/* Нативный AI-виджет-консультант (заменил виджет Umnico на сайте). */}
       <AiWidget />
     </>

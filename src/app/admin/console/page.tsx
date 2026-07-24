@@ -9,7 +9,7 @@ import {
   Package, Clock, User, ChevronRight, ChevronLeft, Plus, Minus,
   CheckCircle2, AlertCircle, Phone, Building2, MapPin, Calendar, Wallet,
   FileText, QrCode, Banknote, Receipt, Printer, Truck, Search, Camera, X, Save, Gauge,
-  Users, ShoppingBag,
+  Users, ShoppingBag, Trash2,
 } from 'lucide-react'
 
 /* ───────── Бренд ───────── */
@@ -266,6 +266,7 @@ export default function ConsolePage() {
   const [clientsLoaded, setClientsLoaded] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [openId, setOpenId] = useState<number | null>(null)
+  const [cartClient, setCartClient] = useState<any | null>(null)
   const [confirm, setConfirm] = useState<ConfirmCfg | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -400,7 +401,7 @@ export default function ConsolePage() {
           !clientsLoaded ? (
             <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ background: '#fff', border: '1px solid ' + C.line, color: C.stone }}>Загрузка…</div>
           ) : (
-            <ClientsView clients={clients} />
+            <ClientsView clients={clients} onCart={setCartClient} />
           )
         )}
       </main>
@@ -416,6 +417,11 @@ export default function ConsolePage() {
             onSaveItems={(items: any[]) => api('/api/admin/console/items', { order_id: current.id, items })}
             onPrint={() => window.open(`/print/order/${current.id}`, '_blank')}
           />
+        </SlideOver>
+      )}
+      {cartClient && (
+        <SlideOver onClose={() => setCartClient(null)}>
+          <ClientCartPanel client={cartClient} onClose={() => setCartClient(null)} />
         </SlideOver>
       )}
       {confirm && <ConfirmDialog cfg={confirm} onClose={() => setConfirm(null)} />}
@@ -531,7 +537,7 @@ function ClientStatusChip({ status }: { status?: string | null }) {
   )
 }
 
-function ClientsView({ clients }: { clients: any[] }) {
+function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any) => void }) {
   const [q, setQ] = useState('')
   const term = q.trim().toLowerCase()
   const filtered = term
@@ -571,6 +577,7 @@ function ClientsView({ clients }: { clients: any[] }) {
               <Th>Регистрация</Th>
               <Th right>Заказов</Th>
               <Th right>Сумма</Th>
+              <Th right>Корзина</Th>
             </tr>
           </thead>
           <tbody>
@@ -586,10 +593,15 @@ function ClientsView({ clients }: { clients: any[] }) {
                 <Td muted>{fmtDate(c.created_at)}</Td>
                 <Td right>{c.order_count}</Td>
                 <Td right>{c.order_sum ? fmtKZT(c.order_sum) : '—'}</Td>
+                <Td right>
+                  <button onClick={() => onCart(c)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold" style={{ background: C.blush, color: C.wine }}>
+                    <ShoppingBag size={13} /> Открыть
+                  </button>
+                </Td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-sm" style={{ color: C.stone }}>Клиенты не найдены</td></tr>
+              <tr><td colSpan={11} className="px-4 py-8 text-center text-sm" style={{ color: C.stone }}>Клиенты не найдены</td></tr>
             )}
           </tbody>
         </table>
@@ -599,6 +611,205 @@ function ClientsView({ clients }: { clients: any[] }) {
 }
 
 /* ───────── Деталь заказа ───────── */
+function ClientCartPanel({ client, onClose }: { client: any; onClose: () => void }) {
+  const [items, setItems] = useState<any[]>([])
+  const [query, setQuery] = useState('')
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const headers = await authHeaders()
+        const r = await fetch(`/api/admin/console/client-cart?client_id=${encodeURIComponent(client.id)}`, { headers, cache: 'no-store' })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(d.error || 'Не удалось загрузить корзину')
+        if (alive) setItems(d.items || [])
+      } catch (e: any) {
+        if (alive) setError(e?.message || 'Ошибка загрузки')
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
+    return () => { alive = false }
+  }, [client.id])
+
+  useEffect(() => {
+    let alive = true
+    const term = query.trim()
+    if (term.length < 2) {
+      setProducts([])
+      return
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        const headers = await authHeaders()
+        const r = await fetch(`/api/admin/products?search=${encodeURIComponent(term)}&inStock=true`, { headers, cache: 'no-store' })
+        const d = await r.json().catch(() => [])
+        if (alive) setProducts(Array.isArray(d) ? d.slice(0, 12) : [])
+      } catch {
+        if (alive) setProducts([])
+      }
+    }, 250)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [query])
+
+  const addProduct = (p: any) => {
+    const available = Number(p.stock?.available_qty ?? p.qty ?? 0) || 0
+    if (available <= 0) return
+    setItems((prev) => {
+      const existing = prev.find((i) => i.id === p.id && (i.color ?? null) == null)
+      if (existing) return prev.map((i) => i === existing ? { ...i, qty: Math.min(Number(i.qty) + 1, available), available } : i)
+      return [...prev, {
+        id: Number(p.id),
+        name: p.display_name || p.name,
+        price: Number(p.price ?? p.stock?.price) || 0,
+        qty: 1,
+        available,
+        category: p.category || 'accessories',
+        image_url: p.campaign_image_url || p.image_url || null,
+        unit: p.unit ?? null,
+        subcategory: p.subcategory ?? null,
+        color: null,
+      }]
+    })
+  }
+
+  const updateQty = (id: number, color: string | null, qty: number) => setItems((prev) => prev
+    .map((i) => i.id === id && (i.color ?? null) === (color ?? null)
+      ? { ...i, qty: Math.max(1, Math.min(qty, Number(i.available) || qty)) }
+      : i))
+
+  const removeItem = (id: number, color: string | null) => setItems((prev) =>
+    prev.filter((i) => !(i.id === id && (i.color ?? null) === (color ?? null))))
+
+  const save = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+      const r = await fetch('/api/admin/console/client-cart', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ client_id: client.id, items }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(d.error || 'Не удалось сохранить корзину')
+      setItems(d.items || [])
+    } catch (e: any) {
+      setError(e?.message || 'Ошибка сохранения')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const total = items.reduce((sum, i) => sum + Number(i.price || 0) * Number(i.qty || 0), 0)
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b px-5 py-4" style={{ borderColor: C.line }}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-lg font-semibold" style={{ color: C.ink }}>Корзина клиента</div>
+            <div className="mt-1 text-sm" style={{ color: C.stone }}>{client.name || client.company_name || 'Клиент'} · {client.phone || 'телефон не указан'}</div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2" style={{ background: C.blush, color: C.wine }}><X size={16} /></button>
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        {error && <div className="rounded-lg px-3 py-2 text-sm" style={{ background: '#FBEAEC', color: C.wine }}>{error}</div>}
+
+        <div className="rounded-xl p-3" style={{ background: C.bg, border: '1px solid ' + C.line }}>
+          <div className="flex items-center gap-2 rounded-lg bg-white px-2 py-1" style={{ border: '1px solid ' + C.line }}>
+            <Search size={14} style={{ color: C.stone }} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Найти товар" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+          </div>
+          {products.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {products.map((p) => {
+                const available = Number(p.stock?.available_qty ?? p.qty ?? 0) || 0
+                return (
+                  <button key={p.id} onClick={() => addProduct(p)} disabled={available <= 0}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-white disabled:opacity-50">
+                    <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md" style={{ background: '#fff', border: '1px solid ' + C.line }}>
+                      {p.image_url && <img src={p.image_url} alt="" className="h-full w-full object-cover" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{p.display_name || p.name}</div>
+                      <div className="text-xs" style={{ color: C.stone }}>{fmtKZT(Number(p.price || 0))} · остаток {available}</div>
+                    </div>
+                    <Plus size={15} style={{ color: C.wine }} />
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="py-8 text-center text-sm" style={{ color: C.stone }}>Загрузка...</div>
+        ) : items.length === 0 ? (
+          <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ border: '1px dashed ' + C.line, color: C.stone }}>Корзина пустая</div>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div key={`${item.id}:${item.color ?? ''}`} className="rounded-xl p-3" style={{ background: '#fff', border: '1px solid ' + C.line }}>
+                <div className="flex gap-3">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg" style={{ background: C.bg, border: '1px solid ' + C.line }}>
+                    {item.image_url && <img src={item.image_url} alt="" className="h-full w-full object-cover" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold">{item.name}</div>
+                    <div className="mt-0.5 text-xs" style={{ color: C.stone }}>
+                      {fmtKZT(Number(item.price || 0))}{item.unit ? ` / ${item.unit}` : ''} · остаток {item.available}
+                    </div>
+                    {item.color && <div className="mt-0.5 text-xs" style={{ color: C.stone }}>Цвет: {item.color}</div>}
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <div className="inline-flex items-center rounded-lg" style={{ border: '1px solid ' + C.line }}>
+                    <button onClick={() => updateQty(item.id, item.color ?? null, Number(item.qty) - 1)} className="p-2"><Minus size={14} /></button>
+                    <input value={item.qty} onChange={(e) => updateQty(item.id, item.color ?? null, Number(e.target.value) || 1)}
+                      className="w-12 border-x px-1 py-1 text-center text-sm outline-none" style={{ borderColor: C.line }} inputMode="numeric" />
+                    <button onClick={() => updateQty(item.id, item.color ?? null, Number(item.qty) + 1)} className="p-2"><Plus size={14} /></button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-semibold">{fmtKZT(Number(item.price || 0) * Number(item.qty || 0))}</div>
+                    <button onClick={() => removeItem(item.id, item.color ?? null)} className="rounded-lg p-2" style={{ background: C.blush, color: C.wine }}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="border-t px-5 py-4" style={{ borderColor: C.line }}>
+        <div className="mb-3 flex items-center justify-between text-sm">
+          <span style={{ color: C.stone }}>Итого</span>
+          <span className="font-semibold">{fmtKZT(total)}</span>
+        </div>
+        <button onClick={save} disabled={saving || loading}
+          className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          style={{ background: C.wine, color: '#fff' }}>
+          <Save size={16} /> {saving ? 'Сохраняю...' : 'Сохранить корзину'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint }: any) {
   const [draft, setDraft] = useState<any[]>(order.items || [])
   useEffect(() => { setDraft(order.items || []) }, [order.id, order.items])
