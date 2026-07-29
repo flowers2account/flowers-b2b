@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAuthedUser } from '@/lib/api-auth'
 import { normalizePhone } from '@/lib/phone'
 import { ensureInvoiceForOrder, getInvoiceForOrder, markInvoicePaidByOrder } from '@/lib/invoice/create-invoice'
+import { verifyOrderAccessToken } from '@/lib/order-access-token'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,14 @@ const statusFor = (reason: string) =>
 
 /** Доступ: владелец заказа (по телефону токена) ИЛИ admin/manager. */
 async function authorize(req: NextRequest, orderId: number): Promise<{ ok: true } | { ok: false; status: number }> {
+  const guestToken = req.headers.get('x-order-access-token')
+  const guest = verifyOrderAccessToken(guestToken, orderId)
+  if (guest) {
+    const sb = createAdminClient()
+    const { data: order } = await sb.from('orders').select('client_id').eq('id', orderId).maybeSingle()
+    if (order?.client_id === guest.clientId) return { ok: true }
+  }
+
   const authed = await getAuthedUser(req)
   if (!authed) return { ok: false, status: 401 }
 

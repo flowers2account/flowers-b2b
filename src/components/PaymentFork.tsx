@@ -15,10 +15,11 @@ const C = {
 }
 
 export default function PaymentFork({
-  orderId, client,
+  orderId, client, accessToken,
 }: {
   orderId: string | number
   client: { company_name?: string | null; bin?: string | null }
+  accessToken?: string | null
 }) {
   // Текущие реквизиты (из заказа/клиента, обновляются после сохранения формы).
   const [reqs, setReqs] = useState({
@@ -33,6 +34,14 @@ export default function PaymentFork({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  async function requestHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      ...(await authHeaders()),
+      ...(accessToken ? { 'X-Order-Access-Token': accessToken } : {}),
+    }
+  }
+
   // Гарантируем запись счёта (номер + qr_link) при показе развилки — чтобы QR нёс узнаваемый № 90xxxxx.
   // Только когда реквизиты заполнены (иначе генерация заблокирована формой ниже).
   useEffect(() => {
@@ -40,7 +49,7 @@ export default function PaymentFork({
     let alive = true
     ;(async () => {
       try {
-        const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+        const headers = await requestHeaders()
         const r = await fetch(`/api/orders/${orderId}/invoice`, {
           method: 'POST', headers, body: JSON.stringify({ withPdf: false }),
         })
@@ -65,7 +74,7 @@ export default function PaymentFork({
   async function formInvoice() {
     setBusy(true); setErr(null)
     try {
-      const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+      const headers = await requestHeaders()
       const r = await fetch(`/api/orders/${orderId}/invoice`, {
         method: 'POST', headers, body: JSON.stringify({ withPdf: true }),
       })
@@ -95,6 +104,8 @@ export default function PaymentFork({
         <RequisitesForm
           initialCompany={reqs.company_name}
           initialBin={reqs.bin}
+          orderId={orderId}
+          accessToken={accessToken}
           onSaved={(company_name, bin) => setReqs({ company_name, bin })}
         />
       </div>
@@ -173,10 +184,12 @@ export default function PaymentFork({
 
 // ── Форма реквизитов организации (company_name + БИН) ─────────────────────────
 function RequisitesForm({
-  initialCompany, initialBin, onSaved,
+  initialCompany, initialBin, orderId, accessToken, onSaved,
 }: {
   initialCompany: string
   initialBin: string
+  orderId: string | number
+  accessToken?: string | null
   onSaved: (company_name: string, bin: string) => void
 }) {
   const [company, setCompany] = useState(initialCompany)
@@ -197,7 +210,11 @@ function RequisitesForm({
     if (!/^\d{12}$/.test(binClean)) { setError('БИН/ИИН — ровно 12 цифр'); return }
     setSaving(true); setError(null)
     try {
-      const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(await authHeaders()),
+        ...(accessToken ? { 'X-Order-Access-Token': accessToken, 'X-Order-Id': String(orderId) } : {}),
+      }
       const r = await fetch('/api/client/update-profile', {
         method: 'POST', headers, body: JSON.stringify({ company_name: companyClean, bin: binClean }),
       })

@@ -158,8 +158,12 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
         inFlight.current = false
         return
       }
-      const { order_id } = await checkRes.json()
+      const checkoutData = await checkRes.json()
+      const { order_id, order_access_token } = checkoutData
       setOrderId(order_id)
+      if (typeof window !== 'undefined' && order_id && order_access_token) {
+        window.sessionStorage.setItem(`order-access:${order_id}`, String(order_access_token))
+      }
 
       // Режим «по счёту/QR» (юр.лица): ePay не запускаем — заказ создан, оплата вне виджета.
       if (skipPayment?.()) {

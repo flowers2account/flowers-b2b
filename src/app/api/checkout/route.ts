@@ -5,6 +5,7 @@ import { getCityDeliveryFee, computeDeliveryCost } from '@/lib/delivery'
 import { computeOrderTotal } from '@/lib/order-total'
 import { umnicoClient } from '@/lib/umnico/client'
 import { authPinToClient } from '@/lib/umnico/templates'
+import { createOrderAccessToken } from '@/lib/order-access-token'
 
 export const dynamic = 'force-dynamic'
 
@@ -272,7 +273,15 @@ export async function POST(req: NextRequest) {
 
   // Уведомления по заказу НЕ отправляются здесь — только после подтверждения оплаты в /api/payments/postlink
 
-  return NextResponse.json({ success: true, order_id: orderId, expires_at, pin_delivered: pinDelivered })
+  const orderAccessToken = createOrderAccessToken({ orderId: Number(orderId), clientId, phone: normalizedPhone })
+
+  return NextResponse.json({
+    success: true,
+    order_id: orderId,
+    expires_at,
+    pin_delivered: pinDelivered,
+    order_access_token: orderAccessToken,
+  })
 }
 
 async function ensureClientAuthUser(opts: {

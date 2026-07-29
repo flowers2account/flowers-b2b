@@ -261,7 +261,11 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   }
 
   function handleAddToCart() {
-    if (qty === 0) inc()
+    if (qty === 0) {
+      inc()
+      return
+    }
+    onGoToCart()
   }
 
   return (
@@ -513,7 +517,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Stepper qty={qty} available={available} packSize={packSize} onDec={handleDec} onInc={handleInc} />
-            {inCart && isAuthed ? (
+            {inCart ? (
               <button
                 onClick={onGoToCart}
                 style={{
@@ -543,7 +547,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
               </button>
             )}
           </div>
-          {!inCart && cartCount > 0 && isAuthed && (
+          {!inCart && cartCount > 0 && (
             <button
               onClick={onGoToCart}
               style={{

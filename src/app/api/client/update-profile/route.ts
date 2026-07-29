@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import { getAuthedUser } from '@/lib/api-auth'
 import { syncClientRequisitesToAmo } from '@/lib/amo'
+import { verifyOrderAccessToken } from '@/lib/order-access-token'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,9 +14,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const { name, company_name, bin, city } = body
 
-  // Менять можно только свой профиль — владелец берётся из токена, не из тела
+  // Менять можно только свой профиль — владелец берётся из токена, не из тела.
+  // Для быстрого заказа без входа разрешаем обновить реквизиты клиента по подписанному токену заказа.
   const authed = await getAuthedUser(req)
-  if (!authed?.phone) return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 })
+  const guestOrderId = parseInt(req.headers.get('x-order-id') || '', 10)
+  const guest = Number.isFinite(guestOrderId)
+    ? verifyOrderAccessToken(req.headers.get('x-order-access-token'), guestOrderId)
+    : null
+  if (!authed?.phone && !guest) return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 })
 
   const nameProvided = typeof name === 'string'
   const nameClean = nameProvided ? name.trim() : ''
@@ -30,14 +36,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'БИН/ИИН — 12 цифр' }, { status: 400 })
   }
 
-  const normalized = normalizePhone(authed.phone)
   const admin = createAdminClient()
 
-  const { data: client, error: clientError } = await admin
-    .from('clients')
-    .select('id')
-    .or(`phone.eq.${normalized},phone.eq.${normalized.replace('+', '')}`)
-    .maybeSingle()
+  const authedPhone = authed?.phone ? normalizePhone(authed.phone) : null
+  const clientQuery = admin.from('clients').select('id')
+  const { data: client, error: clientError } = guest
+    ? await clientQuery.eq('id', guest.clientId).maybeSingle()
+    : await clientQuery
+        .or(`phone.eq.${authedPhone},phone.eq.${authedPhone?.replace('+', '')}`)
+        .maybeSingle()
 
   if (clientError || !client) {
     return NextResponse.json({ success: false, error: 'Клиент не найден' }, { status: 404 })

@@ -59,6 +59,7 @@ export default function OrderPage() {
   const [client, setClient] = useState<{ company_name: string | null; bin: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
   const [authReady, setAuthReady] = useState(false)
+  const [guestToken, setGuestToken] = useState<string | null>(null)
   const [showAuth, setShowAuth] = useState(false)
   const [payBusy, setPayBusy] = useState(false)
   const [payError, setPayError] = useState('')
@@ -68,11 +69,27 @@ export default function OrderPage() {
   // Раньше тут был мгновенный router.push('/') → прямые ссылки на /order/[id] выбрасывало
   // на главную ещё до гидрации авторизации (владелец не видел заказ/форму реквизитов).
   useEffect(() => { let m = true; init().finally(() => { if (m) setAuthReady(true) }); return () => { m = false } }, [init])
-  useEffect(() => { if (authReady && !isAuthed) setShowAuth(true) }, [authReady, isAuthed])
+  useEffect(() => {
+    if (!authReady || typeof window === 'undefined') return
+    setGuestToken(window.sessionStorage.getItem(`order-access:${params.id}`))
+  }, [authReady, params.id])
+  useEffect(() => { if (authReady && !isAuthed && !guestToken) setShowAuth(true) }, [authReady, isAuthed, guestToken])
 
   const loadOrder = useCallback(async () => {
-    if (!isAuthed || !phone) return   // ждём авторизацию — не редиректим
+    if (!isAuthed && !guestToken) return   // ждём авторизацию или гостевой токен — не редиректим
     try {
+      if (!isAuthed && guestToken) {
+        const r = await fetch(`/api/orders/${params.id}/guest`, {
+          headers: { 'X-Order-Access-Token': guestToken },
+          cache: 'no-store',
+        })
+        const data = await r.json()
+        setOrder(r.ok ? data.order ?? null : null)
+        setClient(r.ok && data.client ? { company_name: data.client.company_name, bin: data.client.bin ?? null } : null)
+        return
+      }
+
+      if (!phone) return
       const headers = await authHeaders()  // владелец резолвится из токена на сервере
       const r = await fetch('/api/cabinet', { headers, cache: 'no-store' })
       const data = await r.json()
@@ -81,7 +98,7 @@ export default function OrderPage() {
       setClient(data.client ? { company_name: data.client.company_name, bin: data.client.bin ?? null } : null)
     } catch { setOrder(null) }
     finally { setLoading(false) }
-  }, [isAuthed, phone, params.id])
+  }, [isAuthed, phone, params.id, guestToken])
 
   useEffect(() => { loadOrder() }, [loadOrder])
 
@@ -90,11 +107,11 @@ export default function OrderPage() {
     return <main className={s.page}><div className={s.shell}><div className={s.state}><div className={s.stateP}>Загрузка…</div></div></div></main>
   }
   // Сессия восстановлена, но гость — предлагаем войти прямо тут (AuthModal), не выкидываем
-  if (!isAuthed) {
+  if (!isAuthed && !guestToken) {
     return (
       <main className={s.page}><div className={s.shell}><div className={s.state}>
         <div className={s.stateH}>Войдите, чтобы открыть заказ</div>
-        <p className={s.stateP}>Заказ доступен после входа по номеру телефона и PIN.</p>
+        <p className={s.stateP}>Заказ доступен после входа по номеру телефона и PIN. Если заказ только что оформлен, откройте его на том же устройстве.</p>
         <button className={s.stateBtn} onClick={() => setShowAuth(true)}>Войти</button>
       </div></div>
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />}
@@ -183,7 +200,7 @@ export default function OrderPage() {
       <div className={s.shell}>
         <div className={s.phead}>
           <nav className={s.crumbs}>
-            <a onClick={() => router.push('/cabinet')}>Личный кабинет</a>
+            <a onClick={() => router.push(isAuthed ? '/cabinet' : '/catalog')}>{isAuthed ? 'Личный кабинет' : 'Каталог'}</a>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
             <span className={s.cur}>Заказ № {order.id}</span>
           </nav>
@@ -275,7 +292,7 @@ export default function OrderPage() {
                 (payment_method='invoice') ИЛИ если у клиента уже заполнена организация. Реквизиты
                 (компания + БИН) при необходимости запросим прямо в блоке. */}
             {!isPaid && (order.payment_method === 'invoice' || client?.company_name) && (
-              <PaymentFork orderId={order.id} client={{ company_name: client?.company_name ?? null, bin: client?.bin ?? null }} />
+              <PaymentFork orderId={order.id} client={{ company_name: client?.company_name ?? null, bin: client?.bin ?? null }} accessToken={guestToken} />
             )}
 
             <div className={s.box}>
