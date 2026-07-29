@@ -7,7 +7,6 @@ import { useCart } from '@/lib/cart-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { useOrderCheckout } from '@/hooks/useOrderCheckout'
 import { company } from '@/config/company'
-import AuthModal from '@/components/catalog/AuthModal'
 import DeliveryTermsModal from '@/components/DeliveryTermsModal'
 import { CITY_OPTIONS } from '@/lib/cities'
 import s from './checkout.module.css'
@@ -24,8 +23,7 @@ const PH_ICON = (
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, total, clear } = useCart()
-  const { phone, isAuthed, init } = useAuthStore()
-  const [authReady, setAuthReady] = useState(false)
+  const { phone, init } = useAuthStore()
 
   const [method, setMethod] = useState<Method>('pickup')
   const [city, setCity] = useState<string>('Уральск')
@@ -36,7 +34,6 @@ export default function CheckoutPage() {
   const [recipientPhone, setRecipientPhone] = useState('')
   const [email, setEmail] = useState('')
   const [formError, setFormError] = useState('')
-  const [showAuth, setShowAuth] = useState(false)
   const [showDelivery, setShowDelivery] = useState(false)
   // Способ оплаты: карта (ePay) или по счёту/QR для юр.лиц
   const [payMethod, setPayMethod] = useState<'card' | 'invoice'>('card')
@@ -53,10 +50,7 @@ export default function CheckoutPage() {
       .catch(() => {})
   }, [])
 
-  // Гость на чекауте — оформление недоступно без входа: сразу просим авторизацию
-  // (тот же AuthModal, что и при сабмите). init() гарантирует, что сессия восстановлена.
-  useEffect(() => { let m = true; init().finally(() => { if (m) setAuthReady(true) }); return () => { m = false } }, [])
-  useEffect(() => { if (authReady && !isAuthed) setShowAuth(true) }, [authReady, isAuthed])
+  useEffect(() => { init().catch(() => {}) }, [init])
 
   const sum = total()
   const isUralsk = method === 'pickup' || (method === 'delivery' && city === 'Уральск')
@@ -69,8 +63,8 @@ export default function CheckoutPage() {
 
   const checkout = useOrderCheckout({
     items,
-    phone,
-    onAuthRequired: () => setShowAuth(true),
+    phone: recipientPhone.trim() || phone,
+    onAuthRequired: () => setFormError('Укажите телефон получателя'),
     onSuccess: () => clear(),
     extra: () => ({
       name: recipientName.trim() || undefined,
@@ -357,7 +351,6 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />}
       <DeliveryTermsModal open={showDelivery} onClose={() => setShowDelivery(false)} />
     </main>
   )

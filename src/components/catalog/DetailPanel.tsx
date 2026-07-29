@@ -253,17 +253,14 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
   const seasonLabel = seasons.map(s => SEASON_MAP[s] ?? s).filter(Boolean).join(', ')
 
   function handleDec() {
-    if (!isAuthed) { setShowAuth(true); return }
     dec()
   }
 
   function handleInc() {
-    if (!isAuthed) { setShowAuth(true); return }
     inc()   // hook сам не даёт добавить при colorRequired
   }
 
   function handleAddToCart() {
-    if (!isAuthed) { setShowAuth(true); return }
     if (qty === 0) inc()
   }
 

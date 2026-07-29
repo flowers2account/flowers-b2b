@@ -234,8 +234,6 @@ export default function ProductPage() {
   }, [productId])
 
   function handleAddToCart() {
-    // Гость не может класть в корзину — сначала вход (как в каталоге/DetailPanel).
-    if (!isAuthed) { setShowAuth(true); return }
     doAddToCart()
   }
 

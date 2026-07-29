@@ -14,8 +14,8 @@
 Клиент жмёт «Оформить»
   │
   ▼
-POST /api/checkout                 → создаёт order (pending, payment_status=unpaid) + резерв 30 мин
-  │  возвращает order_id           ⚠️ уведомления НЕ шлёт
+POST /api/checkout                 → создаёт/находит клиента по телефону, создаёт order
+  │  возвращает order_id           → pending, payment_status=unpaid, резерв 30 мин, PIN в WhatsApp при необходимости
   ▼
 POST /api/payments/init            → OAuth-токен epay + INSERT payments(status=created) + конфиг виджета
   │  возвращает widgetConfig
@@ -48,6 +48,7 @@ POST /api/payments/postlink        ← банк зовёт сервер-в-се�
 
 ### init — детали
 - Проверяет, что заказ оплачиваем: `status ∈ {pending, reserved, confirmed}` И `payment_status='unpaid'`.
+- Быстрый checkout создаёт или находит клиента по телефону до инициализации оплаты; предварительный вход по PIN не обязателен.
 - `accountId` для виджета = телефон клиента (из `clients.phone`) или `guest_phone`.
 - `invoiceId` ← RPC `get_next_invoice_id()` (sequence), фоллбэк `Date.now().slice(-12)`.
 - `secret_hash` = `randomBytes(12).toString('hex')` (24 hex), сохраняется в `payments`, сверяется в postlink.

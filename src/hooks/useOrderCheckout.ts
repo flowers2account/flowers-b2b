@@ -29,7 +29,7 @@ interface CartItem {
 interface Options {
   items: CartItem[]
   phone: string | null
-  onAuthRequired: () => void   // показать модалку входа
+  onAuthRequired: () => void   // показать модалку входа или подсветить телефон
   onSuccess: () => void        // очистить корзину (или другое действие)
   /** Доп. поля в тело /api/checkout (доставка, получатель, способ оплаты) — для страницы чекаута */
   extra?: () => Record<string, unknown>

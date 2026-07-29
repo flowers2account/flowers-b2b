@@ -692,9 +692,8 @@ export default function ProductGrid({ products: initialProducts }: { products: P
   }, [])
 
   const requireAuth = useCallback((action: () => void) => {
-    if (isAuthed) action()
-    else { setPendingAction(() => action); setShowAuth(true) }
-  }, [isAuthed])
+    action()
+  }, [])
 
   const chips = useFilterChips()
 

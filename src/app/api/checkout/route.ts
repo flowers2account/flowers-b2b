@@ -4,9 +4,11 @@ import { normalizePhone } from '@/lib/phone'
 import { getCityDeliveryFee, computeDeliveryCost } from '@/lib/delivery'
 import { computeOrderTotal } from '@/lib/order-total'
 import { umnicoClient } from '@/lib/umnico/client'
-import { umnicoTemplates } from '@/lib/umnico/templates'
+import { authPinToClient } from '@/lib/umnico/templates'
 
 export const dynamic = 'force-dynamic'
+
+const genPin = () => String(Math.floor(100000 + Math.random() * 900000))
 
 export async function POST(req: NextRequest) {
   // Без service-role ключа admin-клиент деградирует до anon и RLS молча режет вставку
@@ -19,39 +21,73 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
 
   const { items, phone, name, delivery, recipient, payment_method } = await req.json()
-  const normalizedPhone = normalizePhone(phone)
   if (!items?.length) return NextResponse.json({ error: 'No items' }, { status: 400 })
   if (!phone) return NextResponse.json({ error: 'Phone is required' }, { status: 400 })
+  const normalizedPhone = normalizePhone(phone)
+  const phoneDigits = normalizedPhone.replace('+', '')
 
   // Find or create client by phone
   const { data: existingClient } = await supabase
     .from('clients')
-    .select('id, name, company_name')
-    .eq('phone', normalizedPhone)
+    .select('id, name, company_name, pin, auth_user_id, city')
+    .or(`phone.eq.${normalizedPhone},phone.eq.${phoneDigits}`)
     .maybeSingle()
 
   let clientId: string
   let clientName: string | null = null
   let companyName: string | null = null
+  let clientPin: string | null = null
+  let clientAuthUserId: string | null = null
+  const submittedName = typeof name === 'string' && name.trim() ? name.trim() : null
+  const submittedCity =
+    delivery?.method === 'delivery' && typeof delivery?.city === 'string' && delivery.city.trim()
+      ? delivery.city.trim()
+      : null
 
   if (existingClient) {
     clientId = existingClient.id
     clientName = existingClient.name
     companyName = (existingClient as any).company_name ?? null
-    if (name) {
-      await supabase.from('clients').update({ name }).eq('id', clientId)
-      clientName = name
+    clientPin = (existingClient as any).pin ?? null
+    clientAuthUserId = (existingClient as any).auth_user_id ?? null
+    const updateData: Record<string, unknown> = {}
+    if (submittedName && submittedName !== clientName) {
+      updateData.name = submittedName
+      clientName = submittedName
+    }
+    if (submittedCity && !(existingClient as any).city) {
+      updateData.city = submittedCity
+    }
+    if (!clientPin) {
+      clientPin = genPin()
+      updateData.pin = clientPin
+    }
+    if (Object.keys(updateData).length > 0) {
+      await supabase.from('clients').update(updateData).eq('id', clientId)
     }
   } else {
+    clientPin = genPin()
     const { data: newClient, error: clientError } = await supabase
       .from('clients')
-      .insert({ phone: normalizedPhone, name: name ?? null })
-      .select('id')
+      .insert({ phone: normalizedPhone, name: submittedName, city: submittedCity, pin: clientPin })
+      .select('id, auth_user_id')
       .single()
     if (!newClient) return NextResponse.json({ error: 'Failed to create client', detail: clientError?.message }, { status: 500 })
     clientId = newClient.id
-    clientName = name ?? null
+    clientName = submittedName
+    clientAuthUserId = (newClient as any).auth_user_id ?? null
   }
+
+  await ensureClientAuthUser({
+    supabase,
+    clientId,
+    phone: normalizedPhone,
+    phoneDigits,
+    pin: clientPin,
+    name: clientName,
+    companyName,
+    existingAuthUserId: clientAuthUserId,
+  })
 
   const now = new Date().toISOString()
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
@@ -222,7 +258,80 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Уведомления НЕ отправляются здесь — только после подтверждения оплаты в /api/payments/postlink
+  // PIN отправляем после успешного создания заказа: оформление не блокируется входом.
+  let pinDelivered = false
+  if (clientPin) {
+    try {
+      if (await umnicoClient.checkContact(phoneDigits)) {
+        pinDelivered = await umnicoClient.sendMessage(phoneDigits, authPinToClient(clientName || '', clientPin))
+      }
+    } catch (err) {
+      console.error('[checkout] pin send failed:', err instanceof Error ? err.message : err)
+    }
+  }
 
-  return NextResponse.json({ success: true, order_id: orderId, expires_at })
+  // Уведомления по заказу НЕ отправляются здесь — только после подтверждения оплаты в /api/payments/postlink
+
+  return NextResponse.json({ success: true, order_id: orderId, expires_at, pin_delivered: pinDelivered })
+}
+
+async function ensureClientAuthUser(opts: {
+  supabase: ReturnType<typeof createAdminClient>
+  clientId: string
+  phone: string
+  phoneDigits: string
+  pin: string | null
+  name: string | null
+  companyName: string | null
+  existingAuthUserId: string | null
+}): Promise<string | null> {
+  if (!opts.pin) return opts.existingAuthUserId
+
+  const email = `${opts.phoneDigits}@flowers.local`
+
+  if (opts.existingAuthUserId) {
+    const { error } = await opts.supabase.auth.admin.updateUserById(opts.existingAuthUserId, { password: opts.pin })
+    if (!error) return opts.existingAuthUserId
+    console.error('[checkout] update auth user pin failed:', error.message)
+  }
+
+  const { data: profile } = await opts.supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (profile?.id) {
+    const { error } = await opts.supabase.auth.admin.updateUserById(profile.id, { password: opts.pin })
+    if (error) console.error('[checkout] sync existing auth user pin failed:', error.message)
+    await opts.supabase.from('clients').update({ auth_user_id: profile.id }).eq('id', opts.clientId)
+    return profile.id as string
+  }
+
+  const { data: created, error: createError } = await opts.supabase.auth.admin.createUser({
+    email,
+    password: opts.pin,
+    email_confirm: true,
+    user_metadata: { phone: opts.phone },
+  })
+
+  if (createError || !created?.user) {
+    console.error('[checkout] create auth user failed:', createError?.message)
+    return null
+  }
+
+  const userId = created.user.id
+  await Promise.all([
+    opts.supabase.from('profiles').upsert({
+      id: userId,
+      email,
+      role: 'client',
+      full_name: opts.name || '',
+      phone: opts.phone,
+      company_name: opts.companyName || '',
+    }, { onConflict: 'id' }),
+    opts.supabase.from('clients').update({ auth_user_id: userId }).eq('id', opts.clientId),
+  ])
+
+  return userId
 }
