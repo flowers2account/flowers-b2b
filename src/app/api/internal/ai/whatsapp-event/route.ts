@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveConversation } from '@/lib/bot/conversation-store'
+import { forwardWhatsAppIncomingToAmo } from '@/lib/amo-chat/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,7 @@ type EventType =
   | 'reserve_outgoing'
   | 'complete_outgoing'
   | 'fail_outgoing'
+  | 'incoming_message'
 
 interface RequestBody {
   type?: unknown
@@ -26,6 +28,10 @@ interface RequestBody {
   takeoverReason?: unknown
   source?: unknown
   error?: unknown
+  text?: unknown
+  timestamp?: unknown
+  contactName?: unknown
+  traceId?: unknown
 }
 
 export async function POST(req: NextRequest) {
@@ -95,6 +101,29 @@ async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
       })
     }
     return { status: 'ok', conversationId: conversation.id, aiEnabled: false, takeoverStatus: 'human' }
+  }
+
+  if (body.type === 'incoming_message') {
+    if (!body.chatJid) throw new HttpError(400, 'chatJid is required')
+    if (!body.messageId) throw new HttpError(400, 'messageId is required')
+    if (!body.text) throw new HttpError(400, 'text is required')
+
+    const result = await forwardWhatsAppIncomingToAmo({
+      chatJid: body.chatJid,
+      phone: body.phone,
+      conversationId: body.conversationId,
+      messageId: body.messageId,
+      text: body.text,
+      timestamp: body.timestamp,
+      contactName: body.contactName,
+      traceId: body.traceId,
+    })
+
+    return {
+      status: result.status,
+      conversationId: result.conversationId,
+      reason: result.reason,
+    }
   }
 
   if (body.type === 'set_ai_enabled') {
@@ -179,6 +208,10 @@ interface ParsedBody {
   takeoverReason?: string
   source: 'gateway' | 'human' | 'ai'
   error?: string
+  text?: string
+  timestamp?: string
+  contactName?: string
+  traceId?: string
 }
 
 function parseBody(body: RequestBody): ParsedBody {
@@ -192,6 +225,10 @@ function parseBody(body: RequestBody): ParsedBody {
   const idempotencyKey = readOptionalString(body.idempotencyKey)
   const takeoverReason = readOptionalString(body.takeoverReason)
   const error = readOptionalString(body.error)
+  const text = readOptionalString(body.text)
+  const timestamp = readOptionalString(body.timestamp)
+  const contactName = readOptionalString(body.contactName)
+  const traceId = readOptionalString(body.traceId)
   const source = parseSource(body.source)
   const aiEnabled = typeof body.aiEnabled === 'boolean' ? body.aiEnabled : undefined
 
@@ -199,7 +236,22 @@ function parseBody(body: RequestBody): ParsedBody {
     throw new HttpError(400, 'chatJid, phone or conversationId is required')
   }
 
-  return { type, chatJid, phone, conversationId, messageId, idempotencyKey, aiEnabled, takeoverReason, source, error }
+  return {
+    type,
+    chatJid,
+    phone,
+    conversationId,
+    messageId,
+    idempotencyKey,
+    aiEnabled,
+    takeoverReason,
+    source,
+    error,
+    text,
+    timestamp,
+    contactName,
+    traceId,
+  }
 }
 
 function isEventType(value: string): value is EventType {
@@ -210,6 +262,7 @@ function isEventType(value: string): value is EventType {
     'reserve_outgoing',
     'complete_outgoing',
     'fail_outgoing',
+    'incoming_message',
   ].includes(value)
 }
 

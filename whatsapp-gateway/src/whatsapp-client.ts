@@ -126,17 +126,20 @@ export class WhatsAppClient {
   }
 
   async sendTextMessageWithIdempotency(input: {
+    chatJid?: string
     phone: string
     text: string
     idempotencyKey: string
+    source?: MessageSource
   }): Promise<SendResult & { duplicate: boolean; status?: string }> {
-    const jid = phoneToJid(input.phone)
-    const phone = jidToPhone(jid)
+    const jid = input.chatJid ?? phoneToJid(input.phone)
+    const phone = jidToOptionalPhone(jid) ?? input.phone
+    const source = input.source ?? 'gateway'
     const reservation = await this.mainProject.reserveOutgoing({
       idempotencyKey: input.idempotencyKey,
       chatJid: jid,
       phone,
-      source: 'gateway',
+      source,
     })
 
     if (!reservation.reserved) {
@@ -148,7 +151,7 @@ export class WhatsAppClient {
     }
 
     try {
-      const result = await this.sendTextMessageToJid(jid, input.text, phone, 'gateway')
+      const result = await this.sendTextMessageToJid(jid, input.text, phone, source)
       await this.mainProject.completeOutgoing({ idempotencyKey: input.idempotencyKey, messageId: result.messageId })
       return { ...result, duplicate: false, status: 'sent' }
     } catch (error) {
@@ -289,6 +292,17 @@ export class WhatsAppClient {
       if (state?.conversationId) incoming.conversationId = state.conversationId
       incoming.aiEnabled = state?.aiEnabled ?? true
       incoming.humanTakeover = incoming.aiEnabled === false || state?.takeoverStatus === 'human'
+
+      void this.mainProject.recordIncomingMessage({
+        chatJid: incoming.chatJid,
+        phone: incoming.phone,
+        conversationId: incoming.conversationId,
+        messageId: incoming.messageId,
+        text: incoming.text,
+        timestamp: incoming.timestamp,
+        contactName: incoming.contactName,
+        traceId: incoming.traceId,
+      })
 
       if (incoming.humanTakeover) {
         this.logger.info(

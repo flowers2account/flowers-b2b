@@ -118,6 +118,33 @@ export class MainProjectClient {
     }
   }
 
+  async recordIncomingMessage(input: {
+    chatJid: string
+    phone?: string
+    conversationId?: string
+    messageId: string
+    text: string
+    timestamp: string
+    contactName?: string
+    traceId?: string
+  }): Promise<void> {
+    await this.postEvent(
+      {
+        type: 'incoming_message',
+        chatJid: input.chatJid,
+        phone: input.phone,
+        conversationId: input.conversationId,
+        messageId: input.messageId,
+        text: input.text,
+        timestamp: input.timestamp,
+        contactName: input.contactName,
+        traceId: input.traceId,
+        source: 'human',
+      },
+      input.traceId,
+    )
+  }
+
   async reserveOutgoing(input: {
     idempotencyKey: string
     chatJid: string

@@ -5,9 +5,11 @@ import type { AppLogger } from './logger.js'
 import type { WhatsAppClient } from './whatsapp-client.js'
 
 interface SendMessageBody {
+  chatJid?: unknown
   phone?: unknown
   text?: unknown
   idempotency_key?: unknown
+  source?: unknown
 }
 
 interface DialogAiBody {
@@ -38,8 +40,12 @@ export class HttpServer {
     app.post('/messages/send', this.requireApiKey.bind(this), async (req: Request, res: Response) => {
       const body = req.body as SendMessageBody
 
-      if (typeof body.phone !== 'string' || typeof body.text !== 'string' || typeof body.idempotency_key !== 'string') {
-        res.status(400).json({ error: 'phone, text and idempotency_key are required strings' })
+      const chatJid = typeof body.chatJid === 'string' && body.chatJid.trim() ? body.chatJid.trim() : undefined
+      const phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim() : undefined
+      const source = body.source === 'human' || body.source === 'ai' || body.source === 'gateway' ? body.source : 'gateway'
+
+      if ((!chatJid && !phone) || typeof body.text !== 'string' || typeof body.idempotency_key !== 'string') {
+        res.status(400).json({ error: 'chatJid or phone, text and idempotency_key are required' })
         return
       }
 
@@ -50,9 +56,11 @@ export class HttpServer {
 
       try {
         const result = await this.whatsapp.sendTextMessageWithIdempotency({
-          phone: body.phone,
+          chatJid,
+          phone: phone ?? chatJid ?? '',
           text: body.text,
           idempotencyKey: body.idempotency_key,
+          source,
         })
         res.json({ status: result.status ?? 'sent', messageId: result.messageId, duplicate: result.duplicate })
       } catch (error) {
