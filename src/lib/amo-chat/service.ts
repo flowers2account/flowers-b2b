@@ -14,6 +14,12 @@ import {
 } from '@/lib/amo'
 import { AmoChatClient } from './client'
 import { getAmoChatConfig } from './config'
+import {
+  parseAmoChatWebhookMessage,
+  type AmoChatWebhookMessage,
+} from './webhook-parser'
+
+export { parseAmoChatWebhookMessage }
 
 const MAX_TEXT_LENGTH = 4000
 const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:3025/messages/send'
@@ -27,16 +33,6 @@ export interface WhatsAppIncomingForAmo {
   timestamp?: string
   contactName?: string
   traceId?: string
-}
-
-export interface AmoChatWebhookMessage {
-  amoScopeId: string
-  amoChatId?: string
-  amoConversationId?: string
-  amoMessageId: string
-  receiverPhone?: string
-  text: string
-  timestampMs: number
 }
 
 interface AmoChatLink {
@@ -112,11 +108,17 @@ export async function handleAmoManagerWebhook(input: AmoChatWebhookMessage): Pro
   if (!text) return { status: 'ignored', reason: 'empty_text' }
   if (text.length > MAX_TEXT_LENGTH) return { status: 'ignored', reason: 'text_too_long' }
 
-  const link = await findAmoChatLink({
+  let link = await findAmoChatLink({
     amoChatId: input.amoChatId,
     amoConversationId: input.amoConversationId,
     phone: input.receiverPhone,
   })
+  if (!link && input.amoConversationClientId && input.amoConversationClientId !== input.amoConversationId) {
+    link = await findAmoChatLink({
+      amoConversationId: input.amoConversationClientId,
+      phone: input.receiverPhone,
+    })
+  }
   if (!link?.whatsapp_chat_jid && !link?.phone && !input.receiverPhone) {
     return { status: 'ignored', reason: 'whatsapp_target_missing' }
   }
@@ -169,35 +171,6 @@ export async function handleAmoManagerWebhook(input: AmoChatWebhookMessage): Pro
   }
 
   return { status: 'sent', conversationId }
-}
-
-export function parseAmoChatWebhookMessage(scopeId: string, body: unknown): AmoChatWebhookMessage | null {
-  const root = readObject(body)
-  const message = readObject(root?.message)
-  const payloadMessage = readObject(message?.message)
-  const type = typeof payloadMessage?.type === 'string' ? payloadMessage.type : ''
-  const text = typeof payloadMessage?.text === 'string' ? payloadMessage.text.trim() : ''
-  const id = typeof payloadMessage?.id === 'string' ? payloadMessage.id : ''
-
-  if (type !== 'text' || !text || !id) return null
-
-  const msecTimestamp = Number(message?.msec_timestamp)
-  const timestamp = Number(message?.timestamp)
-  const timestampMs = Number.isFinite(msecTimestamp) && msecTimestamp > 0
-    ? Math.trunc(msecTimestamp)
-    : Number.isFinite(timestamp) && timestamp > 0
-      ? Math.trunc(timestamp * 1000)
-      : Date.now()
-
-  return {
-    amoScopeId: scopeId,
-    amoChatId: readString(readObject(message?.conversation)?.id),
-    amoConversationId: readString(readObject(message?.conversation)?.client_id),
-    amoMessageId: id,
-    receiverPhone: normalizeDigits(readString(readObject(message?.receiver)?.phone)),
-    text,
-    timestampMs,
-  }
 }
 
 async function resolveWhatsAppConversation(input: WhatsAppIncomingForAmo): Promise<{
@@ -459,18 +432,8 @@ function normalizePhoneForAmo(phone?: string | null): string | undefined {
   return normalizePhoneAmo(phone)[0]
 }
 
-function normalizeDigits(phone?: string): string | undefined {
-  if (!phone) return undefined
-  const digits = phone.replace(/\D/g, '')
-  return digits || undefined
-}
-
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function readObject(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' ? value as Record<string, unknown> : null
 }
 
 function isUuid(value: string): boolean {
