@@ -41,6 +41,82 @@ jobs:
           gzip -t static.tar.gz
           gzip -t public.tar.gz
 
+          CHECK_DIR="$(mktemp -d)"
+          tar -xzf deploy.tar.gz -C "$CHECK_DIR"
+          mkdir -p "$CHECK_DIR/.next"
+          tar -xzf static.tar.gz -C "$CHECK_DIR/.next"
+          tar -xzf public.tar.gz -C "$CHECK_DIR"
+
+          cd "$CHECK_DIR"
+          test -f server.js
+          test -d .next/server
+          test -d .next/static
+          test -d public
+          find .next/static -type f | grep -q '\.css$'
+
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          root = os.getcwd()
+          patterns = {
+              "css": [
+                  re.compile(r"/_next/static/[^\"'\s<>]+\.css"),
+                  re.compile(r"(?<!/_next/)static/[^\"'\s<>]+\.css"),
+              ],
+              "js": [
+                  re.compile(r"/_next/static/[^\"'\s<>]+\.js"),
+                  re.compile(r"(?<!/_next/)static/[^\"'\s<>]+\.js"),
+              ],
+          }
+          missing = []
+
+          def should_scan(path):
+              rel = os.path.relpath(path, root).replace(os.sep, "/")
+              name = os.path.basename(path)
+              ext = os.path.splitext(name)[1]
+              if "/chunks/" in rel:
+                  return False
+              if ext in {".json", ".html", ".rsc"}:
+                  return True
+              return "manifest" in name and ext == ".js"
+
+          def normalize(asset):
+              if asset.startswith("/_next/static/"):
+                  return os.path.join(root, ".next", asset[len("/_next/"):])
+              if asset.startswith("static/"):
+                  return os.path.join(root, ".next", asset)
+              return None
+
+          for scan_root in [os.path.join(root, ".next"), os.path.join(root, ".next", "server")]:
+              for current_root, _, files in os.walk(scan_root):
+                  for name in files:
+                      path = os.path.join(current_root, name)
+                      if not should_scan(path):
+                          continue
+                      try:
+                          with open(path, "r", encoding="utf-8", errors="ignore") as file:
+                              data = file.read()
+                      except OSError:
+                          continue
+
+                      for kind, kind_patterns in patterns.items():
+                          for pattern in kind_patterns:
+                              for asset in pattern.findall(data):
+                                  local = normalize(asset)
+                                  if local and not os.path.isfile(local):
+                                      missing.append((kind, asset, local, os.path.relpath(path, root)))
+
+          if missing:
+              for kind, asset, local, source in missing[:50]:
+                  print(f"Missing {kind} asset: {asset} -> {local} (referenced by {source})", file=sys.stderr)
+              print(f"Missing asset count: {len(missing)}", file=sys.stderr)
+              sys.exit(1)
+
+          print("ARCHIVE_ASSET_VALIDATION_OK")
+          PY
+
       - name: Upload to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -129,31 +205,57 @@ jobs:
             import sys
 
             root = os.getcwd()
-            server_dir = os.path.join(root, ".next", "server")
             patterns = {
-                "css": re.compile(r"/_next/static/[^\"'\s<>]+\.css"),
-                "js": re.compile(r"/_next/static/[^\"'\s<>]+\.js"),
+                "css": [
+                    re.compile(r"/_next/static/[^\"'\s<>]+\.css"),
+                    re.compile(r"(?<!/_next/)static/[^\"'\s<>]+\.css"),
+                ],
+                "js": [
+                    re.compile(r"/_next/static/[^\"'\s<>]+\.js"),
+                    re.compile(r"(?<!/_next/)static/[^\"'\s<>]+\.js"),
+                ],
             }
             missing = []
 
-            for current_root, _, files in os.walk(server_dir):
-                for name in files:
-                    path = os.path.join(current_root, name)
-                    try:
-                        with open(path, "r", encoding="utf-8", errors="ignore") as file:
-                            data = file.read()
-                    except OSError:
-                        continue
+            def should_scan(path):
+                rel = os.path.relpath(path, root).replace(os.sep, "/")
+                name = os.path.basename(path)
+                ext = os.path.splitext(name)[1]
+                if "/chunks/" in rel:
+                    return False
+                if ext in {".json", ".html", ".rsc"}:
+                    return True
+                return "manifest" in name and ext == ".js"
 
-                    for kind, pattern in patterns.items():
-                        for asset in pattern.findall(data):
-                            local = os.path.join(root, ".next" + asset[len("/_next"):])
-                            if not os.path.isfile(local):
-                                missing.append((kind, asset, local))
+            def normalize(asset):
+                if asset.startswith("/_next/static/"):
+                    return os.path.join(root, ".next", asset[len("/_next/"):])
+                if asset.startswith("static/"):
+                    return os.path.join(root, ".next", asset)
+                return None
+
+            for scan_root in [os.path.join(root, ".next"), os.path.join(root, ".next", "server")]:
+                for current_root, _, files in os.walk(scan_root):
+                    for name in files:
+                        path = os.path.join(current_root, name)
+                        if not should_scan(path):
+                            continue
+                        try:
+                            with open(path, "r", encoding="utf-8", errors="ignore") as file:
+                                data = file.read()
+                        except OSError:
+                            continue
+
+                        for kind, kind_patterns in patterns.items():
+                            for pattern in kind_patterns:
+                                for asset in pattern.findall(data):
+                                    local = normalize(asset)
+                                    if local and not os.path.isfile(local):
+                                        missing.append((kind, asset, local, os.path.relpath(path, root)))
 
             if missing:
-                for kind, asset, local in missing[:50]:
-                    print(f"Missing {kind} asset: {asset} -> {local}", file=sys.stderr)
+                for kind, asset, local, source in missing[:50]:
+                    print(f"Missing {kind} asset: {asset} -> {local} (referenced by {source})", file=sys.stderr)
                 print(f"Missing asset count: {len(missing)}", file=sys.stderr)
                 sys.exit(1)
 
