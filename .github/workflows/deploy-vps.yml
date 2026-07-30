@@ -27,16 +27,19 @@ jobs:
           NEXT_PUBLIC_EPAY_ENV: ${{ secrets.NEXT_PUBLIC_EPAY_ENV }}
           NEXT_PUBLIC_PAYMENTS_MODE: ${{ secrets.NEXT_PUBLIC_PAYMENTS_MODE }}
           NEXT_PUBLIC_SITE_URL: https://uralskflowers.kz
-          # Оплата «По счёту» (для юр.лиц) включена — реквизиты+счёт+QR готовы.
           NEXT_PUBLIC_LEGAL_PAYMENT_ENABLED: 'true'
-          # Боевой QR Halyk OnlineDuken (активирован банком 30.06.2026): prod = public.onlinebank.kz
           NEXT_PUBLIC_HALYK_QR_ENV: 'prod'
 
       - name: Package artifacts
         run: |
+          set -euo pipefail
           tar -czf deploy.tar.gz -C .next/standalone .
           tar -czf static.tar.gz -C .next static
           tar -czf public.tar.gz -C . public
+          cp package-lock.json package-lock.release.json
+          gzip -t deploy.tar.gz
+          gzip -t static.tar.gz
+          gzip -t public.tar.gz
 
       - name: Upload to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -44,29 +47,138 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "deploy.tar.gz,static.tar.gz,public.tar.gz"
-          target: /tmp/flowers-upload
+          source: "deploy.tar.gz,static.tar.gz,public.tar.gz,package-lock.release.json"
+          target: /tmp/flowers-upload/${{ github.sha }}
 
-      - name: Deploy on VPS
+      - name: Deploy release on VPS
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          RELEASE_ID: ${{ github.sha }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: RELEASE_ID
           script: |
-            set -e
-            cd /srv/flowers-b2b
+            set -euo pipefail
 
-            # Распаковываем поверх текущей версии
-            tar -xzf /tmp/flowers-upload/deploy.tar.gz -C /srv/flowers-b2b
-            mkdir -p /srv/flowers-b2b/.next
-            tar -xzf /tmp/flowers-upload/static.tar.gz -C /srv/flowers-b2b/.next
-            tar -xzf /tmp/flowers-upload/public.tar.gz -C /srv/flowers-b2b
+            APP=/srv/flowers-b2b
+            RELEASES="$APP/releases"
+            SHARED="$APP/shared"
+            CURRENT="$APP/current"
+            UPLOAD="/tmp/flowers-upload/$RELEASE_ID"
+            RELEASE="$RELEASES/$RELEASE_ID"
+            PREVIOUS=""
 
-            # Перезапускаем без downtime
-            pm2 reload flowers-b2b
+            test -n "$RELEASE_ID"
 
-            # Чистим tmp
-            rm -f /tmp/flowers-upload/*.tar.gz
+            if [ -L "$CURRENT" ]; then
+              PREVIOUS="$(readlink -f "$CURRENT")"
+            fi
 
-            echo "DEPLOYED $(date)"
+            rollback() {
+              echo "ROLLBACK_START"
+              if [ -n "$PREVIOUS" ] && [ -d "$PREVIOUS" ]; then
+                ln -sfn "$PREVIOUS" "$CURRENT"
+                sudo nginx -t && sudo systemctl reload nginx || true
+                pm2 reload flowers-b2b --update-env || true
+              fi
+              echo "ROLLBACK_DONE"
+              exit 1
+            }
+
+            trap rollback ERR
+
+            mkdir -p "$RELEASES" "$SHARED"
+            test -f "$SHARED/.env.production"
+
+            for archive in deploy.tar.gz static.tar.gz public.tar.gz; do
+              test -f "$UPLOAD/$archive"
+              gzip -t "$UPLOAD/$archive"
+            done
+
+            if [ -e "$RELEASE" ]; then
+              echo "Release already exists: $RELEASE" >&2
+              exit 1
+            fi
+
+            mkdir -p "$RELEASE"
+
+            tar -xzf "$UPLOAD/deploy.tar.gz" -C "$RELEASE"
+            mkdir -p "$RELEASE/.next"
+            tar -xzf "$UPLOAD/static.tar.gz" -C "$RELEASE/.next"
+            tar -xzf "$UPLOAD/public.tar.gz" -C "$RELEASE"
+            cp -p "$UPLOAD/package-lock.release.json" "$RELEASE/package-lock.json"
+            ln -sfn "$SHARED/.env.production" "$RELEASE/.env.production"
+            printf '%s\n' "$RELEASE_ID" > "$RELEASE/COMMIT_HASH"
+
+            cd "$RELEASE"
+            test -f server.js
+            test -f .next/BUILD_ID
+            test -d .next/server
+            test -d .next/static
+            test -d public
+            test -f package.json
+            test -f package-lock.json
+            test -L .env.production
+            find .next/static -type f | grep -q '\.css$'
+
+            python3 - <<'PY'
+            import os
+            import re
+            import sys
+
+            root = os.getcwd()
+            server_dir = os.path.join(root, ".next", "server")
+            patterns = {
+                "css": re.compile(r"/_next/static/[^\"'\s<>]+\.css"),
+                "js": re.compile(r"/_next/static/[^\"'\s<>]+\.js"),
+            }
+            missing = []
+
+            for current_root, _, files in os.walk(server_dir):
+                for name in files:
+                    path = os.path.join(current_root, name)
+                    try:
+                        with open(path, "r", encoding="utf-8", errors="ignore") as file:
+                            data = file.read()
+                    except OSError:
+                        continue
+
+                    for kind, pattern in patterns.items():
+                        for asset in pattern.findall(data):
+                            local = os.path.join(root, ".next" + asset[len("/_next"):])
+                            if not os.path.isfile(local):
+                                missing.append((kind, asset, local))
+
+            if missing:
+                for kind, asset, local in missing[:50]:
+                    print(f"Missing {kind} asset: {asset} -> {local}", file=sys.stderr)
+                print(f"Missing asset count: {len(missing)}", file=sys.stderr)
+                sys.exit(1)
+
+            print("ASSET_VALIDATION_OK")
+            PY
+
+            sudo nginx -t
+            ln -sfn "$RELEASE" "$CURRENT"
+            sudo systemctl reload nginx
+            pm2 reload flowers-b2b --update-env
+            sleep 3
+            pm2 status flowers-b2b | grep -q online
+
+            curl -k -fsS https://uralskflowers.kz/ -o /tmp/flowers-root.html
+            css_path="$(grep -oE '/_next/static/[A-Za-z0-9._~/-]+\.css' /tmp/flowers-root.html | head -1)"
+            test -n "$css_path"
+            curl -k -fsS "https://uralskflowers.kz$css_path" -o /tmp/flowers-root.css
+            curl -fsS "http://127.0.0.1:3000/api/products?limit=1" -o /tmp/flowers-products.json
+            curl -k -fsS https://uralskflowers.kz/robots.txt -o /tmp/flowers-robots.txt
+            curl -k -fsS https://uralskflowers.kz/sitemap.xml -o /tmp/flowers-sitemap.xml
+
+            pm2 save
+            trap - ERR
+
+            echo "DEPLOYED_RELEASE=$RELEASE"
+            echo "PREVIOUS_RELEASE=$PREVIOUS"
+            echo "CURRENT=$(readlink -f "$CURRENT")"
+            echo "BUILD_ID=$(cat "$CURRENT/.next/BUILD_ID")"
