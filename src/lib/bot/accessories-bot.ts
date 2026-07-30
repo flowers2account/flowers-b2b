@@ -7,6 +7,7 @@ import { CLIENT_FAQ } from '@/lib/bot/site-faq'
 import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
 import { CATEGORY_TREE, groupIdForLeafSlug, groupIdForSubcat, labelForSubcat, type Leaf } from '@/lib/category-tree'
 import { formatSynonymsForPrompt, normalizeQuery } from '@/lib/search-synonyms'
+import { classifyByRules, hasAccessoryRuleKeyword } from '@/lib/bot/rule-classifier'
 
 // Единая формулировка «как позвать менеджера» — правится здесь (Цвет). Используется в
 // готовых ответах и подставляется в промпты, чтобы везде звучало одинаково.
@@ -126,6 +127,8 @@ interface ClassifyResult {
   intent: Intent
   /** Для accessories — ключевые слова поиска; для smalltalk — подтип (greeting/thanks/farewell). */
   keywords: string[]
+  classificationSource?: 'rules' | 'gemini' | 'fallback'
+  reason?: 'ai_classification_timeout'
 }
 
 interface AccessoryRow {
@@ -165,7 +168,27 @@ export interface BotReply {
   // Версия B Такт 1.5: метаданные хода для анонимных лидов amoCRM.
   //   intent — классифицированный интент; helped — смог ли бот реально помочь
   //   (false при NOT_FOUND / вне зоны / NO_ANSWER → повод предложить оставить телефон).
-  meta?: { intent: 'smalltalk' | 'accessories' | 'site_help' | 'other'; helped: boolean }
+  meta?: {
+    intent: 'smalltalk' | 'accessories' | 'site_help' | 'other'
+    helped: boolean
+    classificationSource?: 'rules' | 'gemini' | 'fallback'
+    classificationReason?: 'ai_classification_timeout'
+    classificationDurationMs?: number
+  }
+}
+
+function buildClassifiedMeta(
+  cls: ClassifyResult,
+  helped: boolean,
+  classificationDurationMs: number,
+): NonNullable<BotReply['meta']> {
+  return {
+    intent: cls.intent,
+    helped,
+    classificationSource: cls.classificationSource ?? 'gemini',
+    classificationReason: cls.reason,
+    classificationDurationMs,
+  }
 }
 
 // Правило виджета: на ЯВНЫЙ вопрос про регистрацию/авторизацию отвечаем формой
@@ -212,6 +235,11 @@ function buildCardCaption(r: AccessoryRow): string {
 
 /** Шаг A: классификация — small talk / расходка / сайт / прочее + ключевые слова. */
 async function classifyMessage(message: string, history: DialogMessage[] = []): Promise<ClassifyResult> {
+  const ruleResult = classifyByRules(message)
+  if (ruleResult) {
+    return { ...ruleResult, classificationSource: 'rules' }
+  }
+
   const histBlock = formatHistory(history)
   const prompt = `Ты классификатор сообщений клиента оптовой базы цветов.
 Определи intent сообщения:
@@ -279,11 +307,19 @@ ${SEARCH_SYNONYMS}
 ${histBlock ? `\nИстория диалога (старые→новые):\n${histBlock}\n` : ''}
 Сообщение клиента: ${JSON.stringify(message)}`
 
-  const text = await callGemini(prompt, { json: true, temperature: 0.1 })
-  if (!text) return { intent: 'other', keywords: [] }
+  const text = await withClassificationTimeout(
+    () => callGemini(prompt, { json: true, temperature: 0.1, timingLabel: 'classification' }),
+    message,
+  )
+  if (!text) return { intent: 'other', keywords: [], classificationSource: 'gemini' }
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const parsed = JSON.parse(cleaned) as { intent?: unknown; keywords?: unknown }
+    const parsed = JSON.parse(cleaned) as {
+      intent?: unknown
+      keywords?: unknown
+      classificationSource?: unknown
+      reason?: unknown
+    }
     const intent: Intent =
       parsed.intent === 'smalltalk' || parsed.intent === 'accessories' || parsed.intent === 'site_help'
         ? parsed.intent
@@ -291,11 +327,61 @@ ${histBlock ? `\nИстория диалога (старые→новые):\n${h
     const keywords = Array.isArray(parsed.keywords)
       ? parsed.keywords.filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
       : []
-    return { intent, keywords }
+    const classificationSource =
+      parsed.classificationSource === 'fallback' || parsed.classificationSource === 'rules'
+        ? parsed.classificationSource
+        : 'gemini'
+    const reason = parsed.reason === 'ai_classification_timeout' ? parsed.reason : undefined
+    return { intent, keywords, classificationSource, reason }
   } catch (err) {
     console.error('[accessories-bot] classify parse failed:', err, text)
-    return { intent: 'other', keywords: [] }
+    return { intent: 'other', keywords: [], classificationSource: 'gemini' }
   }
+}
+
+async function withClassificationTimeout(
+  fn: () => Promise<string | null>,
+  message: string,
+): Promise<string | null> {
+  const timeoutMs = getClassificationTimeoutMs()
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      fn(),
+      new Promise<string | null>((resolve) => {
+        timeout = setTimeout(() => {
+          const fallback = hasAccessoryRuleKeyword(message)
+            ? { intent: 'accessories', keywords: [] }
+            : { intent: 'other', keywords: [] }
+          console.warn('[ai timing] classification timeout', {
+            classificationSource: 'fallback',
+            reason: 'ai_classification_timeout',
+            durationMs: timeoutMs,
+            intent: fallback.intent,
+            keywordCount: fallback.keywords.length,
+          })
+          resolve(JSON.stringify({
+            ...fallback,
+            classificationSource: 'fallback',
+            reason: 'ai_classification_timeout',
+          }))
+        }, timeoutMs)
+        timeout.unref?.()
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
+
+function getClassificationTimeoutMs(): number {
+  const raw = process.env.AI_CLASSIFICATION_TIMEOUT_MS
+  if (!raw) return 10000
+
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || parsed < 1000 || parsed > 60000) return 10000
+  return Math.trunc(parsed)
 }
 
 const SEARCH_SELECT = 'id, display_name, subcategory, price, unit, qty, pack_size, image_url, code_1c'
@@ -434,6 +520,7 @@ async function composeAnswer(
   history: DialogMessage[] = [],
   channel: Channel = 'whatsapp',
 ): Promise<string | null> {
+  const promptStartedAt = Date.now()
   // Ссылки: карточка товара (/product/{id}) и раздел каталога. Раздел — это group
   // (НЕ leaves и НЕ сырой subcategory): CatalogLayout открывает ?group=<id>.
   const context = rows.map((r) => {
@@ -455,9 +542,23 @@ ${CLIENT_FAQ}
 ${histBlock ? `\nИстория диалога (старые→новые):\n${histBlock}\n` : ''}
 Сообщение клиента: ${message}`
 
-  const text = await callGemini(prompt, { temperature: 0.2 })
+  console.log('[ai timing] prompt preparation', {
+    stage: 'compose',
+    durationMs: Date.now() - promptStartedAt,
+    productCount: rows.length,
+    historyCount: history.length,
+    promptChars: prompt.length,
+  })
+
+  const composeStartedAt = Date.now()
+  const text = await callGemini(prompt, { temperature: 0.2, timingLabel: 'compose' })
   if (!text) return null
   const answer = text.trim()
+  console.log('[ai timing] response composition', {
+    stage: 'compose',
+    durationMs: Date.now() - composeStartedAt,
+    outputTextLength: answer.length,
+  })
   if (!answer || answer === 'NO_ANSWER' || answer.includes('NO_ANSWER')) return null
   return answer
 }
@@ -514,6 +615,7 @@ export async function getAccessoriesReply(
     channel?: Channel
   },
 ): Promise<BotReply> {
+  const totalStartedAt = Date.now()
   if (!message || !message.trim()) return { text: null }
   const channel: Channel = ctx?.channel ?? 'whatsapp'
 
@@ -544,7 +646,17 @@ export async function getAccessoriesReply(
   // Защитный конвейер: любой неожиданный сбой (классификация/поиск/compose) НЕ должен
   // ронять ответ. На исключении — мягкий переспрос, а не «не получилось ответить».
   try {
+  const classifyStartedAt = Date.now()
   const cls = await classifyMessage(message, history)
+  const classificationDurationMs = Date.now() - classifyStartedAt
+  console.log('[ai timing] classification', {
+    classificationSource: cls.classificationSource ?? 'gemini',
+    reason: cls.reason,
+    durationMs: classificationDurationMs,
+    historyCount: history.length,
+    intent: cls.intent,
+    keywordCount: cls.keywords.length,
+  })
   console.log('[accessories-bot] classify:', JSON.stringify(cls))
 
   // Small talk — готовый шаблон, без Supabase и Gemini-compose.
@@ -563,15 +675,41 @@ export async function getAccessoriesReply(
     const useShort = repeat && Boolean(SMALLTALK_REPLIES_REPEAT[sub])
     const reply = useShort ? SMALLTALK_REPLIES_REPEAT[sub] : (SMALLTALK_REPLIES[sub] ?? SMALLTALK_REPLIES.greeting)
     console.log(`[accessories-bot] smalltalk: sub=${sub} repeat=${repeat} (${reason}) → ${useShort ? 'short' : 'full'}`)
-    return { text: reply, meta: { intent: 'smalltalk', helped: true } }
+    console.log('[ai diagnostic] accessories reply branch', {
+      intent: cls.intent,
+      classificationSource: cls.classificationSource ?? 'gemini',
+      classificationReason: cls.reason,
+      classificationDurationMs,
+      keywordCount: cls.keywords.length,
+      productCount: 0,
+      composeCalled: false,
+      composeReturnedNull: false,
+      replyKind: 'smalltalk',
+      normalizedOutputLength: reply.length,
+      businessFallbackReason: undefined,
+    })
+    return { text: reply, meta: buildClassifiedMeta(cls, true, classificationDurationMs) }
   }
 
   // Прочее (живые цветы/букеты/статус заказа/жалоба/эмоции). Виджет: спокойный увод к
   // менеджеру осмысленным текстом. WhatsApp: молчим — менеджер ведёт диалог сам.
   if (cls.intent === 'other') {
+    console.log('[ai diagnostic] accessories reply branch', {
+      intent: cls.intent,
+      classificationSource: cls.classificationSource ?? 'gemini',
+      classificationReason: cls.reason,
+      classificationDurationMs,
+      keywordCount: cls.keywords.length,
+      productCount: 0,
+      composeCalled: false,
+      composeReturnedNull: false,
+      replyKind: channel === 'widget' ? 'widget_other_reply' : 'business_fallback',
+      normalizedOutputLength: channel === 'widget' ? OTHER_WIDGET_REPLY.length : 0,
+      businessFallbackReason: channel === 'widget' ? undefined : 'intent_other_whatsapp_null_text',
+    })
     return {
       text: channel === 'widget' ? OTHER_WIDGET_REPLY : null,
-      meta: { intent: 'other', helped: false },
+      meta: buildClassifiedMeta(cls, false, classificationDurationMs),
     }
   }
 
@@ -579,7 +717,13 @@ export async function getAccessoriesReply(
   // Товары ищем только для accessories; для site_help список пустой (отвечаем по памятке).
   let rows: AccessoryRow[] = []
   if (cls.intent === 'accessories') {
+    const searchStartedAt = Date.now()
     rows = await searchAccessories(cls.keywords)
+    console.log('[ai timing] catalog search', {
+      durationMs: Date.now() - searchStartedAt,
+      keywordCount: cls.keywords.length,
+      productCount: rows.length,
+    })
     console.log(`[accessories-bot] search: ${rows.length} товаров по`, JSON.stringify(cls.keywords))
     if (rows.length === 0) {
       // Товаров нет — пробуем угадать раздел и предложить подборку.
@@ -592,17 +736,63 @@ export async function getAccessoriesReply(
           const text = channel === 'widget'
             ? `Точную позицию не нашёл, но посмотрите раздел «${leaf.label}» в каталоге. Что-то конкретное подсказать?`
             : CATEGORY_SUGGESTION(leaf.label, catalogUrlForGroup(groupId))
-          return { text, meta: { intent: 'accessories', helped: true } }
+          console.log('[ai diagnostic] accessories reply branch', {
+            intent: cls.intent,
+            classificationSource: cls.classificationSource ?? 'gemini',
+            classificationReason: cls.reason,
+            classificationDurationMs,
+            keywordCount: cls.keywords.length,
+            productCount: rows.length,
+            composeCalled: false,
+            composeReturnedNull: false,
+            replyKind: 'category_suggestion',
+            normalizedOutputLength: text.length,
+            businessFallbackReason: undefined,
+          })
+          return { text, meta: buildClassifiedMeta(cls, true, classificationDurationMs) }
         }
       }
       // И раздел не угадался — честно к менеджеру (бот не помог → можно предложить телефон).
       console.log('[accessories-bot] not found → контакт менеджера')
-      return { text: NOT_FOUND_REPLY, meta: { intent: 'accessories', helped: false } }
+      console.log('[ai diagnostic] accessories reply branch', {
+        intent: cls.intent,
+        classificationSource: cls.classificationSource ?? 'gemini',
+        classificationReason: cls.reason,
+        classificationDurationMs,
+        keywordCount: cls.keywords.length,
+        productCount: rows.length,
+        composeCalled: false,
+        composeReturnedNull: false,
+        replyKind: 'not_found_reply',
+        normalizedOutputLength: NOT_FOUND_REPLY.length,
+        businessFallbackReason: 'accessories_not_found',
+      })
+      return { text: NOT_FOUND_REPLY, meta: buildClassifiedMeta(cls, false, classificationDurationMs) }
     }
   }
 
   const answer = await composeAnswer(message, rows, history, channel)
   console.log(`[accessories-bot] compose (${cls.intent}, ${channel}):`, answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
+  console.log('[ai diagnostic] accessories reply branch', {
+    intent: cls.intent,
+    classificationSource: cls.classificationSource ?? 'gemini',
+    classificationReason: cls.reason,
+    classificationDurationMs,
+    keywordCount: cls.keywords.length,
+    productCount: rows.length,
+    composeCalled: true,
+    composeReturnedNull: answer == null,
+    replyKind: answer == null ? 'compose_null' : 'compose_text',
+    normalizedOutputLength: answer?.length ?? 0,
+    businessFallbackReason: answer == null ? 'compose_returned_null' : undefined,
+  })
+  console.log('[ai timing] accessories total', {
+    durationMs: Date.now() - totalStartedAt,
+    intent: cls.intent,
+    productCount: rows.length,
+    historyCount: history.length,
+    outputTextLength: answer?.length ?? 0,
+  })
 
   // Богатая карточка ПО УМОЛЧАНИЮ: в любом ответе про расходку с найденным товаром шлём
   // карточку к топ-1 релевантному товару (rows[0]); в тексте остальные перечислены как обычно.
@@ -627,7 +817,7 @@ export async function getAccessoriesReply(
     text: answer,
     products: products.length ? products : undefined,
     photo,
-    meta: { intent: cls.intent, helped: answer != null },
+    meta: buildClassifiedMeta(cls, answer != null, classificationDurationMs),
   }
   } catch (err) {
     console.error('[accessories-bot] pipeline failed:', err instanceof Error ? err.message : err)

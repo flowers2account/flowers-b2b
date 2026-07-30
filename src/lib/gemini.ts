@@ -11,6 +11,7 @@ interface CallOptions {
   /** responseMimeType: 'application/json' */
   json?: boolean
   temperature?: number
+  timingLabel?: string
 }
 
 /**
@@ -23,6 +24,7 @@ export async function callGemini(prompt: string, opts: CallOptions = {}): Promis
     console.error('[gemini] GOOGLE_GEMINI_API_KEY not set')
     return null
   }
+  const startedAt = Date.now()
   try {
     const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
       method: 'POST',
@@ -35,14 +37,35 @@ export async function callGemini(prompt: string, opts: CallOptions = {}): Promis
         },
       }),
     })
+    const httpRequestDurationMs = Date.now() - startedAt
     if (!res.ok) {
       console.error('[gemini] HTTP error:', res.status, await res.text().catch(() => ''))
       return null
     }
+    const parseStartedAt = Date.now()
     const data = await res.json()
+    const responseParsingDurationMs = Date.now() - parseStartedAt
     const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (opts.timingLabel) {
+      console.log('[ai timing] gemini', {
+        stage: opts.timingLabel,
+        model: MODEL,
+        httpRequestDurationMs,
+        responseParsingDurationMs,
+        promptChars: prompt.length,
+        outputTextLength: text?.length ?? 0,
+      })
+    }
     return text ?? null
   } catch (err) {
+    if (opts.timingLabel) {
+      console.error('[ai timing] gemini failed', {
+        stage: opts.timingLabel,
+        durationMs: Date.now() - startedAt,
+        promptChars: prompt.length,
+        error: (err as Error)?.message,
+      })
+    }
     console.error('[gemini] call failed:', (err as Error)?.message)
     return null
   }

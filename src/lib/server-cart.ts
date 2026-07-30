@@ -176,3 +176,17 @@ export async function replaceClientCart(sb: SupabaseClient, clientId: string, ra
 
   return getClientCart(sb, clientId)
 }
+
+export async function addClientCartItem(
+  sb: SupabaseClient,
+  clientId: string,
+  rawItem: unknown,
+) {
+  const current = await getClientCart(sb, clientId)
+  const nextItems = normalizeCartItems([
+    ...current.items,
+    rawItem,
+  ])
+
+  return replaceClientCart(sb, clientId, nextItems)
+}
