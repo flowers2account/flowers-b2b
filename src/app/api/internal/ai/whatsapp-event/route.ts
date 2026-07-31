@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveConversation } from '@/lib/bot/conversation-store'
 import { forwardWhatsAppIncomingToAmo, forwardWhatsAppManualOutgoingToAmo } from '@/lib/amo-chat/service'
+import { AmoChatApiError } from '@/lib/amo-chat/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,18 +61,26 @@ export async function POST(req: NextRequest) {
       idempotencyKeyPresent: Boolean(body.idempotencyKey),
     })
 
-    return NextResponse.json(result)
+    return NextResponse.json({ ok: true, ...result })
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 500
     const publicMessage = error instanceof HttpError ? error.publicMessage : 'internal error'
+    const stage = error instanceof HttpError ? error.stage : error instanceof AmoChatApiError ? error.stage : 'whatsapp_event'
 
     console.error('whatsapp event failed', {
       durationMs: Date.now() - startedAt,
       status,
-      error: error instanceof Error ? error.message : 'unknown error',
+      stage,
+      errorKind: error instanceof Error ? error.name : 'unknown',
+      bodyKind: error instanceof AmoChatApiError ? error.bodyKind : undefined,
     })
 
-    return NextResponse.json({ error: publicMessage }, { status })
+    return NextResponse.json({
+      ok: false,
+      stage,
+      status: error instanceof AmoChatApiError ? 502 : status,
+      error: error instanceof AmoChatApiError ? 'amo_api_error' : publicMessage,
+    }, { status: error instanceof AmoChatApiError ? 502 : status })
   }
 }
 
@@ -211,10 +220,11 @@ async function readJsonBody(req: NextRequest): Promise<RequestBody> {
   if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) {
     throw new HttpError(413, 'payload too large')
   }
+  if (!raw.trim()) throw new HttpError(400, 'invalid request body', 'request_body_empty')
   try {
     return JSON.parse(raw) as RequestBody
   } catch {
-    throw new HttpError(400, 'bad json')
+    throw new HttpError(400, 'invalid request body', 'request_body_invalid_json')
   }
 }
 
@@ -500,6 +510,7 @@ class HttpError extends Error {
   constructor(
     readonly status: number,
     readonly publicMessage: string,
+    readonly stage = 'whatsapp_event',
   ) {
     super(publicMessage)
   }

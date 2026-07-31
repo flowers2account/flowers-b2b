@@ -256,7 +256,18 @@ export class MainProjectClient {
         return null
       }
 
-      return (await response.json()) as Record<string, unknown>
+      const body = await response.text()
+      if (!body.trim()) return null
+      if (!(response.headers.get('content-type') ?? '').toLowerCase().includes('json')) return null
+      try {
+        return JSON.parse(body) as Record<string, unknown>
+      } catch {
+        this.logger.warn(
+          { traceId, durationMs: Date.now() - startedAt, eventType: payload.type },
+          'main project event response invalid json',
+        )
+        return null
+      }
     } catch (error) {
       this.logger.warn(
         {

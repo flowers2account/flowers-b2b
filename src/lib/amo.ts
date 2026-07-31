@@ -116,6 +116,20 @@ async function amoFetch(
   return res
 }
 
+async function readAmoJson<T>(res: Response): Promise<T | null> {
+  const body = await res.text()
+  if (!body.trim()) return null
+  const contentType = res.headers.get('content-type')?.toLowerCase() ?? ''
+  if (!contentType.includes('json')) {
+    throw new Error(`amoCRM ${res.status} non_json_response`)
+  }
+  try {
+    return JSON.parse(body) as T
+  } catch {
+    throw new Error(`amoCRM ${res.status} invalid_json_response`)
+  }
+}
+
 // ── Phone normalisation ───────────────────────────────────────────────────────
 
 export function normalizePhoneAmo(raw: string): string[] {
@@ -136,7 +150,7 @@ export async function findContactByPhone(phones: string[]): Promise<number | nul
   for (const phone of phones) {
     const res = await amoFetch(`/contacts?query=${encodeURIComponent(phone)}&limit=5`)
     if (res.status === 204) continue
-    const data = await res.json()
+    const data = await readAmoJson<{ _embedded?: { contacts?: Array<{ id: number }> } }>(res)
     const contacts = data?._embedded?.contacts ?? []
     for (const c of contacts) {
       if (!seen.has(c.id)) { seen.add(c.id); return c.id }
@@ -155,14 +169,14 @@ export async function findLeadByPhoneInPipeline(
   if (!contactId) return null
   const cRes = await amoFetch(`/contacts/${contactId}?with=leads`)
   if (cRes.status === 204) return null
-  const cData = await cRes.json()
+  const cData = await readAmoJson<{ _embedded?: { leads?: Array<{ id: number }> } }>(cRes)
   const leadIds: number[] = (cData?._embedded?.leads ?? [])
     .map((l: any) => l.id).filter((x: any) => Number.isFinite(x))
   if (!leadIds.length) return null
   const qs = leadIds.map((id) => `filter[id][]=${id}`).join('&')
   const lRes = await amoFetch(`/leads?${qs}&filter[pipeline_id]=${pipelineId}&limit=1`)
   if (lRes.status === 204) return null
-  const lData = await lRes.json()
+  const lData = await readAmoJson<{ _embedded?: { leads?: Array<{ id: number }> } }>(lRes)
   const lead = lData?._embedded?.leads?.[0]
   return lead?.id ? { leadId: lead.id, contactId } : null
 }
@@ -176,7 +190,7 @@ function looksLikePhone(s: string): boolean {
 export async function ensureContactName(contactId: number, realName: string): Promise<void> {
   if (!realName || looksLikePhone(realName)) return // нет смысла обновлять телефоном
   const res = await amoFetch(`/contacts/${contactId}`)
-  const data = await res.json()
+  const data = await readAmoJson<{ name?: string }>(res) ?? {}
   const current = (data.name ?? '').trim()
   if (current && !looksLikePhone(current)) return // уже есть нормальное имя — не перетираем
   await amoFetch(`/contacts/${contactId}`, {
@@ -199,7 +213,7 @@ export async function createContact(params: {
       }],
     }]),
   })
-  const data = await res.json()
+  const data = await readAmoJson<{ _embedded?: { contacts?: Array<{ id: number }> } }>(res)
   const id = data?._embedded?.contacts?.[0]?.id
   if (!id) throw new Error('amoCRM: createContact — no id returned')
   return id
@@ -248,7 +262,7 @@ export async function createLead(params: {
     method: 'POST',
     body: JSON.stringify([body]),
   })
-  const data = await res.json()
+  const data = await readAmoJson<{ _embedded?: { leads?: Array<{ id: number }> } }>(res)
   const id = data?._embedded?.leads?.[0]?.id
   if (!id) throw new Error('amoCRM: createLead — no id returned')
   return id
@@ -258,7 +272,7 @@ export async function createLead(params: {
 export async function getLead(leadId: number): Promise<any> {
   const res = await amoFetch(`/leads/${leadId}`)
   if (res.status === 204) return null
-  return res.json()
+  return readAmoJson<any>(res)
 }
 
 // Достать значение кастомного поля сделки по field_id (первое непустое), иначе null.

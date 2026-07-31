@@ -3,6 +3,7 @@ export interface AmoChatConfig {
   channelCode: string
   secretKey: string
   scopeId?: string
+  botId?: string
   baseUrl: string
 }
 
@@ -11,6 +12,7 @@ export function getAmoChatConfig(required: boolean): AmoChatConfig | null {
   const channelCode = readEnv('AMO_CHAT_CHANNEL_CODE')
   const secretKey = readEnv('AMO_CHAT_SECRET_KEY')
   const scopeId = readEnv('AMO_CHAT_SCOPE_ID')
+  const botId = readEnv('AMO_CHAT_BOT_ID')
   const baseUrl = readEnv('AMO_CHAT_BASE_URL') ?? 'https://amojo.amocrm.ru'
 
   if (!channelId || !channelCode || !secretKey) {
@@ -18,7 +20,7 @@ export function getAmoChatConfig(required: boolean): AmoChatConfig | null {
     throw new AmoChatConfigError('amo chat credentials are not configured')
   }
 
-  return { channelId, channelCode, secretKey, scopeId, baseUrl }
+  return { channelId, channelCode, secretKey, scopeId, botId, baseUrl }
 }
 
 export function getRequiredAmoChatConfig(): AmoChatConfig {

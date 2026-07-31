@@ -1,4 +1,5 @@
 import { signAmoChatRequest } from './signature'
+import { readHttpResponse, summarizeHttpError, type HttpBodyKind } from './http-response'
 
 export interface AmoChatClientConfig {
   baseUrl: string
@@ -23,12 +24,27 @@ export interface AmoChatOutgoingTextInput {
   messageId: string
   senderId: string
   senderName: string
+  senderRefId?: string
   receiverId: string
   receiverName: string
   phone?: string
   text: string
   timestampMs: number
   silent?: boolean
+}
+
+export class AmoChatApiError extends Error {
+  readonly status: number
+  readonly bodyKind: HttpBodyKind
+  readonly stage: 'amo_request' | 'amo_response_parse'
+
+  constructor(input: { status: number; bodyKind: HttpBodyKind; stage: 'amo_request' | 'amo_response_parse' }) {
+    super(summarizeHttpError(input))
+    this.name = 'AmoChatApiError'
+    this.status = input.status
+    this.bodyKind = input.bodyKind
+    this.stage = input.stage
+  }
 }
 
 export interface AmoChatSendResult {
@@ -83,12 +99,15 @@ export class AmoChatClient {
       body,
     })
 
+    const parsed = await readHttpResponse<AmoChatSendResponse>(response)
     if (!response.ok) {
-      const responseText = await response.text().catch(() => '')
-      throw new Error(`amo chats api ${response.status}: ${responseText.slice(0, 200)}`)
+      throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_request' })
+    }
+    if (parsed.bodyKind === 'invalid_json') {
+      throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_response_parse' })
     }
 
-    const data = await response.json().catch(() => null) as AmoChatSendResponse | null
+    const data = parsed.data
     const message = data?.new_message
     return {
       amoMessageId: typeof message?.msgid === 'string' ? message.msgid : undefined,
@@ -111,6 +130,7 @@ export class AmoChatClient {
         sender: {
           id: input.senderId,
           name: input.senderName,
+          ...(input.senderRefId ? { ref_id: input.senderRefId } : {}),
         },
         receiver: {
           id: input.receiverId,
@@ -136,12 +156,15 @@ export class AmoChatClient {
       body,
     })
 
+    const parsed = await readHttpResponse<AmoChatSendResponse>(response)
     if (!response.ok) {
-      const responseText = await response.text().catch(() => '')
-      throw new Error(`amo chats api ${response.status}: ${responseText.slice(0, 200)}`)
+      throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_request' })
+    }
+    if (parsed.bodyKind === 'invalid_json') {
+      throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_response_parse' })
     }
 
-    const data = await response.json().catch(() => null) as AmoChatSendResponse | null
+    const data = parsed.data
     const message = data?.new_message
     return {
       amoMessageId: typeof message?.msgid === 'string' ? message.msgid : undefined,

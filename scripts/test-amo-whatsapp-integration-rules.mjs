@@ -5,6 +5,8 @@ const service = await readFile('src/lib/amo-chat/service.ts', 'utf8')
 const eventRoute = await readFile('src/app/api/internal/ai/whatsapp-event/route.ts', 'utf8')
 const gateway = await readFile('whatsapp-gateway/src/whatsapp-client.ts', 'utf8')
 const mainProjectClient = await readFile('whatsapp-gateway/src/main-project-client.ts', 'utf8')
+const amoClient = await readFile('src/lib/amo-chat/client.ts', 'utf8')
+const config = await readFile('src/lib/amo-chat/config.ts', 'utf8')
 
 assert.match(
   service,
@@ -77,5 +79,10 @@ assert.match(
   /text\?: string/,
   'main project client must accept manual outgoing text',
 )
+
+assert.match(amoClient, /ref_id: input\.senderRefId/, 'outgoing amo message must identify one registered bot/manager')
+assert.match(config, /AMO_CHAT_BOT_ID/, 'registered amo bot id must be configured server-side')
+assert.match(service, /amo_chat_bot_id_missing/, 'manual import must fail safely until the real amo bot id is configured')
+assert.match(service, /dedupe_hit/, 'duplicate incoming messages must be logged and skipped')
 
 console.log('test-amo-whatsapp-integration-rules: ok')
