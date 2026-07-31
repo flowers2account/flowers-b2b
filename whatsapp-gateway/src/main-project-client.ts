@@ -60,6 +60,9 @@ export class MainProjectClient {
     chatJid: string
     phone?: string
     messageId?: string
+    text?: string
+    timestamp?: string
+    contactName?: string
     traceId?: string
   }): Promise<DialogState | null> {
     const data = await this.postEvent(
@@ -68,6 +71,9 @@ export class MainProjectClient {
         chatJid: input.chatJid,
         phone: input.phone,
         messageId: input.messageId,
+        text: input.text,
+        timestamp: input.timestamp,
+        contactName: input.contactName,
         source: 'human',
         takeoverReason: 'manual_outgoing',
       },

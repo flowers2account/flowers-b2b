@@ -444,10 +444,14 @@ export class WhatsAppClient {
       return
     }
 
+    const text = extractText(rawMessage)
     const state = await this.mainProject.recordManualOutgoing({
       chatJid: remoteJid,
       phone: jidToOptionalPhone(remoteJid),
       messageId,
+      text: text ?? undefined,
+      timestamp: messageTimestampToIso(rawMessage.messageTimestamp),
+      contactName: rawMessage.pushName ?? undefined,
       traceId: meta.traceId,
     })
 

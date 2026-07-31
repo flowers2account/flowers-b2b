@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveConversation } from '@/lib/bot/conversation-store'
-import { forwardWhatsAppIncomingToAmo } from '@/lib/amo-chat/service'
+import { forwardWhatsAppIncomingToAmo, forwardWhatsAppManualOutgoingToAmo } from '@/lib/amo-chat/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,7 +79,7 @@ async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
   if (body.type === 'manual_outgoing') {
     if (body.messageId) {
       const knownOutgoing = await findOutgoingByMessageId(body.messageId)
-      if (knownOutgoing && knownOutgoing.source !== 'human') {
+      if (knownOutgoing) {
         return {
           status: 'ignored',
           ignored: true,
@@ -100,7 +100,28 @@ async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
         whatsapp_chat_jid: body.chatJid,
       })
     }
-    return { status: 'ok', conversationId: conversation.id, aiEnabled: false, takeoverStatus: 'human' }
+
+    const amoResult = body.chatJid && body.messageId && body.text
+      ? await forwardWhatsAppManualOutgoingToAmo({
+        chatJid: body.chatJid,
+        phone: body.phone,
+        conversationId: conversation.id,
+        messageId: body.messageId,
+        text: body.text,
+        timestamp: body.timestamp,
+        contactName: body.contactName,
+        traceId: body.traceId,
+      })
+      : { status: 'skipped', reason: 'empty_or_unsupported_text' }
+
+    return {
+      status: 'ok',
+      conversationId: conversation.id,
+      aiEnabled: false,
+      takeoverStatus: 'human',
+      amoStatus: amoResult.status,
+      amoReason: amoResult.reason,
+    }
   }
 
   if (body.type === 'incoming_message') {

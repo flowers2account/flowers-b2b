@@ -3,9 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveConversation } from '@/lib/bot/conversation-store'
 import {
   AMO_INQUIRY_PIPELINE_ID,
-  AMO_INQUIRY_STATUS_NEW,
-  createContact,
-  createLead,
   ensureContactName,
   findContactByPhone,
   findLeadByPhoneInPipeline,
@@ -25,6 +22,17 @@ const MAX_TEXT_LENGTH = 4000
 const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:3025/messages/send'
 
 export interface WhatsAppIncomingForAmo {
+  chatJid: string
+  phone?: string
+  conversationId?: string
+  messageId: string
+  text: string
+  timestamp?: string
+  contactName?: string
+  traceId?: string
+}
+
+export interface WhatsAppManualOutgoingForAmo {
   chatJid: string
   phone?: string
   conversationId?: string
@@ -72,10 +80,10 @@ export async function forwardWhatsAppIncomingToAmo(input: WhatsAppIncomingForAmo
   })
 
   const dedupeKey = `whatsapp:${input.messageId}`
-  const reserved = await reserveDedupe(dedupeKey, conversationId, link.id)
+  const reserved = await reserveDedupe('whatsapp', dedupeKey, conversationId, link.id)
   if (!reserved) return { status: 'duplicate', conversationId }
 
-  const externalConversationId = link.amo_conversation_id ?? externalConversationIdFor(input.chatJid)
+  const externalConversationId = externalConversationIdFor(input.chatJid)
   const senderId = externalSenderIdFor(input.chatJid)
   const client = new AmoChatClient({ baseUrl: config.baseUrl, secretKey: config.secretKey })
   const result = await client.sendIncomingText({
@@ -95,6 +103,71 @@ export async function forwardWhatsAppIncomingToAmo(input: WhatsAppIncomingForAmo
     last_whatsapp_message_id: input.messageId,
     last_amo_message_id: result.amoMessageId ?? null,
   })
+
+  return { status: 'sent', conversationId }
+}
+
+export async function forwardWhatsAppManualOutgoingToAmo(input: WhatsAppManualOutgoingForAmo): Promise<{
+  status: 'sent' | 'duplicate' | 'skipped'
+  conversationId?: string
+  reason?: string
+}> {
+  const config = getAmoChatConfig(false)
+  if (!config?.scopeId) {
+    return { status: 'skipped', reason: 'amo_chat_scope_missing' }
+  }
+
+  const text = input.text.trim()
+  if (!text) return { status: 'skipped', reason: 'empty_text' }
+  if (text.length > MAX_TEXT_LENGTH) return { status: 'skipped', reason: 'text_too_long' }
+
+  const conversation = await resolveWhatsAppConversation(input)
+  const conversationId = conversation.id
+  const link = await findAmoChatLink({
+    whatsappChatJid: input.chatJid,
+    phone: input.phone ?? conversation.phone ?? undefined,
+  })
+
+  if (!link?.id) {
+    return { status: 'skipped', conversationId, reason: 'amo_chat_link_missing' }
+  }
+
+  const dedupeKey = `whatsapp_manual:${input.messageId}`
+  const reserved = await reserveDedupe('whatsapp_manual_outgoing', dedupeKey, conversationId, link.id)
+  if (!reserved) return { status: 'duplicate', conversationId }
+
+  const phone = normalizePhoneForAmo(input.phone ?? conversation.phone ?? link.phone ?? undefined)
+  const client = new AmoChatClient({ baseUrl: config.baseUrl, secretKey: config.secretKey })
+  const result = await client.sendOutgoingText({
+    scopeId: config.scopeId,
+    conversationId: externalConversationIdFor(input.chatJid),
+    messageId: externalMessageIdFor(input.messageId),
+    senderId: 'wa-manager',
+    senderName: 'WhatsApp manager',
+    receiverId: externalSenderIdFor(input.chatJid),
+    receiverName: input.contactName ?? input.phone ?? link.phone ?? 'WhatsApp client',
+    phone,
+    text,
+    timestampMs: input.timestamp ? Date.parse(input.timestamp) || Date.now() : Date.now(),
+    silent: true,
+  })
+
+  await updateAmoChatLink(link.id, {
+    amo_scope_id: config.scopeId,
+    amo_conversation_id: result.amoConversationId ?? link.amo_conversation_id ?? null,
+    last_whatsapp_message_id: input.messageId,
+    last_amo_message_id: result.amoMessageId ?? null,
+  })
+
+  if (conversationId) {
+    await createAdminClient().from('messages').insert({
+      conversation_id: conversationId,
+      role: 'manager',
+      text,
+      amojo_msg_id: result.amoMessageId ?? null,
+      created_at: new Date(input.timestamp ? Date.parse(input.timestamp) || Date.now() : Date.now()).toISOString(),
+    })
+  }
 
   return { status: 'sent', conversationId }
 }
@@ -124,7 +197,7 @@ export async function handleAmoManagerWebhook(input: AmoChatWebhookMessage): Pro
   }
 
   const dedupeKey = `amo:${input.amoMessageId}`
-  const reserved = await reserveDedupe(dedupeKey, link?.conversation_id ?? undefined, link?.id)
+  const reserved = await reserveDedupe('amo', dedupeKey, link?.conversation_id ?? undefined, link?.id)
   if (!reserved) return { status: 'duplicate', conversationId: link?.conversation_id ?? undefined }
 
   const conversationId = await ensureConversationForAmoWebhook({
@@ -227,9 +300,10 @@ async function ensureAmoChatLink(input: {
     .eq('whatsapp_chat_jid', input.chatJid)
     .maybeSingle()
 
+  const phone = phoneCandidate(input.phone ?? existing?.phone ?? undefined)
   const amoIds = await ensureAmoContactAndLead({
     conversationId: input.conversationId,
-    phone: input.phone,
+    phone,
     contactName: input.contactName,
     existingContactId: existing?.amo_contact_id ?? null,
     existingLeadId: existing?.amo_lead_id ?? null,
@@ -237,10 +311,10 @@ async function ensureAmoChatLink(input: {
 
   const patch = {
     conversation_id: input.conversationId ?? existing?.conversation_id ?? null,
-    phone: input.phone ?? existing?.phone ?? null,
+    phone: phone ?? existing?.phone ?? null,
     whatsapp_chat_jid: input.chatJid,
     amo_scope_id: input.scopeId,
-    amo_conversation_id: existing?.amo_conversation_id ?? externalConversationIdFor(input.chatJid),
+    amo_conversation_id: existing?.amo_conversation_id ?? null,
     amo_contact_id: amoIds.contactId ?? existing?.amo_contact_id ?? null,
     amo_lead_id: amoIds.leadId ?? existing?.amo_lead_id ?? null,
     updated_at: new Date().toISOString(),
@@ -265,31 +339,16 @@ async function ensureAmoContactAndLead(input: {
   if (!input.phone) return { contactId: input.existingContactId, leadId: input.existingLeadId }
 
   const phones = normalizePhoneAmo(input.phone)
-  let contactId = input.existingContactId ?? await findContactByPhone(phones)
-  if (!contactId) {
-    contactId = await createContact({
-      name: input.contactName ?? input.phone,
-      phone: phones[0],
-    })
-  } else if (input.contactName) {
+  const existingLead = input.existingLeadId || !inquiryConfigured()
+    ? null
+    : await findLeadByPhoneInPipeline(phones, AMO_INQUIRY_PIPELINE_ID)
+  const contactId = input.existingContactId ?? existingLead?.contactId ?? await findContactByPhone(phones)
+
+  if (contactId && input.contactName) {
     await ensureContactName(contactId, input.contactName)
   }
 
-  let leadId = input.existingLeadId ?? null
-  if (!leadId && inquiryConfigured()) {
-    const existingLead = await findLeadByPhoneInPipeline(phones, AMO_INQUIRY_PIPELINE_ID)
-    leadId = existingLead?.leadId ?? null
-    if (!leadId) {
-      leadId = await createLead({
-        name: `WhatsApp chat ${phones[0]}`,
-        price: 0,
-        contactId,
-        pipelineId: AMO_INQUIRY_PIPELINE_ID,
-        statusId: AMO_INQUIRY_STATUS_NEW,
-        tags: ['WhatsApp', 'AI assistant'],
-      })
-    }
-  }
+  const leadId = input.existingLeadId ?? existingLead?.leadId ?? null
 
   if (input.conversationId) {
     await createAdminClient().from('conversations').update({
@@ -306,12 +365,14 @@ async function ensureAmoContactAndLead(input: {
 async function findAmoChatLink(input: {
   amoChatId?: string
   amoConversationId?: string
+  whatsappChatJid?: string
   phone?: string
 }): Promise<AmoChatLink | null> {
   const admin = createAdminClient()
   const filters: string[] = []
   if (input.amoChatId) filters.push(`amo_chat_id.eq.${input.amoChatId}`)
   if (input.amoConversationId) filters.push(`amo_conversation_id.eq.${input.amoConversationId}`)
+  if (input.whatsappChatJid) filters.push(`whatsapp_chat_jid.eq.${input.whatsappChatJid}`)
   if (input.phone) filters.push(`phone.eq.${input.phone}`)
   if (!filters.length) return null
 
@@ -359,9 +420,14 @@ async function ensureConversationForAmoWebhook(input: {
   return resolved.id
 }
 
-async function reserveDedupe(messageKey: string, conversationId?: string, linkId?: string): Promise<boolean> {
+async function reserveDedupe(
+  source: 'amo' | 'whatsapp' | 'whatsapp_manual_outgoing',
+  messageKey: string,
+  conversationId?: string,
+  linkId?: string,
+): Promise<boolean> {
   const { error } = await createAdminClient().from('amo_chat_message_dedupe').insert({
-    source: messageKey.startsWith('amo:') ? 'amo' : 'whatsapp',
+    source,
     message_key: messageKey,
     conversation_id: conversationId ?? null,
     amo_chat_link_id: linkId ?? null,
@@ -429,7 +495,14 @@ function sha1(value: string): string {
 
 function normalizePhoneForAmo(phone?: string | null): string | undefined {
   if (!phone) return undefined
-  return normalizePhoneAmo(phone)[0]
+  const candidate = phoneCandidate(phone)
+  return candidate ? normalizePhoneAmo(candidate)[0] : undefined
+}
+
+function phoneCandidate(value?: string | null): string | undefined {
+  if (!value || value.includes('@')) return undefined
+  const digits = value.replace(/\D/g, '')
+  return digits.length >= 10 && digits.length <= 15 ? value : undefined
 }
 
 function readString(value: unknown): string | undefined {
