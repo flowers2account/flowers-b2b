@@ -95,7 +95,7 @@ export default function CatalogLayout({
   const {
     stockLevel, colors, lengths, origins, potSizes,
     tags, seasons, subcat,
-    category, group, selectedLeaves, setGroup, setSelectedLeaves, setSearch,
+    category, group, selectedLeaves,
   } = useFilters()
 
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
@@ -129,17 +129,26 @@ export default function CatalogLayout({
     if (urlInit.current) return
     urlInit.current = true
     const params = new URLSearchParams(window.location.search)
-    if (params.get('category') === 'accessories') {
-      const leaves = (params.get('leaves') ?? '').split(',').map(s => s.trim()).filter(Boolean)
-      // group из URL; если нет, но есть leaves — выводим раздел из первого листа
-      const grp = params.get('group') || (leaves[0] ? groupIdForLeafSlug(leaves[0]) : '')
-      if (grp) setGroup(grp)                          // setGroup чистит selectedLeaves
-      if (leaves.length) setSelectedLeaves(leaves)    // уточнение — после setGroup
+    const requestedCategory = params.get('category')
+    const filters = useFilters.getState()
+
+    if (requestedCategory === 'pot') {
+      if (filters.category !== 'pot') filters.setCategory('pot')
+    } else {
+      if (filters.category !== 'accessories') filters.setCategory('accessories')
+
+      if (requestedCategory === 'accessories') {
+        const leaves = (params.get('leaves') ?? '').split(',').map(s => s.trim()).filter(Boolean)
+        // group из URL; если нет, но есть leaves — выводим раздел из первого листа
+        const grp = params.get('group') || (leaves[0] ? groupIdForLeafSlug(leaves[0]) : '')
+        if (grp) filters.setGroup(grp)                          // setGroup чистит selectedLeaves
+        if (leaves.length) filters.setSelectedLeaves(leaves)    // уточнение — после setGroup
+      }
     }
     // Поиск из URL (?search=… или ?q=…) — точка входа со страницы «Категории».
     // Ставим после setCategory (он сбрасывает search).
     const q = (params.get('search') ?? params.get('q') ?? '').trim()
-    if (q) setSearch(q)
+    if (q) filters.setSearch(q)
   }, [])
 
   useEffect(() => {
@@ -150,6 +159,9 @@ export default function CatalogLayout({
       params.set('group', group)
       if (selectedLeaves.length > 0) params.set('leaves', selectedLeaves.join(','))
       else params.delete('leaves')
+    } else if (category === 'pot') {
+      params.set('category', 'pot')
+      params.delete('group'); params.delete('leaves')
     } else {
       params.delete('category'); params.delete('group'); params.delete('leaves')
     }

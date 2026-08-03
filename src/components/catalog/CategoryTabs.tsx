@@ -1,5 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
+import { Sprout } from 'lucide-react'
 import { useFilters } from '@/lib/filter-store'
 import { CATEGORY_TREE } from '@/lib/category-tree'
 
@@ -27,8 +28,31 @@ export default function CategoryTabs() {
     router.push(`/catalog?category=accessories&group=${id}`)
   }
 
+  const openPot = () => {
+    if (category !== 'pot') setCategory('pot')
+    router.push('/catalog?category=pot')
+  }
+
+  const potActive = category === 'pot'
+
   return (
     <div className="flex items-stretch gap-0.5 overflow-x-auto" style={{ scrollbarWidth: 'thin', flex: 1, minWidth: 0 }}>
+      <button
+        onClick={openPot}
+        title="Горшечные растения"
+        className="flex items-center gap-2 whitespace-nowrap border-none cursor-pointer transition-colors"
+        style={{
+          flex: 'none', height: 46, padding: '0 14px',
+          background: potActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+          color: potActive ? '#fff' : 'rgba(255,255,255,0.82)',
+          fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+          borderBottom: potActive ? '3px solid #fff' : '3px solid transparent',
+        }}
+      >
+        <Sprout size={16} strokeWidth={1.7} aria-hidden="true" style={{ flex: 'none', opacity: 0.92 }} />
+        Горшечные
+      </button>
+
       {/* «Все» — режим подборки: мультивыбор листьев по всем разделам */}
       <button
         onClick={() => open('all')}
@@ -36,10 +60,10 @@ export default function CategoryTabs() {
         className="flex items-center gap-2 whitespace-nowrap border-none cursor-pointer transition-colors"
         style={{
           flex: 'none', height: 46, padding: '0 14px',
-          background: group === 'all' ? 'rgba(255,255,255,0.12)' : 'transparent',
-          color: group === 'all' ? '#fff' : 'rgba(255,255,255,0.82)',
+          background: category === 'accessories' && group === 'all' ? 'rgba(255,255,255,0.12)' : 'transparent',
+          color: category === 'accessories' && group === 'all' ? '#fff' : 'rgba(255,255,255,0.82)',
           fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
-          borderBottom: group === 'all' ? '3px solid #fff' : '3px solid transparent',
+          borderBottom: category === 'accessories' && group === 'all' ? '3px solid #fff' : '3px solid transparent',
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', opacity: 0.92 }}>
@@ -48,7 +72,7 @@ export default function CategoryTabs() {
         Все
       </button>
       {CATEGORY_TREE.map(g => {
-        const active = group === g.id
+        const active = category === 'accessories' && group === g.id
         return (
           <button
             key={g.id}

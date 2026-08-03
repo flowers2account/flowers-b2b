@@ -4,7 +4,7 @@ import { DEFAULT_GROUP_ID } from './category-tree'
 
 export type FilterCategory = 'all' | 'cut' | 'pot' | 'accessories'
 
-// Default category while cut/pot pills are hidden — change back to 'cut' when unhiding
+// Расходка остаётся категорией по умолчанию; pot доступен отдельной вкладкой, cut пока скрыт.
 const DEFAULT_CATEGORY: FilterCategory = 'accessories'
 // accessories теперь мульти-выбор листьев (selectedLeaves), без одиночного subcat-дефолта.
 // cut/pot по-прежнему используют subcat/varietyType.
