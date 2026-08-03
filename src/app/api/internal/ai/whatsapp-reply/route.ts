@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     inputTextLength = parsed.text.length
     traceId = parsed.traceId
 
-    console.log('ai whatsapp request received', {
+    console.log('ai_request_started', {
       durationMs: Date.now() - startedAt,
       traceId: parsed.traceId,
       conversationId: parsed.conversationId,

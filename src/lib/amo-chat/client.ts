@@ -1,5 +1,5 @@
 import { signAmoChatRequest } from './signature'
-import { readHttpResponse, summarizeHttpError, type HttpBodyKind } from './http-response'
+import { readHttpResponse, summarizeHttpError, type HttpBodyKind, type ParsedHttpResponse } from './http-response'
 
 export interface AmoChatClientConfig {
   baseUrl: string
@@ -37,13 +37,20 @@ export class AmoChatApiError extends Error {
   readonly status: number
   readonly bodyKind: HttpBodyKind
   readonly stage: 'amo_request' | 'amo_response_parse'
+  readonly staleLink: boolean
 
-  constructor(input: { status: number; bodyKind: HttpBodyKind; stage: 'amo_request' | 'amo_response_parse' }) {
+  constructor(input: {
+    status: number
+    bodyKind: HttpBodyKind
+    stage: 'amo_request' | 'amo_response_parse'
+    staleLink?: boolean
+  }) {
     super(summarizeHttpError(input))
     this.name = 'AmoChatApiError'
     this.status = input.status
     this.bodyKind = input.bodyKind
     this.stage = input.stage
+    this.staleLink = input.staleLink === true
   }
 }
 
@@ -101,7 +108,12 @@ export class AmoChatClient {
 
     const parsed = await readHttpResponse<AmoChatSendResponse>(response)
     if (!response.ok) {
-      throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_request' })
+      throw new AmoChatApiError({
+        status: parsed.status,
+        bodyKind: parsed.bodyKind,
+        stage: 'amo_request',
+        staleLink: isStaleAmoChatResponse(parsed),
+      })
     }
     if (parsed.bodyKind === 'invalid_json') {
       throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_response_parse' })
@@ -158,7 +170,12 @@ export class AmoChatClient {
 
     const parsed = await readHttpResponse<AmoChatSendResponse>(response)
     if (!response.ok) {
-      throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_request' })
+      throw new AmoChatApiError({
+        status: parsed.status,
+        bodyKind: parsed.bodyKind,
+        stage: 'amo_request',
+        staleLink: isStaleAmoChatResponse(parsed),
+      })
     }
     if (parsed.bodyKind === 'invalid_json') {
       throw new AmoChatApiError({ status: parsed.status, bodyKind: parsed.bodyKind, stage: 'amo_response_parse' })
@@ -172,4 +189,15 @@ export class AmoChatClient {
       amoRefId: typeof message?.ref_id === 'string' ? message.ref_id : undefined,
     }
   }
+}
+
+function isStaleAmoChatResponse(parsed: ParsedHttpResponse): boolean {
+  if (parsed.status === 404 || parsed.status === 410) return true
+  if (parsed.status !== 400) return false
+
+  const normalized = parsed.body.toLowerCase()
+  const identifiesConversation = /(conversation|chat|dialog)/.test(normalized)
+  const identifiesMissing = /(not[ _-]?found|does not exist|deleted|dead|unknown|invalid)/.test(normalized)
+  const isPayloadValidation = /(receiver|origin user|signature|payload|validation)/.test(normalized)
+  return identifiesConversation && identifiesMissing && !isPayloadValidation
 }

@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveConversation } from '@/lib/bot/conversation-store'
 import { forwardWhatsAppIncomingToAmo, forwardWhatsAppManualOutgoingToAmo } from '@/lib/amo-chat/service'
 import { AmoChatApiError } from '@/lib/amo-chat/client'
+import { findKnownOutgoingWithRetry } from '@/lib/amo-chat/outgoing-echo'
+import { AmoApiError } from '@/lib/amo'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,6 +52,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = parseBody(await readJsonBody(req))
+    console.log('whatsapp_event_received', {
+      type: body.type,
+      source: body.source,
+      chatJidPresent: Boolean(body.chatJid),
+      messageIdPresent: Boolean(body.messageId),
+    })
     const result = await handleEvent(body)
 
     console.log('whatsapp event handled', {
@@ -63,31 +71,43 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, ...result })
   } catch (error) {
+    const isAmoError = error instanceof AmoChatApiError || error instanceof AmoApiError
     const status = error instanceof HttpError ? error.status : 500
+    const responseStatus = isAmoError ? 502 : status
     const publicMessage = error instanceof HttpError ? error.publicMessage : 'internal error'
     const stage = error instanceof HttpError ? error.stage : error instanceof AmoChatApiError ? error.stage : 'whatsapp_event'
 
     console.error('whatsapp event failed', {
       durationMs: Date.now() - startedAt,
-      status,
+      status: responseStatus,
       stage,
       errorKind: error instanceof Error ? error.name : 'unknown',
       bodyKind: error instanceof AmoChatApiError ? error.bodyKind : undefined,
+    })
+    console.error('processing_failed', {
+      stage,
+      status: responseStatus,
+      errorKind: error instanceof Error ? error.name : 'unknown',
     })
 
     return NextResponse.json({
       ok: false,
       stage,
-      status: error instanceof AmoChatApiError ? 502 : status,
-      error: error instanceof AmoChatApiError ? 'amo_api_error' : publicMessage,
-    }, { status: error instanceof AmoChatApiError ? 502 : status })
+      status: responseStatus,
+      error: isAmoError ? 'amo_api_error' : publicMessage,
+    }, { status: responseStatus })
   }
 }
 
 async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
   if (body.type === 'manual_outgoing') {
     if (body.messageId) {
-      const knownOutgoing = await findOutgoingByMessageId(body.messageId)
+      const knownOutgoing = await findKnownOutgoingWithRetry(() => findOutgoingByMessageId(body.messageId as string))
+      console.log('dedupe_checked', {
+        eventType: body.type,
+        knownSystemOutgoing: Boolean(knownOutgoing),
+        messageIdPresent: true,
+      })
       if (knownOutgoing) {
         return {
           status: 'ignored',
@@ -178,6 +198,11 @@ async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
 
   if (body.type === 'get_dialog_state') {
     const conversation = await resolveConversationContext(body)
+    console.log('ai_mode_checked', {
+      conversationId: conversation.id,
+      aiEnabled: conversation.aiEnabled,
+      takeoverStatus: conversation.takeoverStatus,
+    })
     return {
       status: 'ok',
       conversationId: conversation.id,
@@ -209,6 +234,12 @@ async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
       error: body.type === 'fail_outgoing' ? body.error ?? 'send failed' : null,
       updated_at: new Date().toISOString(),
     })
+    if (body.type === 'complete_outgoing' && row?.source === 'ai') {
+      console.log('ai_reply_sent', {
+        conversationId: row.conversation_id ?? undefined,
+        messageIdPresent: Boolean(row.message_id),
+      })
+    }
     return { status: row?.status ?? 'unknown', messageId: row?.message_id ?? undefined }
   }
 
@@ -491,13 +522,13 @@ async function findOutgoingByMessageId(messageId: string): Promise<{ source: str
 async function updateOutgoing(
   idempotencyKey: string,
   patch: Record<string, unknown>,
-): Promise<{ status?: string; message_id?: string | null } | null> {
+): Promise<{ status?: string; message_id?: string | null; source?: string; conversation_id?: string | null } | null> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('whatsapp_gateway_outbox')
     .update(patch)
     .eq('idempotency_key', idempotencyKey)
-    .select('status, message_id')
+    .select('status, message_id, source, conversation_id')
     .maybeSingle()
   return data ?? null
 }

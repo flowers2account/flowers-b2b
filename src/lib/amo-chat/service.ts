@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveConversation } from '@/lib/bot/conversation-store'
 import {
   AMO_INQUIRY_PIPELINE_ID,
+  AmoApiError,
+  assertAmoContactExists,
+  assertAmoLeadExists,
   ensureContactName,
   findContactByPhone,
   findLeadByPhoneInPipeline,
@@ -12,6 +15,7 @@ import {
 import { AmoChatApiError, AmoChatClient } from './client'
 import { getAmoChatConfig } from './config'
 import { readHttpResponse } from './http-response'
+import { withSingleStaleLinkRecovery } from './recovery'
 import {
   parseAmoChatWebhookMessage,
   type AmoChatWebhookMessage,
@@ -65,39 +69,32 @@ export async function forwardWhatsAppIncomingToAmo(input: WhatsAppIncomingForAmo
   if (!config?.scopeId) {
     return { status: 'skipped', reason: 'amo_chat_scope_missing' }
   }
+  const scopeId = config.scopeId
 
   const text = input.text.trim()
   if (!text) return { status: 'skipped', reason: 'empty_text' }
   if (text.length > MAX_TEXT_LENGTH) return { status: 'skipped', reason: 'text_too_long' }
 
-  logAmoStage('incoming_event_received', input.messageId, input.conversationId, {
+  logAmoStage('whatsapp_event_received', input.messageId, input.conversationId, {
     chatJidPresent: Boolean(input.chatJid),
     textLength: text.length,
   })
 
   const conversation = await resolveWhatsAppConversation(input)
   const conversationId = conversation.id
-  let link: AmoChatLink
-  try {
-    link = await ensureAmoChatLink({
-      conversationId,
-      chatJid: input.chatJid,
-      phone: input.phone ?? conversation.phone ?? undefined,
-      scopeId: config.scopeId,
-      contactName: input.contactName,
-    })
-  } catch (error) {
-    logAmoFailure('amo_link_resolved', input.messageId, conversationId, error)
-    throw error
-  }
-  logAmoStage('amo_link_resolved', input.messageId, conversationId, {
-    linkPresent: Boolean(link.id),
-    amoChatPresent: Boolean(link.amo_chat_id),
-    amoConversationPresent: Boolean(link.amo_conversation_id),
+  logAmoStage('conversation_resolved', input.messageId, conversationId, {
+    conversationPresent: Boolean(conversationId),
+  })
+
+  const phone = input.phone ?? conversation.phone ?? undefined
+  const existingLink = await findAmoChatLink({
+    whatsappChatJid: input.chatJid,
+    phone,
   })
 
   const dedupeKey = `whatsapp:${input.messageId}`
-  const reserved = await reserveDedupe('whatsapp', dedupeKey, conversationId, link.id)
+  const reserved = await reserveDedupe('whatsapp', dedupeKey, conversationId, existingLink?.id)
+  logAmoStage('dedupe_checked', input.messageId, conversationId, { reserved })
   if (!reserved) {
     logAmoStage('dedupe_hit', input.messageId, conversationId)
     return { status: 'duplicate', conversationId }
@@ -106,38 +103,79 @@ export async function forwardWhatsAppIncomingToAmo(input: WhatsAppIncomingForAmo
   const externalConversationId = externalConversationIdFor(input.chatJid)
   const senderId = externalSenderIdFor(input.chatJid)
   const client = new AmoChatClient({ baseUrl: config.baseUrl, secretKey: config.secretKey })
-  logAmoStage('amo_request_started', input.messageId, conversationId, {
-    direction: 'incoming',
-    receiverPresent: false,
-  })
-  let result
+  let activeLink = existingLink
+  let amoMessageSent = false
+
   try {
-    result = await client.sendIncomingText({
-      scopeId: config.scopeId,
-      conversationId: externalConversationId,
-      messageId: externalMessageIdFor(input.messageId),
-      senderId,
-      senderName: input.contactName ?? input.phone ?? 'WhatsApp client',
-      phone: normalizePhoneForAmo(input.phone ?? conversation.phone ?? undefined),
-      text,
-      timestampMs: input.timestamp ? Date.parse(input.timestamp) || Date.now() : Date.now(),
-      silent: false,
+    const delivery = await withSingleStaleLinkRecovery({
+      attempt: async (retryCount) => {
+        const link = await ensureAmoChatLink({
+          conversationId,
+          chatJid: input.chatJid,
+          phone,
+          scopeId,
+          contactName: input.contactName,
+        })
+        activeLink = link
+        logAmoStage('amo_link_resolved', input.messageId, conversationId, {
+          linkPresent: Boolean(link.id),
+          amoChatPresent: Boolean(link.amo_chat_id),
+          amoConversationPresent: Boolean(link.amo_conversation_id),
+          retryCount,
+        })
+        logAmoStage('amo_request_started', input.messageId, conversationId, {
+          direction: 'incoming',
+          receiverPresent: false,
+          retryCount,
+        })
+
+        const result = await client.sendIncomingText({
+          scopeId,
+          conversationId: externalConversationId,
+          messageId: externalMessageIdFor(input.messageId),
+          senderId,
+          senderName: input.contactName ?? input.phone ?? 'WhatsApp client',
+          phone: normalizePhoneForAmo(phone),
+          text,
+          timestampMs: input.timestamp ? Date.parse(input.timestamp) || Date.now() : Date.now(),
+          silent: false,
+        })
+        logAmoStage('amo_message_sent', input.messageId, conversationId, {
+          amoMessagePresent: Boolean(result.amoMessageId),
+          amoConversationPresent: Boolean(result.amoConversationId),
+          retryCount,
+        })
+        return { link, result }
+      },
+      resetLink: async () => {
+        if (!activeLink?.id) throw new Error('stale amo link has no persisted id')
+        await resetAmoChatLink(activeLink.id)
+      },
+      onStage: (stage, retryCount) => {
+        logAmoStage(stage, input.messageId, conversationId, { retryCount })
+      },
+    })
+
+    const { link, result } = delivery.value
+    amoMessageSent = true
+    await updateAmoChatLink(link.id, {
+      amo_conversation_id: result.amoConversationId ?? externalConversationId,
+      last_whatsapp_message_id: input.messageId,
+      last_amo_message_id: result.amoMessageId ?? null,
+    })
+    logAmoStage('message_persisted', input.messageId, conversationId, {
+      linkUpdated: true,
+      retryCount: delivery.retryCount,
     })
   } catch (error) {
-    logAmoFailure('amo_request_failed', input.messageId, conversationId, error)
+    if (!amoMessageSent) {
+      await releaseDedupe('whatsapp', dedupeKey)
+    } else {
+      logAmoStage('dedupe_preserved', input.messageId, conversationId, { reason: 'amo_message_already_sent' })
+    }
+    logAmoFailure('processing_failed', input.messageId, conversationId, error)
     throw error
   }
-  logAmoStage('amo_response_received', input.messageId, conversationId, {
-    amoMessagePresent: Boolean(result.amoMessageId),
-    amoConversationPresent: Boolean(result.amoConversationId),
-  })
-
-  await updateAmoChatLink(link.id, {
-    amo_conversation_id: result.amoConversationId ?? externalConversationId,
-    last_whatsapp_message_id: input.messageId,
-    last_amo_message_id: result.amoMessageId ?? null,
-  })
-  logAmoStage('message_persisted', input.messageId, conversationId, { linkUpdated: true })
 
   return { status: 'sent', conversationId }
 }
@@ -199,6 +237,7 @@ export async function forwardWhatsAppManualOutgoingToAmo(input: WhatsAppManualOu
       silent: true,
     })
   } catch (error) {
+    await releaseDedupe('whatsapp_manual_outgoing', dedupeKey)
     logAmoFailure('amo_request_failed', input.messageId, conversationId, error)
     throw error
   }
@@ -394,6 +433,9 @@ async function ensureAmoContactAndLead(input: {
 }): Promise<{ contactId?: number | null; leadId?: number | null }> {
   if (!input.phone) return { contactId: input.existingContactId, leadId: input.existingLeadId }
 
+  if (input.existingContactId) await assertAmoContactExists(input.existingContactId)
+  if (input.existingLeadId) await assertAmoLeadExists(input.existingLeadId)
+
   const phones = normalizePhoneAmo(input.phone)
   const existingLead = input.existingLeadId || !inquiryConfigured()
     ? null
@@ -489,14 +531,46 @@ async function reserveDedupe(
     amo_chat_link_id: linkId ?? null,
   })
 
-  return !error
+  if (!error) return true
+  if (error.code === '23505') return false
+  throw error
+}
+
+async function releaseDedupe(
+  source: 'amo' | 'whatsapp' | 'whatsapp_manual_outgoing',
+  messageKey: string,
+): Promise<void> {
+  const { error } = await createAdminClient()
+    .from('amo_chat_message_dedupe')
+    .delete()
+    .eq('source', source)
+    .eq('message_key', messageKey)
+  if (error) throw error
+}
+
+async function resetAmoChatLink(id: string): Promise<void> {
+  const { data, error } = await createAdminClient()
+    .from('amo_chat_links')
+    .update({
+      amo_chat_id: null,
+      amo_conversation_id: null,
+      amo_contact_id: null,
+      amo_lead_id: null,
+      last_amo_message_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('id')
+    .single()
+  if (error || data?.id !== id) throw error ?? new Error('amo link reset did not update one row')
 }
 
 async function updateAmoChatLink(id: string, patch: Record<string, unknown>): Promise<void> {
-  await createAdminClient().from('amo_chat_links').update({
+  const { error } = await createAdminClient().from('amo_chat_links').update({
     ...patch,
     updated_at: new Date().toISOString(),
   }).eq('id', id)
+  if (error) throw error
 }
 
 async function sendViaGateway(input: {
@@ -547,7 +621,7 @@ function logAmoFailure(stage: string, messageId: string | undefined, conversatio
     stage,
     messageId: shortDiagnosticId(messageId),
     conversationId: shortDiagnosticId(conversationId),
-    status: error instanceof AmoChatApiError ? error.status : undefined,
+    status: error instanceof AmoChatApiError || error instanceof AmoApiError ? error.status : undefined,
     bodyKind: error instanceof AmoChatApiError ? error.bodyKind : undefined,
     errorKind: error instanceof Error ? error.name : 'unknown',
   })

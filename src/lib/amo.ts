@@ -84,6 +84,29 @@ function token(): string {
   return t
 }
 
+export class AmoApiError extends Error {
+  readonly status: number
+  readonly staleEntity: boolean
+
+  constructor(status: number, body = '') {
+    super(`amo_http_${status}`)
+    this.name = 'AmoApiError'
+    this.status = status
+    this.staleEntity = isMissingAmoEntity(status, body)
+  }
+}
+
+function isMissingAmoEntity(status: number, body: string): boolean {
+  if (status === 404 || status === 410) return true
+  if (status !== 400) return false
+
+  const normalized = body.toLowerCase()
+  const identifiesEntity = /(contact|lead|entity|conversation|chat|dialog)/.test(normalized)
+  const identifiesMissing = /(not[ _-]?found|does not exist|deleted|dead|unknown|invalid)/.test(normalized)
+  const isPayloadValidation = /(receiver|origin user|signature|payload|validation)/.test(normalized)
+  return identifiesEntity && identifiesMissing && !isPayloadValidation
+}
+
 async function amoFetch(
   path: string,
   opts: RequestInit = {},
@@ -110,7 +133,7 @@ async function amoFetch(
   // Non-retriable errors
   if (res.status >= 400 && res.status !== 204) {
     const body = await res.text().catch(() => '')
-    throw new Error(`amoCRM ${res.status} ${path}: ${body.slice(0, 300)}`)
+    throw new AmoApiError(res.status, body)
   }
 
   return res
@@ -159,6 +182,16 @@ export async function findContactByPhone(phones: string[]): Promise<number | nul
   return null
 }
 
+export async function assertAmoContactExists(contactId: number): Promise<void> {
+  const res = await amoFetch(`/contacts/${contactId}`)
+  if (res.status === 204) throw new AmoApiError(404, 'contact not found')
+}
+
+export async function assertAmoLeadExists(leadId: number): Promise<void> {
+  const res = await amoFetch(`/leads/${leadId}`)
+  if (res.status === 204) throw new AmoApiError(404, 'lead not found')
+}
+
 // Best-effort: найти сделку контакта в указанной воронке по телефону (для аутрич-захвата).
 // Возвращает { leadId, contactId } первой подходящей сделки или null. Не кидает на «не найдено».
 export async function findLeadByPhoneInPipeline(
@@ -190,6 +223,7 @@ function looksLikePhone(s: string): boolean {
 export async function ensureContactName(contactId: number, realName: string): Promise<void> {
   if (!realName || looksLikePhone(realName)) return // нет смысла обновлять телефоном
   const res = await amoFetch(`/contacts/${contactId}`)
+  if (res.status === 204) throw new AmoApiError(404, 'contact not found')
   const data = await readAmoJson<{ name?: string }>(res) ?? {}
   const current = (data.name ?? '').trim()
   if (current && !looksLikePhone(current)) return // уже есть нормальное имя — не перетираем
