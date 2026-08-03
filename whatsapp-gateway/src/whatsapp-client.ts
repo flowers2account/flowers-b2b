@@ -152,7 +152,13 @@ export class WhatsAppClient {
 
     try {
       const result = await this.sendTextMessageToJid(jid, input.text, phone, source)
-      await this.mainProject.completeOutgoing({ idempotencyKey: input.idempotencyKey, messageId: result.messageId })
+      await this.mainProject.completeOutgoing({
+        idempotencyKey: input.idempotencyKey,
+        messageId: result.messageId,
+        text: input.text,
+        chatJid: jid,
+        phone,
+      })
       return { ...result, duplicate: false, status: 'sent' }
     } catch (error) {
       await this.mainProject.failOutgoing({
@@ -190,6 +196,7 @@ export class WhatsAppClient {
         chatJid,
         phone,
         messageId,
+        text,
         source,
       })
     }

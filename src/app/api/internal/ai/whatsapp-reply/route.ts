@@ -97,6 +97,12 @@ export async function POST(req: NextRequest) {
           })
         : null
       const outputText = cartResult?.text ?? normalized.text
+      console.log('ai_reply_generated', {
+        traceId: parsed.traceId,
+        conversationId,
+        outputTextLength: outputText.length,
+        replyKind: normalized.replyKind,
+      })
       console.log('[ai diagnostic] normalized reply', {
         intent: reply.meta?.intent,
         traceId: parsed.traceId,

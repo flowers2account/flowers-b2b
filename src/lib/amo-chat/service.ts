@@ -48,6 +48,17 @@ export interface WhatsAppManualOutgoingForAmo {
   traceId?: string
 }
 
+export interface WhatsAppAiOutgoingForAmo {
+  chatJid?: string
+  phone?: string
+  conversationId?: string
+  messageId: string
+  text: string
+  timestamp?: string
+  contactName?: string
+  traceId?: string
+}
+
 interface AmoChatLink {
   id: string
   conversation_id?: string | null
@@ -58,6 +69,8 @@ interface AmoChatLink {
   amo_conversation_id?: string | null
   amo_contact_id?: number | null
   amo_lead_id?: number | null
+  last_amo_message_id?: string | null
+  last_whatsapp_message_id?: string | null
 }
 
 export async function forwardWhatsAppIncomingToAmo(input: WhatsAppIncomingForAmo): Promise<{
@@ -267,6 +280,136 @@ export async function forwardWhatsAppManualOutgoingToAmo(input: WhatsAppManualOu
   return { status: 'sent', conversationId }
 }
 
+export async function forwardWhatsAppAiOutgoingToAmo(input: WhatsAppAiOutgoingForAmo): Promise<{
+  status: 'sent' | 'duplicate' | 'skipped' | 'failed'
+  conversationId?: string
+  reason?: string
+  amoMessageId?: string
+}> {
+  const config = getAmoChatConfig(false)
+  if (!config?.scopeId) {
+    return { status: 'skipped', conversationId: input.conversationId, reason: 'amo_chat_scope_missing' }
+  }
+  if (!config.botId) {
+    return { status: 'skipped', conversationId: input.conversationId, reason: 'amo_chat_bot_id_missing' }
+  }
+
+  const text = input.text.trim()
+  if (!text) return { status: 'skipped', conversationId: input.conversationId, reason: 'empty_text' }
+  if (text.length > MAX_TEXT_LENGTH) return { status: 'skipped', conversationId: input.conversationId, reason: 'text_too_long' }
+
+  const conversation = input.chatJid
+    ? await resolveWhatsAppConversation({
+      chatJid: input.chatJid,
+      phone: input.phone,
+      conversationId: input.conversationId,
+      messageId: input.messageId,
+      text,
+      timestamp: input.timestamp,
+      contactName: input.contactName,
+      traceId: input.traceId,
+    })
+    : { id: input.conversationId, phone: input.phone ?? null }
+  const conversationId = conversation.id ?? input.conversationId
+
+  let link = await findAmoChatLink({
+    conversationId,
+    whatsappChatJid: input.chatJid,
+    phone: input.phone ?? conversation.phone ?? undefined,
+  })
+  if (!link?.id || !link.whatsapp_chat_jid) {
+    logAmoStage('ai_reply_amo_sync_failed', input.messageId, conversationId, {
+      reason: 'amo_chat_link_missing',
+      linkPresent: Boolean(link?.id),
+    })
+    return { status: 'skipped', conversationId, reason: 'amo_chat_link_missing' }
+  }
+
+  const dedupeKey = `whatsapp_ai:${input.messageId}`
+  const reserved = await reserveDedupe('whatsapp_ai_outgoing', dedupeKey, conversationId, link.id)
+  logAmoStage('dedupe_checked', input.messageId, conversationId, {
+    reserved,
+    direction: 'ai_outgoing',
+  })
+  if (!reserved) return { status: 'duplicate', conversationId }
+
+  const client = new AmoChatClient({ baseUrl: config.baseUrl, secretKey: config.secretKey })
+  const timestampMs = input.timestamp ? Date.parse(input.timestamp) || Date.now() : Date.now()
+  let amoMessageSent = false
+
+  try {
+    const delivery = await withSingleStaleLinkRecovery({
+      attempt: async (retryCount) => {
+        if (!link?.id || !link.whatsapp_chat_jid) throw new Error('amo chat link missing for AI outgoing sync')
+
+        logAmoStage('ai_reply_amo_sync_started', input.messageId, conversationId, {
+          amoConversationPresent: Boolean(link.amo_conversation_id),
+          retryCount,
+        })
+
+        const phone = normalizePhoneForAmo(input.phone ?? conversation.phone ?? link.phone ?? undefined)
+        const result = await client.sendOutgoingText({
+          scopeId: config.scopeId as string,
+          conversationId: externalConversationIdFor(link.whatsapp_chat_jid),
+          messageId: externalMessageIdFor(input.messageId),
+          senderId: 'wa-ai',
+          senderName: 'WhatsApp AI',
+          senderRefId: config.botId,
+          receiverId: externalSenderIdFor(link.whatsapp_chat_jid),
+          receiverName: input.contactName ?? input.phone ?? link.phone ?? 'WhatsApp client',
+          phone,
+          text,
+          timestampMs,
+          silent: true,
+        })
+
+        return { link, result }
+      },
+      resetLink: async () => {
+        if (!link?.id) throw new Error('stale amo link has no persisted id')
+        await resetAmoChatLink(link.id)
+        if (!link.whatsapp_chat_jid) return
+        link = await ensureAmoChatLink({
+          conversationId,
+          chatJid: link.whatsapp_chat_jid,
+          phone: input.phone ?? conversation.phone ?? link.phone ?? undefined,
+          scopeId: config.scopeId as string,
+          contactName: input.contactName,
+        })
+      },
+      onStage: (stage, retryCount) => {
+        logAmoStage(stage, input.messageId, conversationId, { retryCount, direction: 'ai_outgoing' })
+      },
+    })
+
+    amoMessageSent = true
+    const { link: deliveredLink, result } = delivery.value
+    await updateAmoChatLink(deliveredLink.id, {
+      amo_scope_id: config.scopeId,
+      amo_conversation_id: result.amoConversationId ?? deliveredLink.amo_conversation_id ?? null,
+      last_whatsapp_message_id: input.messageId,
+      last_amo_message_id: result.amoMessageId ?? null,
+    })
+
+    if (conversationId && result.amoMessageId) {
+      await updateLatestBotMessageAmoId(conversationId, result.amoMessageId)
+    }
+
+    logAmoStage('ai_reply_amo_sync_success', input.messageId, conversationId, {
+      amoMessagePresent: Boolean(result.amoMessageId),
+      retryCount: delivery.retryCount,
+    })
+
+    return { status: 'sent', conversationId, amoMessageId: result.amoMessageId }
+  } catch (error) {
+    if (!amoMessageSent) {
+      await releaseDedupe('whatsapp_ai_outgoing', dedupeKey)
+    }
+    logAmoFailure('ai_reply_amo_sync_failed', input.messageId, conversationId, error)
+    return { status: 'failed', conversationId, reason: 'amo_ai_reply_sync_failed' }
+  }
+}
+
 export async function handleAmoManagerWebhook(input: AmoChatWebhookMessage): Promise<{
   status: 'sent' | 'duplicate' | 'ignored'
   conversationId?: string
@@ -289,6 +432,13 @@ export async function handleAmoManagerWebhook(input: AmoChatWebhookMessage): Pro
   }
   if (!link?.whatsapp_chat_jid && !link?.phone && !input.receiverPhone) {
     return { status: 'ignored', reason: 'whatsapp_target_missing' }
+  }
+
+  if (await isKnownAmoAiEcho(input.amoMessageId, link)) {
+    logAmoStage('ai_reply_amo_echo_skipped', input.amoMessageId, link?.conversation_id ?? undefined, {
+      amoMessagePresent: true,
+    })
+    return { status: 'ignored', conversationId: link?.conversation_id ?? undefined, reason: 'ai_reply_echo' }
   }
 
   const dedupeKey = `amo:${input.amoMessageId}`
@@ -463,6 +613,7 @@ async function ensureAmoContactAndLead(input: {
 async function findAmoChatLink(input: {
   amoChatId?: string
   amoConversationId?: string
+  conversationId?: string
   whatsappChatJid?: string
   phone?: string
 }): Promise<AmoChatLink | null> {
@@ -470,6 +621,7 @@ async function findAmoChatLink(input: {
   const filters: string[] = []
   if (input.amoChatId) filters.push(`amo_chat_id.eq.${input.amoChatId}`)
   if (input.amoConversationId) filters.push(`amo_conversation_id.eq.${input.amoConversationId}`)
+  if (input.conversationId) filters.push(`conversation_id.eq.${input.conversationId}`)
   if (input.whatsappChatJid) filters.push(`whatsapp_chat_jid.eq.${input.whatsappChatJid}`)
   if (input.phone) filters.push(`phone.eq.${input.phone}`)
   if (!filters.length) return null
@@ -519,7 +671,7 @@ async function ensureConversationForAmoWebhook(input: {
 }
 
 async function reserveDedupe(
-  source: 'amo' | 'whatsapp' | 'whatsapp_manual_outgoing',
+  source: 'amo' | 'whatsapp' | 'whatsapp_manual_outgoing' | 'whatsapp_ai_outgoing',
   messageKey: string,
   conversationId?: string,
   linkId?: string,
@@ -537,7 +689,7 @@ async function reserveDedupe(
 }
 
 async function releaseDedupe(
-  source: 'amo' | 'whatsapp' | 'whatsapp_manual_outgoing',
+  source: 'amo' | 'whatsapp' | 'whatsapp_manual_outgoing' | 'whatsapp_ai_outgoing',
   messageKey: string,
 ): Promise<void> {
   const { error } = await createAdminClient()
@@ -571,6 +723,36 @@ async function updateAmoChatLink(id: string, patch: Record<string, unknown>): Pr
     updated_at: new Date().toISOString(),
   }).eq('id', id)
   if (error) throw error
+}
+
+async function updateLatestBotMessageAmoId(conversationId: string, amoMessageId: string): Promise<void> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('messages')
+    .select('id')
+    .eq('conversation_id', conversationId)
+    .eq('role', 'bot')
+    .is('amojo_msg_id', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!data?.id) return
+  await admin.from('messages').update({ amojo_msg_id: amoMessageId }).eq('id', data.id)
+}
+
+async function isKnownAmoAiEcho(amoMessageId: string, link: AmoChatLink | null): Promise<boolean> {
+  if (link?.last_amo_message_id === amoMessageId) return true
+
+  const { data } = await createAdminClient()
+    .from('messages')
+    .select('id')
+    .eq('amojo_msg_id', amoMessageId)
+    .eq('role', 'bot')
+    .limit(1)
+    .maybeSingle()
+
+  return Boolean(data?.id)
 }
 
 async function sendViaGateway(input: {

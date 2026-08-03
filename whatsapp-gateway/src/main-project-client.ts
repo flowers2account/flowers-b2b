@@ -180,6 +180,9 @@ export class MainProjectClient {
   async completeOutgoing(input: {
     idempotencyKey: string
     messageId?: string
+    text?: string
+    chatJid?: string
+    phone?: string
     traceId?: string
   }): Promise<void> {
     await this.postEvent(
@@ -187,6 +190,9 @@ export class MainProjectClient {
         type: 'complete_outgoing',
         idempotencyKey: input.idempotencyKey,
         messageId: input.messageId,
+        text: input.text,
+        chatJid: input.chatJid,
+        phone: input.phone,
         source: 'gateway',
       },
       input.traceId,
@@ -197,6 +203,7 @@ export class MainProjectClient {
     chatJid: string
     phone?: string
     messageId: string
+    text: string
     source: 'gateway' | 'ai'
     traceId?: string
   }): Promise<void> {
@@ -211,6 +218,9 @@ export class MainProjectClient {
     await this.completeOutgoing({
       idempotencyKey,
       messageId: input.messageId,
+      text: input.text,
+      chatJid: input.chatJid,
+      phone: input.phone,
       traceId: input.traceId,
     })
   }

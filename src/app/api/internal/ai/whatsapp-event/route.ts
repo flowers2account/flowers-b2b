@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveConversation } from '@/lib/bot/conversation-store'
-import { forwardWhatsAppIncomingToAmo, forwardWhatsAppManualOutgoingToAmo } from '@/lib/amo-chat/service'
+import { forwardWhatsAppAiOutgoingToAmo, forwardWhatsAppIncomingToAmo, forwardWhatsAppManualOutgoingToAmo } from '@/lib/amo-chat/service'
 import { AmoChatApiError } from '@/lib/amo-chat/client'
 import { findKnownOutgoingWithRetry } from '@/lib/amo-chat/outgoing-echo'
 import { AmoApiError } from '@/lib/amo'
@@ -235,10 +235,34 @@ async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
       updated_at: new Date().toISOString(),
     })
     if (body.type === 'complete_outgoing' && row?.source === 'ai') {
+      console.log('ai_reply_whatsapp_sent', {
+        conversationId: row.conversation_id ?? undefined,
+        messageIdPresent: Boolean(row.message_id),
+      })
       console.log('ai_reply_sent', {
         conversationId: row.conversation_id ?? undefined,
         messageIdPresent: Boolean(row.message_id),
       })
+
+      const amoResult = body.messageId && body.text
+        ? await forwardWhatsAppAiOutgoingToAmo({
+          chatJid: body.chatJid,
+          phone: body.phone,
+          conversationId: row.conversation_id ?? body.conversationId,
+          messageId: body.messageId,
+          text: body.text,
+          timestamp: body.timestamp,
+          contactName: body.contactName,
+          traceId: body.traceId,
+        })
+        : { status: 'skipped', reason: 'empty_or_unsupported_text' }
+
+      return {
+        status: row?.status ?? 'unknown',
+        messageId: row?.message_id ?? undefined,
+        amoStatus: amoResult.status,
+        amoReason: amoResult.reason,
+      }
     }
     return { status: row?.status ?? 'unknown', messageId: row?.message_id ?? undefined }
   }
