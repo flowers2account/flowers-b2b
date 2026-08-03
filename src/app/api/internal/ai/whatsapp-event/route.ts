@@ -235,27 +235,49 @@ async function handleEvent(body: ParsedBody): Promise<Record<string, unknown>> {
       updated_at: new Date().toISOString(),
     })
     if (body.type === 'complete_outgoing' && row?.source === 'ai') {
+      const conversationId = row.conversation_id ?? body.conversationId
+      const fallbackText = !body.text && conversationId
+        ? await findLatestBotReplyText(conversationId)
+        : undefined
+      const replyText = body.text ?? fallbackText
+
       console.log('ai_reply_whatsapp_sent', {
-        conversationId: row.conversation_id ?? undefined,
+        conversationId,
         messageIdPresent: Boolean(row.message_id),
       })
       console.log('ai_reply_sent', {
-        conversationId: row.conversation_id ?? undefined,
+        conversationId,
         messageIdPresent: Boolean(row.message_id),
       })
+      console.log('complete_outgoing_payload_checked', {
+        conversationId,
+        messageIdPresent: Boolean(body.messageId),
+        textPresent: Boolean(body.text),
+        fallbackTextPresent: Boolean(fallbackText),
+        chatJidPresent: Boolean(body.chatJid),
+        phonePresent: Boolean(body.phone),
+      })
 
-      const amoResult = body.messageId && body.text
+      const amoResult = body.messageId && replyText
         ? await forwardWhatsAppAiOutgoingToAmo({
           chatJid: body.chatJid,
           phone: body.phone,
-          conversationId: row.conversation_id ?? body.conversationId,
+          conversationId,
           messageId: body.messageId,
-          text: body.text,
+          text: replyText,
           timestamp: body.timestamp,
           contactName: body.contactName,
           traceId: body.traceId,
         })
         : { status: 'skipped', reason: 'empty_or_unsupported_text' }
+
+      if (amoResult.status === 'skipped') {
+        console.log('ai_reply_amo_sync_failed', {
+          conversationId,
+          messageIdPresent: Boolean(body.messageId),
+          reason: amoResult.reason,
+        })
+      }
 
       return {
         status: row?.status ?? 'unknown',
@@ -541,6 +563,20 @@ async function findOutgoingByMessageId(messageId: string): Promise<{ source: str
     .limit(1)
     .maybeSingle()
   return data ?? null
+}
+
+async function findLatestBotReplyText(conversationId: string): Promise<string | undefined> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('messages')
+    .select('text')
+    .eq('conversation_id', conversationId)
+    .eq('role', 'bot')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return readOptionalString(data?.text)
 }
 
 async function updateOutgoing(
