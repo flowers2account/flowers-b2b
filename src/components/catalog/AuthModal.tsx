@@ -328,7 +328,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
                     Не смогли отправить PIN на этот номер. Напишите нам — вышлем вручную.
                   </p>
                   <a
-                    href={`https://wa.me/77007575243?text=${encodeURIComponent('Здравствуйте! Зарегистрировался(ась) на сайте, не пришёл PIN. Имя: ' + (regName || '—') + '. Номер: ' + (phoneDisplay || ''))}`}
+                    href={`https://wa.me/77009788467?text=${encodeURIComponent('Здравствуйте! Зарегистрировался(ась) на сайте, не пришёл PIN. Имя: ' + (regName || '—') + '. Номер: ' + (phoneDisplay || ''))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white no-underline"
@@ -460,7 +460,7 @@ export default function AuthModal({ onSuccess, onClose }: Props) {
 
             <div className="space-y-2.5">
               <a
-                href={`https://wa.me/77007575243?text=${encodeURIComponent(`Здравствуйте! Мне нужно активировать PIN-код для входа в каталог.\n\nМой телефон: ${phoneDisplay}`)}`}
+                href={`https://wa.me/77009788467?text=${encodeURIComponent(`Здравствуйте! Мне нужно активировать PIN-код для входа в каталог.\n\nМой телефон: ${phoneDisplay}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#25D366] text-white rounded-lg text-sm font-medium hover:bg-[#1EBE5E] transition-colors"

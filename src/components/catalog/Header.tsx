@@ -11,8 +11,8 @@ import CategoryTabs from './CategoryTabs'
 import { company } from '@/config/company'
 
 // Контакт офиса — единый источник company.ts (не хардкод).
-const SHOP_PHONE = company.phone                         // +7 700 757 5243
-const SHOP_DIGITS = SHOP_PHONE.replace(/\D/g, '')        // 77007575243
+const SHOP_PHONE = company.phone                         // +7 700 978 8467
+const SHOP_DIGITS = SHOP_PHONE.replace(/\D/g, '')        // 77009788467
 const SHOP_WA = `https://wa.me/${SHOP_DIGITS}`
 const SHOP_TEL = `tel:+${SHOP_DIGITS}`
 

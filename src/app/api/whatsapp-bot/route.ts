@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       await handleMyOrder(phone)
     } else if (/баланс/.test(t)) {
       await umnicoClient.sendMessage(phone,
-        '💰 Баланс\n\nФункция в разработке.\nОбратитесь к менеджеру: +7 700 757 5243'
+        '💰 Баланс\n\nФункция в разработке.\nОбратитесь к менеджеру: +7 700 978 8467'
       )
     } else if (/помощь|help|команды/.test(t)) {
       await handleHelp(phone)
@@ -89,7 +89,7 @@ async function handleMyOrder(phone: string) {
 
   if (!client) {
     await umnicoClient.sendMessage(phone,
-      '❌ Клиент не найден.\n\nОбратитесь к менеджеру: +7 700 757 5243'
+      '❌ Клиент не найден.\n\nОбратитесь к менеджеру: +7 700 978 8467'
     )
     return
   }
@@ -152,6 +152,6 @@ async function handleHelp(phone: string) {
     `📦 *мой заказ* — последний заказ и статус\n\n` +
     `💰 *баланс* — ваш баланс\n\n` +
     `❓ *помощь* — эта справка\n\n` +
-    `По вопросам: 📞 +7 700 757 5243\n_Цветы Уральска_`
+    `По вопросам: 📞 +7 700 978 8467\n_Цветы Уральска_`
   )
 }

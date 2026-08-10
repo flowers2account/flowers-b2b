@@ -120,5 +120,5 @@ export function authPinToClient(clientName: string, pin: string): string {
 
 —
 🌸 Цветы Уральска
-📞 +7 700 757 5243`
+📞 +7 700 978 8467`
 }

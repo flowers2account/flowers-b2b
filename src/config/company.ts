@@ -8,7 +8,7 @@ export const company = {
   kbe:       '19',
   domain:    'uralskflowers.kz',
   url:       'https://uralskflowers.kz',
-  phone:     '+7 700 757 5243',
+  phone:     '+7 700 978 8467',
   email:     'opt.uralsk@gmail.com',
   address:   'Западно-Казахстанская область, г. Уральск, ул. Амангельды Каримуллина, 11',
   hours:     'пн–пт 9:00–18:00, сб–вс 10:00–17:00',

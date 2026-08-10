@@ -187,7 +187,7 @@ RPC `get_next_invoice_id()` — SECURITY DEFINER, отдаёт `nextval('payment
   - Бренд: «Цветы Уральска»
   - ИП Тропин Валерий Алексеевич, ИИН `610803301378`
   - ИИК `KZ256017181000005303`, АО «Народный Банк Казахстана», БИК `HSBKKZKX`, КБЕ `19`
-  - Домен `uralskflowers.kz`, тел `+7 700 757 5243`, e-mail `opt.uralsk@gmail.com`
+  - Домен `uralskflowers.kz`, тел `+7 700 978 8467`, e-mail `opt.uralsk@gmail.com`
   - Адрес: ЗКО, г. Уральск, ул. Амангельды Каримуллина, 11
 - **Статичные страницы** (без авторизации): `/legal/oferta`, `/legal/privacy`, `/legal/personal-data`, `/payment`, `/delivery`, `/returns`, `/contacts`. Исходники — `docs/legal-content/*.md`, рендер через `src/components/LegalPage.tsx`.
 - **`SiteFooter`** — реквизиты, ссылки на правовые документы, логотипы платёжных систем (`public/payment-logos/`: Visa, Mastercard, UnionPay, Visa Secure, MC ID Check, epay — локальные SVG, без хотлинков).
