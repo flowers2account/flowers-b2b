@@ -414,7 +414,7 @@ export function GridCard({
           return (
             <div style={{ marginTop: 'auto', paddingTop: 6 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                {(isAuthed || product.category === 'accessories') ? (
+                {(isAuthed || product.category !== 'cut') ? (
                   <>
                     <span style={{ fontFamily: 'var(--font-serif), serif', fontSize: 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
                       {price.toLocaleString('ru-RU')} ₸
@@ -434,7 +434,7 @@ export function GridCard({
                 )}
               </div>
               {/* price_per_m / price_per_m2 справочная строка */}
-              {(isAuthed || product.category === 'accessories') && ((product as any).price_per_m || (product as any).price_per_m2) && (
+              {(isAuthed || product.category !== 'cut') && ((product as any).price_per_m || (product as any).price_per_m2) && (
                 <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 2 }}>
                   {(product as any).price_per_m && `${Number((product as any).price_per_m).toLocaleString('ru-RU')} ₸/пог.м`}
                   {(product as any).price_per_m && (product as any).price_per_m2 && ' · '}
@@ -592,7 +592,7 @@ function ListRow({
         onClick={e => e.stopPropagation()}
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}
       >
-        {(isAuthed || product.category === 'accessories') ? (
+        {(isAuthed || product.category !== 'cut') ? (
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
             {price.toLocaleString('ru-RU')} ₸
           </span>

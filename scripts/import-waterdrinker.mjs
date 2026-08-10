@@ -279,6 +279,16 @@ for (const item of items) {
     source:              'waterdrinker',
   }
 
+  // Горшечные продаются поштучно: «стеблей в упаковке» — характеристика среза и к
+  // растению в горшке неприменима. У WD в item.stems для pot лежит число растений
+  // в лотке поставщика; заносить его в stems_per_pack нельзя (на карточке появлялось
+  // «Стеблей в упаковке: 1 шт»), а в pack_size — тем более: кратность заказа для
+  // горшечных всегда 1 шт.
+  if (product.category === 'pot') {
+    product.stems_per_pack = null
+    product.pack_size = 1
+  }
+
   // Dedup: prefer supplier_ref (unique per WD product); fallback to name for legacy imports
   let existing = null
   if (item.id) {

@@ -401,7 +401,7 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
           )}
 
           <Row label="Цена">
-            {(isAuthed || product.category === 'accessories') ? (
+            {(isAuthed || product.category !== 'cut') ? (
               <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
                 {price.toLocaleString('ru-RU')} ₸/{unitForProduct(product as any)}
               </span>
@@ -420,7 +420,8 @@ function StateDetail({ product, onGoToCart, onClose }: { product: Product; onGoT
             </div>
           )}
 
-          {product.stems_per_pack && product.stems_per_pack > 0 && (
+          {/* «стеблей в упаковке» — характеристика среза, к горшечным неприменима */}
+          {product.category !== 'pot' && product.stems_per_pack && product.stems_per_pack > 0 && (
             <Row label="Стеблей в уп.">{product.stems_per_pack} шт</Row>
           )}
 

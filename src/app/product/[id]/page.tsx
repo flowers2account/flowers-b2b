@@ -355,7 +355,8 @@ export default function ProductPage() {
     { label: 'Поставщик', value: product.farm },
     { label: 'Качество', value: product.quality_grade },
     { label: 'Кратность заказа', value: product.pack_size > 1 ? `${product.pack_size} ${unit}` : null },
-    { label: 'Стеблей в упаковке', value: product.stems_per_pack ? `${product.stems_per_pack} шт` : null },
+    // «стеблей в упаковке» — характеристика среза, к горшечным неприменима
+    { label: 'Стеблей в упаковке', value: product.category !== 'pot' && product.stems_per_pack ? `${product.stems_per_pack} шт` : null },
     { label: 'Вес упаковки', value: product.weight_gram ? `${product.weight_gram} г` : null },
     { label: 'Растений в горшке', value: product.min_plants_per_pot ? `${product.min_plants_per_pot} шт` : null },
     { label: 'Цветков в горшке', value: product.min_flowers_per_pot ? `${product.min_flowers_per_pot} шт` : null },
@@ -371,7 +372,7 @@ export default function ProductPage() {
     product.pot_diameter ? { l: potL.diameterShort, v: `Ø ${product.pot_diameter} см` } : null,
     product.min_plants_per_pot ? { l: 'В горшке', v: `${product.min_plants_per_pot} раст.` } : null,
     !product.min_plants_per_pot && product.pack_size > 1 ? { l: 'Упаковка', v: `${product.pack_size} ${unit}` } : null,
-    product.stems_per_pack ? { l: 'Стеблей', v: `${product.stems_per_pack} шт` } : null,
+    product.category !== 'pot' && product.stems_per_pack ? { l: 'Стеблей', v: `${product.stems_per_pack} шт` } : null,
     product.weight_gram ? { l: 'Вес', v: `${product.weight_gram} г` } : null,
   ].filter(Boolean) as { l: string; v: string }[]
 
