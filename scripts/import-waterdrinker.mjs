@@ -10,6 +10,10 @@ const CATEGORY_FILTER = process.argv[2] || 'ALL'
 
 const SKIP_CATEGORIES = new Set(['Bonsai'])
 
+// source-значения, которые витрина показывает: карточку с таким source импорт не «понижает»
+// обратно в 'waterdrinker' (иначе повторный парсинг снимает товар с продажи)
+const PUBLISHED_SOURCES = new Set(['uralsk_site', 'uralsk_1c'])
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -278,15 +282,15 @@ for (const item of items) {
   // Dedup: prefer supplier_ref (unique per WD product); fallback to name for legacy imports
   let existing = null
   if (item.id) {
-    const { data } = await supabase.from('products').select('id, colors, image_url, subcategory').eq('supplier_ref', String(item.id)).maybeSingle()
+    const { data } = await supabase.from('products').select('id, colors, image_url, subcategory, source').eq('supplier_ref', String(item.id)).maybeSingle()
     existing = data
     if (!existing) {
       // Legacy fallback: find by name only if the record has no supplier_ref yet
-      const { data: byName } = await supabase.from('products').select('id, colors, image_url, supplier_ref').eq('name', skuName).maybeSingle()
+      const { data: byName } = await supabase.from('products').select('id, colors, image_url, supplier_ref, source').eq('name', skuName).maybeSingle()
       if (byName && !byName.supplier_ref) existing = byName
     }
   } else {
-    const { data } = await supabase.from('products').select('id, colors, image_url').eq('name', skuName).maybeSingle()
+    const { data } = await supabase.from('products').select('id, colors, image_url, source').eq('name', skuName).maybeSingle()
     existing = data
   }
 
@@ -312,7 +316,10 @@ for (const item of items) {
         pot_form:            product.pot_form,
         substrate:           product.substrate,
         variant:             product.variant,
-        source:              'waterdrinker',
+        // ⚠️ НЕ понижаем source у уже опубликованных карточек. Витрина фильтрует
+        // source IN ('uralsk_site','uralsk_1c') — перезапись на 'waterdrinker' убрала бы
+        // с сайта карточки, вручную выведенные в продажу (см. горшечные из 1c-too).
+        ...(PUBLISHED_SOURCES.has(existing.source) ? {} : { source: 'waterdrinker' }),
         ...(!existing.colors?.length && product.colors ? { colors: product.colors } : {}),
         // Force-update photo when subcategory changes (product moved from another category)
         ...(((!existing.image_url || existing.subcategory !== product.subcategory) && product.image_url) ? {
