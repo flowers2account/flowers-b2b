@@ -7,6 +7,7 @@ import CatalogLayout from '@/components/catalog/CatalogLayout'
 import { resolveCatalogSection, ogImageQuery, type CatalogParams } from '@/lib/catalog-meta'
 import HeroBanner from '@/components/HeroBanner'
 import { CATALOG_GRID_ANCHOR_ID } from '@/components/hero-campaigns'
+import { visibleSources } from '@/lib/product-visibility'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,7 @@ async function sectionOgImage(
       .from('products')
       .select('image_url, campaign_image_url')
       .eq('is_active', true)
-      .in('source', ['uralsk_site', 'uralsk_1c'])
+      .in('source', visibleSources())
       .or('qty.gt.0,site_qty.gt.0')
     if (pick.category) qb = qb.eq('category', pick.category)
     if (pick.subcats?.length) qb = qb.in('subcategory', pick.subcats)
@@ -91,7 +92,7 @@ async function fetchAllProducts(supabase: Awaited<ReturnType<typeof createClient
       .from('products')
       .select(SELECT_FIELDS)
       .eq('is_active', true)
-      .in('source', ['uralsk_site', 'uralsk_1c'])
+      .in('source', visibleSources())
       .or('qty.gt.0,site_qty.gt.0')
       .order('name')
       .order('length_cm')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { leafForSubcat, subcatInLeaves, slugsForGroup } from '@/lib/category-tree'
 import { normalizeColor, isNonColor } from '@/lib/colors'
+import { visibleSources } from '@/lib/product-visibility'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
       .select('id, colors, length_cm, country_iso, subcategory, variety_type, qty, farm, subgroup, volume_l, supplier, pot_material, pot_color')
       .eq('is_active', true)
       .eq('category', category)
-      .in('source', ['uralsk_site', 'uralsk_1c'])
+      .in('source', visibleSources())
       .range(from, from + PAGE - 1)
     if (error || !data || data.length === 0) break
     products = products.concat(data as RawProduct[])

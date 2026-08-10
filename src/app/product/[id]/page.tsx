@@ -10,6 +10,7 @@ import { COLORS, getColorMode, colorLabel, colorSwatch, isAssorti, isNonColor, u
 import { useIsMobile } from '@/lib/use-mobile'
 import { COUNTRY_LABELS } from '@/lib/countries'
 import { leafForSubcat, unitForProduct } from '@/lib/category-tree'
+import { visibleSources } from '@/lib/product-visibility'
 import FavHeart from '@/components/catalog/FavHeart'
 import AuthModal from '@/components/catalog/AuthModal'
 import { useAuthStore } from '@/lib/auth-store'
@@ -149,8 +150,10 @@ export default function ProductPage() {
       .from('products')
       .select('id, name, display_name, price, qty, image_url, pot_diameter, length_cm, colors, country_iso')
       .eq('subcategory', product.subcategory)
+      .eq('category', product.category)   // подкатегории-омонимы: anthuriums/orchids/roses есть и в срезе, и в горшечных
+      .in('source', visibleSources())     // только то, что реально открывается из каталога
       .eq('is_active', true)
-      .eq('hidden_for_demo', false)  // не подмешивать скрытые (oz_catalog 999) в «Похожие»
+      .eq('hidden_for_demo', false)
       .neq('id', productId)
       .gt('qty', 0)
       .order('id')
@@ -218,8 +221,10 @@ export default function ProductPage() {
             .from('products')
             .select('id, name, display_name, price, qty, image_url, pot_diameter, length_cm, colors, country_iso')
             .eq('subcategory', data.subcategory)
+            .eq('category', data.category)   // см. коммент в loadMoreRelated — омонимы подкатегорий
+            .in('source', visibleSources())
             .eq('is_active', true)
-            .eq('hidden_for_demo', false)  // не подмешивать скрытые (oz_catalog 999) в «Похожие»
+            .eq('hidden_for_demo', false)
             .neq('id', productId)
             .gt('qty', 0)
             .range(0, REL_PAGE - 1)

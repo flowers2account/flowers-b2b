@@ -5,6 +5,7 @@ import { company } from '@/config/company'
 import { CATEGORY_TREE, leafForSubcat } from '@/lib/category-tree'
 import SearchBox from '@/components/catalog/SearchBox'
 import s from './categories.module.css'
+import { visibleSources } from '@/lib/product-visibility'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +54,7 @@ async function leafCounts(): Promise<Record<string, number>> {
     .eq('category', 'accessories')
     .eq('is_active', true)
     .gt('qty', 0)
-    .in('source', ['uralsk_site', 'uralsk_1c'])
+    .in('source', visibleSources())
   const counts: Record<string, number> = {}
   for (const r of data ?? []) {
     const leaf = leafForSubcat((r as { subcategory: string | null }).subcategory)

@@ -40,6 +40,25 @@ export async function POST(req: NextRequest) {
   if (rowErr || !row) return NextResponse.json({ error: 'Row not found' }, { status: 404 })
   if (row.status === 'applied') return NextResponse.json({ error: 'Строка уже применена' }, { status: 400 })
 
+  // Повторное нажатие «Создать карточку» раньше плодило дубли: три «Фацелии»
+  // и два «антуриума джамбо ред» с одним и тем же артикулом. Ключ 1С уникален —
+  // проверяем до вставки и возвращаем существующую карточку вместо второй.
+  if (row.code_1c) {
+    const { data: dup } = await supabase
+      .from('products')
+      .select('id, display_name, name, category, is_active')
+      .eq('code_1c', row.code_1c)
+      .limit(1)
+      .maybeSingle()
+    if (dup) {
+      return NextResponse.json({
+        error: `Карточка с артикулом ${row.code_1c} уже есть: #${dup.id} «${dup.display_name || dup.name}»` +
+               ` (${dup.category}${dup.is_active ? '' : ', неактивна'}). Привяжите строку к ней, а не создавайте новую.`,
+        existing: dup,
+      }, { status: 409 })
+    }
+  }
+
   const f = fields ?? {}
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
   const num = (v: unknown) => {
@@ -76,7 +95,15 @@ export async function POST(req: NextRequest) {
   // каждый раз приходила бы как unmatched
   if (row.code_1c) newProduct.code_1c = row.code_1c
 
-  const displayName = str(f.display_name) ?? (row.enriched_display_name || null)
+  // Имя из 1С приходит как «антуриум джамбо ред 35  9» — со строчной буквы и
+  // двойными пробелами. Пустой display_name означал, что эта строка уезжает на
+  // витрину как есть; чистим и капитализируем.
+  const tidy = (s: string) => {
+    const t = s.replace(/\s+/g, ' ').trim()
+    return t ? t[0].toUpperCase() + t.slice(1) : t
+  }
+  const rawDisplay = str(f.display_name) ?? row.enriched_display_name ?? row.raw_name
+  const displayName = rawDisplay ? tidy(rawDisplay) : null
   if (displayName) newProduct.display_name = displayName
 
   const subcategory = str(f.subcategory) ?? row.enriched_subcategory
