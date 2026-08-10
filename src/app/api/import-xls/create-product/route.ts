@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const { data: created, error: insErr } = await supabase
     .from('products')
     .insert(newProduct)
-    .select('id, name, display_name, length_cm, subcategory, image_url, colors')
+    .select('id, is_active, category, name, display_name, code_1c, supplier_ref, source, length_cm, subcategory, image_url, colors')
     .single()
 
   if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 })

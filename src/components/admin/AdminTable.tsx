@@ -17,6 +17,7 @@ import ProductEditModal from './ProductEditModal'
 const BG_TINT = '#FFFFFF'
 
 type Stock = { price: number; qty: number; qty_reserved: number; is_available: boolean; reserved_qty?: number } | null
+type StockStatusFilter = 'all' | 'active' | 'inactive'
 type Product = { id: number; name: string; display_name?: string | null; category: string; is_active: boolean; pack_size: number; stems_per_pack?: number | null; image_url?: string | null; campaign_image_url?: string | null; colors?: string[] | null; color_images?: Record<string, string> | null; arrival_date?: string | null; country_iso?: string | null; farm?: string | null; is_new?: boolean; stock: Stock[] | Stock }
 
 // Готовое (обработанное в браузере) фото → серверный роут.
@@ -550,6 +551,7 @@ const subcatLabel = (key: string): string =>
 export default function AdminTable() {
   const [search, setSearch] = useState('')
   const [inStockOnly, setInStockOnly] = useState(false)
+  const [stockStatus, setStockStatus] = useState<StockStatusFilter>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('')
   const [subcategoryFilter, setSubcategoryFilter] = useState<string>('')
   const [availableSubcats, setAvailableSubcats] = useState<{ key: string; label: string }[]>([])
@@ -590,6 +592,7 @@ export default function AdminTable() {
     const params = new URLSearchParams()
     if (debouncedSearch)  params.set('search', debouncedSearch)
     if (inStockOnly)      params.set('inStock', 'true')
+    if (stockStatus !== 'all') params.set('status', stockStatus)
     if (categoryFilter)   params.set('category', categoryFilter)
     if (subcategoryFilter) params.set('subcategory', subcategoryFilter)
     const res = await fetch(`/api/admin/products?${params}`)
@@ -598,7 +601,7 @@ export default function AdminTable() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [debouncedSearch, inStockOnly, categoryFilter, subcategoryFilter])
+  useEffect(() => { load() }, [debouncedSearch, inStockOnly, stockStatus, categoryFilter, subcategoryFilter])
 
   // Realtime: reload on reservation changes
   useEffect(() => {
@@ -651,6 +654,31 @@ export default function AdminTable() {
           </div>
           <span className="text-sm font-medium">В наличии</span>
         </label>
+
+        <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white p-0.5 whitespace-nowrap">
+          {([
+            { key: 'all', label: 'Все' },
+            { key: 'active', label: 'Активные' },
+            { key: 'inactive', label: 'Неактивные' },
+          ] as const).map(item => {
+            const active = stockStatus === item.key
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setStockStatus(item.key)}
+                className="rounded px-2 py-1 text-xs transition-colors"
+                style={{
+                  background: active ? '#7a1c2e' : 'transparent',
+                  color: active ? '#fff' : '#6b7280',
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
 
         <Badge variant="outline" className="whitespace-nowrap">
           {loading ? '...' : `${data.length} позиций`}

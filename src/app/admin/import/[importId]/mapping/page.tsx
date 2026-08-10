@@ -8,8 +8,13 @@ import Image from 'next/image'
 
 type ProductHit = {
   id: number
+  is_active: boolean
+  category: string | null
   name: string
   display_name: string | null
+  code_1c: string | null
+  supplier_ref: string | null
+  source: string | null
   length_cm: number | null
   subcategory: string | null
   image_url: string | null
@@ -69,7 +74,7 @@ function SearchBox({ rowId, onMatch }: { rowId: number; onMatch: (p: ProductHit)
         value={q}
         onChange={e => { setQ(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
-        placeholder="Поиск: название или перевод…"
+        placeholder="Поиск: название, ID, код 1С, supplier_ref…"
         style={{
           width: '100%', padding: '5px 8px', border: '1px solid #d1d5db',
           borderRadius: 6, fontSize: 12, outline: 'none', fontFamily: 'inherit',
@@ -96,10 +101,18 @@ function SearchBox({ rowId, onMatch }: { rowId: number; onMatch: (p: ProductHit)
                   style={{ objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
               )}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {h.display_name || h.name}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {h.display_name || h.name}
+                  </span>
+                  <span style={{ fontSize: 9, color: h.is_active ? '#047857' : '#b45309', background: h.is_active ? '#d1fae5' : '#fef3c7', borderRadius: 999, padding: '1px 5px', flexShrink: 0 }}>
+                    {h.is_active ? 'активна' : 'неактивна'}
+                  </span>
                 </div>
                 <div style={{ fontSize: 10, color: '#9ca3af' }}>
+                  #{h.id}{h.category ? ` · ${h.category}` : ''}{h.code_1c ? ` · 1С ${h.code_1c}` : ''}{h.supplier_ref ? ` · ref ${h.supplier_ref}` : ''}{h.source ? ` · ${h.source}` : ''}
+                </div>
+                <div style={{ fontSize: 10, color: '#9ca3af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {h.name}{h.length_cm ? ` · ${h.length_cm}см` : ''}{h.subcategory ? ` · ${h.subcategory}` : ''}
                 </div>
               </div>
@@ -409,12 +422,17 @@ export default function MappingPage() {
                         style={{ objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} />
                     )}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: '#1d4ed8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {row.product.display_name || row.product.name}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: '#1d4ed8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {row.product.display_name || row.product.name}
+                        </span>
+                        <span style={{ fontSize: 9, color: row.product.is_active ? '#047857' : '#b45309', background: row.product.is_active ? '#d1fae5' : '#fef3c7', borderRadius: 999, padding: '1px 5px', flexShrink: 0 }}>
+                          {row.product.is_active ? 'активна' : 'неактивна'}
+                        </span>
                       </div>
-                      {row.product.length_cm && (
-                        <div style={{ fontSize: 10, color: '#9ca3af' }}>{row.product.length_cm} см</div>
-                      )}
+                      <div style={{ fontSize: 10, color: '#9ca3af' }}>
+                        #{row.product.id}{row.product.category ? ` · ${row.product.category}` : ''}{row.product.code_1c ? ` · 1С ${row.product.code_1c}` : ''}{row.product.supplier_ref ? ` · ref ${row.product.supplier_ref}` : ''}{row.product.source ? ` · ${row.product.source}` : ''}{row.product.length_cm ? ` · ${row.product.length_cm} см` : ''}
+                      </div>
                     </div>
                   </div>
                 )}

@@ -38,13 +38,13 @@ export async function GET(req: NextRequest) {
     rows.filter(r => r.matched_product_id).map(r => r.matched_product_id as number)
   )]
 
-  let productMap: Record<number, { id: number; name: string; display_name: string | null; length_cm: number | null; subcategory: string | null; image_url: string | null; colors: string[] | null }> = {}
+  let productMap: Record<number, { id: number; is_active: boolean; category: string | null; name: string; display_name: string | null; code_1c: string | null; supplier_ref: string | null; source: string | null; length_cm: number | null; subcategory: string | null; image_url: string | null; colors: string[] | null }> = {}
 
   // .in(...) тоже капается на 1000 — чанки по 500 id (снимок может дать >1000 matched)
   for (let i = 0; i < productIds.length; i += 500) {
     const { data: products } = await supabase
       .from('products')
-      .select('id, name, display_name, length_cm, subcategory, image_url, colors')
+      .select('id, is_active, category, name, display_name, code_1c, supplier_ref, source, length_cm, subcategory, image_url, colors')
       .in('id', productIds.slice(i, i + 500))
     for (const p of products ?? []) productMap[p.id] = p
   }

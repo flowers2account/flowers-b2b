@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+function sanitizeSearchValue(value: string): string {
+  return value.replace(/[%,()]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
 export const dynamic = 'force-dynamic'
 
 let _admin: ReturnType<typeof createAdminClient> | null = null
@@ -9,15 +13,16 @@ const getAdmin = () => (_admin ??= createAdminClient())
 export async function GET(req: NextRequest) {
   const admin = getAdmin()
   const { searchParams } = new URL(req.url)
-  const search      = searchParams.get('search')?.trim() ?? ''
+  const search      = sanitizeSearchValue(searchParams.get('search')?.trim() ?? '')
   const inStock     = searchParams.get('inStock') === 'true'
+  const status      = searchParams.get('status')?.trim() ?? 'all'
   const category    = searchParams.get('category')?.trim() ?? ''
   const subcategory = searchParams.get('subcategory')?.trim() ?? ''
 
   let query = admin
     .from('products')
     .select(`
-      id, name, display_name, length_cm, category, subcategory,
+      id, name, display_name, code_1c, supplier_ref, length_cm, category, subcategory,
       pack_size, stems_per_pack, image_url, campaign_image_url, colors, color_images, country_iso, farm,
       price, previous_price, qty, site_qty, is_active, arrival_date
     `)
@@ -25,7 +30,18 @@ export async function GET(req: NextRequest) {
     .order('length_cm', { ascending: true, nullsFirst: false })
     .limit(600)
 
-  if (search)      query = query.ilike('name', `%${search}%`)
+  if (search) {
+    const orParts = [
+      `name.ilike.%${search}%`,
+      `display_name.ilike.%${search}%`,
+      `code_1c.ilike.%${search}%`,
+      `supplier_ref.ilike.%${search}%`,
+    ]
+    if (/^\d+$/.test(search)) orParts.unshift(`id.eq.${search}`)
+    query = query.or(orParts.join(','))
+  }
+  if (status === 'active') query = query.eq('is_active', true)
+  if (status === 'inactive') query = query.eq('is_active', false)
   if (category)    query = query.eq('category', category)
   if (subcategory) query = query.eq('subcategory', subcategory)
   if (inStock)     query = query.or('qty.gt.0,site_qty.gt.0')
