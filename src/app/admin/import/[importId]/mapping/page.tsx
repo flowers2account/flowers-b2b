@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { authHeaders } from '@/lib/api-token'
+import CreateProductModal from '@/components/admin/CreateProductModal'
 import Image from 'next/image'
 
 type ProductHit = {
@@ -21,6 +22,8 @@ type ProductHit = {
   colors: string[] | null
 }
 
+// /api/import-xls/rows отдаёт строку целиком (select '*') — объявляем и поля,
+// которыми пользуется форма создания карточки
 type ImportRow = {
   id: number
   raw_name: string
@@ -31,6 +34,12 @@ type ImportRow = {
   match_source: string | null
   matched_product_id: number | null
   product: ProductHit | null
+  code_1c: string | null
+  source: string | null
+  file_category: string | null
+  enriched_display_name: string | null
+  enriched_subcategory: string | null
+  enriched_country_iso: string | null
 }
 
 type Summary = { total: number; unmatched: number; matched: number; skipped: number; applied: number }
@@ -137,7 +146,7 @@ export default function MappingPage() {
   const [loading, setLoading] = useState(true)
   const [applying, setApplying] = useState(false)
   const [applyResult, setApplyResult] = useState<{ applied: number; errors: number } | null>(null)
-  const [creating, setCreating] = useState<Set<number>>(new Set())
+  const [creating, setCreating] = useState<ImportRow | null>(null)
 
   useEffect(() => { init() }, [])
 
@@ -208,28 +217,13 @@ export default function MappingPage() {
     })
   }
 
-  async function handleCreateProduct(rowId: number) {
-    setCreating(prev => new Set(prev).add(rowId))
-    try {
-      const res = await fetch('/api/import-xls/create-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ rowId }),
-      })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error ?? 'Ошибка создания'); return }
-
-      const product: ProductHit = data.product
-      setRows(prev => prev.map(r => r.id === rowId
-        ? { ...r, status: 'matched', matched_product_id: product.id, match_source: '1c_manual', product }
-        : r
-      ))
-      setSummary(prev => prev ? { ...prev, unmatched: prev.unmatched - 1, matched: prev.matched + 1 } : prev)
-    } catch (e) {
-      alert('Ошибка: ' + String(e))
-    } finally {
-      setCreating(prev => { const s = new Set(prev); s.delete(rowId); return s })
-    }
+  function handleCreated(rowId: number, product: ProductHit) {
+    setRows(prev => prev.map(r => r.id === rowId
+      ? { ...r, status: 'matched', matched_product_id: product.id, match_source: '1c_manual', product }
+      : r
+    ))
+    setSummary(prev => prev ? { ...prev, unmatched: prev.unmatched - 1, matched: prev.matched + 1 } : prev)
+    setCreating(null)
   }
 
   async function handleApply() {
@@ -396,18 +390,15 @@ export default function MappingPage() {
                     <SearchBox rowId={row.id} onMatch={p => handleMatch(row.id, p)} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button
-                        onClick={() => handleCreateProduct(row.id)}
-                        disabled={creating.has(row.id)}
+                        onClick={() => setCreating(row)}
                         title="Создать новую карточку товара в каталоге из этой строки"
                         style={{
                           padding: '3px 8px', fontSize: 10, border: '1px solid #d1d5db',
-                          borderRadius: 5, background: creating.has(row.id) ? '#f3f4f6' : '#fffbeb',
-                          color: creating.has(row.id) ? '#9ca3af' : '#92400e',
-                          cursor: creating.has(row.id) ? 'default' : 'pointer',
-                          fontFamily: 'inherit', whiteSpace: 'nowrap',
+                          borderRadius: 5, background: '#fffbeb', color: '#92400e',
+                          cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
                         }}
                       >
-                        {creating.has(row.id) ? 'Создаётся…' : '+ Создать карточку'}
+                        + Создать карточку
                       </button>
                       <span style={{ fontSize: 9, color: '#d97706' }}>
                         только если нет в каталоге
@@ -514,6 +505,14 @@ export default function MappingPage() {
             {applying ? 'Применяется…' : `Применить ${summary?.matched ?? 0} строк`}
           </button>
         </div>
+      )}
+
+      {creating && (
+        <CreateProductModal
+          row={creating}
+          onClose={() => setCreating(null)}
+          onCreated={p => handleCreated(creating.id, p as ProductHit)}
+        />
       )}
     </div>
   )

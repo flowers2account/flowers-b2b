@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { COLORS } from '@/lib/colors'
 import { COUNTRY_LABELS } from '@/lib/countries'
+import { CATEGORY_OPTIONS, subcatOptionsFor, unitForSubcat, type ProductCategory } from '@/lib/product-subcats'
 
 type ProductEdit = {
   id: number
   name: string
   display_name: string | null
-  category: 'cut' | 'pot'
+  category: ProductCategory
   subcategory: string | null
+  unit: string | null
   variety_type: string | null
   length_cm: number | null
   pot_diameter: number | null
@@ -26,115 +28,6 @@ type ProductEdit = {
   is_active: boolean
 }
 
-const SUBCAT_CUT = [
-  { v: 'roses',          l: 'Розы'          },
-  { v: 'chrysanthemums', l: 'Хризантемы'    },
-  { v: 'carnations',     l: 'Гвоздики'      },
-  { v: 'tulips',         l: 'Тюльпаны'      },
-  { v: 'peonies',        l: 'Пионы'         },
-  { v: 'ranunculus',     l: 'Ранункулюсы'   },
-  { v: 'anemones',       l: 'Анемоны'       },
-  { v: 'lilies',         l: 'Лилии'         },
-  { v: 'gerberas',       l: 'Герберы'       },
-  { v: 'lisianthus',     l: 'Эустомы'       },
-  { v: 'alstroemeria',   l: 'Альстромерии'  },
-  { v: 'hydrangeas',     l: 'Гортензии'     },
-  { v: 'orchids',        l: 'Орхидеи'       },
-  { v: 'callas',         l: 'Каллы'         },
-  { v: 'anthuriums',     l: 'Антуриумы'     },
-  { v: 'proteas',        l: 'Протеи'        },
-  { v: 'sunflowers',     l: 'Подсолнухи'    },
-  { v: 'irises',         l: 'Ирисы'         },
-  { v: 'delphiniums',    l: 'Дельфиниумы'   },
-  { v: 'freesia',        l: 'Фрезия'        },
-  { v: 'asters',         l: 'Астры'         },
-  { v: 'antirrhinum',    l: 'Антирринум'    },
-  { v: 'matthiola',      l: 'Маттиола'      },
-  { v: 'bouvardia',      l: 'Бувардия'      },
-  { v: 'astilbe',        l: 'Астильба'      },
-  { v: 'allium',         l: 'Аллиум'        },
-  { v: 'celosia',        l: 'Целозия'       },
-  { v: 'campanula',      l: 'Кампанула'     },
-  { v: 'lathyrus',       l: 'Душистый горошек' },
-  { v: 'waxflower',      l: 'Хамелауциум'   },
-  { v: 'eryngium',       l: 'Эрингиум'      },
-  { v: 'dahlia',         l: 'Георгин'       },
-  { v: 'greens',         l: 'Зелень'        },
-  { v: 'branches',       l: 'Ветки'         },
-  { v: 'fillers',        l: 'Наполнители'   },
-  { v: 'texture',        l: 'Текстурные'    },
-  { v: 'berries',        l: 'Ягоды'         },
-  { v: 'vines',          l: 'Лианы'         },
-  { v: 'accents',        l: 'Акцентные'     },
-  { v: 'seasonal',       l: 'Сезонные'      },
-  { v: 'spring',         l: 'Весенние'      },
-  { v: 'exotic',         l: 'Экзотика'      },
-]
-const SUBCAT_POT = [
-  // Цветущие комнатные
-  { v: 'anthuriums',         l: 'Антуриум'              },
-  { v: 'begonias',           l: 'Бегония'               },
-  { v: 'bromeliads',         l: 'Бромелиевые'           },
-  { v: 'bulbs_indoor',       l: 'Луковичные'            },
-  { v: 'chrysanthemums_pot', l: 'Хризантемы горшечные'  },
-  { v: 'cyclamen',           l: 'Цикламен'              },
-  { v: 'hydrangeas_indoor',  l: 'Гортензия комнатная'   },
-  { v: 'kalanchoe',          l: 'Каланхоэ'              },
-  { v: 'orchids',            l: 'Орхидеи'               },
-  { v: 'azalea_indoor',      l: 'Азалия комнатная'      },
-  { v: 'roses_indoor',       l: 'Розы комнатные'        },
-  { v: 'spathiphyllum',      l: 'Спатифиллум'           },
-  { v: 'carnivorous',        l: 'Хищные растения'       },
-  { v: 'poinsettia',         l: 'Пуансеттия'            },
-  { v: 'flowering',          l: 'Цветущие прочие'       },
-  // Декоративно-лиственные
-  { v: 'cacti',              l: 'Кактусы'               },
-  { v: 'calathea',           l: 'Калатея'               },
-  { v: 'dracaena',           l: 'Драцена'               },
-  { v: 'ficus',              l: 'Фикусы'                },
-  { v: 'large_leaved',       l: 'Крупнолистные'         },
-  { v: 'hedera',             l: 'Плющ комнатный'        },
-  { v: 'palms',              l: 'Пальмы'                },
-  { v: 'succulents',         l: 'Суккуленты'            },
-  { v: 'polyscias',          l: 'Полисциас'             },
-  { v: 'pachira',            l: 'Пахира'                },
-  { v: 'yucca',              l: 'Юкка'                  },
-  { v: 'ferns',              l: 'Папоротники'           },
-  { v: 'zamioculcas',        l: 'Замиокулькас'          },
-  { v: 'green',              l: 'Зелёные прочие'        },
-  { v: 'large',              l: 'Крупномеры'            },
-  // Многолетние садовые
-  { v: 'helleborus',         l: 'Морозник'              },
-  { v: 'lavender',           l: 'Лаванда'               },
-  { v: 'ornamental_grasses', l: 'Декоративные травы'    },
-  { v: 'aquatic',            l: 'Водные растения'       },
-  { v: 'perennials',         l: 'Многолетние прочие'    },
-  // Огородные
-  { v: 'fruit_plants',       l: 'Плодовые'              },
-  { v: 'vegetables',         l: 'Овощные'               },
-  { v: 'herbs',              l: 'Пряные травы'          },
-  // Кустарники и деревья
-  { v: 'trees',              l: 'Деревья'               },
-  { v: 'buxus',              l: 'Самшит'                },
-  { v: 'heather',            l: 'Вереск'                },
-  { v: 'conifers',           l: 'Хвойные'               },
-  { v: 'gaultheria',         l: 'Гаультерия'            },
-  { v: 'hedging',            l: 'Живая изгородь'        },
-  { v: 'hebe',               l: 'Хебе'                  },
-  { v: 'hedera_outdoor',     l: 'Плющ садовый'          },
-  { v: 'hydrangeas_outdoor', l: 'Гортензия садовая'     },
-  { v: 'climbing_plants',    l: 'Вьющиеся'              },
-  { v: 'rhododendrons',      l: 'Рододендроны'          },
-  { v: 'roses_outdoor',      l: 'Розы садовые'          },
-  { v: 'skimmia',            l: 'Скиммия'               },
-  { v: 'outdoor',            l: 'Кустарники прочие'     },
-  // Клумбовые
-  { v: 'fuchsia',            l: 'Фуксия'                },
-  { v: 'geranium',           l: 'Герань'                },
-  { v: 'viola',              l: 'Виола'                 },
-  { v: 'patio_plants',       l: 'Растения для патио'    },
-  { v: 'bedding',            l: 'Клумбовые прочие'      },
-]
 const VARIETY_TYPES = [
   { v: 'single',     l: 'Одноголовые' },
   { v: 'spray',      l: 'Кустовые'    },
@@ -185,7 +78,7 @@ export default function ProductEditModal({
     const supabase = createClient()
     supabase
       .from('products')
-      .select('id,name,display_name,category,subcategory,variety_type,length_cm,pot_diameter,country_iso,farm,colors,tags,image_url,pack_size,price,qty,arrival_date,is_active')
+      .select('id,name,display_name,category,subcategory,unit,variety_type,length_cm,pot_diameter,country_iso,farm,colors,tags,image_url,pack_size,price,qty,arrival_date,is_active')
       .eq('id', productId)
       .single()
       .then(({ data }: { data: ProductEdit | null }) => {
@@ -193,6 +86,8 @@ export default function ProductEditModal({
         setLoading(false)
       })
   }, [productId])
+
+  const isAcc = p?.category === 'accessories'
 
   async function save() {
     if (!p) return
@@ -206,11 +101,14 @@ export default function ProductEditModal({
       display_name: p.display_name?.trim() || null,
       category: p.category,
       subcategory: p.subcategory || null,
-      variety_type: p.variety_type || null,
-      length_cm: p.length_cm,
-      pot_diameter: p.pot_diameter,
-      country_iso: p.country_iso || null,
-      farm: p.farm?.trim() || null,
+      unit: p.unit?.trim() || null,
+      // поля среза/горшка обнуляем, если карточку перевели в расходку —
+      // иначе на витрине остаётся «Стеблей», «Длина», «Ферма» от прошлой категории
+      variety_type: isAcc ? null : (p.variety_type || null),
+      length_cm: isAcc ? null : p.length_cm,
+      pot_diameter: p.category === 'pot' ? p.pot_diameter : null,
+      country_iso: isAcc ? null : (p.country_iso || null),
+      farm: isAcc ? null : (p.farm?.trim() || null),
       colors: p.colors?.length ? p.colors : null,
       tags: p.tags?.length ? p.tags : null,
       image_url: p.image_url?.trim() || null,
@@ -238,7 +136,20 @@ export default function ProductEditModal({
     setP(prev => prev ? { ...prev, [field]: value } : prev)
   }
 
-  const subcatOptions = p?.category === 'pot' ? SUBCAT_POT : SUBCAT_CUT
+  const subcatOptions = subcatOptionsFor(p?.category ?? 'cut')
+
+  // смена категории: сбрасываем подкатегорию (списки не пересекаются) и
+  // подставляем единицу продажи, если подкатегория расходки её задаёт
+  function setCategory(next: ProductCategory) {
+    setP(prev => prev ? { ...prev, category: next, subcategory: null, unit: null } : prev)
+  }
+  function setSubcategory(next: string) {
+    setP(prev => prev ? {
+      ...prev,
+      subcategory: next || null,
+      unit: prev.category === 'accessories' ? (unitForSubcat(next) ?? prev.unit) : prev.unit,
+    } : prev)
+  }
 
   function toggleTag(v: string) {
     setP(prev => {
@@ -277,36 +188,46 @@ export default function ProductEditModal({
               </Field>
             </div>
 
-            {/* Категория + подкатегория + тип сорта */}
+            {/* Категория + подкатегория + (тип сорта — только срез/горшок) */}
             <div className="grid grid-cols-3 gap-3">
               <Field label="Категория">
-                <select className={sel} value={p.category} onChange={e => set('category', e.target.value)}>
-                  <option value="cut">Срез</option>
-                  <option value="pot">Горшок</option>
+                <select className={sel} value={p.category} onChange={e => setCategory(e.target.value as ProductCategory)}>
+                  {CATEGORY_OPTIONS.map(c => <option key={c.v} value={c.v}>{c.l}</option>)}
                 </select>
               </Field>
               <Field label="Подкатегория">
-                <select className={sel} value={p.subcategory ?? ''} onChange={e => set('subcategory', e.target.value)}>
+                <select className={sel} value={p.subcategory ?? ''} onChange={e => setSubcategory(e.target.value)}>
                   <option value="">—</option>
                   {subcatOptions.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
                 </select>
               </Field>
-              <Field label="Тип сорта">
-                <select className={sel} value={p.variety_type ?? ''} onChange={e => set('variety_type', e.target.value)}>
-                  <option value="">—</option>
-                  {VARIETY_TYPES.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
-                </select>
-              </Field>
+              {isAcc ? (
+                <Field label="Единица продажи">
+                  <input className={inp} value={p.unit ?? ''} onChange={e => set('unit', e.target.value)} placeholder="шт / пог. м / рулон / уп" />
+                </Field>
+              ) : (
+                <Field label="Тип сорта">
+                  <select className={sel} value={p.variety_type ?? ''} onChange={e => set('variety_type', e.target.value)}>
+                    <option value="">—</option>
+                    {VARIETY_TYPES.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
+                  </select>
+                </Field>
+              )}
             </div>
 
-            {/* Размеры + страна + ферма */}
+            {/* Размеры + страна + ферма — характеристики среза/горшка, для расходки не показываем */}
+            {!isAcc && (
             <div className="grid grid-cols-4 gap-3">
-              <Field label="Длина (см)">
-                <input className={inp} type="number" value={p.length_cm ?? ''} onChange={e => set('length_cm', e.target.value ? +e.target.value : null)} placeholder="60" />
-              </Field>
-              <Field label="Диаметр горшка">
-                <input className={inp} type="number" step="0.1" value={p.pot_diameter ?? ''} onChange={e => set('pot_diameter', e.target.value ? +e.target.value : null)} placeholder="15" />
-              </Field>
+              {p.category === 'cut' && (
+                <Field label="Длина (см)">
+                  <input className={inp} type="number" value={p.length_cm ?? ''} onChange={e => set('length_cm', e.target.value ? +e.target.value : null)} placeholder="60" />
+                </Field>
+              )}
+              {p.category === 'pot' && (
+                <Field label="Диаметр горшка">
+                  <input className={inp} type="number" step="0.1" value={p.pot_diameter ?? ''} onChange={e => set('pot_diameter', e.target.value ? +e.target.value : null)} placeholder="15" />
+                </Field>
+              )}
               <Field label="Страна">
                 <select className={sel} value={p.country_iso ?? ''} onChange={e => set('country_iso', e.target.value || null)}>
                   <option value="">—</option>
@@ -317,6 +238,7 @@ export default function ProductEditModal({
                 <input className={inp} value={p.farm ?? ''} onChange={e => set('farm', e.target.value || null)} placeholder="Karen Roses" />
               </Field>
             </div>
+            )}
 
             {/* Цвета */}
             <Field label="Цвета">
