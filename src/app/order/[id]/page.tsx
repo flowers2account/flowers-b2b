@@ -78,18 +78,28 @@ export default function OrderPage() {
   const loadOrder = useCallback(async () => {
     if (!isAuthed && !guestToken) return   // ждём авторизацию или гостевой токен — не редиректим
     try {
-      if (!isAuthed && guestToken) {
+      // Токен выдан сервером при оформлении ИМЕННО этого заказа, поэтому пробуем его
+      // первым — даже когда пользователь авторизован. Иначе: заказ пишется на клиента
+      // по телефону получателя, а /api/cabinet отдаёт заказы клиента аккаунта; если
+      // получатель не совпал с аккаунтом, свежий заказ не находился («Заказ не найден»).
+      if (guestToken) {
         const r = await fetch(`/api/orders/${params.id}/guest`, {
           headers: { 'X-Order-Access-Token': guestToken },
           cache: 'no-store',
         })
-        const data = await r.json()
-        setOrder(r.ok ? data.order ?? null : null)
-        setClient(r.ok && data.client ? { company_name: data.client.company_name, bin: data.client.bin ?? null } : null)
-        return
+        if (r.ok) {
+          const data = await r.json()
+          if (data.order) {
+            setOrder(data.order)
+            setClient(data.client ? { company_name: data.client.company_name, bin: data.client.bin ?? null } : null)
+            return
+          }
+        }
+        if (!isAuthed) { setOrder(null); return }   // гостю больше идти некуда
+        // авторизованный — пробуем кабинет ниже
       }
 
-      if (!phone) return
+      if (!phone) { setOrder(null); return }
       const headers = await authHeaders()  // владелец резолвится из токена на сервере
       const r = await fetch('/api/cabinet', { headers, cache: 'no-store' })
       const data = await r.json()

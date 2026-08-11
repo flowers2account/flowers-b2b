@@ -63,7 +63,12 @@ export default function CheckoutPage() {
 
   const checkout = useOrderCheckout({
     items,
-    phone: recipientPhone.trim() || phone,
+    // Владелец заказа = АККАУНТ, а не получатель; телефон получателя уходит только в
+    // recipient. Раньше стояло recipientPhone: заказ записывался на клиента по телефону
+    // получателя — покупатель терял заказ из кабинета (страница показывала «Заказ не
+    // найден»), а сам заказ попадал в чужой личный кабинет, если такой номер уже
+    // зарегистрирован. Гость (phone пуст) по-прежнему идентифицируется введённым номером.
+    phone: phone || recipientPhone.trim(),
     onAuthRequired: () => setFormError('Укажите телефон получателя'),
     onSuccess: () => clear(),
     extra: () => ({
