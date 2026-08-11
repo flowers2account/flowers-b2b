@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { COLORS } from '@/lib/colors'
 import { COUNTRY_LABELS } from '@/lib/countries'
 import { CATEGORY_OPTIONS, subcatOptionsFor, unitForSubcat, type ProductCategory } from '@/lib/product-subcats'
+import { SOURCE_OPTIONS, isVisibleSource, visibilityIssues } from '@/lib/product-visibility'
 
 type ProductEdit = {
   id: number
@@ -13,6 +14,9 @@ type ProductEdit = {
   category: ProductCategory
   subcategory: string | null
   unit: string | null
+  code_1c: string | null
+  source: string | null
+  site_qty: number | null
   variety_type: string | null
   length_cm: number | null
   pot_diameter: number | null
@@ -78,7 +82,7 @@ export default function ProductEditModal({
     const supabase = createClient()
     supabase
       .from('products')
-      .select('id,name,display_name,category,subcategory,unit,variety_type,length_cm,pot_diameter,country_iso,farm,colors,tags,image_url,pack_size,price,qty,arrival_date,is_active')
+      .select('id,name,display_name,category,subcategory,unit,code_1c,source,site_qty,variety_type,length_cm,pot_diameter,country_iso,farm,colors,tags,image_url,pack_size,price,qty,arrival_date,is_active')
       .eq('id', productId)
       .single()
       .then(({ data }: { data: ProductEdit | null }) => {
@@ -96,12 +100,30 @@ export default function ProductEditModal({
     setSaving(true)
     setError('')
     const supabase = createClient()
+
+    // Артикул 1С — ключ автопривязки выгрузки. Два товара с одним кодом делают
+    // матч недетерминированным (побеждает тот, что попался первым), поэтому
+    // занятый код не сохраняем.
+    const code = p.code_1c?.trim()
+    if (code) {
+      const { data: clash } = await supabase
+        .from('products').select('id, display_name, name')
+        .eq('code_1c', code).neq('id', p.id).limit(1).maybeSingle()
+      if (clash) {
+        setSaving(false)
+        setError(`Артикул ${code} уже занят карточкой #${clash.id} «${clash.display_name || clash.name}»`)
+        return
+      }
+    }
+
     const { error: e } = await supabase.from('products').update({
       name: p.name.trim(),
       display_name: p.display_name?.trim() || null,
       category: p.category,
       subcategory: p.subcategory || null,
       unit: p.unit?.trim() || null,
+      code_1c: p.code_1c?.trim() || null,
+      source: p.source || null,
       // поля среза/горшка обнуляем, если карточку перевели в расходку —
       // иначе на витрине остаётся «Стеблей», «Длина», «Ферма» от прошлой категории
       variety_type: isAcc ? null : (p.variety_type || null),
@@ -177,6 +199,44 @@ export default function ProductEditModal({
 
         {p && (
           <div className="p-5 space-y-5">
+
+            {/* Публикация: источник + артикул 1С + честный статус витрины.
+                Раньше этих полей в форме не было вовсе — карточку нельзя было
+                ни опубликовать (source), ни привязать к выгрузке (code_1c). */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+              {(() => {
+                const issues = visibilityIssues(p)
+                return issues.length === 0 ? (
+                  <div className="text-xs font-medium text-emerald-700">✓ Показывается на витрине</div>
+                ) : (
+                  <div className="text-xs text-amber-800">
+                    <b>Не показывается на витрине:</b> {issues.join('; ')}
+                  </div>
+                )
+              })()}
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Источник — решает, попадёт ли товар на витрину">
+                  <select className={sel} value={p.source ?? ''} onChange={e => set('source', e.target.value || null)}>
+                    {!p.source && <option value="">— не задан —</option>}
+                    {SOURCE_OPTIONS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+                    {p.source && !SOURCE_OPTIONS.some(s => s.v === p.source) && (
+                      <option value={p.source}>{p.source} (текущее)</option>
+                    )}
+                  </select>
+                </Field>
+                <Field label="Артикул 1С (code_1c) — ключ автопривязки выгрузки">
+                  <input className={inp} value={p.code_1c ?? ''} onChange={e => set('code_1c', e.target.value)} placeholder="БК000377076" />
+                </Field>
+              </div>
+              {!isVisibleSource(p.source) && (
+                <button
+                  onClick={() => set('source', 'uralsk_site')}
+                  className="rounded border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                >
+                  Вывести на витрину (источник → «свой склад»)
+                </button>
+              )}
+            </div>
 
             {/* Название */}
             <div className="space-y-3">
