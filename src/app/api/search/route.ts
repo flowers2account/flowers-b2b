@@ -25,6 +25,17 @@ interface Row {
   sim: number
 }
 
+// Для многословного термина (только такие термины несут этот риск) проверяет,
+// что хотя бы одно его слово (≥3 симв.) буквально встречается в названии товара.
+// Однословные термины не проверяются — их sim-фолбэк не подвержен эффекту
+// «одно слово тащит всю фразу» и остаётся обычным допуском на опечатку/словоформу.
+function hasGroundedWord(term: string, row: Row): boolean {
+  const words = term.split(/\s+/).filter((w) => w.length >= 3)
+  if (words.length < 2) return true
+  const hay = normalizeQuery(`${row.display_name ?? ''} ${row.name}`)
+  return words.some((w) => hay.includes(w))
+}
+
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams
   const q = normalizeQuery(sp.get('q') ?? '')
@@ -36,6 +47,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
   const terms = expandSearchQuery(q) // [q, ...каноничные термины из синонимов]
+  const rawTerm = terms[0] // q сам по себе — ему доверяем полностью, фильтр ниже его не трогает
 
   // Один RPC на терм (термов ≤ ~3), мерж по id с лучшим рангом.
   const byId = new Map<number, Row>()
@@ -52,6 +64,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ products: [], categories: [], degraded: true })
     }
     for (const r of (data ?? []) as Row[]) {
+      // word_similarity сравнивает ВСЮ фразу термина с товаром: если термин — фраза из
+      // >1 слова, добавленная синонимом (не то, что ввёл пользователь), одно совпавшее
+      // общее слово может утащить сходство выше порога 0.45, даже если остальные слова
+      // фразы к товару не имеют отношения (пример: канонический термин синонима «оазис»
+      // «губка флористическая» находит «Нож флористический» — совпало только
+      // «флористическ-», «губка» в товаре нет вовсе). rank>0 (префикс/вхождение/все слова)
+      // требует буквального совпадения и этой проблеме не подвержен — фильтруем только
+      // rank=0 (чистый sim-фолбэк) для таких термов.
+      if (r.rank === 0 && term !== rawTerm && !hasGroundedWord(term, r)) continue
       const prev = byId.get(r.id)
       if (!prev || r.rank > prev.rank || (r.rank === prev.rank && r.sim > prev.sim)) {
         byId.set(r.id, r)

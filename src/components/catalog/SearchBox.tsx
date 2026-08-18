@@ -75,7 +75,10 @@ const SearchIcon = ({ size = 18 }: { size?: number }) => (
 export default function SearchBox({ products = [], mode = 'inline' }: { products?: Product[]; mode?: 'inline' | 'navigate' }) {
   const router = useRouter()
   const navigate = mode === 'navigate'
-  const { search, setSearch, setSearchResults, clearSearchResults, searchResultIds } = useFilters()
+  const {
+    search, setSearch, setSearchResults, clearSearchResults, searchResultIds,
+    setCategory, setGroup, setSelectedLeaves,
+  } = useFilters()
 
   const [open, setOpen] = useState(false)
   const [ac, setAc] = useState<SearchResponse | null>(null)
@@ -219,18 +222,27 @@ export default function SearchBox({ products = [], mode = 'inline' }: { products
   }
 
   const onPickCategory = (c: SearchCategory) => {
+    // c.slug — сырой products.subcategory; резолвим в leaf дерева категорий.
+    const leafSlug = leafForSubcat(c.slug)?.slug ?? c.slug
+    const grp = groupIdForLeafSlug(leafSlug)
     if (navigate) {
-      // c.slug — сырой products.subcategory; уводим в каталог с выбранной подкатегорией (leaf).
-      const leafSlug = leafForSubcat(c.slug)?.slug ?? c.slug
-      const grp = groupIdForLeafSlug(leafSlug)
+      // Грида рядом нет — уводим в каталог с выбранной подкатегорией (leaf).
       const params = new URLSearchParams({ category: 'accessories', leaves: leafSlug })
       if (grp) params.set('group', grp)
       setOpen(false)
       router.push(`/catalog?${params.toString()}`)
       return
     }
-    setSearch(c.label)
-    commit(c.label)
+    // Реальный фильтр по subcategory — тот же путь, что у чекбокса в сайдбаре. НЕ текстовый
+    // поиск по метке: метка категории может содержать уточнение в скобках («Оазис (флор.
+    // пена)»), которого нет в названиях товаров, и текстовый поиск по ней даёт мусор
+    // в выдаче (см. /api/search — synonym-фолбэк цепляет нерелевантные товары).
+    setOpen(false)
+    setSearch('')
+    clearSearchResults()
+    setCategory('accessories')
+    if (grp) setGroup(grp)
+    setSelectedLeaves([leafSlug])
   }
   const onPickProduct = (p: SearchProduct) => {
     setOpen(false)
