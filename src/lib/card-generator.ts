@@ -100,7 +100,7 @@ function drawImageContain(
   ctx.drawImage(img, dx, dy, dw, dh);
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
+function loadImageEl(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -108,6 +108,20 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = url;
   });
+}
+
+// Некоторые хосты фото товаров (напр. Waterdrinker/Azure Blob — все горшечные)
+// не отдают Access-Control-Allow-Origin: с img.crossOrigin='anonymous' такая
+// картинка вообще не грузится (onerror), и карточка остаётся без фото. /_next/image
+// раздаёт с того же origin (хост уже в next.config.ts remotePatterns), CORS не нужен —
+// пробуем прямую загрузку, при неудаче уходим через него.
+async function loadImage(url: string): Promise<HTMLImageElement> {
+  try {
+    return await loadImageEl(url);
+  } catch {
+    const proxied = `/_next/image?url=${encodeURIComponent(url)}&w=1200&q=75`;
+    return loadImageEl(proxied);
+  }
 }
 
 function roundedRect(

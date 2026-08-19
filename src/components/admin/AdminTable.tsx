@@ -59,7 +59,7 @@ function StockRow({ product, onSaved, onEdit }: {
   const [imageUrl, setImageUrl] = useState(product.image_url ?? null)
   const [campaignImageUrl, setCampaignImageUrl] = useState(product.campaign_image_url ?? '')
   const [uploadStep, setUploadStep] = useState<'' | 'bg' | 'save'>('')
-  const [campaignUploadStep, setCampaignUploadStep] = useState<'' | 'bg' | 'save'>('')
+  const [campaignUploadStep, setCampaignUploadStep] = useState<'' | 'save'>('')
   const uploading = uploadStep !== ''
   const campaignUploading = campaignUploadStep !== ''
   const [uploadMsg, setUploadMsg] = useState<string | null>(null)
@@ -169,17 +169,17 @@ function StockRow({ product, onSaved, onEdit }: {
     }
   }
 
+  // Фото кампании: только даунскейл, БЕЗ удаления фона (обычно фото в контексте/баннер —
+  // вырезание и подмена подложки там скорее портит вид, чем помогает; см. onColorFileChange).
   async function handleCampaignImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setCampaignUploadStep('bg')
+    setCampaignUploadStep('save')
     setUploadMsg(null)
     try {
       const scaled = await downscaleImage(file, 1500)
-      const processed = await removeBgClient(scaled)
-      const processedFile = new File([processed], 'photo.jpg', { type: 'image/jpeg' })
+      const processedFile = new File([scaled], 'photo.jpg', { type: 'image/jpeg' })
 
-      setCampaignUploadStep('save')
       const publicUrl = await persistPhoto(product.id, processedFile, 'campaign', campaignImageUrl)
       await supabase.from('products').update({ campaign_image_url: publicUrl }).eq('id', product.id)
       setCampaignImageUrl(publicUrl)
@@ -275,10 +275,10 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
               <span className="text-[9px] text-amber-600 leading-tight max-w-[120px] text-center">{uploadMsg}</span>
             )}
           </div>
-          {/* Фото кампании */}
+          {/* Фото кампании — без удаления фона */}
           <div
             className="relative w-7 h-7 rounded flex-shrink-0 cursor-pointer group"
-            title="Загрузить второе фото (кампания / ховер)"
+            title="Загрузить второе фото (кампания / ховер, без обработки)"
             onClick={() => campaignFileInputRef.current?.click()}
           >
             {campaignImageUrl ? (
@@ -289,9 +289,7 @@ const available = (s?.qty ?? 0) - (s?.qty_reserved ?? 0)
               </div>
             )}
             <div className="absolute inset-0 rounded bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              {campaignUploadStep === 'bg'
-                ? <span className="text-white text-[8px] leading-tight text-center px-0.5">удаляю фон…</span>
-                : campaignUploadStep === 'save'
+              {campaignUploadStep === 'save'
                 ? <span className="text-white text-[8px] leading-tight text-center px-0.5">сохраняю…</span>
                 : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               }
