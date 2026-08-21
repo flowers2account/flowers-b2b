@@ -52,6 +52,7 @@ export default function CheckoutPage() {
 
   useEffect(() => { init().catch(() => {}) }, [init])
 
+  const todayISO = new Date().toISOString().slice(0, 10)
   const sum = total()
   const isUralsk = method === 'pickup' || (method === 'delivery' && city === 'Уральск')
   const discount = Math.round(sum * (isUralsk ? 0.01 : 0))
@@ -229,7 +230,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className={s.field}>
                         <label>Дата доставки (желаемая)</label>
-                        <input type="text" placeholder="например, 12 июня" value={date} onChange={e => setDate(e.target.value)} />
+                        <input type="date" min={todayISO} value={date} onChange={e => setDate(e.target.value)} />
                       </div>
                     </div>
                     <div className={`${s.field} ${s.full}`}>

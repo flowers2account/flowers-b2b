@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const sb = sessionClient(req)
 
   const { data: order, error: oErr } = await sb
-    .from('orders').select('id, status, total, fulfillment_type, delivery_city, delivery_cost').eq('id', id).maybeSingle()
+    .from('orders').select('id, status, total, fulfillment_type, delivery_city, delivery_cost, client_id').eq('id', id).maybeSingle()
   if (oErr) return NextResponse.json({ error: oErr.message }, { status: 500 })
   if (!order) return NextResponse.json({ error: 'Заказ не найден' }, { status: 404 })
   if (!EDITABLE.has(order.status)) {
@@ -52,13 +52,24 @@ export async function POST(req: NextRequest) {
     row.qty = qty
   }
 
+  // Первый заказ клиента — условие скидки 1% (см. order-total.ts), считаем по id <
+  // текущего заказа, чтобы результат не зависел от заказов, созданных позже.
+  const { count: priorOrdersCount } = await sb
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', order.client_id)
+    .neq('status', 'cart')
+    .lt('id', order.id)
+  const isFirstOrder = (priorOrdersCount ?? 0) === 0
+
   // Пересчёт суммы НА СЕРВЕРЕ единым хелпером (общий с чекаутом): goods − скидка 1%
-  // Уральска + доставка. Скидка/доставка берутся из самого заказа.
+  // Уральска (только первый заказ) + доставка. Скидка/доставка берутся из самого заказа.
   const { total: newTotal } = computeOrderTotal({
     items: (rows ?? []).filter((r: any) => !r.is_removed),
     fulfillmentType: order.fulfillment_type,
     deliveryCity: order.delivery_city,
     deliveryCost: order.delivery_cost,
+    isFirstOrder,
   })
 
   const { error: tErr } = await sb.from('orders').update({ total: newTotal }).eq('id', id)

@@ -843,6 +843,7 @@ function OrderDetail({ order, busy, ask, onStatus, onPaid, onSaveItems, onPrint 
     fulfillmentType: order.fulfillment_type,
     deliveryCity: order.delivery_city,
     deliveryCost: order.delivery_cost,
+    isFirstOrder: order.is_first_order,
   }
   const draftPricing = computeOrderTotal({
     items: draft.filter((it) => !it.is_removed),

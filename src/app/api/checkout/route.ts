@@ -90,6 +90,15 @@ export async function POST(req: NextRequest) {
     existingAuthUserId: clientAuthUserId,
   })
 
+  // Первый заказ клиента — условие скидки 1% (см. order-total.ts). Черновики-счета
+  // (status='cart', ещё не подтверждённые как реальный заказ) не считаются.
+  const { count: priorOrdersCount } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', clientId)
+    .neq('status', 'cart')
+  const isFirstOrder = (priorOrdersCount ?? 0) === 0
+
   const now = new Date().toISOString()
   const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
 
@@ -135,19 +144,28 @@ export async function POST(req: NextRequest) {
   }
 
   // Доставка считается на сервере (клиенту не доверяем). По городу — фикс из
-  // app_settings.city_delivery_fee; межгород → null = «по согласованию» (в сумму не входит,
-  // менеджер проставит позже); самовывоз → 0.
+  // app_settings.city_delivery_fee; межгород → 10% от суммы товаров; самовывоз → 0.
+  // Сумма товаров нужна ДО расчёта доставки — считаем её отдельным проходом (deliveryCost=0),
+  // затем пересчитываем итог уже с реальной доставкой.
+  const { rawTotal: goodsSum } = computeOrderTotal({
+    items,
+    fulfillmentType: delivery?.method,
+    deliveryCity: delivery?.city,
+    deliveryCost: 0,
+    isFirstOrder,
+  })
   const cityFee = await getCityDeliveryFee(supabase)
-  const deliveryCost = computeDeliveryCost(delivery?.method, delivery?.city, cityFee)
+  const deliveryCost = computeDeliveryCost(delivery?.method, delivery?.city, cityFee, goodsSum)
 
-  // Сумма + скидка 1% для Уральска (самовывоз или доставка по городу). Единый расчёт
-  // (общий с правкой состава в пульте оператора). Сервер — источник суммы к оплате:
-  // payments/init берёт order.total.
+  // Сумма + скидка 1% для Уральска (самовывоз или доставка по городу) на первый заказ
+  // клиента. Единый расчёт (общий с правкой состава в пульте оператора). Сервер —
+  // источник суммы к оплате: payments/init берёт order.total.
   const { rawTotal, discountPct, goodsTotal, total } = computeOrderTotal({
     items,
     fulfillmentType: delivery?.method,
     deliveryCity: delivery?.city,
     deliveryCost,
+    isFirstOrder,
   })
 
   // Заметка для менеджера: способ получения, получатель, скидка (флоу чекаута)
@@ -159,9 +177,8 @@ export async function POST(req: NextRequest) {
     if (delivery.date)    noteLines.push(`Желаемая дата: ${delivery.date}`)
     if (delivery.address) noteLines.push(`Адрес: ${delivery.address}`)
     if (delivery.comment) noteLines.push(`Комментарий курьеру: ${delivery.comment}`)
-    noteLines.push(`Стоимость доставки: ${deliveryCost === null
-      ? 'по согласованию (проставить вручную)'
-      : `${deliveryCost.toLocaleString('ru-RU')} ₸`}`)
+    const isIntercity = delivery.city && delivery.city.trim() !== 'Уральск'
+    noteLines.push(`Стоимость доставки: ${deliveryCost.toLocaleString('ru-RU')} ₸${isIntercity ? ' (10% от суммы товаров)' : ''}`)
   }
   if (recipient) {
     const r = [recipient.name, recipient.phone, recipient.email].filter(Boolean).join(', ')
@@ -173,8 +190,8 @@ export async function POST(req: NextRequest) {
   const notes = noteLines.length ? noteLines.join('\n') : null
 
   // Структурные поля доставки/получателя (машинно разбираемые) — параллельно с notes.
-  // delivery_cost: город → фикс, межгород → null («по согласованию», менеджер проставит),
-  // самовывоз → 0. driver_* при создании не заполняем (их вносит менеджер позже).
+  // delivery_cost: город → фикс, межгород → 10% от суммы товаров, самовывоз → 0.
+  // driver_* при создании не заполняем (их вносит менеджер позже).
   const clean = (v: unknown) => {
     const s = typeof v === 'string' ? v.trim() : ''
     return s === '' ? null : s

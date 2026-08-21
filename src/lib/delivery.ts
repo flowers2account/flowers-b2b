@@ -34,18 +34,24 @@ export async function getCityDeliveryFee(supabase: SupabaseClient): Promise<numb
   return DEFAULT_CITY_DELIVERY_FEE
 }
 
+// Межгород (Актобе/Атырау и т.д.) — авто-наценка 10% от суммы товаров (решение
+// владельца 18.08.2026). Раньше было «по согласованию» (менеджер вписывал вручную
+// через amoCRM) — этот путь больше не используется для новых заказов.
+export const INTERCITY_DELIVERY_PCT = 10
+
 /**
  * Стоимость доставки для заказа (₸):
  *  - самовывоз / способ не указан → 0
- *  - доставка по городу (Уральск)  → fee
- *  - межгород (Актобе/Атырау)      → null = «по согласованию» (менеджер проставит позже)
+ *  - доставка по городу (Уральск)  → fee (фикс)
+ *  - межгород (Актобе/Атырау)      → 10% от суммы товаров (goodsSum)
  */
 export function computeDeliveryCost(
   method: string | null | undefined,
   city: string | null | undefined,
   fee: number,
-): number | null {
+  goodsSum: number,
+): number {
   if (method !== 'delivery') return 0
   if ((city ?? '').trim() === DELIVERY_CITY) return fee
-  return null
+  return Math.round(goodsSum * (INTERCITY_DELIVERY_PCT / 100))
 }

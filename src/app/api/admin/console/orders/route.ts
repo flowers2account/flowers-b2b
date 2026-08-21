@@ -28,7 +28,20 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // is_first_order: у клиента нет более раннего заказа (меньший id), кроме черновиков
+  // 'cart' — используется для скидки 1% (см. src/lib/order-total.ts), считаем так же,
+  // как /api/checkout и /api/admin/console/items, чтобы превью в консоли совпадало с БД.
+  const nonCartIdsByClient: Record<string, number[]> = {}
+  for (const o of orders ?? []) {
+    if (o.status === 'cart' || !o.client_id) continue
+    ;(nonCartIdsByClient[o.client_id] ||= []).push(o.id)
+  }
+
   const visibleOrders = (orders ?? []).filter((o: any) => o.notes !== '[customer_cart]')
+    .map((o: any) => ({
+      ...o,
+      is_first_order: !(nonCartIdsByClient[o.client_id] || []).some((id) => id < o.id),
+    }))
   const ids = visibleOrders.map((o: any) => o.id)
   let history: any[] = []
   if (ids.length) {
