@@ -20,6 +20,7 @@ import {
   parseAmoChatWebhookMessage,
   type AmoChatWebhookMessage,
 } from './webhook-parser'
+import { sendTextMessage as sendCloudApiTextMessage } from '@/lib/whatsapp-cloud/client'
 
 export { parseAmoChatWebhookMessage }
 
@@ -755,12 +756,40 @@ async function isKnownAmoAiEcho(amoMessageId: string, link: AmoChatLink | null):
   return Boolean(data?.id)
 }
 
+// chatJid с суффиксом '@cloudapi' — канал WhatsApp Cloud API (см. src/lib/whatsapp-cloud/
+// bridge.ts), не Baileys. Тот же суффикс, что и в webhook/route.ts (CLOUD_API_JID_SUFFIX) —
+// держать в синхроне вручную, единого экспорта под него пока нет.
+const CLOUD_API_CHAT_JID_SUFFIX = '@cloudapi'
+
 async function sendViaGateway(input: {
   chatJid?: string
   phone?: string
   text: string
   idempotencyKey: string
 }): Promise<{ messageId?: string }> {
+  // Cloud API-диалог — шлём напрямую через Graph API (тот же процесс, HTTP-поход на
+  // Baileys-гейтвей тут не нужен и не сработает, если гейтвей выключен/не запущен).
+  if (input.chatJid?.endsWith(CLOUD_API_CHAT_JID_SUFFIX)) {
+    const phone = input.phone ?? input.chatJid.slice(0, -CLOUD_API_CHAT_JID_SUFFIX.length)
+    if (!phone) throw new Error('sendViaGateway: cloud api chatJid without phone')
+    try {
+      return await sendCloudApiTextMessage(phone, input.text)
+    } catch (error) {
+      // Тихой потери быть не должно: лог здесь, у самого места сбоя (для grep), плюс
+      // пробрасываем error дальше — handleAmoManagerWebhook его не ловит, всплывает в
+      // src/app/location/[scopeId]/route.ts, которая отвечает amoCRM 502. Не-2xx на этот
+      // вебхук — штатный контракт Chats API: amoCRM сама помечает сообщение как
+      // недоставленное прямо в виджете чата карточки сделки. Поведение не меняем — только
+      // добавляем более прицельный лог рядом с источником сбоя.
+      console.error('[amo-chat] cloud api send failed', {
+        chatJid: input.chatJid,
+        idempotencyKey: input.idempotencyKey,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
+  }
+
   const url = process.env.WHATSAPP_GATEWAY_SEND_URL ?? DEFAULT_GATEWAY_URL
   const apiKey = process.env.WHATSAPP_GATEWAY_SEND_API_KEY ?? process.env.WHATSAPP_GATEWAY_AI_API_KEY
   if (!apiKey) throw new Error('WHATSAPP_GATEWAY_SEND_API_KEY is not configured')
