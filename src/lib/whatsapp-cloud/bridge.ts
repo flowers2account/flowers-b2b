@@ -201,6 +201,25 @@ export async function recordManualOutgoing(input: {
   })
 }
 
+// Возврат AI командой /ai (/ии) из Telegram-группы (см. src/app/api/telegram/manager/
+// route.ts). type:'set_ai_enabled' на whatsapp-event — уже существующий эндпоинт
+// (использует его и остальной pipeline), просто раньше не был обёрнут в bridge.ts.
+export async function setAiEnabled(input: {
+  chatJid: string
+  phone?: string
+  aiEnabled: boolean
+  traceId?: string
+}): Promise<void> {
+  await postEvent({
+    type: 'set_ai_enabled',
+    chatJid: input.chatJid,
+    phone: input.phone,
+    aiEnabled: input.aiEnabled,
+    traceId: input.traceId,
+    source: 'human',
+  })
+}
+
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }

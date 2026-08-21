@@ -4,7 +4,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendMessage } from '@/lib/telegram-manager/client'
 import { sendTextMessage } from '@/lib/whatsapp-cloud/client'
-import { recordManualOutgoing } from '@/lib/whatsapp-cloud/bridge'
+import { recordManualOutgoing, setAiEnabled } from '@/lib/whatsapp-cloud/bridge'
+
+// Команда возврата AI: /ai или /ии (кириллица — на случай, если менеджеру так удобнее),
+// без учёта регистра, необязательный хвост (аргументы игнорируются).
+const AI_RESUME_COMMAND = /^\/(ai|ии)\b/i
 
 // Вебхук бота «Менеджер» — приём Reply менеджера на карточки WhatsApp Cloud API диалогов,
 // которые шлёт src/lib/telegram-manager/notify.ts в группу TELEGRAM_MANAGER_GROUP_CHAT_ID.
@@ -85,6 +89,11 @@ async function handleManagerReply(input: { groupId: string; replyToId: number; t
   const phone = link.phone ?? link.chat_jid.replace(/@cloudapi$/, '')
   const traceId = `tgmgr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
 
+  if (AI_RESUME_COMMAND.test(input.text)) {
+    await handleAiResumeCommand({ groupId: input.groupId, replyToId: input.replyToId, chatJid: link.chat_jid, phone, traceId })
+    return
+  }
+
   let sent: { messageId?: string }
   try {
     sent = await sendTextMessage(phone, input.text)
@@ -114,6 +123,26 @@ async function handleManagerReply(input: { groupId: string; replyToId: number; t
   })
 
   await confirmInGroup(input.groupId, input.replyToId, '✅ Отправлено клиенту')
+}
+
+async function handleAiResumeCommand(input: {
+  groupId: string
+  replyToId: number
+  chatJid: string
+  phone: string
+  traceId: string
+}): Promise<void> {
+  try {
+    await setAiEnabled({ chatJid: input.chatJid, phone: input.phone, aiEnabled: true, traceId: input.traceId })
+    await confirmInGroup(input.groupId, input.replyToId, '🤖 AI снова отвечает по этому диалогу')
+  } catch (e) {
+    console.error('[telegram manager webhook] ai resume command failed', {
+      chatJid: input.chatJid,
+      traceId: input.traceId,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    await confirmInGroup(input.groupId, input.replyToId, '❌ Не удалось включить AI')
+  }
 }
 
 async function confirmInGroup(groupId: string, replyToId: number, text: string): Promise<void> {
