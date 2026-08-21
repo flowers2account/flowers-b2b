@@ -6,6 +6,7 @@ import {
   requestAiReply,
   recordSentOutgoing,
 } from '@/lib/whatsapp-cloud/bridge'
+import { notifyIncoming, notifyAiReply } from '@/lib/telegram-manager/notify'
 
 export const dynamic = 'force-dynamic'
 
@@ -182,6 +183,7 @@ async function processIncomingMessage(message: ParsedCloudMessage): Promise<void
     const humanTakeover = aiEnabled === false || state?.takeoverStatus === 'human'
 
     await recordIncomingMessage({ chatJid, phone, conversationId, messageId, text, timestamp, contactName, traceId })
+    await notifyIncoming({ chatJid, phone, contactName, text })
 
     if (humanTakeover) {
       console.log('[whatsapp cloud webhook] human takeover — ai skipped', { traceId, messageId, chatJid })
@@ -258,6 +260,7 @@ async function processIncomingMessage(message: ParsedCloudMessage): Promise<void
       text: replyText,
       traceId,
     })
+    await notifyAiReply({ chatJid, phone, text: replyText })
 
     console.log('[whatsapp cloud webhook] auto reply sent', { traceId, messageId, chatJid, conversationId: replyConversationId })
   } catch (error) {

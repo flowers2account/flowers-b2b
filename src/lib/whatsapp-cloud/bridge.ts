@@ -176,6 +176,31 @@ export async function recordSentOutgoing(input: {
   })
 }
 
+// Ручной ответ менеджера (источник — Telegram-группа, см. src/app/api/telegram/manager/
+// route.ts), а не AI. type:'manual_outgoing' на whatsapp-event сам проставляет
+// ai_enabled=false/takeover_status='human' (если ещё не активен) и синкает текст в
+// amoCRM через forwardWhatsAppManualOutgoingToAmo — тем же путём, что и обычный ручной
+// ответ. postEvent не бросает исключений (см. выше) — вызывающая сторона это не блокирует.
+export async function recordManualOutgoing(input: {
+  chatJid: string
+  phone?: string
+  messageId: string
+  text: string
+  traceId?: string
+  takeoverReason?: string
+}): Promise<void> {
+  await postEvent({
+    type: 'manual_outgoing',
+    chatJid: input.chatJid,
+    phone: input.phone,
+    messageId: input.messageId,
+    text: input.text,
+    traceId: input.traceId,
+    takeoverReason: input.takeoverReason,
+    source: 'human',
+  })
+}
+
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
