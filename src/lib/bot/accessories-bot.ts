@@ -7,7 +7,10 @@ import { CLIENT_FAQ } from '@/lib/bot/site-faq'
 import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
 import { CATEGORY_TREE, groupIdForLeafSlug, groupIdForSubcat, labelForSubcat, type Leaf } from '@/lib/category-tree'
 import { formatSynonymsForPrompt, normalizeQuery } from '@/lib/search-synonyms'
-import { classifyByRules, hasAccessoryRuleKeyword } from '@/lib/bot/rule-classifier'
+import { classifyByRules, hasAccessoryRuleKeyword, hasPotRuleKeyword } from '@/lib/bot/rule-classifier'
+import {
+  extractPotFilters, applyPotFilters, describePotFilters, hasActiveFilters, type PotFilters,
+} from '@/lib/bot/pot-filters'
 
 // Единая формулировка «как позвать менеджера» — правится здесь (Цвет). Используется в
 // готовых ответах и подставляется в промпты, чтобы везде звучало одинаково.
@@ -16,7 +19,8 @@ const MANAGER_CONTACT = 'напишите менеджеру в WhatsApp — з�
 // Единый системный промпт compose — каталог + FAQ в одном. Правится здесь (Цвет).
 const SYSTEM_PROMPT = `Ты — консультант оптовой базы «Цветы Уральска». Помогаешь подобрать товары из
 каталога: упаковка и флористика, горшки и кашпо, вазы и корзины, декор, грунты,
-удобрения, защита растений, искусственный газон, укрывные материалы. Также
+удобрения, защита растений, искусственный газон, укрывные материалы, а также живые
+горшечные (комнатные) растения. Также
 отвечаешь по FAQ: регистрация, PIN, оформление заказа, доставка, самовывоз,
 оплата, график, контакты.
 
@@ -30,10 +34,45 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
 Товары:
 1) Цены и наличие бери ТОЛЬКО из списка товаров. Указывай название, цену в тенге и
    наличие (qty>0 — есть). Единицы и фасовку называй как в карточке, не додумывай.
-2) Если найдено 1–3 подходящих товара И они действительно подходят под запрос —
+   Если у товара указано pot_diameter (диаметр горшка, см) и/или pot_height (высота
+   растения, см) — можно называть их как есть. Если поле пустое (null) — размер этого
+   товара НЕ упоминай, ничего про него не додумывай и ни с чем не сравнивай.
+2) НИКОГДА не утверждай, что ВСЯ показанная подборка соответствует конкретному
+   параметру, который назвал клиент (размер, диаметр, высота, цена/бюджет, количество
+   и т.п.), если этот параметр НЕ был применён как фильтр к каждому товару списка —
+   даже если тебе кажется, что список «в целом» подходит:
+   - «в нужном количестве» / «хватит на N штук» — число, которое называет клиент
+     (сколько ему нужно), с полем qty НЕ сопоставлено; называй qty каждого товара как
+     есть (по правилу 1) и не делай вывод о достаточности под запрошенное количество;
+   - «по подходящей цене» / «в пределах бюджета» / «до N ₸» — список товаров НЕ
+     фильтруется по цене; называй реальную цену каждого товара и не утверждай
+     соответствие лимиту, который назвал клиент;
+   - «в горшках диаметром N см» / «высотой N см» и т.п. НА ВЕСЬ список — у товаров
+     списка pot_diameter/pot_height могут различаться (например 7/12/13/17 см);
+     НИКОГДА не обобщай значение ОДНОГО товара (или число, названное клиентом) на всю
+     подборку. Конкретный размер можно называть ТОЛЬКО про КОНКРЕТНЫЙ товар и ТОЛЬКО
+     если это значение реально указано именно у него (pot_diameter/pot_height не null)
+     — список не отфильтрован под размер, который назвал клиент, даже если он его назвал;
+   - «маленький» / «средний» / «крупный» — такие слова допустимы ТОЛЬКО если у
+     сравниваемых товаров заполнено pot_diameter или pot_height и ты сравниваешь именно
+     эти числа. НИКОГДА не выводи размерную категорию из цены;
+   - назначение («подходит для офиса», «для дома», «для ресепшена» и т.п.) — в списке
+     товаров нет поля назначения, такие утверждения запрещены;
+   - любое другое требование клиента (цвет, «одинаковые», материал и т.п.) — если оно
+     не проверяется явным полем в списке товаров.
+   Если клиент назвал конкретное условие, а список НЕ отфильтрован под него — НЕ
+   используй в ответе слова «подходящие» / «соответствующие» / «под ваш запрос» и
+   любые другие формулировки, намекающие на проверенное соответствие этому условию.
+   Отвечай нейтрально, просто показывая, что реально есть (например: «Вот несколько
+   вариантов горшечных растений из наличия» / «Вот варианты драцены из наличия»), и,
+   если проверка условия важна клиенту, предложи уточнить у менеджера. Слово
+   «подходящие» остаётся уместным, когда оно НЕ отсылает к непроверенному
+   числовому/размерному/ценовому условию клиента (например для точного совпадения по
+   названию товара, см. правило 3).
+3) Если найдено 1–3 подходящих товара И они действительно подходят под запрос —
    отвечай сразу, без уточнений. Если найденное лишь частично совпадает по словам, но
    непонятно, подходит ли по назначению — задай уточняющий вопрос, а не рекомендуй наугад.
-3) Если вариантов много или запрос размытый — задай ОДИН короткий уточняющий вопрос с
+4) Если вариантов много или запрос размытый — задай ОДИН короткий уточняющий вопрос с
    вариантами (например: «Плёнка есть прозрачная, матовая и цветная — какая нужна?»).
    Не больше ДВУХ уточнений подряд: после второго ответа клиента — консультируй
    обязательно по тому, что есть.
@@ -41,9 +80,12 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
    назначение, бюджет, город доставки, тип товара), в конце задай один короткий
    наводящий вопрос. Для виджета сайта добавь варианты ответов отдельной строкой
    строго в формате: «Варианты: A / B / C» — короткие варианты, 2–4 штуки.
+   Если варианты различаются по ЦЕНЕ — называй их по цене («До 900 ₸» / «От 1640 ₸»), а
+   НЕ размерными словами («маленькие»/«крупные») — см. правило 2. Размерными словами
+   можно называть варианты только если они реально различаются по pot_diameter/pot_height.
    Не добавляй варианты, если уже дал точный ответ без необходимости уточнять, если
    отвечаешь только по FAQ или если переводишь клиента к менеджеру.
-4) Называя конкретный товар — добавь ссылку на карточку (поле url из списка), ссылки не
+5) Называя конкретный товар — добавь ссылку на карточку (поле url из списка), ссылки не
    выдумывай. Для нескольких товаров — 2–3 самых подходящих. Для запроса по категории
    целиком — ОДНУ ссылку-подборку (catalog_url из списка), параметры не конструируй сам.
    ССЫЛКИ ДАВАЙ ТОЛЬКО ГОЛЫМ URL (https://…) отдельной строкой. БЕЗ markdown: никаких
@@ -52,22 +94,23 @@ const SYSTEM_PROMPT = `Ты — консультант оптовой базы �
    Поле image_url из товара НЕ упоминай и НЕ вставляй в ответ — фото уходит отдельным сообщением.
 
 FAQ (работа сайта):
-5) По регистрации, PIN, заказу, доставке, оплате, графику, контактам отвечай ТОЛЬКО
+6) По регистрации, PIN, заказу, доставке, оплате, графику, контактам отвечай ТОЛЬКО
    фактами из памятки. Чего в памятке нет — не выдумывай.
-6) НИКОГДА не обещай: оплату по счёту (пока недоступна), оплату наличными, конкретную
+7) НИКОГДА не обещай: оплату по счёту (пока недоступна), оплату наличными, конкретную
    стоимость доставки (она индивидуальна), точное время выдачи PIN сверх формулировки
    «обычно несколько минут в рабочие часы».
 
 Граница и стиль:
-7) Вопросы про сами цветы и букеты (сорта, наличие, цена цветов), про статус КОНКРЕТНОГО
-   заказа клиента («где мой заказ», «не пришла оплата», «когда привезёте моё») и жалобы —
-   это к менеджеру: верни ровно NO_ANSWER и больше ничего.
-8) Оформление заказа сам не делай: чтобы оформить заказ или позвать человека — ${MANAGER_CONTACT}
-9) Ты — ИИ-помощник и не скрываешь этого; если спрашивают, бот ли ты — честно подтверждай и
+8) Вопросы про СРЕЗАННЫЕ цветы и букеты (сорта, наличие, цена цветов на срез — это НЕ
+   горшечные растения, они разбираются в товарном подборе выше по своему списку), про
+   статус КОНКРЕТНОГО заказа клиента («где мой заказ», «не пришла оплата», «когда
+   привезёте моё») и жалобы — это к менеджеру: верни ровно NO_ANSWER и больше ничего.
+9) Оформление заказа сам не делай: чтобы оформить заказ или позвать человека — ${MANAGER_CONTACT}
+10) Ты — ИИ-помощник и не скрываешь этого; если спрашивают, бот ли ты — честно подтверждай и
    предлагай позвать менеджера, если нужен человек (${MANAGER_CONTACT}).
-10) Отвечай дружелюбно и живо, но коротко, на русском. Прощайся / желай хорошего дня
+11) Отвечай дружелюбно и живо, но коротко, на русском. Прощайся / желай хорошего дня
     ТОЛЬКО если клиент явно прощается.
-11) Если по запросу нет ничего ни в списке товаров, ни в памятке — верни ровно NO_ANSWER.`
+12) Если по запросу нет ничего ни в списке товаров, ни в памятке — верни ровно NO_ANSWER.`
 
 // Готовые ответы на small talk — правятся здесь (Цвет). Без похода в Supabase/Gemini.
 const SMALLTALK_REPLIES: Record<string, string> = {
@@ -121,7 +164,7 @@ export const CHANNEL_POLICY: Record<string, ChannelMode> = {
   whatsapp2: 'off',
 }
 
-type Intent = 'smalltalk' | 'accessories' | 'site_help' | 'other'
+type Intent = 'smalltalk' | 'accessories' | 'pot' | 'site_help' | 'other'
 
 interface ClassifyResult {
   intent: Intent
@@ -141,6 +184,10 @@ interface AccessoryRow {
   pack_size: number | null
   image_url: string | null
   code_1c: string | null
+  // Реальный размер (только pot: у accessories обычно null) — передаётся в composeAnswer
+  // как есть, НЕ как сурrogат размера через цену. См. SYSTEM_PROMPT правило 1/2.
+  pot_diameter: number | null
+  pot_height: number | null
 }
 
 // Структурированный товар для богатой карточки виджета сайта.
@@ -169,7 +216,7 @@ export interface BotReply {
   //   intent — классифицированный интент; helped — смог ли бот реально помочь
   //   (false при NOT_FOUND / вне зоны / NO_ANSWER → повод предложить оставить телефон).
   meta?: {
-    intent: 'smalltalk' | 'accessories' | 'site_help' | 'other'
+    intent: 'smalltalk' | 'accessories' | 'pot' | 'site_help' | 'other'
     helped: boolean
     classificationSource?: 'rules' | 'gemini' | 'fallback'
     classificationReason?: 'ai_classification_timeout'
@@ -247,6 +294,13 @@ async function classifyMessage(message: string, history: DialogMessage[] = []): 
 - "accessories" — вопрос про РАСХОДНЫЕ МАТЕРИАЛЫ (горшки, кашпо, удобрения, грунт,
   плёнка, ленты, упаковка, бумага, коробки, корзины, средства защиты растений,
   инструменты, сопутствующие товары).
+- "pot" — вопрос про ЖИВЫЕ ГОРШЕЧНЫЕ/КОМНАТНЫЕ РАСТЕНИЯ (в горшке, с корнем): конкретный
+  вид (спатифиллум, монстера, драцена, фикус, орхидея, антуриум, суккулент, кактус,
+  пальма и т.п.) ИЛИ общий вопрос про горшечные/комнатные растения без вида. Это НЕ
+  срезанные цветы/букеты (розы, тюльпаны, хризантемы на срез — "other") и НЕ тара под
+  растение (горшок, кашпо, ваза — "accessories"). Если вид продаётся ОБОИМИ способами
+  (роза, орхидея, гортензия, антуриум, хризантема) и из фразы непонятно, нужен именно
+  горшечный экземпляр, а не срез/букет — классифицируй как "other", не "pot".
 - "site_help" — вопрос про РАБОТУ САЙТА: регистрация, доступ, вход, PIN, как оформить
   заказ, доставка (самовывоз/города/сроки/стоимость), оплата (карта/счёт/наличные),
   минимальный заказ, скидки, график работы, адрес склада, контакты.
@@ -258,7 +312,7 @@ async function classifyMessage(message: string, history: DialogMessage[] = []): 
   сайта — это "other" (НЕ выдумывай товарный keyword из эмоций).
 
 Верни ТОЛЬКО JSON-объект без markdown:
-{ "intent": "smalltalk" | "accessories" | "site_help" | "other", "keywords": string[] }
+{ "intent": "smalltalk" | "accessories" | "pot" | "site_help" | "other", "keywords": string[] }
 
 - Для "accessories": keywords — 1–5 коротких ключевых слов (на русском, в нижнем
   регистре, без чисел и единиц), по которым искать товар в каталоге.
@@ -266,6 +320,11 @@ async function classifyMessage(message: string, history: DialogMessage[] = []): 
   ниже, исправляй опечатки, используй единственное число именительный падеж.
   Словарь синонимов (клиент → каталог):
 ${SEARCH_SYNONYMS}
+- Для "pot": если назван конкретный вид растения — keywords = [канонич. русское
+  название в именительном падеже единственного числа, без чисел/размеров/сортов]
+  (например: "монстера", "фикус", "спатифиллум"). Если вид НЕ назван (общий вопрос
+  про горшечные/комнатные растения, вопрос про количество без вида) — верни РОВНО
+  keywords: ["горшечные растения"].
 - Для "smalltalk": keywords — ровно один подтип: "greeting", "thanks", "farewell" или "chitchat".
   "greeting" — ЛЮБАЯ форма приветствия: «привет», «здравствуйте», «здравствуйте!»,
   «добрый день/вечер/утро», «приветствую», «доброго времени», «привет ещё раз»,
@@ -281,6 +340,18 @@ ${SEARCH_SYNONYMS}
 Примеры:
 "есть удобрение для роз и почём" → {"intent":"accessories","keywords":["удобрение"]}
 "нужна плёнка матовая для букетов" → {"intent":"accessories","keywords":["плёнка","матовая"]}
+"нужен горшок" → {"intent":"accessories","keywords":["горшок"]}
+"есть кашпо?" → {"intent":"accessories","keywords":["кашпо"]}
+"нужна ваза" → {"intent":"accessories","keywords":["ваза"]}
+"есть спатифиллум?" → {"intent":"pot","keywords":["спатифиллум"]}
+"покажите горшечные" → {"intent":"pot","keywords":["горшечные растения"]}
+"какие комнатные растения есть?" → {"intent":"pot","keywords":["горшечные растения"]}
+"есть драцена?" → {"intent":"pot","keywords":["драцена"]}
+"нужен фикус" → {"intent":"pot","keywords":["фикус"]}
+"есть монстера 14 см?" → {"intent":"pot","keywords":["монстера"]}
+"нужно 5 одинаковых растений" → {"intent":"pot","keywords":["горшечные растения"]}
+"нужен букет" → {"intent":"other","keywords":[]}
+"есть розы?" → {"intent":"other","keywords":[]}
 "здравствуйте" → {"intent":"smalltalk","keywords":["greeting"]}
 "здравствуйте!" → {"intent":"smalltalk","keywords":["greeting"]}
 "добрый день" → {"intent":"smalltalk","keywords":["greeting"]}
@@ -321,7 +392,8 @@ ${histBlock ? `\nИстория диалога (старые→новые):\n${h
       reason?: unknown
     }
     const intent: Intent =
-      parsed.intent === 'smalltalk' || parsed.intent === 'accessories' || parsed.intent === 'site_help'
+      parsed.intent === 'smalltalk' || parsed.intent === 'accessories' || parsed.intent === 'pot'
+        || parsed.intent === 'site_help'
         ? parsed.intent
         : 'other'
     const keywords = Array.isArray(parsed.keywords)
@@ -353,7 +425,9 @@ async function withClassificationTimeout(
         timeout = setTimeout(() => {
           const fallback = hasAccessoryRuleKeyword(message)
             ? { intent: 'accessories', keywords: [] }
-            : { intent: 'other', keywords: [] }
+            : hasPotRuleKeyword(message)
+              ? { intent: 'pot', keywords: [] }
+              : { intent: 'other', keywords: [] }
           console.warn('[ai timing] classification timeout', {
             classificationSource: 'fallback',
             reason: 'ai_classification_timeout',
@@ -384,7 +458,7 @@ function getClassificationTimeoutMs(): number {
   return Math.trunc(parsed)
 }
 
-const SEARCH_SELECT = 'id, display_name, subcategory, price, unit, qty, pack_size, image_url, code_1c'
+const SEARCH_SELECT = 'id, display_name, subcategory, price, unit, qty, pack_size, image_url, code_1c, pot_diameter, pot_height'
 
 // Русские окончания прилагательных/существительных (длинные → короткие). Снимаются
 // для основы, чтобы ILIKE ловил все формы: «цветная/цветной/цветным» → «цветн»,
@@ -483,6 +557,98 @@ async function searchAccessories(keywords: string[]): Promise<AccessoryRow[]> {
   return rows
 }
 
+// Ключевые слова-маркеры «покажите горшечные / какие комнатные растения» — без
+// конкретного вида (см. classifyMessage: для pot без вида keywords = ["горшечные
+// растения"], тот же маркер отдаёт classifyByRules). Для них — listPotPlants()
+// (реальный топ по остатку), не similarity-поиск по названию (он вернёт пусто).
+const GENERIC_POT_KEYWORDS = new Set(['горшечные растения', 'комнатные растения'])
+
+interface PotSearchRow {
+  id: number
+  rank: number
+  sim: number
+}
+
+/**
+ * Шаг B (pot): поиск живых горшечных растений по конкретному виду через УЖЕ
+ * СУЩЕСТВУЮЩИЙ RPC search_products (миграция 20260614_search_products.sql,
+ * категорийно-нейтральный, уже используется /api/search) с p_category='pot'.
+ * НЕ копирует accessories-ступени (ilike + search_accessories_trgm) — та trgm-RPC
+ * хардкодит category='accessories' в самом SQL, для pot непригодна без отдельной
+ * миграции. НЕ использует CATEGORY_TREE (та таксономия — только для accessories).
+ * search_products уже фильтрует is_active/price>0/hidden_for_demo/source — реальные
+ * остатки витрины, характеристики не домысливаются.
+ */
+async function searchPotPlants(keywords: string[]): Promise<AccessoryRow[]> {
+  if (keywords.length === 0) return []
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[accessories-bot] SUPABASE_SERVICE_ROLE_KEY not set')
+    return []
+  }
+  const supabase = createAdminClient()
+
+  const byId = new Map<number, PotSearchRow>()
+  for (const kw of keywords) {
+    const { data, error } = await supabase.rpc('search_products', {
+      q: kw,
+      p_category: 'pot',
+      p_subcategory: null,
+    })
+    if (error) {
+      console.error('[accessories-bot] search_products (pot) failed:', error.message)
+      continue
+    }
+    for (const r of (data ?? []) as Array<PotSearchRow & { qty: number; price: number }>) {
+      const prev = byId.get(r.id)
+      if (!prev || r.rank > prev.rank || (r.rank === prev.rank && r.sim > prev.sim)) {
+        byId.set(r.id, r)
+      }
+    }
+  }
+  if (byId.size === 0) return []
+
+  const ranked = [...byId.values()].sort((a, b) => b.rank - a.rank || b.sim - a.sim).slice(0, 20)
+
+  // RPC не возвращает unit/pack_size/code_1c (нужны для WidgetProduct/карточки) —
+  // один точечный select по уже отфильтрованным id, без повторного применения
+  // is_active/price/hidden_for_demo (они уже применены внутри search_products).
+  const ids = ranked.map((r) => r.id)
+  const { data: full, error: fullErr } = await supabase.from('products').select(SEARCH_SELECT).in('id', ids)
+  if (fullErr) {
+    console.error('[accessories-bot] pot rows fetch failed:', fullErr.message)
+    return []
+  }
+  const byIdFull = new Map((full as AccessoryRow[]).map((r) => [r.id, r]))
+  const rows = ranked.map((r) => byIdFull.get(r.id)).filter((r): r is AccessoryRow => Boolean(r))
+  console.log(`[accessories-bot] search (pot): ${rows.length} товаров по`, JSON.stringify(keywords))
+  return rows
+}
+
+/** Общий вопрос про горшечные без вида — реальный топ по остатку (category='pot'). */
+async function listPotPlants(limit = 12): Promise<AccessoryRow[]> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[accessories-bot] SUPABASE_SERVICE_ROLE_KEY not set')
+    return []
+  }
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('products')
+    .select(SEARCH_SELECT)
+    .eq('category', 'pot')
+    .eq('is_active', true)
+    .eq('hidden_for_demo', false)
+    .gt('price', 0)
+    .order('qty', { ascending: false })
+    .limit(limit)
+  if (error) {
+    console.error('[accessories-bot] listPotPlants failed:', error.message)
+    return []
+  }
+  const rows = (data ?? []) as AccessoryRow[]
+  console.log(`[accessories-bot] list (pot browse): ${rows.length} товаров`)
+  return rows
+}
+
 const SITE_URL = 'https://uralskflowers.kz'
 
 /** Ссылка на раздел каталога accessories по id группы (раздела) таксономии.
@@ -519,6 +685,7 @@ async function composeAnswer(
   rows: AccessoryRow[],
   history: DialogMessage[] = [],
   channel: Channel = 'whatsapp',
+  appliedFilters?: PotFilters,
 ): Promise<string | null> {
   const promptStartedAt = Date.now()
   // Ссылки: карточка товара (/product/{id}) и раздел каталога. Раздел — это group
@@ -532,9 +699,21 @@ async function composeAnswer(
     }
   })
 
+  // Фильтры клиента (диаметр/цена/остаток), УЖЕ применённые кодом (applyPotFilters) ДО
+  // этого вызова — rows содержит только прошедшие проверку товары. Явно говорим об этом
+  // Gemini, иначе SYSTEM_PROMPT правило 2 («никогда не утверждай соответствие непроверенному
+  // условию») по умолчанию запрещает называть товары подходящими — а тут это уже честно.
+  const filtersBlock =
+    appliedFilters && hasActiveFilters(appliedFilters)
+      ? `\nПРИМЕНЁННЫЕ ФИЛЬТРЫ (уже проверены кодом по реальным данным — это не догадка,
+можешь прямо сказать, что показанные товары ИМ соответствуют): ${describePotFilters(appliedFilters)}.
+Другие условия клиента, которых здесь нет (назначение, «одинаковые», цвет и т.п.), по-прежнему
+НЕ проверены — на них продолжает действовать правило 2.\n`
+      : ''
+
   const histBlock = formatHistory(history)
   const prompt = `${SYSTEM_PROMPT}${channel === 'widget' ? WIDGET_TEXT_RULES : ''}
-
+${filtersBlock}
 СПИСОК ТОВАРОВ (JSON): ${JSON.stringify(context)}
 
 ПАМЯТКА (FAQ):
@@ -713,9 +892,10 @@ export async function getAccessoriesReply(
     }
   }
 
-  // accessories / site_help → единый compose (каталог + FAQ).
-  // Товары ищем только для accessories; для site_help список пустой (отвечаем по памятке).
+  // accessories / pot / site_help → единый compose (каталог + FAQ), без изменений.
+  // Товары ищем для accessories/pot; для site_help список пустой (отвечаем по памятке).
   let rows: AccessoryRow[] = []
+  let appliedPotFilters: PotFilters | undefined
   if (cls.intent === 'accessories') {
     const searchStartedAt = Date.now()
     rows = await searchAccessories(cls.keywords)
@@ -769,9 +949,75 @@ export async function getAccessoriesReply(
       })
       return { text: NOT_FOUND_REPLY, meta: buildClassifiedMeta(cls, false, classificationDurationMs) }
     }
+  } else if (cls.intent === 'pot') {
+    const searchStartedAt = Date.now()
+    // Вид назван → similarity-поиск по названию (search_products). Вид не назван
+    // (только общий маркер «горшечные растения» / «комнатные растения») → реальный
+    // топ по остатку (listPotPlants) — similarity-поиск по такой фразе вернёт пусто.
+    const specificKeywords = cls.keywords.filter((k) => !GENERIC_POT_KEYWORDS.has(k))
+    rows = specificKeywords.length > 0 ? await searchPotPlants(specificKeywords) : await listPotPlants()
+    console.log('[ai timing] catalog search', {
+      durationMs: Date.now() - searchStartedAt,
+      keywordCount: cls.keywords.length,
+      productCount: rows.length,
+    })
+    if (rows.length === 0) {
+      // Нет CATEGORY_TREE-таксономии для pot (та — только для accessories) — честно
+      // к менеджеру, без угадывания раздела.
+      console.log('[accessories-bot] pot not found → контакт менеджера')
+      console.log('[ai diagnostic] accessories reply branch', {
+        intent: cls.intent,
+        classificationSource: cls.classificationSource ?? 'gemini',
+        classificationReason: cls.reason,
+        classificationDurationMs,
+        keywordCount: cls.keywords.length,
+        productCount: rows.length,
+        composeCalled: false,
+        composeReturnedNull: false,
+        replyKind: 'not_found_reply',
+        normalizedOutputLength: NOT_FOUND_REPLY.length,
+        businessFallbackReason: 'pot_not_found',
+      })
+      return { text: NOT_FOUND_REPLY, meta: buildClassifiedMeta(cls, false, classificationDurationMs) }
+    }
+
+    // Числовые условия клиента (диаметр/цена/остаток) — извлекаем ДЕТЕРМИНИРОВАННО из
+    // сырого message, НЕ из cls.keywords: classifyByRules() может вернуть intent раньше
+    // Gemini (именованные виды — «монстера 14 см» и т.п., это основной путь, а не edge
+    // case) и никогда не видит числа — извлечение обязано быть независимым от того, как
+    // определился intent. Фильтруем ДО composeAnswer, чтобы Gemini физически не увидел
+    // товары, не прошедшие проверку — не полагаемся только на текст промпта (см. Priority
+    // 1-4 разбор: одного prompt-запрета оказалось недостаточно).
+    const potFilters = extractPotFilters(message)
+    if (hasActiveFilters(potFilters)) {
+      const filteredRows = applyPotFilters(rows, potFilters)
+      if (filteredRows.length === 0) {
+        const label = specificKeywords.length > 0 ? specificKeywords.join(', ') : 'горшечные растения'
+        const text = `${label.charAt(0).toUpperCase()}${label.slice(1)} есть в наличии, но нет `
+          + `варианта с параметрами: ${describePotFilters(potFilters)}. ${MANAGER_CONTACT}`
+        console.log('[accessories-bot] pot filters excluded all rows →', JSON.stringify(potFilters))
+        console.log('[ai diagnostic] accessories reply branch', {
+          intent: cls.intent,
+          classificationSource: cls.classificationSource ?? 'gemini',
+          classificationReason: cls.reason,
+          classificationDurationMs,
+          keywordCount: cls.keywords.length,
+          productCount: rows.length,
+          composeCalled: false,
+          composeReturnedNull: false,
+          replyKind: 'pot_filter_no_match',
+          normalizedOutputLength: text.length,
+          businessFallbackReason: 'pot_filters_excluded_all',
+        })
+        return { text, meta: buildClassifiedMeta(cls, false, classificationDurationMs) }
+      }
+      rows = filteredRows
+      appliedPotFilters = potFilters
+      console.log(`[accessories-bot] pot filters applied: ${JSON.stringify(potFilters)} → ${rows.length} товаров`)
+    }
   }
 
-  const answer = await composeAnswer(message, rows, history, channel)
+  const answer = await composeAnswer(message, rows, history, channel, appliedPotFilters)
   console.log(`[accessories-bot] compose (${cls.intent}, ${channel}):`, answer ? `ответ len=${answer.length}` : 'NO_ANSWER')
   console.log('[ai diagnostic] accessories reply branch', {
     intent: cls.intent,

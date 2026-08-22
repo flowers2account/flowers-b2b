@@ -21,9 +21,9 @@ const SITE = 'https://uralskflowers.kz'
 // Интенты из accessories-bot. «smalltalk» — НЕ значимое событие (привет/болтовня).
 // Лид обращения создаём на первый значимый ход: вопрос про товар/категорию, по сайту,
 // либо «прочее» (живые цветы/статус/жалоба — тоже повод увидеть обращение менеджеру).
-export type BotIntent = 'smalltalk' | 'accessories' | 'site_help' | 'other'
+export type BotIntent = 'smalltalk' | 'accessories' | 'pot' | 'site_help' | 'other'
 export function isSignificantIntent(intent: BotIntent | undefined): boolean {
-  return intent === 'accessories' || intent === 'site_help' || intent === 'other'
+  return intent === 'accessories' || intent === 'pot' || intent === 'site_help' || intent === 'other'
 }
 
 interface ConvRow {

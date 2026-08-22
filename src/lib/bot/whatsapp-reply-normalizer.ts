@@ -4,7 +4,7 @@ export type WhatsAppReplyReason =
   | 'ai_classification_timeout'
 
 export interface WhatsAppReplyMeta {
-  intent?: 'smalltalk' | 'accessories' | 'site_help' | 'other'
+  intent?: 'smalltalk' | 'accessories' | 'pot' | 'site_help' | 'other'
   helped?: boolean
   classificationSource?: 'rules' | 'gemini' | 'fallback'
   classificationReason?: 'ai_classification_timeout'
