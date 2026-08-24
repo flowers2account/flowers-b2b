@@ -168,6 +168,19 @@ export async function ensureInvoiceForOrder(
       .single()
     if (error || !created) return { ok: false, reason: 'ERROR', message: error?.message || 'Не удалось создать счёт' }
     invoice = created
+  } else if (invoice.status !== 'paid' && Number(invoice.amount) !== amount) {
+    // Заказ изменился ПОСЛЕ выставления счёта (например добавили доставку) и счёт ещё
+    // не оплачен — синкаем сумму на актуальную. Без этого invoices.amount застревает на
+    // значении из момента создания счёта, а QR (amount зашит в саму ссылку) и PDF продолжают
+    // показывать/требовать устаревшую сумму — расхождение с тем, что реально должен заказ.
+    // pdf_url=null форсирует перегенерацию PDF ниже (тем же путём/файлом, upsert).
+    const { data: synced } = await sb
+      .from('invoices')
+      .update({ amount, pdf_url: null })
+      .eq('id', invoice.id)
+      .select('*')
+      .single()
+    if (synced) invoice = synced
   }
 
   // QR-ссылка по реальным номеру/guid счёта.

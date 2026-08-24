@@ -43,6 +43,8 @@ type Order = {
   guest_phone: string | null
   guest_name: string | null
   assembly_photo_url: string | null
+  delivery_cost: number | null
+  delivery_city: string | null
   client: Client
   order_items: OrderItem[]
   reservations: { expires_at: string }[]
@@ -169,7 +171,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, payment_status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, client:client_id(name, phone, company_name, bin), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, payment_status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, delivery_cost, delivery_city, client:client_id(name, phone, company_name, bin), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) console.error('Orders error:', error)
@@ -509,6 +511,14 @@ export default function OrdersPanel() {
                   <td className="py-1.5 text-right font-medium">{fmt(item.qty * item.price)}</td>
                 </tr>
               ))}
+              {!!order.delivery_cost && (
+                <tr className="border-b last:border-0">
+                  <td className="py-1.5">Доставка{order.delivery_city ? ` (${order.delivery_city})` : ''}</td>
+                  <td className="py-1.5 text-center text-gray-400">—</td>
+                  <td className="py-1.5 text-right text-gray-400">—</td>
+                  <td className="py-1.5 text-right font-medium">{fmt(order.delivery_cost)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
 
