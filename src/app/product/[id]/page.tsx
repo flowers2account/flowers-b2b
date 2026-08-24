@@ -38,7 +38,7 @@ const SUBCAT_RU: Record<string, string> = {
 }
 
 const CATEGORY_RU: Record<string, string> = {
-  cut: 'Срезанные', pot: 'Горшечные', accessories: 'Расходники',
+  cut: 'Срезанные', pot: 'Горшечные', accessories: 'Фурнитура для упаковки букетов',
 }
 
 const POT_MATERIAL_RU: Record<string, string> = {

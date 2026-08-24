@@ -113,7 +113,7 @@ export default function SiteFooter() {
               fontStyle: 'italic', fontSize: 15,
               color: '#EDE3E7', lineHeight: 1.5, marginTop: 20,
             }}>
-              Оптовая поставка цветов, горшков и расходников для флористов и магазинов <strong style={{ fontStyle: 'normal', fontWeight: 500, color: '#fff' }}>с 2008 года</strong>.
+              Оптовая поставка цветов, горшков и фурнитуры для упаковки букетов — флористам и магазинам <strong style={{ fontStyle: 'normal', fontWeight: 500, color: '#fff' }}>с 2008 года</strong>.
             </div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 18,
