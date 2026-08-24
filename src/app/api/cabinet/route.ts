@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
       confirmed_at,
       assembled_at,
       assembly_photo_url,
+      delivery_cost,
+      delivery_city,
       order_items (
         id,
         qty,

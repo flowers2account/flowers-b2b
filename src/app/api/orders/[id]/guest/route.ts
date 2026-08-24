@@ -27,6 +27,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       confirmed_at,
       assembled_at,
       assembly_photo_url,
+      delivery_cost,
+      delivery_city,
       client_id,
       order_items (
         id,

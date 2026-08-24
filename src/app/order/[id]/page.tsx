@@ -34,6 +34,8 @@ type Order = {
   created_at: string
   paid_at: string | null
   assembled_at: string | null
+  delivery_cost: number | null
+  delivery_city: string | null
   order_items: OrderItem[]
 }
 
@@ -146,7 +148,10 @@ export default function OrderPage() {
   const itemQty = (i: OrderItem) => i.qty_actual ?? i.qty_ordered ?? i.qty
   const itemsSum = visible.reduce((acc, i) => acc + itemQty(i) * i.price, 0)
   const totalPaid = Number(order.total ?? itemsSum)
-  const discount = Math.max(0, itemsSum - totalPaid)
+  const deliveryCost = Number(order.delivery_cost ?? 0)
+  // Скидка — отдельно от доставки: сравниваем товары с (итог − доставка), а не с итогом
+  // напрямую, иначе доставка маскируется под скидку (и наоборот) в этом же вычитании.
+  const discount = Math.max(0, itemsSum - (totalPaid - deliveryCost))
   const count = visible.reduce((acc, i) => acc + itemQty(i), 0)
   // «Оплачен» загорается ТОЛЬКО при фактической оплате — независимо от способа.
   // Для «По счёту»/QR (invoice) подтверждение ручное → пока unpaid стадия не активна.
@@ -264,6 +269,17 @@ export default function OrderPage() {
                 <div className={s.sum}>{i.is_removed ? '—' : fmt(itemQty(i) * i.price)}</div>
               </div>
             ))}
+            {deliveryCost > 0 && (
+              <div className={s.irow}>
+                <span className={s.thumb}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="1.6" /><circle cx="17.5" cy="18" r="1.6" /></svg>
+                </span>
+                <div>
+                  <div className={s.nm}>Доставка{order.delivery_city ? ` — ${order.delivery_city}` : ''}</div>
+                </div>
+                <div className={s.sum}>{fmt(deliveryCost)}</div>
+              </div>
+            )}
             <div className={s.repeat}>
               <button className={s.btn} onClick={repeat}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6" /><path d="M3.5 9a9 9 0 0 1 14.8-3.4L23 10M1 14l4.7 4.4A9 9 0 0 0 20.5 15" /></svg>
@@ -280,6 +296,9 @@ export default function OrderPage() {
               <div className={s.sline}><span>Сумма</span><span className={s.v}>{fmt(itemsSum)}</span></div>
               {discount > 0 && (
                 <div className={`${s.sline} ${s.disc}`}><span>Скидка</span><span className={s.v}>−{fmt(discount)}</span></div>
+              )}
+              {deliveryCost > 0 && (
+                <div className={s.sline}><span>Доставка</span><span className={s.v}>{fmt(deliveryCost)}</span></div>
               )}
               <div className={s.sdiv} />
               <div className={s.total}><span className={s.k}>{isPaid ? 'Итого оплачено' : 'К оплате'}</span><span className={s.tv}>{fmt(totalPaid)}</span></div>

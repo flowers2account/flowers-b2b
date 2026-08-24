@@ -45,6 +45,7 @@ type Order = {
   assembly_photo_url: string | null
   delivery_cost: number | null
   delivery_city: string | null
+  fulfillment_type: string | null
   client: Client
   order_items: OrderItem[]
   reservations: { expires_at: string }[]
@@ -171,7 +172,7 @@ export default function OrdersPanel() {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, status, payment_status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, delivery_cost, delivery_city, client:client_id(name, phone, company_name, bin), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
+      .select(`id, status, payment_status, total, notes, created_at, client_id, guest_phone, guest_name, assembly_photo_url, delivery_cost, delivery_city, fulfillment_type, client:client_id(name, phone, company_name, bin), order_items(id, product_id, qty, qty_ordered, qty_actual, is_removed, price, product:product_id(name, pack_size)), reservations(expires_at)`)
       .order('created_at', { ascending: false })
       .limit(200)
     if (error) console.error('Orders error:', error)
@@ -420,6 +421,8 @@ export default function OrdersPanel() {
       {editingOrder && (
         <OrderEditModal
           orderId={editingOrder.id}
+          fulfillmentType={editingOrder.fulfillment_type}
+          deliveryCity={editingOrder.delivery_city}
           initialItems={editingOrder.order_items
             .filter(i => !i.is_removed)
             .map(i => ({

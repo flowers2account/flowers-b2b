@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { computeDeliveryCost, DEFAULT_CITY_DELIVERY_FEE } from '@/lib/delivery'
 
 type EditItem = {
   id?: number
@@ -24,18 +25,28 @@ type SearchResult = {
 type Props = {
   orderId: number
   initialItems: EditItem[]
+  fulfillmentType: string | null
+  deliveryCity: string | null
   onClose: () => void
   onSaved: () => void
 }
 
-export default function OrderEditModal({ orderId, initialItems, onClose, onSaved }: Props) {
+export default function OrderEditModal({ orderId, initialItems, fulfillmentType, deliveryCity, onClose, onSaved }: Props) {
   const [items, setItems] = useState<EditItem[]>(initialItems)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cityFee, setCityFee] = useState(DEFAULT_CITY_DELIVERY_FEE)
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    fetch('/api/settings/delivery-fee')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.fee != null) setCityFee(d.fee) })
+      .catch(() => { /* дефолт fee — не блокируем редактирование */ })
+  }, [])
 
   useEffect(() => {
     if (searchQuery.length < 2) {
@@ -130,9 +141,14 @@ export default function OrderEditModal({ orderId, initialItems, onClose, onSaved
         }
       }
 
-      // Recalculate total
-      const newTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0)
-      await supabase.from('orders').update({ total: newTotal }).eq('id', orderId)
+      // Пересчёт итога: товары + доставка (её и не было бы видно в total иначе — доставка
+      // не строка order_items, а orders.delivery_cost, см. src/lib/delivery.ts). Межгород
+      // (10% от суммы товаров) пересчитывается под НОВУЮ сумму товаров; доставка по
+      // Уральску — фикс из app_settings (cityFee, тот же источник, что и превью ниже).
+      const newGoodsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0)
+      const newDeliveryCost = computeDeliveryCost(fulfillmentType, deliveryCity, cityFee, newGoodsTotal)
+      const newTotal = newGoodsTotal + newDeliveryCost
+      await supabase.from('orders').update({ total: newTotal, delivery_cost: newDeliveryCost || null }).eq('id', orderId)
 
       onSaved()
     } catch (e: any) {
@@ -142,7 +158,9 @@ export default function OrderEditModal({ orderId, initialItems, onClose, onSaved
     }
   }
 
-  const total = items.reduce((sum, i) => sum + i.qty * i.price, 0)
+  const goodsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0)
+  const previewDeliveryCost = computeDeliveryCost(fulfillmentType, deliveryCity, cityFee, goodsTotal)
+  const total = goodsTotal + previewDeliveryCost
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -239,6 +257,11 @@ export default function OrderEditModal({ orderId, initialItems, onClose, onSaved
 
         <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-xl">
           <span className="text-sm font-semibold text-gray-700">
+            {previewDeliveryCost > 0 && (
+              <span className="font-normal text-gray-500 mr-2">
+                + доставка {previewDeliveryCost.toLocaleString('ru-RU')} ₸ =
+              </span>
+            )}
             Итого: {total.toLocaleString('ru-RU')} ₸
           </span>
           <div className="flex gap-2">
