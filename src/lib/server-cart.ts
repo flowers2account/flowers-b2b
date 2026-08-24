@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { computeDeliveryCost, getCityDeliveryFee } from '@/lib/delivery'
 
 const CART_NOTE = '[customer_cart]'
 
@@ -170,8 +171,25 @@ export async function replaceClientCart(sb: SupabaseClient, clientId: string, ra
     if (insError) throw insError
   }
 
-  const total = rows.reduce((sum, r) => sum + Number(r.price || 0) * Number(r.qty || 0), 0)
-  const { error: orderError } = await sb.from('orders').update({ total }).eq('id', orderId)
+  // Доставка (delivery_cost) не пересоздаётся тут — orders.fulfillment_type/delivery_city
+  // уже сохранены на заказе (напр. проставлены вручную из консоли). Но если их НЕ
+  // пересчитать при каждой синхронизации корзины, любое добавление/удаление товара
+  // молча стирает доставку из total (delivery_cost остаётся, total — нет). Тот же класс
+  // бага, что чинили в OrderEditModal — здесь ещё и срабатывает автоматически, без
+  // участия оператора, на каждый заход клиента в корзину.
+  const goodsTotal = rows.reduce((sum, r) => sum + Number(r.price || 0) * Number(r.qty || 0), 0)
+  const { data: orderMeta } = await sb
+    .from('orders')
+    .select('fulfillment_type, delivery_city')
+    .eq('id', orderId)
+    .maybeSingle()
+  const fee = await getCityDeliveryFee(sb)
+  const deliveryCost = computeDeliveryCost(orderMeta?.fulfillment_type, orderMeta?.delivery_city, fee, goodsTotal)
+  const total = goodsTotal + deliveryCost
+  const { error: orderError } = await sb
+    .from('orders')
+    .update({ total, delivery_cost: deliveryCost || null })
+    .eq('id', orderId)
   if (orderError) throw orderError
 
   return getClientCart(sb, clientId)
