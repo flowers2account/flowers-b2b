@@ -62,12 +62,12 @@ export const CAMPAIGNS: Record<string, Campaign> = {
   'september-1': {
     id: 'september-1',
     eyebrow: 'Подготовка к 1 сентября',
-    title: 'Всё для букетов к 1 сентября —',
+    title: 'Горшечные растения к 1 сентября —',
     titleAccent: 'в наличии на складе',
-    subtitleHome: 'Упаковка, ленты, оазис и декор — соберите запас заранее к ближайшей доставке.',
-    subtitleCatalog: 'Соберите запас к 1 сентября из актуального наличия.',
+    subtitleHome: 'Горшечные растения и расходные материалы для флористов — из наличия склада.',
+    subtitleCatalog: 'Соберите заказ горшечных растений и расходки к 1 сентября.',
     trustLine: 'Актуальные остатки из 1С',
-    ctaHome: { label: 'Перейти в каталог', href: '/catalog' },
+    ctaHome: { label: 'Смотреть каталог', href: '/catalog?category=pot' },
     ctaCatalog: { label: 'Выбрать товары', iconDown: true },
     image: '/images/campaigns/hero-september.webp',
   },
@@ -87,7 +87,7 @@ export const CAMPAIGNS: Record<string, Campaign> = {
 }
 
 // ── Активная кампания — меняется ОДНОЙ строкой ──────────────────────────────
-export const CURRENT_CAMPAIGN_ID = 'first-order-free'
+export const CURRENT_CAMPAIGN_ID = 'september-1'
 export const CAMPAIGN: Campaign = CAMPAIGNS[CURRENT_CAMPAIGN_ID]
 
 // Плашка маршрута (общая для обеих страниц). Уральск — центральный склад-хаб:
