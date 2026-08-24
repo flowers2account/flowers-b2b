@@ -35,7 +35,7 @@ async function loadContext(orderId: number) {
   const sb = createAdminClient()
   const { data: order } = await sb
     .from('orders')
-    .select(`id, total, client_id,
+    .select(`id, total, client_id, delivery_cost,
       order_items ( qty, qty_ordered, qty_actual, is_removed, price, color,
         product:products ( id, name, display_name ) )`)
     .eq('id', orderId)
@@ -57,6 +57,12 @@ async function loadContext(orderId: number) {
     qty: itemQty(i),
     price: Number(i.price),
   }))
+  // Доставка — не order_items, а orders.delivery_cost (см. src/lib/order-total.ts).
+  // Без этой строки Итого расходится с суммой позиций на стоимость доставки без объяснения.
+  const deliveryCost = Number(order.delivery_cost ?? 0)
+  if (deliveryCost > 0) {
+    lines.push({ name: 'Доставка', qty: 1, price: deliveryCost })
+  }
   const itemsSum = lines.reduce((s, l) => s + l.qty * l.price, 0)
   const amount = Number(order.total ?? itemsSum)
 
