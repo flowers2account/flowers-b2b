@@ -58,6 +58,7 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   const { data: order, error: orderError } = await supabase
     .from('orders')
     .select(`id, status, total, notes, created_at, guest_phone, guest_name, payment_method, payment_comment,
+             delivery_cost, delivery_city,
              client:client_id(name, phone, company_name),
              order_items(id, qty, qty_ordered, qty_actual, is_removed, price, color, product:product_id(name, country_iso))`)
     .eq('id', orderId)
@@ -94,7 +95,8 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
   const subtotalChina = chinaItems.reduce(
     (sum: number, i: any) => sum + (i.qty_actual ?? i.qty_ordered ?? i.qty) * i.price, 0
   )
-  const printTotal = subtotalRegular + subtotalChina
+  const deliveryCost = Number(o.delivery_cost ?? 0)
+  const printTotal = subtotalRegular + subtotalChina + deliveryCost
 
   const showBoth = regularItems.length > 0 && chinaItems.length > 0
 
@@ -161,6 +163,16 @@ export default async function PrintOrderPage({ params }: { params: Promise<{ id:
             )}
           </table>
         </>
+      )}
+
+      {/* Доставка — не строка order_items, а orders.delivery_cost (см. src/lib/delivery.ts) */}
+      {deliveryCost > 0 && (
+        <div className="flex justify-end mt-2">
+          <div className="text-right text-sm text-gray-600">
+            <span className="mr-6">Доставка{o.delivery_city ? ` (${o.delivery_city})` : ''}:</span>
+            <span className="font-medium">{fmt(deliveryCost)}</span>
+          </div>
+        </div>
       )}
 
       {/* Итого */}
