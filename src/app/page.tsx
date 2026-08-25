@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const tel = '+' + company.phone.replace(/\D/g, '')
 
 const SUPPLY: { c: string; t: string; d: string; group: string; ic: React.ReactNode }[] = [
-  { c: '#D26AA0', t: 'Упаковка и флористика', d: 'Плёнка, бумага, пакеты, коробки, краски', group: 'packaging',
+  { c: '#D26AA0', t: 'Фурнитура для упаковки букетов', d: 'Плёнка, бумага, пакеты, коробки, краски', group: 'packaging',
     ic: <><path d="m2 8 10-5 10 5-10 5z" /><path d="M2 8v8l10 5 10-5V8" /></> },
   { c: '#C45A38', t: 'Горшки и кашпо', d: 'Керамика, пластик, разные размеры', group: 'pots',
     ic: <path d="M5 9h14l-1.5 11h-11zM7 9V7a5 5 0 0 1 10 0v2" /> },
