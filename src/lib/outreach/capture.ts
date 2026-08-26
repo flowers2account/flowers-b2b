@@ -37,7 +37,7 @@ function looksLikePhone(s: unknown): boolean {
 //   message.source.sender    = "77718678067"      ← он же
 //   message.source.id        = "77718678067@c.us" ← он же с суффиксом
 // ⚠️ message.source.identifier и message.sa.login = НАШ номер компании — их НЕ берём.
-function extractPhone(sender: Record<string, unknown>, src: Record<string, unknown>): string | null {
+export function extractPhone(sender: Record<string, unknown>, src: Record<string, unknown>): string | null {
   const raw =
     pick<string | number>(sender, 'socialId', 'social_id', 'phone')
     ?? pick<string | number>(src, 'sender')

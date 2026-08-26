@@ -20,6 +20,25 @@ export function inquiryConfigured(): boolean {
   return AMO_INQUIRY_PIPELINE_ID > 0 && AMO_INQUIRY_STATUS_NEW > 0
 }
 
+// ── Воронка «Школьная рассылка (1 сентября)» (кампания school_september_2026) ─
+// Создана вручную в amoCRM UI 26.08.2026, id 11235862 (владелец прислал ссылку на
+// воронку). ОТДЕЛЬНАЯ от воронки заказов (10853806) и от «Обзвон LAPS» (11053958 —
+// другая кампания, холодный обзвон флористов Актобе/Атырау; НЕ переиспользовать).
+// Используется src/app/api/webhooks/umnico/route.ts при ответе кампанейного контакта
+// (см. src/lib/outreach/campaign-handoff.ts). Не настроено → сделка не создаётся,
+// остальной конвейер не падает (см. campaignConfigured()).
+export const AMO_CAMPAIGN_PIPELINE_ID = Number(process.env.AMO_CAMPAIGN_PIPELINE_ID || 0)
+export const AMO_CAMPAIGN_STATUS_NEW  = Number(process.env.AMO_CAMPAIGN_STATUS_NEW || 0)
+// «материал отправлен» — этап добавлен владельцем в воронку 26.08.2026 (сверено GET
+// /leads/pipelines/11235862). Источник истины «материал уже отправлен клиенту» —
+// стадия сделки, НЕ текст истории диалога. См. materialAlreadySent() в
+// src/lib/bot/campaign-bot.ts.
+export const AMO_CAMPAIGN_STATUS_MATERIAL_SENT = 88149794
+
+export function campaignConfigured(): boolean {
+  return AMO_CAMPAIGN_PIPELINE_ID > 0 && AMO_CAMPAIGN_STATUS_NEW > 0
+}
+
 // Этапы воронки 10853806 (GET /api/v4/leads/pipelines/10853806, перестроена 21.06.2026)
 // Порядок: Новый → Подтверждён → СОГЛАСОВАНИЕ → В сборке → Готово к выдаче → на доставке → Выдан/Отменён.
 // Этап «В брони» (85413466) УДАЛЁН из воронки.
