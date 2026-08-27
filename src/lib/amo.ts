@@ -199,18 +199,29 @@ export function normalizePhoneAmo(raw: string): string[] {
 
 // ── Contacts ──────────────────────────────────────────────────────────────────
 
-export async function findContactByPhone(phones: string[]): Promise<number | null> {
+// ВСЕ контакты amoCRM, совпавшие по телефону (по всем переданным вариантам номера).
+// Порядок выдачи сохраняется, дубли по id убраны. Пусто → []. Нужна там, где телефон
+// может числиться за несколькими контактами-дублями (выдача amoCRM по query
+// нестабильна): см. findLeadByPhoneInPipeline.
+export async function findContactIdsByPhone(phones: string[]): Promise<number[]> {
   const seen = new Set<number>()
+  const out: number[] = []
   for (const phone of phones) {
-    const res = await amoFetch(`/contacts?query=${encodeURIComponent(phone)}&limit=5`)
+    const res = await amoFetch(`/contacts?query=${encodeURIComponent(phone)}&limit=10`)
     if (res.status === 204) continue
     const data = await readAmoJson<{ _embedded?: { contacts?: Array<{ id: number }> } }>(res)
-    const contacts = data?._embedded?.contacts ?? []
-    for (const c of contacts) {
-      if (!seen.has(c.id)) { seen.add(c.id); return c.id }
+    for (const c of data?._embedded?.contacts ?? []) {
+      if (Number.isFinite(c.id) && !seen.has(c.id)) { seen.add(c.id); out.push(c.id) }
     }
   }
-  return null
+  return out
+}
+
+// Первый контакт по телефону (обратная совместимость — checkout, регистрация, синк
+// заказов/реквизитов и т.п., где нужен ровно один контакт).
+export async function findContactByPhone(phones: string[]): Promise<number | null> {
+  const ids = await findContactIdsByPhone(phones)
+  return ids[0] ?? null
 }
 
 export async function assertAmoContactExists(contactId: number): Promise<void> {
@@ -225,24 +236,33 @@ export async function assertAmoLeadExists(leadId: number): Promise<void> {
 
 // Best-effort: найти сделку контакта в указанной воронке по телефону (для аутрич-захвата).
 // Возвращает { leadId, contactId } первой подходящей сделки или null. Не кидает на «не найдено».
+// Перебирает ВСЕ контакты, совпавшие по телефону (номер может числиться за несколькими
+// контактами-дублями — выдача amoCRM по query нестабильна), и возвращает сделку из
+// первого контакта, у которого она реально нашлась в нужной воронке. Раньше проверялся
+// только первый контакт из выдачи → срабатывание было недетерминированным.
 export async function findLeadByPhoneInPipeline(
   phones: string[],
   pipelineId: number,
 ): Promise<{ leadId: number; contactId: number } | null> {
-  const contactId = await findContactByPhone(phones)
-  if (!contactId) return null
-  const cRes = await amoFetch(`/contacts/${contactId}?with=leads`)
-  if (cRes.status === 204) return null
-  const cData = await readAmoJson<{ _embedded?: { leads?: Array<{ id: number }> } }>(cRes)
-  const leadIds: number[] = (cData?._embedded?.leads ?? [])
-    .map((l: any) => l.id).filter((x: any) => Number.isFinite(x))
-  if (!leadIds.length) return null
-  const qs = leadIds.map((id) => `filter[id][]=${id}`).join('&')
-  const lRes = await amoFetch(`/leads?${qs}&filter[pipeline_id]=${pipelineId}&limit=1`)
-  if (lRes.status === 204) return null
-  const lData = await readAmoJson<{ _embedded?: { leads?: Array<{ id: number }> } }>(lRes)
-  const lead = lData?._embedded?.leads?.[0]
-  return lead?.id ? { leadId: lead.id, contactId } : null
+  const contactIds = await findContactIdsByPhone(phones)
+  if (!contactIds.length) return null
+
+  for (const contactId of contactIds) {
+    const cRes = await amoFetch(`/contacts/${contactId}?with=leads`)
+    if (cRes.status === 204) continue
+    const cData = await readAmoJson<{ _embedded?: { leads?: Array<{ id: number }> } }>(cRes)
+    const leadIds = (cData?._embedded?.leads ?? [])
+      .map((l) => l.id).filter((x) => Number.isFinite(x))
+    if (!leadIds.length) continue
+
+    const qs = leadIds.map((id) => `filter[id][]=${id}`).join('&')
+    const lRes = await amoFetch(`/leads?${qs}&filter[pipeline_id]=${pipelineId}&limit=1`)
+    if (lRes.status === 204) continue
+    const lData = await readAmoJson<{ _embedded?: { leads?: Array<{ id: number }> } }>(lRes)
+    const lead = lData?._embedded?.leads?.[0]
+    if (lead?.id) return { leadId: lead.id, contactId }
+  }
+  return null
 }
 
 // Проверяет, выглядит ли строка как номер телефона (без имени)
