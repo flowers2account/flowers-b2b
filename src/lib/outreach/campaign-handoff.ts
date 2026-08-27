@@ -16,11 +16,13 @@
 
 import { sendMessage as sendTelegramMessage } from '@/lib/telegram-manager/client'
 import {
-  findLeadByPhoneInPipeline, patchLeadStage, AMO_CAMPAIGN_PIPELINE_ID,
-  AMO_CAMPAIGN_STATUS_MATERIAL_SENT, campaignConfigured,
+  findLeadByPhoneInPipeline, patchLeadStage, patchLeadFields, AMO_CAMPAIGN_PIPELINE_ID,
+  AMO_CAMPAIGN_STATUS_MATERIAL_SENT, AMO_CAMPAIGN_STATUS_WON, campaignConfigured,
+  CF_CAMPAIGN_NEXT_FOLLOWUP, CF_CAMPAIGN_FOLLOWUP_COUNT, CF_CAMPAIGN_UMNICO_REF,
 } from '@/lib/amo'
 import { fetchDialogContext, sendMessage, sendPhoto, type DialogMessage } from '@/lib/umnico'
-import { classifyCampaignIntent, composeCampaignReply, materialAlreadySent } from '@/lib/bot/campaign-bot'
+import { classifyCampaignIntent, composeCampaignReply, materialAlreadySent, sendWhatIsItBanner } from '@/lib/bot/campaign-bot'
+import { computeNextWindow } from '@/lib/bot/campaign-followup'
 import { SCHOOL_CAMPAIGN_PDF_URL, SCHOOL_CAMPAIGN_IMAGE_URL } from '@/lib/bot/campaign-prompts'
 
 export interface IncomingCampaignMessage {
@@ -118,6 +120,20 @@ export async function onCampaignContactReplied(
   await notifyManagerTelegram(dealId, phone, incoming)
 
   const { umnicoLeadId, realId } = incoming
+
+  // Umnico leadId:realId в сделку СРАЗУ (до классификации, на 100% входящих) — крону
+  // follow-up нужно слать по этому же диалогу с историей. Только если оба id пришли в
+  // payload; сбой PATCH не блокирует ответ клиенту ниже.
+  if (umnicoLeadId != null && realId != null) {
+    try {
+      await patchLeadFields(dealId, [
+        { field_id: CF_CAMPAIGN_UMNICO_REF, value: `${umnicoLeadId}:${realId}` },
+      ])
+    } catch (e) {
+      console.error('[campaign-handoff] не удалось сохранить Campaign umnico ref:', e instanceof Error ? e.message : e)
+    }
+  }
+
   if (umnicoLeadId == null || realId == null) {
     console.warn('[campaign-handoff] нет umnicoLeadId/realId в payload — история недоступна, ответ клиенту не генерируется')
     return
@@ -133,6 +149,21 @@ export async function onCampaignContactReplied(
   }
   console.log('[campaign-handoff] intent:', classified.intent)
 
+  // Реальный ответ клиента обнуляет цепочку молчания follow-up — для всех intent, кроме
+  // confirmed_forwarded (сделка уходит в «Успешно реализовано», follow-up её не касается).
+  // Ставим ДО генерации/отправки ответа: сбой compose/send не должен оставлять клиента
+  // под напоминаниями после реального ответа. computeNextWindow — общий с Частью 2.
+  if (classified.intent !== 'confirmed_forwarded') {
+    try {
+      await patchLeadFields(dealId, [
+        { field_id: CF_CAMPAIGN_FOLLOWUP_COUNT, value: 0 },
+        { field_id: CF_CAMPAIGN_NEXT_FOLLOWUP, value: computeNextWindow(new Date()).toISOString() },
+      ])
+    } catch (e) {
+      console.error('[campaign-handoff] не удалось сбросить счётчик follow-up:', e instanceof Error ? e.message : e)
+    }
+  }
+
   const reply = await composeCampaignReply(classified.intent, historyText)
   if (!reply) {
     console.warn('[campaign-handoff] composeCampaignReply вернул пусто (NO_ANSWER/ошибка) — ответ клиенту не отправлен')
@@ -142,6 +173,25 @@ export async function onCampaignContactReplied(
   const sent = await sendMessage(umnicoLeadId, reply)
   console.log('[campaign-handoff] sendMessage:', sent ? 'ok' : 'failed')
   if (!sent) return
+
+  // intent=what_is_it — следом за текстом отдельным сообщением баннер-тизер
+  // (SCHOOL_CAMPAIGN_IMAGE_URL). Не гейтится materialAlreadySent и не двигает стадию;
+  // полный PDF уйдёт позже, на agree_send.
+  if (classified.intent === 'what_is_it') {
+    await sendWhatIsItBanner(umnicoLeadId)
+  }
+
+  // intent=confirmed_forwarded — клиент подтвердил, что переслал материал родителям:
+  // сделка → «Успешно реализовано» (142). Счётчик/окно follow-up намеренно не трогаем
+  // (крон follow-up сделки в 142/143 и так не подхватывает).
+  if (classified.intent === 'confirmed_forwarded') {
+    try {
+      await patchLeadStage(dealId, AMO_CAMPAIGN_STATUS_WON)
+      console.log(`[campaign-handoff] сделка ${dealId} → «Успешно реализовано» (${AMO_CAMPAIGN_STATUS_WON}): клиент подтвердил пересылку`)
+    } catch (e) {
+      console.error(`[campaign-handoff] НЕ УДАЛОСЬ перевести сделку ${dealId} на «Успешно реализовано»:`, e instanceof Error ? e.message : e)
+    }
+  }
 
   if (classified.intent === 'agree_send' && !(await materialAlreadySent(dealId))) {
     let okPdf = false

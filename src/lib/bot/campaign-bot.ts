@@ -6,11 +6,20 @@
 
 import { callGemini } from '@/lib/gemini'
 import { getLead, AMO_CAMPAIGN_STATUS_NEW, AMO_CAMPAIGN_STATUS_MATERIAL_SENT } from '@/lib/amo'
-import { CAMPAIGN_CLASSIFY_PROMPT, SCHOOL_CAMPAIGN_PROMPT, PROCUREMENT_REPLY } from './campaign-prompts'
+import { sendPhoto } from '@/lib/umnico'
+import {
+  CAMPAIGN_CLASSIFY_PROMPT, SCHOOL_CAMPAIGN_PROMPT, PROCUREMENT_REPLY,
+  CONFIRMED_FORWARDED_REPLY, SCHOOL_CAMPAIGN_IMAGE_URL, WHAT_IS_IT_BANNER_CAPTION,
+} from './campaign-prompts'
 
-export type CampaignIntent = 'greeting' | 'what_is_it' | 'agree_send' | 'refuse' | 'procurement' | 'other'
+export type CampaignIntent =
+  | 'greeting' | 'what_is_it' | 'agree_send' | 'refuse'
+  | 'procurement' | 'postponed' | 'confirmed_forwarded' | 'other'
 
-const INTENTS: readonly CampaignIntent[] = ['greeting', 'what_is_it', 'agree_send', 'refuse', 'procurement', 'other']
+const INTENTS: readonly CampaignIntent[] = [
+  'greeting', 'what_is_it', 'agree_send', 'refuse',
+  'procurement', 'postponed', 'confirmed_forwarded', 'other',
+]
 
 export interface ClassifyCampaignResult {
   intent: CampaignIntent
@@ -50,15 +59,18 @@ ${historyText ? `\nИстория диалога (старые→новые):\n$
 
 /**
  * Генерация ответа клиенту. По образцу composeAnswer() в accessories-bot.ts —
- * callGemini текстом (temperature 0.2). ИСКЛЮЧЕНИЕ: procurement НЕ обращается к
- * Gemini вообще — возвращает фиксированную PROCUREMENT_REPLY (убирает риск, что
- * модель сама начнёт обсуждать условия/цены закупки).
+ * callGemini текстом (temperature 0.2). ИСКЛЮЧЕНИЯ (без обращения к Gemini вообще,
+ * фиксированная строка): procurement → PROCUREMENT_REPLY (убирает риск, что модель
+ * сама начнёт обсуждать условия/цены закупки); confirmed_forwarded →
+ * CONFIRMED_FORWARDED_REPLY (клиент уже разослал материал, нужно лишь короткое
+ * «спасибо» — сделку дальше двигает campaign-handoff.ts).
  */
 export async function composeCampaignReply(
   intent: CampaignIntent,
   historyText: string,
 ): Promise<string | null> {
   if (intent === 'procurement') return PROCUREMENT_REPLY
+  if (intent === 'confirmed_forwarded') return CONFIRMED_FORWARDED_REPLY
 
   const prompt = `${SCHOOL_CAMPAIGN_PROMPT}
 
@@ -70,6 +82,26 @@ ${historyText ? `\nИстория диалога (старые→новые):\n$
   const answer = text.trim()
   if (!answer || answer === 'NO_ANSWER' || answer.includes('NO_ANSWER')) return null
   return answer
+}
+
+/**
+ * Баннер-тизер для intent=what_is_it — отдельным сообщением ПОСЛЕ текстового ответа
+ * (порядок держит вызывающий, campaign-handoff.ts: сначала sendMessage с текстом,
+ * затем этот баннер). НЕ гейтится materialAlreadySent: на шаге what_is_it всегда
+ * уходит одно изображение, а последующий agree_send всё равно шлёт PDF+баннер
+ * заново — дублирование баннера осознанно допустимо, отдельно не отслеживается.
+ * Формат A: helper sendPhoto из umnico.ts по umnicoLeadId (не client.ts). Любой
+ * сбой — тихий (лог + false), диалог не роняем: текст клиент уже получил.
+ */
+export async function sendWhatIsItBanner(umnicoLeadId: string | number): Promise<boolean> {
+  try {
+    const ok = await sendPhoto(umnicoLeadId, SCHOOL_CAMPAIGN_IMAGE_URL, WHAT_IS_IT_BANNER_CAPTION)
+    console.log('[campaign-bot] what_is_it banner:', ok ? 'ok' : 'failed')
+    return ok
+  } catch (e) {
+    console.error('[campaign-bot] what_is_it banner failed:', e instanceof Error ? e.message : e)
+    return false
+  }
 }
 
 // Порядок этапов воронки «Школьная рассылка (1 сентября)» (pipeline_id=11235862,

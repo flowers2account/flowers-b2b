@@ -35,6 +35,18 @@ export const AMO_CAMPAIGN_STATUS_NEW  = Number(process.env.AMO_CAMPAIGN_STATUS_N
 // src/lib/bot/campaign-bot.ts.
 export const AMO_CAMPAIGN_STATUS_MATERIAL_SENT = 88149794
 
+// Финальные статусы воронки кампании (глобальные id amoCRM «Успешно/Закрыто»).
+export const AMO_CAMPAIGN_STATUS_WON  = 142  // «Успешно реализовано»
+export const AMO_CAMPAIGN_STATUS_LOST = 143  // «Закрыто и не реализовано»
+
+// Кастомные поля СДЕЛКИ для follow-up-механики кампании (созданы вручную в UI amoCRM
+// 27.08.2026, id прочитаны через GET /api/v4/leads/custom_fields). Пишет: крон
+// campaign-followup.ts (счётчик + окно) и campaign-handoff.ts (umnico ref при первом
+// входящем + сброс цепочки при ответе клиента). См. src/lib/bot/campaign-followup.ts.
+export const CF_CAMPAIGN_NEXT_FOLLOWUP  = 1689675  // «Campaign next followup not before» (text, ISO-8601 UTC)
+export const CF_CAMPAIGN_FOLLOWUP_COUNT = 1689679  // «Campaign followup count» (numeric)
+export const CF_CAMPAIGN_UMNICO_REF     = 1689681  // «Campaign umnico ref» (text, "leadId:realId")
+
 export function campaignConfigured(): boolean {
   return AMO_CAMPAIGN_PIPELINE_ID > 0 && AMO_CAMPAIGN_STATUS_NEW > 0
 }
@@ -328,6 +340,14 @@ export async function getLead(leadId: number): Promise<any> {
   return readAmoJson<any>(res)
 }
 
+// Сырой lead из amoCRM в объёме, который нужен follow-up-механике (id/status/поля).
+export interface AmoLeadRaw {
+  id: number
+  status_id: number
+  custom_fields_values?: Array<{ field_id: number; values?: Array<{ value: unknown }> }> | null
+  [k: string]: unknown
+}
+
 // Достать значение кастомного поля сделки по field_id (первое непустое), иначе null.
 export function leadFieldValue(lead: any, fieldId: number): string | null {
   const f = (lead?.custom_fields_values ?? []).find((x: any) => x.field_id === fieldId)
@@ -340,6 +360,50 @@ export async function patchLeadStage(leadId: number, statusId: number, pipelineI
   const body: Record<string, unknown> = { status_id: statusId }
   if (pipelineId) body.pipeline_id = pipelineId
   await amoFetch(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify(body) })
+}
+
+// PATCH кастомных полей СДЕЛКИ (аналог patchContactFields для контакта). Числовое 0 —
+// валидное значение (не очищаем); '' и null/undefined → values:[] (очистка поля).
+// Идемпотентно. Используется follow-up-механикой кампании (campaign-followup.ts /
+// campaign-handoff.ts): счётчик, окно, umnico ref.
+export async function patchLeadFields(
+  leadId: number,
+  fields: Array<{ field_id: number; value: string | number | null | undefined }>,
+): Promise<void> {
+  const custom_fields_values = fields.map((f) => ({
+    field_id: f.field_id,
+    values: f.value === '' || f.value == null ? [] : [{ value: f.value }],
+  }))
+  await amoFetch(`/leads/${leadId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ custom_fields_values }),
+  })
+}
+
+// Все сделки воронки (для крона follow-up кампании). Пагинация по page (limit 250);
+// 204 → []. Возвращает сырые lead-объекты (id, status_id, custom_fields_values, …).
+// НЕ бросает на «пусто». maxPages — страховка от бесконечного цикла.
+export async function listLeadsByPipeline(
+  pipelineId: number,
+  opts: { withParam?: string; maxPages?: number } = {},
+): Promise<AmoLeadRaw[]> {
+  const out: AmoLeadRaw[] = []
+  const maxPages = opts.maxPages ?? 20
+  for (let page = 1; page <= maxPages; page++) {
+    const qs = new URLSearchParams({
+      'filter[pipeline_id]': String(pipelineId),
+      limit: '250',
+      page: String(page),
+    })
+    if (opts.withParam) qs.set('with', opts.withParam)
+    const res = await amoFetch(`/leads?${qs.toString()}`)
+    if (res.status === 204) break
+    const data = await readAmoJson<{ _embedded?: { leads?: AmoLeadRaw[] } }>(res)
+    const leads = data?._embedded?.leads ?? []
+    out.push(...leads)
+    if (leads.length < 250) break
+  }
+  return out
 }
 
 // Переименовать лид (при подхвате анонимного обращения регистрацией).
