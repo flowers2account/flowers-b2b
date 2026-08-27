@@ -90,12 +90,12 @@ ${historyText ? `\nИстория диалога (старые→новые):\n$
  * затем этот баннер). НЕ гейтится materialAlreadySent: на шаге what_is_it всегда
  * уходит одно изображение, а последующий agree_send всё равно шлёт PDF+баннер
  * заново — дублирование баннера осознанно допустимо, отдельно не отслеживается.
- * Формат A: helper sendPhoto из umnico.ts по umnicoLeadId (не client.ts). Любой
- * сбой — тихий (лог + false), диалог не роняем: текст клиент уже получил.
+ * Формат A: helper sendPhoto из umnico.ts по umnicoLeadId (не client.ts), канал
+ * whatsapp2. Любой сбой — тихий (лог + false), диалог не роняем: текст клиент уже получил.
  */
 export async function sendWhatIsItBanner(umnicoLeadId: string | number): Promise<boolean> {
   try {
-    const ok = await sendPhoto(umnicoLeadId, SCHOOL_CAMPAIGN_IMAGE_URL, WHAT_IS_IT_BANNER_CAPTION)
+    const ok = await sendPhoto(umnicoLeadId, SCHOOL_CAMPAIGN_IMAGE_URL, WHAT_IS_IT_BANNER_CAPTION, undefined, 'whatsapp2')
     console.log('[campaign-bot] what_is_it banner:', ok ? 'ok' : 'failed')
     return ok
   } catch (e) {

@@ -1,4 +1,5 @@
 import { UmnicoConfig, UmnicoSendMessageRequest, UmnicoCheckContactRequest } from './types'
+import { attachmentMetaFromUrl } from '@/lib/umnico'
 
 const DEFAULT_TIMEOUT_MS = 15_000
 
@@ -54,23 +55,21 @@ class UmnicoClient {
     }
   }
 
-  // Отправка КАРТИНКИ в WhatsApp по документированному формату Umnico:
-  //   message.attachment = { type: 'photo', media: { type: <mime>, filename, src } }
+  // Отправка ФОТО/ФАЙЛА в WhatsApp по документированному формату Umnico:
+  //   message.attachment = { type: 'photo'|'doc'|'video', media: { type: <mime>, filename, src } }
+  // type/mime — по расширению файла (PDF → doc / application/pdf), см. attachmentMetaFromUrl.
   // src — ссылка на файл. Сначала пробуем публичный URL прямо в src; если Umnico вернёт
   // ошибку формата/URL — предварительно грузим файл через POST /messaging/upload и берём src.
   async sendImage(phone: string, imageUrl: string, caption?: string): Promise<boolean> {
     try {
       const cleanPhone = phone.replace(/[\s\+\-\(\)]/g, '')
-      const noQuery = imageUrl.split('?')[0]
-      const ext = (noQuery.split('.').pop() ?? 'jpg').toLowerCase()
-      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
-      const filename = noQuery.split('/').pop() || 'order.jpg'
+      const { attachmentType, mime, filename } = attachmentMetaFromUrl(imageUrl, 'order.jpg')
 
       const post = (src: string) => fetchWithTimeout(`${this.baseUrl}/messaging/post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `bearer ${this.apiToken}` },
         body: JSON.stringify({
-          message: { text: caption ?? '', attachment: { type: 'photo', media: { type: mime, filename, src } } },
+          message: { text: caption ?? '', attachment: { type: attachmentType, media: { type: mime, filename, src } } },
           destination: cleanPhone,
           saId: this.whatsappSaId,
         }),

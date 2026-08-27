@@ -85,18 +85,53 @@ export async function sendMessage(
   return true
 }
 
+// Тип вложения Umnico + MIME по расширению файла в URL/имени.
+// attachment.type ∈ { photo, doc, video, mail } (api.umnico.com/docs → «Отправка сообщений»).
+// Раньше тип/mime вычислялись всегда как photo/image-jpeg — PDF уходил как «фото» и падал.
+export interface UmnicoAttachmentMeta {
+  attachmentType: 'photo' | 'doc' | 'video'
+  mime: string
+  filename: string
+}
+
+const ATTACHMENT_BY_EXT: Record<string, { attachmentType: UmnicoAttachmentMeta['attachmentType']; mime: string }> = {
+  pdf:  { attachmentType: 'doc',   mime: 'application/pdf' },
+  jpg:  { attachmentType: 'photo', mime: 'image/jpeg' },
+  jpeg: { attachmentType: 'photo', mime: 'image/jpeg' },
+  png:  { attachmentType: 'photo', mime: 'image/png' },
+  webp: { attachmentType: 'photo', mime: 'image/webp' },
+  gif:  { attachmentType: 'photo', mime: 'image/gif' },
+  mp4:  { attachmentType: 'video', mime: 'video/mp4' },
+}
+
+export function attachmentMetaFromUrl(fileUrl: string, fallbackName = 'file.jpg'): UmnicoAttachmentMeta {
+  const clean = fileUrl.split('?')[0].split('#')[0]
+  const base = clean.split('/').pop() || fallbackName
+  const ext = (base.includes('.') ? base.split('.').pop()! : '').toLowerCase()
+  const hit = ATTACHMENT_BY_EXT[ext] ?? { attachmentType: 'photo' as const, mime: 'image/jpeg' }
+  const filename = base.includes('.') ? base : `${base}.${ext || 'jpg'}`
+  return { attachmentType: hit.attachmentType, mime: hit.mime, filename }
+}
+
 /**
- * POST /messaging/{leadId}/send — отправить ФОТО в чат лида (отдельным сообщением).
- * Формат вложения для канала ВИДЖЕТ (onlinechat) — по живому тесту 21.06.2026:
- *   { message: { text?, attachment: { media: { path, name, mime }, type: 'photo' } }, source, userId }
- * Umnico-сервер скачивает картинку по media.path (URL). media.url (как у VK) виджет НЕ принимает —
- * отдаёт 400 «path argument ... Received undefined». Доки: «others use path/name/mime».
+ * POST /messaging/{leadId}/send — отправить ФОТО/ФАЙЛ в чат лида отдельным сообщением.
+ *
+ * Форма media зависит от канала (api.umnico.com/docs → «Отправка сообщений»):
+ *   WhatsApp:            attachment.media = { type: <mime>, filename, src }
+ *   onlinechat / others: attachment.media = { path, name, mime }   (живой тест 21.06.2026)
+ * channelType (поле sa.type из вебхука Umnico) выбирает форму; по умолчанию — onlinechat,
+ * как было до 27.08.2026. Ветка WhatsApp добавлена, т.к. на whatsapp2 старая форма давала
+ * 400 «attachments[0] should have required property 'type'».
+ * message.text шлётся ВСЕГДА (пустая строка без caption): whatsapp2 без него → 422
+ * «body.message should have required property 'text'».
+ * attachment.type / mime — по расширению файла (PDF → doc / application/pdf, не photo/jpeg).
  */
 export async function sendPhoto(
   leadId: string | number,
-  imageUrl: string,
+  fileUrl: string,
   caption?: string,
   source?: UmnicoSource,
+  channelType?: string,
 ): Promise<boolean> {
   let target = source && source.type === 'message' ? source : null
   if (!target) {
@@ -108,18 +143,19 @@ export async function sendPhoto(
     return false
   }
 
-  // name/mime из расширения URL (без query). Дефолт — jpeg.
-  const clean = imageUrl.split('?')[0]
-  const ext = (clean.split('.').pop() ?? 'jpg').toLowerCase()
-  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
-  const name = clean.split('/').pop() || 'photo.jpg'
+  const { attachmentType, mime, filename } = attachmentMetaFromUrl(fileUrl)
+  const isWhatsApp = /whatsapp/i.test(channelType ?? '')
+  const media = isWhatsApp
+    ? { type: mime, filename, src: fileUrl }
+    : { path: fileUrl, name: filename, mime }
 
-  const message: Record<string, unknown> = {
-    attachment: { media: { path: imageUrl, name, mime }, type: 'photo' },
+  const body: Record<string, unknown> = {
+    message: {
+      text: caption?.trim() || '',
+      attachment: { type: attachmentType, media },
+    },
+    source: toNum(target.realId),
   }
-  if (caption && caption.trim()) message.text = caption.trim()
-
-  const body: Record<string, unknown> = { message, source: toNum(target.realId) }
   const userIdRaw = process.env.UMNICO_BOT_USER_ID
   if (userIdRaw) body.userId = toNum(userIdRaw)
 

@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
         // ошибке логирует sendPhoto. Ошибка фото НЕ роняет диалог — текст уже ушёл.
         if (reply.photo) {
           try {
-            const okPhoto = await sendPhoto(leadId, reply.photo.imageUrl, reply.photo.caption, payloadSource)
+            const okPhoto = await sendPhoto(leadId, reply.photo.imageUrl, reply.photo.caption, payloadSource, channelType)
             console.log(okPhoto
               ? `[accessories-bot] photo: sent ${reply.photo.productId} (карточка, caption ${reply.photo.caption.length} симв.)`
               : `[accessories-bot] photo: failed (id ${reply.photo.productId}) — см. ответ Umnico выше`)

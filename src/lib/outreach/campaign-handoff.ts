@@ -101,7 +101,7 @@ async function notifyManagerTelegram(
  * образцу основного конвейера (callGemini + fetchDialogContext), отправка клиенту
  * текстом (sendMessage, формат A — по leadId, диалог уже существует) и, при
  * intent==='agree_send' и материале, ещё не отправленном в этом диалоге — двумя
- * фото/файлами (sendPhoto, формат A: path/name/mime).
+ * файлами (sendPhoto, канал whatsapp2: PDF-презентация как doc + баннер как photo).
  *
  * Любой сбой ИИ (classifyCampaignIntent вернул null) — тихо останавливаемся, клиенту
  * ничего не уходит (только лог + telegram уже отправлены выше).
@@ -197,13 +197,13 @@ export async function onCampaignContactReplied(
     let okPdf = false
     let okImg = false
     try {
-      okPdf = await sendPhoto(umnicoLeadId, SCHOOL_CAMPAIGN_PDF_URL)
+      okPdf = await sendPhoto(umnicoLeadId, SCHOOL_CAMPAIGN_PDF_URL, undefined, undefined, 'whatsapp2')
       console.log('[campaign-handoff] sendPhoto (pdf):', okPdf ? 'ok' : 'failed')
     } catch (e) {
       console.error('[campaign-handoff] sendPhoto (pdf) failed:', e instanceof Error ? e.message : e)
     }
     try {
-      okImg = await sendPhoto(umnicoLeadId, SCHOOL_CAMPAIGN_IMAGE_URL)
+      okImg = await sendPhoto(umnicoLeadId, SCHOOL_CAMPAIGN_IMAGE_URL, undefined, undefined, 'whatsapp2')
       console.log('[campaign-handoff] sendPhoto (image):', okImg ? 'ok' : 'failed')
     } catch (e) {
       console.error('[campaign-handoff] sendPhoto (image) failed:', e instanceof Error ? e.message : e)
