@@ -114,17 +114,78 @@ export function attachmentMetaFromUrl(fileUrl: string, fallbackName = 'file.jpg'
 }
 
 /**
+ * Загрузка файла в Umnico → Umnico-hosted src для attachment.media.src, либо null.
+ * POST /messaging/upload (multipart: media=<файл>, source=<realId диалога>).
+ * Нужна, когда внутренний WhatsApp-гейт Umnico не может сам скачать файл по нашему
+ * публичному URL: наблюдалось 500 «Internal Server Error» на /messaging/{leadId}/send
+ * с src=https://uralskflowers.kz/... (и PDF, и JPG). Механизм-образец — uploadFile в
+ * src/lib/umnico/client.ts (используется в проде для карточек товаров/уведомлений).
+ * ⚠️ Формат upload доками v1.3 детализирован не полностью (api.umnico.com/docs →
+ * «Отправка сообщений»): поле файла — `media`, идентификатор — `source` XOR `saId`
+ * (для потока «Отправка сообщения» — source). Лимит по размеру не документирован.
+ */
+interface UmnicoUploadResponse {
+  src?: string
+  media?: { src?: string }
+  data?: { src?: string; media?: { src?: string } }
+  file?: { src?: string }
+}
+
+async function uploadFileToUmnico(
+  fileUrl: string,
+  filename: string,
+  mime: string,
+  sourceRealId: string | number,
+): Promise<string | null> {
+  try {
+    const fileRes = await fetch(fileUrl)
+    if (!fileRes.ok) {
+      console.error('[umnico] upload: не скачать файл', fileRes.status, fileUrl)
+      return null
+    }
+    const blob = await fileRes.blob()
+
+    const token = process.env.UMNICO_API_TOKEN
+    if (!token) throw new Error('UMNICO_API_TOKEN not set')
+
+    const fd = new FormData()
+    fd.append('media', new File([blob], filename, { type: mime }))
+    fd.append('source', String(sourceRealId))
+
+    const up = await fetch(`${UMNICO_BASE}/messaging/upload`, {
+      method: 'POST',
+      headers: { Authorization: `bearer ${token}` }, // Content-Type (multipart boundary) выставит FormData
+      body: fd,
+    })
+    if (!up.ok) {
+      console.error('[umnico] upload failed:', up.status, await up.text().catch(() => ''))
+      return null
+    }
+    const d = (await up.json().catch(() => null)) as UmnicoUploadResponse | null
+    const src: string | null =
+      d?.media?.src ?? d?.src ?? d?.data?.src ?? d?.data?.media?.src ?? d?.file?.src ?? null
+    if (!src) console.error('[umnico] upload: src не найден в ответе', JSON.stringify(d).slice(0, 300))
+    return src
+  } catch (e) {
+    console.error('[umnico] upload error:', e instanceof Error ? e.message : e)
+    return null
+  }
+}
+
+/**
  * POST /messaging/{leadId}/send — отправить ФОТО/ФАЙЛ в чат лида отдельным сообщением.
  *
  * Форма media зависит от канала (api.umnico.com/docs → «Отправка сообщений»):
  *   WhatsApp:            attachment.media = { type: <mime>, filename, src }
  *   onlinechat / others: attachment.media = { path, name, mime }   (живой тест 21.06.2026)
- * channelType (поле sa.type из вебхука Umnico) выбирает форму; по умолчанию — onlinechat,
- * как было до 27.08.2026. Ветка WhatsApp добавлена, т.к. на whatsapp2 старая форма давала
- * 400 «attachments[0] should have required property 'type'».
- * message.text шлётся ВСЕГДА (пустая строка без caption): whatsapp2 без него → 422
- * «body.message should have required property 'text'».
- * attachment.type / mime — по расширению файла (PDF → doc / application/pdf, не photo/jpeg).
+ * channelType (поле sa.type из вебхука Umnico) выбирает форму; по умолчанию — onlinechat.
+ * message.text шлётся ВСЕГДА (пустая строка без caption): whatsapp2 без него → 422.
+ * attachment.type/mime — по расширению файла (PDF → doc / application/pdf).
+ *
+ * WhatsApp: если отправка по прямому URL (src=наш публичный адрес) вернула ЛЮБУЮ
+ * ошибку (400/422/500 — гейт Umnico не скачивает файл сам), делаем POST
+ * /messaging/upload и повторяем отправку с Umnico-hosted src. Для onlinechat
+ * фолбэка нет — там прямой path работает.
  */
 export async function sendPhoto(
   leadId: string | number,
@@ -142,32 +203,43 @@ export async function sendPhoto(
     console.error('[umnico] sendPhoto: no source with type=message for lead', leadId)
     return false
   }
+  const t: UmnicoSource = target
 
   const { attachmentType, mime, filename } = attachmentMetaFromUrl(fileUrl)
   const isWhatsApp = /whatsapp/i.test(channelType ?? '')
-  const media = isWhatsApp
-    ? { type: mime, filename, src: fileUrl }
-    : { path: fileUrl, name: filename, mime }
-
-  const body: Record<string, unknown> = {
-    message: {
-      text: caption?.trim() || '',
-      attachment: { type: attachmentType, media },
-    },
-    source: toNum(target.realId),
-  }
   const userIdRaw = process.env.UMNICO_BOT_USER_ID
-  if (userIdRaw) body.userId = toNum(userIdRaw)
 
-  const res = await fetch(`${UMNICO_BASE}/messaging/${leadId}/send`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  })
+  const send = (media: Record<string, unknown>): Promise<Response> => {
+    const body: Record<string, unknown> = {
+      message: { text: caption?.trim() || '', attachment: { type: attachmentType, media } },
+      source: toNum(t.realId),
+    }
+    if (userIdRaw) body.userId = toNum(userIdRaw)
+    return fetch(`${UMNICO_BASE}/messaging/${leadId}/send`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    })
+  }
+
+  // 1) прямой URL в src (WhatsApp) / path (onlinechat)
+  let res = await send(
+    isWhatsApp ? { type: mime, filename, src: fileUrl } : { path: fileUrl, name: filename, mime },
+  )
+  if (res.ok) return true
+  console.error('[umnico] sendPhoto (url) failed:', res.status, await res.text().catch(() => ''))
+  if (!isWhatsApp) return false
+
+  // 2) фолбэк (только WhatsApp): грузим файл в Umnico и шлём с их src
+  const uploadedSrc = await uploadFileToUmnico(fileUrl, filename, mime, t.realId)
+  if (!uploadedSrc) return false
+
+  res = await send({ type: mime, filename, src: uploadedSrc })
   if (!res.ok) {
-    console.error('[umnico] sendPhoto failed:', res.status, await res.text().catch(() => ''))
+    console.error('[umnico] sendPhoto (uploaded src) failed:', res.status, await res.text().catch(() => ''))
     return false
   }
+  console.log('[umnico] sendPhoto: отправлено через upload')
   return true
 }
 
