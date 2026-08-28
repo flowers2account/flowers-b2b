@@ -66,10 +66,13 @@ ${historyText ? `\nИстория диалога (старые→новые):\n$
  * «спасибо» — сделку дальше двигает campaign-handoff.ts).
  * wrong_contact — НАМЕРЕННО через Gemini-compose (не фикс. строка): ответ должен
  * учитывать, что именно ответил собеседник, и мягко попросить контакт нужного лица.
+ * alreadySent — материал уже отправлен ранее в этом диалоге (по стадии сделки);
+ * прокидывается отдельной строкой в промпт, чтобы бот не предлагал отправку повторно.
  */
 export async function composeCampaignReply(
   intent: CampaignIntent,
   historyText: string,
+  alreadySent = false,
 ): Promise<string | null> {
   if (intent === 'procurement') return PROCUREMENT_REPLY
   if (intent === 'confirmed_forwarded') return CONFIRMED_FORWARDED_REPLY
@@ -77,6 +80,7 @@ export async function composeCampaignReply(
   const prompt = `${SCHOOL_CAMPAIGN_PROMPT}
 
 Классифицированный intent ответа клиента: ${intent}
+Материал уже отправлен ранее в этом диалоге: ${alreadySent ? 'да' : 'нет'}
 ${historyText ? `\nИстория диалога (старые→новые):\n${historyText}\n` : ''}`
 
   const text = await callGemini(prompt, { temperature: 0.2, timingLabel: 'campaign-compose' })

@@ -164,7 +164,11 @@ export async function onCampaignContactReplied(
     }
   }
 
-  const reply = await composeCampaignReply(classified.intent, historyText)
+  // Материал уже отправлен ранее в этом диалоге? Считаем ОДИН раз (по стадии сделки),
+  // используем и в промпте (не предлагать отправку повторно), и в гейте agree_send ниже.
+  const alreadySent = await materialAlreadySent(dealId)
+
+  const reply = await composeCampaignReply(classified.intent, historyText, alreadySent)
   if (!reply) {
     console.warn('[campaign-handoff] composeCampaignReply вернул пусто (NO_ANSWER/ошибка) — ответ клиенту не отправлен')
     return
@@ -193,7 +197,7 @@ export async function onCampaignContactReplied(
     }
   }
 
-  if (classified.intent === 'agree_send' && !(await materialAlreadySent(dealId))) {
+  if (classified.intent === 'agree_send' && !alreadySent) {
     let okPdf = false
     let okImg = false
     try {
