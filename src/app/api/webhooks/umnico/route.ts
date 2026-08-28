@@ -5,7 +5,8 @@ import { getAccessoriesReply, CHANNEL_POLICY, type ChannelMode } from '@/lib/bot
 import { isLeadEnabled, enableLead, disableLead } from '@/lib/bot/lead-gate'
 import { sendMessage, sendPhoto, addTag } from '@/lib/umnico'
 import { captureOutreachEvent, extractPhone } from '@/lib/outreach/capture'
-import { tryHandleCampaignReply } from '@/lib/outreach/campaign-handoff'
+import { tryHandleCampaignReply, tryCaptureCampaignRefFromOutgoing } from '@/lib/outreach/campaign-handoff'
+import { normalizePhone } from '@/lib/phone'
 
 // Дедуп доставок одного messageId. In-memory — переживает только тёплый инстанс,
 // достаточно для защиты от повторных ретраев Umnico за короткое окно.
@@ -63,14 +64,14 @@ export async function POST(req: NextRequest) {
   // (capture.ts + AI-бот) идёт ровно как раньше.
   try {
     const top0 = body as Record<string, unknown>
-    if ((top0.type ?? top0.event) === 'message.incoming') {
+    const type0 = (top0.type ?? top0.event) as string | undefined
+    if (type0 === 'message.incoming' || type0 === 'message.outgoing') {
       const msg0 = (top0.message ?? top0.data ?? top0.payload ?? top0) as Record<string, unknown>
       const inner0 = (msg0.message ?? msg0) as Record<string, unknown>
       const src0 = (msg0.source ?? {}) as Record<string, unknown>
       const sa0 = (msg0.sa ?? {}) as Record<string, unknown>
       const sender0 = (msg0.sender ?? {}) as Record<string, unknown>
 
-      const phone = extractPhone(sender0, src0)
       const channelType0 = pick<string>(sa0, 'type')
       // Numeric saId в payload доками не подтверждён — пробуем прочитать (id/realId/saId),
       // иначе (whatsapp2 — единственный канал этого типа в проде) берём из env.
@@ -81,13 +82,34 @@ export async function POST(req: NextRequest) {
       // realId источника — тот же payload, что и pipeline бота ниже использует для
       // fetchDialogContext (см. srcRealId в основном try-блоке); прокидываем, не парсим дважды.
       const realId0 = pick<string | number>(src0, 'realId', 'real_id')
+      const umnicoLeadId0 = pick<string | number>(top0, 'leadId', 'lead_id') ?? null
 
-      const dealId = await tryHandleCampaignReply(phone, saId, {
-        text: pick<string>(inner0, 'text', 'message', 'body') ?? '',
-        umnicoLeadId: pick<string | number>(top0, 'leadId', 'lead_id') ?? null,
-        realId: realId0 ?? null,
-      })
-      if (dealId) return NextResponse.json({ ok: true })
+      if (type0 === 'message.incoming') {
+        const phone = extractPhone(sender0, src0)
+        const dealId = await tryHandleCampaignReply(phone, saId, {
+          text: pick<string>(inner0, 'text', 'message', 'body') ?? '',
+          umnicoLeadId: umnicoLeadId0,
+          realId: realId0 ?? null,
+        })
+        if (dealId) return NextResponse.json({ ok: true })
+      } else {
+        // message.outgoing: подхватить Campaign umnico ref в момент РУЧНОГО «Написать
+        // первым» оператором — ещё до любого ответа клиента, чтобы follow-up-крон знал
+        // адрес для молчащих контактов. Свои исходящие бота пропускаем (там ref уже
+        // проставлен входящим, который вызвал ответ). Телефон клиента — из source.sender
+        // (в исходящем sender.socialId может быть НАШИМ номером). Без short-circuit.
+        const outSenderId = pick<string | number>(msg0, 'userId', 'user_id', 'managerId', 'employeeId')
+        const botUserId0 = process.env.UMNICO_BOT_USER_ID
+        const isBotOutgoing = !!botUserId0 && outSenderId !== undefined && String(outSenderId) === String(botUserId0)
+        if (!isBotOutgoing) {
+          const rawClient = pick<string>(src0, 'sender')
+          const phoneOut = rawClient ? normalizePhone(rawClient) : extractPhone(sender0, src0)
+          await tryCaptureCampaignRefFromOutgoing(phoneOut, saId, {
+            umnicoLeadId: umnicoLeadId0,
+            realId: realId0 ?? null,
+          })
+        }
+      }
     }
   } catch (e) {
     console.error('[campaign-handoff] failed:', (e as Error)?.message)

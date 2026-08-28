@@ -16,9 +16,9 @@
 
 import { sendMessage as sendTelegramMessage } from '@/lib/telegram-manager/client'
 import {
-  findLeadByPhoneInPipeline, patchLeadStage, patchLeadFields, AMO_CAMPAIGN_PIPELINE_ID,
-  AMO_CAMPAIGN_STATUS_MATERIAL_SENT, AMO_CAMPAIGN_STATUS_WON, campaignConfigured,
-  CF_CAMPAIGN_NEXT_FOLLOWUP, CF_CAMPAIGN_FOLLOWUP_COUNT, CF_CAMPAIGN_UMNICO_REF,
+  findLeadByPhoneInPipeline, patchLeadStage, patchLeadFields, getLead, leadFieldValue,
+  AMO_CAMPAIGN_PIPELINE_ID, AMO_CAMPAIGN_STATUS_MATERIAL_SENT, AMO_CAMPAIGN_STATUS_WON,
+  campaignConfigured, CF_CAMPAIGN_NEXT_FOLLOWUP, CF_CAMPAIGN_FOLLOWUP_COUNT, CF_CAMPAIGN_UMNICO_REF,
 } from '@/lib/amo'
 import { fetchDialogContext, sendMessage, sendPhoto, type DialogMessage } from '@/lib/umnico'
 import { classifyCampaignIntent, composeCampaignReply, materialAlreadySent, sendWhatIsItBanner } from '@/lib/bot/campaign-bot'
@@ -61,6 +61,55 @@ export async function tryHandleCampaignReply(
 
   await onCampaignContactReplied(found.leadId, phone, incoming)
   return found.leadId
+}
+
+/**
+ * message.outgoing на кампанийном канале: если у телефона есть сделка в воронке
+ * кампании, а Campaign umnico ref у неё пуст/битый — записать ref «leadId:realId» из
+ * этого исходящего. Смысл: подхватить адрес диалога в момент РУЧНОГО «Написать
+ * первым» оператором, ещё до любого ответа клиента — тогда follow-up-крон может
+ * писать молчащим контактам. Ничего не создаёт, не отвечает, не гейтит вебхук.
+ * saId-гейт и campaignConfigured — те же, что во входящем пути.
+ */
+export async function tryCaptureCampaignRefFromOutgoing(
+  phone: string | null,
+  saId: number | null,
+  ids: { umnicoLeadId: string | number | null; realId: string | number | null },
+): Promise<void> {
+  if (!phone || ids.umnicoLeadId == null || ids.realId == null) return
+
+  const expectedSaId = Number(process.env.UMNICO_WHATSAPP_SA_ID || 0)
+  if (!expectedSaId || saId !== expectedSaId) return
+  if (!campaignConfigured()) return
+
+  let found: { leadId: number; contactId: number } | null = null
+  try {
+    found = await findLeadByPhoneInPipeline([phone], AMO_CAMPAIGN_PIPELINE_ID)
+  } catch (e) {
+    console.error('[campaign-handoff] outgoing: findLeadByPhoneInPipeline failed:', e instanceof Error ? e.message : e)
+    return
+  }
+  if (!found) return
+
+  // Уже заполнен и валиден? Не трогаем зря. Сбой чтения — пишем (перезапись тем же безвредна).
+  try {
+    const current = leadFieldValue(await getLead(found.leadId), CF_CAMPAIGN_UMNICO_REF)
+    if (current && /^[^:\s]+:[^:\s]+$/.test(current.trim())) return
+  } catch (e) {
+    console.error('[campaign-handoff] outgoing: getLead failed:', e instanceof Error ? e.message : e)
+  }
+
+  try {
+    await patchLeadFields(found.leadId, [
+      { field_id: CF_CAMPAIGN_UMNICO_REF, value: `${ids.umnicoLeadId}:${ids.realId}` },
+    ])
+    console.log(
+      `[campaign-handoff] outgoing: Campaign umnico ref записан для сделки ${found.leadId} ` +
+      `(${ids.umnicoLeadId}:${ids.realId})`,
+    )
+  } catch (e) {
+    console.error('[campaign-handoff] outgoing: не удалось записать Campaign umnico ref:', e instanceof Error ? e.message : e)
+  }
 }
 
 // amoCRM URL сделки — subdomain как в src/lib/amo.ts (BASE).
