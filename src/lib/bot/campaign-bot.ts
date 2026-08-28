@@ -13,11 +13,11 @@ import {
 } from './campaign-prompts'
 
 export type CampaignIntent =
-  | 'greeting' | 'what_is_it' | 'agree_send' | 'refuse'
+  | 'greeting' | 'what_is_it' | 'agree_send' | 'refuse' | 'wrong_contact'
   | 'procurement' | 'postponed' | 'confirmed_forwarded' | 'other'
 
 const INTENTS: readonly CampaignIntent[] = [
-  'greeting', 'what_is_it', 'agree_send', 'refuse',
+  'greeting', 'what_is_it', 'agree_send', 'refuse', 'wrong_contact',
   'procurement', 'postponed', 'confirmed_forwarded', 'other',
 ]
 
@@ -64,6 +64,8 @@ ${historyText ? `\nИстория диалога (старые→новые):\n$
  * сама начнёт обсуждать условия/цены закупки); confirmed_forwarded →
  * CONFIRMED_FORWARDED_REPLY (клиент уже разослал материал, нужно лишь короткое
  * «спасибо» — сделку дальше двигает campaign-handoff.ts).
+ * wrong_contact — НАМЕРЕННО через Gemini-compose (не фикс. строка): ответ должен
+ * учитывать, что именно ответил собеседник, и мягко попросить контакт нужного лица.
  */
 export async function composeCampaignReply(
   intent: CampaignIntent,
