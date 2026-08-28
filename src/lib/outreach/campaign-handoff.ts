@@ -197,7 +197,11 @@ export async function onCampaignContactReplied(
     }
   }
 
-  if (classified.intent === 'agree_send' && !alreadySent) {
+  // Явный agree_send (клиент прямо попросил/согласился) ВСЕГДА пересылает PDF+баннер —
+  // даже если материал уже уходил в этом диалоге. materialAlreadySent тут НЕ гейтит
+  // (он остаётся только для промпта: «не предлагать материал повторно самому»).
+  // patchLeadStage(88149794) ниже идемпотентен — повторный PATCH на ту же стадию безвреден.
+  if (classified.intent === 'agree_send') {
     let okPdf = false
     let okImg = false
     try {
