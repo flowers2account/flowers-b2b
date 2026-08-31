@@ -9,8 +9,6 @@ export const metadata: Metadata = {
   description: 'Оптовая база «Цветы Уральска»: упаковка, горшки, вазы, декор, товары для сада. Прямые поставки, доставка по Западному Казахстану.',
 }
 
-const tel = '+' + company.phone.replace(/\D/g, '')
-
 const SUPPLY: { c: string; t: string; d: string; group: string; ic: React.ReactNode }[] = [
   { c: '#D26AA0', t: 'Фурнитура для упаковки букетов', d: 'Плёнка, бумага, пакеты, коробки, краски', group: 'packaging',
     ic: <><path d="m2 8 10-5 10 5-10 5z" /><path d="M2 8v8l10 5 10-5V8" /></> },
@@ -92,7 +90,6 @@ export default function HomePage() {
             </p>
             <div className={s.acts}>
               <Link href="/catalog" className={`${s.btn} ${s.solid}`}>Смотреть каталог</Link>
-              <a href={`https://wa.me/${company.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`${s.btn} ${s.line}`}>Получить прайс-лист</a>
             </div>
           </div>
           <div className={s.heroMedia}>
@@ -260,11 +257,10 @@ export default function HomePage() {
           <div className={s.cta}>
             <div>
               <h3 className={s.ctaH3}>Готовы начать работать с нами?</h3>
-              <p>Запросите прайс или откройте каталог, подберём ассортимент под ваш магазин и объёмы.</p>
             </div>
             <div className={s.acts}>
               <Link href="/catalog" className={`${s.btn} ${s.solid}`}>Открыть каталог</Link>
-              <a href={`tel:${tel}`} className={`${s.btn} ${s.line}`}>{company.phone}</a>
+              <a href={`https://wa.me/${company.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`${s.btn} ${s.line}`}>Написать в WhatsApp</a>
             </div>
           </div>
         </div>
