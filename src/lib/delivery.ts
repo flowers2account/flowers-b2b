@@ -41,17 +41,21 @@ export const INTERCITY_DELIVERY_PCT = 10
 
 /**
  * Стоимость доставки для заказа (₸):
- *  - самовывоз / способ не указан → 0
- *  - доставка по городу (Уральск)  → fee (фикс)
- *  - межгород (Актобе/Атырау)      → 10% от суммы товаров (goodsSum)
+ *  - самовывоз / способ не указан      → 0
+ *  - ПЕРВЫЙ заказ клиента (isFirstOrder) → 0 (доставка бесплатно, любой город; решение
+ *    владельца 31.08.2026) — правило повторной наценки касается только повторных заказов
+ *  - доставка по городу (Уральск)       → fee (фикс)
+ *  - межгород (Актобе/Атырау)           → 10% от суммы товаров (goodsSum)
  */
 export function computeDeliveryCost(
   method: string | null | undefined,
   city: string | null | undefined,
   fee: number,
   goodsSum: number,
+  isFirstOrder = false,
 ): number {
   if (method !== 'delivery') return 0
+  if (isFirstOrder) return 0
   if ((city ?? '').trim() === DELIVERY_CITY) return fee
   return Math.round(goodsSum * (INTERCITY_DELIVERY_PCT / 100))
 }

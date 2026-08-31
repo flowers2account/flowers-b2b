@@ -40,6 +40,11 @@ export default function CheckoutPage() {
   // Стоимость доставки по городу (app_settings.city_delivery_fee, fallback 2000).
   // Только для отображения — авторитетный расчёт суммы на сервере (/api/checkout).
   const [deliveryFee, setDeliveryFee] = useState(2000)
+  // Первый заказ клиента → доставка бесплатно + скидка 1% (Уральск). Значение
+  // подтверждается сервером в /api/checkout; здесь — только для превью суммы.
+  // По умолчанию false (не обещаем льготу, пока не знаем); true — если у клиента
+  // нет ни одного не-cart заказа.
+  const [isFirstOrder, setIsFirstOrder] = useState(false)
 
   // Префилл телефона получателя из профиля
   useEffect(() => { if (phone) setRecipientPhone(prev => prev || phone) }, [phone])
@@ -49,17 +54,30 @@ export default function CheckoutPage() {
       .then(d => { if (d && Number.isFinite(d.fee)) setDeliveryFee(d.fee) })
       .catch(() => {})
   }, [])
+  useEffect(() => {
+    if (!phone) return
+    fetch('/api/cabinet')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const prior = (d?.orders ?? []).filter((o: { status?: string }) => o.status !== 'cart')
+        setIsFirstOrder(prior.length === 0)
+      })
+      .catch(() => {})
+  }, [phone])
 
   useEffect(() => { init().catch(() => {}) }, [init])
 
   const todayISO = new Date().toISOString().slice(0, 10)
   const sum = total()
   const isUralsk = method === 'pickup' || (method === 'delivery' && city === 'Уральск')
-  const discount = Math.round(sum * (isUralsk ? 0.01 : 0))
-  // Доставка: по городу (Уральск) — фикс; межгород — «по согласованию» (в сумму не входит);
-  // самовывоз — 0.
+  // Скидка 1% (Уральск) — только на первый заказ (совпадает с сервером computeOrderTotal).
+  const discount = Math.round(sum * (isUralsk && isFirstOrder ? 0.01 : 0))
+  // Доставка (совпадает с сервером computeDeliveryCost):
+  //  первый заказ → 0; иначе Уральск → фикс, межгород → 10% от суммы товаров.
   const isCityDelivery = method === 'delivery' && city === 'Уральск'
-  const deliveryAmount = isCityDelivery ? deliveryFee : 0
+  const deliveryAmount = method !== 'delivery' || isFirstOrder
+    ? 0
+    : isCityDelivery ? deliveryFee : Math.round(sum * 0.10)
   const toPay = sum - discount + deliveryAmount
 
   const checkout = useOrderCheckout({
@@ -200,7 +218,7 @@ export default function CheckoutPage() {
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>
                       Доставка
                     </div>
-                    <div className={s.optDs}>По Уральску — {fmt(deliveryFee)}. В Актобе и Атырау — по согласованию.</div>
+                    <div className={s.optDs}>По Уральску — {fmt(deliveryFee)}. В другие города — 10% от суммы. Первый заказ — бесплатно.</div>
                     <div className={s.optPr}>{fmt(deliveryFee)} (см.{' '}
                       <span
                         role="button"
@@ -333,7 +351,9 @@ export default function CheckoutPage() {
               <span>Доставка</span>
               <span className={s.free}>{method === 'pickup'
                 ? 'Самовывоз'
-                : (isCityDelivery ? fmt(deliveryFee) : 'по согласованию')}</span>
+                : isFirstOrder ? 'Бесплатно (первый заказ)'
+                : isCityDelivery ? fmt(deliveryFee)
+                : `${fmt(deliveryAmount)} (10%)`}</span>
             </div>
             <div className={s.sdiv} />
             <div className={s.total}><span className={s.k}>К оплате</span><span className={s.tv}>{fmt(toPay)}</span></div>

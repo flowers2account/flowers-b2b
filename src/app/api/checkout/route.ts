@@ -155,7 +155,9 @@ export async function POST(req: NextRequest) {
     isFirstOrder,
   })
   const cityFee = await getCityDeliveryFee(supabase)
-  const deliveryCost = computeDeliveryCost(delivery?.method, delivery?.city, cityFee, goodsSum)
+  // Первый заказ клиента — доставка бесплатно (любой город). Повторная наценка (2000 ₸
+  // Уральск / 10% межгород) — только на повторные заказы.
+  const deliveryCost = computeDeliveryCost(delivery?.method, delivery?.city, cityFee, goodsSum, isFirstOrder)
 
   // Сумма + скидка 1% для Уральска (самовывоз или доставка по городу) на первый заказ
   // клиента. Единый расчёт (общий с правкой состава в пульте оператора). Сервер —
@@ -178,7 +180,9 @@ export async function POST(req: NextRequest) {
     if (delivery.address) noteLines.push(`Адрес: ${delivery.address}`)
     if (delivery.comment) noteLines.push(`Комментарий курьеру: ${delivery.comment}`)
     const isIntercity = delivery.city && delivery.city.trim() !== 'Уральск'
-    noteLines.push(`Стоимость доставки: ${deliveryCost.toLocaleString('ru-RU')} ₸${isIntercity ? ' (10% от суммы товаров)' : ''}`)
+    noteLines.push(deliveryCost === 0 && isFirstOrder
+      ? 'Стоимость доставки: 0 ₸ (первый заказ клиента — бесплатно)'
+      : `Стоимость доставки: ${deliveryCost.toLocaleString('ru-RU')} ₸${isIntercity ? ' (10% от суммы товаров)' : ''}`)
   }
   if (recipient) {
     const r = [recipient.name, recipient.phone, recipient.email].filter(Boolean).join(', ')
