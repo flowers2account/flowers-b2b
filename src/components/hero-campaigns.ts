@@ -31,6 +31,22 @@ export type Campaign = {
 
 export const CAMPAIGNS: Record<string, Campaign> = {
   // ▼▼▼ АКТИВНАЯ КАМПАНИЯ (подтверждена владельцем) ▼▼▼
+  // Хендофф opt-wholesale-banner-handoff.md — на основе слайда 1 презентации.
+  'opt-wholesale': {
+    id: 'opt-wholesale',
+    eyebrow: 'Опт для флористов',
+    title: 'Всё для цветочного бизнеса',
+    titleAccent: 'в одном месте',
+    subtitleHome: 'Цветы и материалы для флористов — 1 600+ позиций.',
+    subtitleCatalog: 'Актуальный каталог для флористов и магазинов.',
+    trustLine: '150+ клиентов · 1 600+ позиций · 3 города',
+    ctaHome: { label: 'Зарегистрировать компанию', href: '/register' },
+    ctaCatalog: { label: 'Смотреть каталог', iconDown: true },
+    image: '/images/campaigns/hero-opt.webp',
+    theme: { accent: '#8B2942', accentDeep: '#6E2135' },
+  },
+
+  // ── Заготовки / прошлые кампании (не активны). ──
   'first-order-free': {
     id: 'first-order-free',
     eyebrow: 'Ближайшая доставка • Актобе • Атырау',
@@ -45,7 +61,6 @@ export const CAMPAIGNS: Record<string, Campaign> = {
     image: '/images/campaigns/hero-default.webp',
   },
 
-  // ── Заготовки будущих кампаний (не активны). Добавь фото в campaigns/ и переключи id. ──
   'free-supplies-delivery': {
     id: 'free-supplies-delivery',
     eyebrow: 'Фурнитура для упаковки букетов • Актобе • Атырау',
@@ -87,7 +102,7 @@ export const CAMPAIGNS: Record<string, Campaign> = {
 }
 
 // ── Активная кампания — меняется ОДНОЙ строкой ──────────────────────────────
-export const CURRENT_CAMPAIGN_ID = 'september-1'
+export const CURRENT_CAMPAIGN_ID = 'opt-wholesale'
 export const CAMPAIGN: Campaign = CAMPAIGNS[CURRENT_CAMPAIGN_ID]
 
 // Плашка маршрута (общая для обеих страниц). Уральск — центральный склад-хаб:
