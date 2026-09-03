@@ -66,6 +66,7 @@ export default function OrderPage() {
   const [payBusy, setPayBusy] = useState(false)
   const [payError, setPayError] = useState('')
   const [payNotice, setPayNotice] = useState('')
+  const [specBusy, setSpecBusy] = useState(false)
 
   // Дожидаемся восстановления сессии из localStorage, прежде чем решать про доступ.
   // Раньше тут был мгновенный router.push('/') → прямые ссылки на /order/[id] выбрасывало
@@ -187,6 +188,31 @@ export default function OrderPage() {
       setPayError(err instanceof Error ? err.message : 'Не удалось запустить оплату')
     } finally {
       setPayBusy(false)
+    }
+  }
+
+  async function downloadNakladnaya() {
+    if (specBusy || !order) return
+    setSpecBusy(true)
+    try {
+      const headers: Record<string, string> = guestToken
+        ? { 'X-Order-Access-Token': guestToken }
+        : await authHeaders()
+      const res = await fetch(`/api/orders/${order.id}/spec-pdf`, { headers, cache: 'no-store' })
+      if (!res.ok) throw new Error(String(res.status))
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nakladnaya-${order.id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Не удалось сформировать накладную. Попробуйте ещё раз.')
+    } finally {
+      setSpecBusy(false)
     }
   }
 
@@ -342,11 +368,10 @@ export default function OrderPage() {
             <div className={s.box}>
               <h3>Документы</h3>
               <div className={s.docs}>
-                <div className={s.doc}>
-                  <span className={s.ic}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg></span>
-                  Накладная
-                  <span className={s.soon}>по запросу</span>
-                </div>
+                <button type="button" className={s.doc} onClick={downloadNakladnaya} disabled={specBusy}>
+                  <span className={s.ic}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M12 12v6M9 15l3 3 3-3" /></svg></span>
+                  {specBusy ? 'Формируем…' : 'Накладная (PDF)'}
+                </button>
               </div>
             </div>
           </div>

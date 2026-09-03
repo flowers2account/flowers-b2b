@@ -87,7 +87,9 @@
 .kv .t b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 1px; }
 .kv .t span { color: var(--ink-3); white-space: pre-line; }
 .docs { display: flex; flex-direction: column; gap: 8px; }
-.doc { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; font-size: 13px; font-weight: 500; color: var(--ink-3); }
+.doc { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--ink-2); text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
+.doc:hover { border-color: var(--accent); background: var(--accent-light); }
+.doc:disabled { opacity: .55; cursor: default; }
 .doc .ic { width: 30px; height: 30px; border-radius: 7px; background: var(--accent-light); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
 .doc .soon { margin-left: auto; font-size: 11px; color: var(--ink-4); }
 

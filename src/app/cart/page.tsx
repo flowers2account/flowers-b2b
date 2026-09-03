@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/lib/cart-store'
 import { unitForProduct } from '@/lib/category-tree'
 import { colorSwatch } from '@/lib/colors'
+import { authHeaders } from '@/lib/api-token'
 import s from './cart.module.css'
 
 const fmt = (n: number) => n.toLocaleString('ru-RU') + ' ₸'
@@ -18,11 +20,39 @@ const PH = (
 export default function CartPage() {
   const router = useRouter()
   const { items, remove, update, clear, total } = useCart()
+  const [specBusy, setSpecBusy] = useState(false)
 
   const count = items.reduce((c, i) => c + i.qty, 0)
   const sum = total()
   const discount = Math.round(sum * 0.01)
   const toPay = sum - discount
+
+  async function downloadSpec() {
+    if (specBusy || items.length === 0) return
+    setSpecBusy(true)
+    try {
+      const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+      const res = await fetch('/api/cart/spec-pdf', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ items: items.map(i => ({ id: i.id, qty: i.qty, color: i.color ?? null })) }),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `specifikaciya-${new Date().toISOString().slice(0, 10)}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Не удалось сформировать спецификацию. Попробуйте ещё раз.')
+    } finally {
+      setSpecBusy(false)
+    }
+  }
 
   if (items.length === 0) {
     return (
@@ -95,6 +125,10 @@ export default function CartPage() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
                 Продолжить покупки
               </Link>
+              <button className={s.link} onClick={downloadSpec} disabled={specBusy}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M12 12v6M9 15l3 3 3-3" /></svg>
+                {specBusy ? 'Формируем…' : 'Скачать спецификацию (PDF)'}
+              </button>
               <button className={`${s.link} ${s.mut}`} onClick={clear}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                 Очистить корзину
