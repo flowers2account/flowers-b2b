@@ -127,6 +127,13 @@ interface TickResult { sent: number; skipped: number }
  * → composeFollowupReply → sendMessage, при успехе инкремент счётчика + сдвиг «не раньше».
  */
 export async function runCampaignFollowupTick(now: Date = new Date()): Promise<TickResult> {
+  // Школьная follow-up кампания ОТКЛЮЧЕНА (решение владельца 03.09.2026).
+  // Крон на VPS (/etc/cron.d/flowers-campaign-followup-*) продолжает тикать, но вхолостую.
+  // Снова включить: CAMPAIGN_FOLLOWUP_ENABLED=true в shared/.env.production + pm2 reload.
+  if (process.env.CAMPAIGN_FOLLOWUP_ENABLED !== 'true') {
+    console.log('[campaign-followup] кампания отключена (CAMPAIGN_FOLLOWUP_ENABLED != true) — тик пропущен')
+    return { sent: 0, skipped: 0 }
+  }
   if (!isWithinSendWindow(now)) {
     console.log('[campaign-followup] вне окна отправки — тик пропущен')
     return { sent: 0, skipped: 0 }
