@@ -6,6 +6,7 @@ import { isLeadEnabled, enableLead, disableLead } from '@/lib/bot/lead-gate'
 import { sendMessage, sendPhoto, addTag } from '@/lib/umnico'
 import { captureOutreachEvent, extractPhone } from '@/lib/outreach/capture'
 import { tryHandleCampaignReply, tryCaptureCampaignRefFromOutgoing } from '@/lib/outreach/campaign-handoff'
+import { tryHandleLapsReply, tryCaptureLapsRefFromOutgoing } from '@/lib/outreach/laps-handoff'
 import { normalizePhone } from '@/lib/phone'
 
 // Дедуп доставок одного messageId. In-memory — переживает только тёплый инстанс,
@@ -86,12 +87,17 @@ export async function POST(req: NextRequest) {
 
       if (type0 === 'message.incoming') {
         const phone = extractPhone(sender0, src0)
-        const dealId = await tryHandleCampaignReply(phone, saId, {
+        const incomingMsg = {
           text: pick<string>(inner0, 'text', 'message', 'body') ?? '',
           umnicoLeadId: umnicoLeadId0,
           realId: realId0 ?? null,
-        })
+        }
+        const dealId = await tryHandleCampaignReply(phone, saId, incomingMsg)
         if (dealId) return NextResponse.json({ ok: true })
+        // Не школьная кампания — пробуем как LAPS (различаем по pipeline_id
+        // сделки, канал общий). Не нашлась → откат к обычной обработке ниже.
+        const lapsDealId = await tryHandleLapsReply(phone, saId, incomingMsg)
+        if (lapsDealId) return NextResponse.json({ ok: true })
       } else {
         // message.outgoing: подхватить Campaign umnico ref в момент РУЧНОГО «Написать
         // первым» оператором — ещё до любого ответа клиента, чтобы follow-up-крон знал
@@ -104,10 +110,10 @@ export async function POST(req: NextRequest) {
         if (!isBotOutgoing) {
           const rawClient = pick<string>(src0, 'sender')
           const phoneOut = rawClient ? normalizePhone(rawClient) : extractPhone(sender0, src0)
-          await tryCaptureCampaignRefFromOutgoing(phoneOut, saId, {
-            umnicoLeadId: umnicoLeadId0,
-            realId: realId0 ?? null,
-          })
+          const outIds = { umnicoLeadId: umnicoLeadId0, realId: realId0 ?? null }
+          await tryCaptureCampaignRefFromOutgoing(phoneOut, saId, outIds)
+          // Параллельно — LAPS: подхват ref + перевод «Новые лиды» → «сообщение в ватсап».
+          await tryCaptureLapsRefFromOutgoing(phoneOut, saId, outIds)
         }
       }
     }
