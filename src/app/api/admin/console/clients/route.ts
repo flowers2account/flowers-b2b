@@ -36,10 +36,39 @@ export async function GET(req: NextRequest) {
     a.sum += Number(o.total) || 0
   }
 
+  // Текущая корзина клиента (status='cart', notes='[customer_cart]'): сумма товаров,
+  // число позиций и когда последний раз менялась — чтобы менеджер видел «набрал, но не
+  // оформил» прямо в списке, без открытия панели.
+  const cartAgg: Record<string, { sum: number; count: number; updated_at: string | null }> = {}
+  const { data: carts } = await sb
+    .from('orders')
+    .select('client_id, updated_at, order_items(qty, price, is_removed)')
+    .eq('status', 'cart')
+    .eq('notes', '[customer_cart]')
+    .limit(5000)
+  for (const c of carts ?? []) {
+    if (!c.client_id) continue
+    const items = (c.order_items ?? []) as { qty: number; price: number; is_removed: boolean }[]
+    let sum = 0, count = 0
+    for (const it of items) {
+      if (it.is_removed) continue
+      sum += (Number(it.qty) || 0) * (Number(it.price) || 0)
+      count += 1
+    }
+    const prev = cartAgg[c.client_id]
+    // на клиента обычно одна корзина; если вдруг несколько — берём самую свежую непустую
+    if (!prev || (count > 0 && (c.updated_at ?? '') > (prev.updated_at ?? ''))) {
+      cartAgg[c.client_id] = { sum, count, updated_at: c.updated_at ?? null }
+    }
+  }
+
   const result = (clients ?? []).map((c: any) => ({
     ...c,
     order_count: agg[c.id]?.count ?? 0,
     order_sum: agg[c.id]?.sum ?? 0,
+    cart_sum: cartAgg[c.id]?.sum ?? 0,
+    cart_count: cartAgg[c.id]?.count ?? 0,
+    cart_updated_at: cartAgg[c.id]?.updated_at ?? null,
   }))
 
   return NextResponse.json({ clients: result })

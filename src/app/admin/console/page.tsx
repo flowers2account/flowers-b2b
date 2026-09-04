@@ -548,13 +548,32 @@ function ClientStatusChip({ status }: { status?: string | null }) {
   )
 }
 
+function cartRel(iso?: string | null) {
+  if (!iso) return ''
+  const ms = Date.now() - new Date(iso).getTime()
+  const m = Math.round(ms / 60000)
+  if (m < 1) return 'только что'
+  if (m < 60) return m + ' мин назад'
+  const h = Math.round(m / 60)
+  if (h < 24) return h + ' ч назад'
+  const d = Math.round(h / 24)
+  return d + (d === 1 ? ' день назад' : d < 5 ? ' дня назад' : ' дней назад')
+}
+
 function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any) => void }) {
   const [q, setQ] = useState('')
+  const [onlyCart, setOnlyCart] = useState(false)
+  const [sortByCart, setSortByCart] = useState(false)
   const term = q.trim().toLowerCase()
-  const filtered = term
+
+  let filtered = term
     ? clients.filter((c) =>
         [c.name, c.phone, c.company_name].some((v) => String(v || '').toLowerCase().includes(term)))
     : clients
+  if (onlyCart) filtered = filtered.filter((c) => (c.cart_count ?? 0) > 0)
+  if (sortByCart) filtered = [...filtered].sort((a, b) => (b.cart_sum ?? 0) - (a.cart_sum ?? 0))
+
+  const withCart = clients.filter((c) => (c.cart_count ?? 0) > 0).length
 
   const Th = ({ children, right }: any) => (
     <th className={'whitespace-nowrap px-3 py-2 text-xs font-semibold ' + (right ? 'text-right' : 'text-left')} style={{ color: C.stone }}>{children}</th>
@@ -571,7 +590,11 @@ function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: имя, телефон, компания"
             className="bg-transparent text-sm outline-none" style={{ width: 220 }} />
         </div>
-        <span className="text-xs" style={{ color: C.stone }}>Всего: {filtered.length}</span>
+        <label className="flex items-center gap-1.5 text-xs" style={{ color: C.ink }}>
+          <input type="checkbox" checked={onlyCart} onChange={(e) => setOnlyCart(e.target.checked)} />
+          Только с корзиной ({withCart})
+        </label>
+        <span className="text-xs" style={{ color: C.stone }}>Показано: {filtered.length}</span>
       </div>
 
       <div className="overflow-x-auto rounded-xl" style={{ background: '#fff', border: '1px solid ' + C.line }}>
@@ -588,7 +611,11 @@ function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any
               <Th>Регистрация</Th>
               <Th right>Заказов</Th>
               <Th right>Сумма</Th>
-              <Th right>Корзина</Th>
+              <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold" style={{ color: C.stone }}>
+                <button onClick={() => setSortByCart((v) => !v)} className="inline-flex items-center gap-1" title="Сортировать по сумме корзины">
+                  Корзина {sortByCart ? '↓' : ''}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -605,9 +632,16 @@ function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any
                 <Td right>{c.order_count}</Td>
                 <Td right>{c.order_sum ? fmtKZT(c.order_sum) : '—'}</Td>
                 <Td right>
-                  <button onClick={() => onCart(c)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold" style={{ background: C.blush, color: C.wine }}>
-                    <ShoppingBag size={13} /> Открыть
-                  </button>
+                  {(c.cart_count ?? 0) > 0 ? (
+                    <button onClick={() => onCart(c)} className="inline-flex flex-col items-end rounded-lg px-2.5 py-1 text-xs font-semibold leading-tight" style={{ background: C.blush, color: C.wine }} title="Открыть корзину">
+                      <span>{fmtKZT(c.cart_sum)} · {c.cart_count} поз</span>
+                      <span className="font-normal" style={{ color: C.stone }}>{cartRel(c.cart_updated_at)}</span>
+                    </button>
+                  ) : (
+                    <button onClick={() => onCart(c)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium" style={{ background: C.bg, color: C.stone }} title="Корзина пуста — открыть/собрать">
+                      <ShoppingBag size={13} /> пусто
+                    </button>
+                  )}
                 </Td>
               </tr>
             ))}
