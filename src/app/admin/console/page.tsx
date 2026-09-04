@@ -257,6 +257,16 @@ function SlideOver({ children, onClose }: { children: any; onClose: () => void }
   )
 }
 
+function CenterModal({ children, onClose }: { children: any; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(28,28,28,0.4)' }} onClick={onClose}>
+      <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 /* ───────── Страница ───────── */
 export default function ConsolePage() {
   const router = useRouter()
@@ -268,6 +278,7 @@ export default function ConsolePage() {
   const [loaded, setLoaded] = useState(false)
   const [openId, setOpenId] = useState<number | null>(null)
   const [cartClient, setCartClient] = useState<any | null>(null)
+  const [cardClient, setCardClient] = useState<any | null>(null)
   const [confirm, setConfirm] = useState<ConfirmCfg | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -412,7 +423,7 @@ export default function ConsolePage() {
           !clientsLoaded ? (
             <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ background: '#fff', border: '1px solid ' + C.line, color: C.stone }}>Загрузка…</div>
           ) : (
-            <ClientsView clients={clients} onCart={setCartClient} />
+            <ClientsView clients={clients} onCart={setCartClient} onCard={setCardClient} />
           )
         )}
       </main>
@@ -434,6 +445,16 @@ export default function ConsolePage() {
         <SlideOver onClose={() => setCartClient(null)}>
           <ClientCartPanel client={cartClient} onClose={() => setCartClient(null)} />
         </SlideOver>
+      )}
+      {cardClient && (
+        <CenterModal onClose={() => setCardClient(null)}>
+          <ClientCard
+            client={cardClient}
+            onClose={() => setCardClient(null)}
+            onOpenCart={() => { const c = cardClient; setCardClient(null); setCartClient(c) }}
+            onOpenOrder={(id: number) => { setCardClient(null); setOpenId(id) }}
+          />
+        </CenterModal>
       )}
       {confirm && <ConfirmDialog cfg={confirm} onClose={() => setConfirm(null)} />}
     </div>
@@ -560,7 +581,7 @@ function cartRel(iso?: string | null) {
   return d + (d === 1 ? ' день назад' : d < 5 ? ' дня назад' : ' дней назад')
 }
 
-function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any) => void }) {
+function ClientsView({ clients, onCart, onCard }: { clients: any[]; onCart: (client: any) => void; onCard: (client: any) => void }) {
   const [q, setQ] = useState('')
   const [onlyCart, setOnlyCart] = useState(false)
   const [sortByCart, setSortByCart] = useState(false)
@@ -621,9 +642,13 @@ function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any
           <tbody>
             {filtered.map((c) => (
               <tr key={c.id} style={{ borderBottom: '1px solid ' + C.line }}>
-                <Td>{c.name || '—'}</Td>
+                <Td>
+                  <button onClick={() => onCard(c)} className="font-medium hover:underline" style={{ color: C.wine }}>{c.name || '—'}</button>
+                </Td>
                 <Td muted>{c.phone || '—'}</Td>
-                <Td>{c.company_name ? <span className="inline-flex items-center gap-1"><Building2 size={12} style={{ color: C.wine }} />{c.company_name}</span> : <span style={{ color: C.stone }}>—</span>}</Td>
+                <Td>{c.company_name
+                  ? <button onClick={() => onCard(c)} className="inline-flex items-center gap-1 hover:underline"><Building2 size={12} style={{ color: C.wine }} />{c.company_name}</button>
+                  : <span style={{ color: C.stone }}>—</span>}</Td>
                 <Td muted>{c.bin || '—'}</Td>
                 <Td muted>{c.city || '—'}</Td>
                 <Td right muted>{c.credit_limit ? fmtKZT(Number(c.credit_limit)) : '—'}</Td>
@@ -651,6 +676,134 @@ function ClientsView({ clients, onCart }: { clients: any[]; onCart: (client: any
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+/* ───────── Карточка клиента (попап) ───────── */
+const ORDER_ST_RU: Record<string, string> = {
+  cart: 'Корзина', pending: 'Новый', reserved: 'В работе', confirmed: 'Подтверждён',
+  assembling: 'Сборка', assembled: 'Собран', delivered: 'Выдан', cancelled: 'Отменён',
+  negotiation: 'Согласование', in_transit: 'В пути', arrived: 'Прибыл',
+}
+
+function ClientCard({ client, onClose, onOpenCart, onOpenOrder }: {
+  client: any; onClose: () => void; onOpenCart: () => void; onOpenOrder: (id: number) => void
+}) {
+  const [data, setData] = useState<{ client: any; orders: any[] } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      setLoading(true); setError('')
+      try {
+        const headers = await authHeaders()
+        const r = await fetch(`/api/admin/console/client-card?client_id=${encodeURIComponent(client.id)}`, { headers, cache: 'no-store' })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(d.error || 'Не удалось загрузить карточку')
+        if (alive) setData(d)
+      } catch (e: any) {
+        if (alive) setError(e?.message || 'Ошибка загрузки')
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
+    return () => { alive = false }
+  }, [client.id])
+
+  const c = data?.client ?? client
+  const orders = (data?.orders ?? []).filter((o) => !o.is_cart)
+  const cartOrder = (data?.orders ?? []).find((o) => o.is_cart)
+  const Row = ({ icon, label, value }: { icon: any; label: string; value: any }) => (
+    <div className="flex items-start gap-2 py-1.5 text-sm">
+      <span className="mt-0.5" style={{ color: C.stone }}>{icon}</span>
+      <span className="w-28 shrink-0" style={{ color: C.stone }}>{label}</span>
+      <span style={{ color: C.ink }}>{value || '—'}</span>
+    </div>
+  )
+
+  return (
+    <div className="p-5">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-lg font-semibold" style={{ color: C.ink }}>{c.name || 'Без имени'}</div>
+          {c.company_name && (
+            <div className="mt-0.5 inline-flex items-center gap-1 text-sm" style={{ color: C.wine }}>
+              <Building2 size={13} />{c.company_name}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <ClientStatusChip status={c.status} />
+          <button onClick={onClose} className="rounded-lg p-1" style={{ color: C.stone }}><X size={18} /></button>
+        </div>
+      </div>
+
+      {loading && <div className="py-6 text-center text-sm" style={{ color: C.stone }}>Загрузка…</div>}
+      {error && <div className="rounded-lg px-3 py-2 text-sm" style={{ background: '#FDECEC', color: '#B42318' }}>{error}</div>}
+
+      {!loading && !error && (
+        <>
+          <div className="rounded-xl px-3 py-1" style={{ background: C.bg, border: '1px solid ' + C.line }}>
+            <Row icon={<Phone size={14} />} label="Телефон" value={c.phone} />
+            <Row icon={<MapPin size={14} />} label="Город" value={c.city} />
+            <Row icon={<MapPin size={14} />} label="Адрес" value={c.address} />
+            <Row icon={<FileText size={14} />} label="БИН" value={c.bin} />
+            <Row icon={<Wallet size={14} />} label="Кредитный лимит" value={c.credit_limit ? fmtKZT(Number(c.credit_limit)) : null} />
+            <Row icon={<Calendar size={14} />} label="Регистрация" value={fmtDateTime(c.created_at)} />
+            {c.amo_contact_id && (
+              <Row icon={<User size={14} />} label="amoCRM" value={
+                <a href={`https://tropinvladislav1.amocrm.ru/contacts/detail/${c.amo_contact_id}`} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: C.blue }}>
+                  контакт #{c.amo_contact_id}
+                </a>
+              } />
+            )}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl px-3 py-2 text-sm" style={{ background: C.bg, border: '1px solid ' + C.line }}>
+              <div style={{ color: C.stone }}>Оформлено заказов</div>
+              <div className="mt-0.5 font-semibold" style={{ color: C.ink }}>
+                {orders.length} · {fmtKZT((client.order_sum ?? 0))}
+              </div>
+            </div>
+            <button onClick={onOpenCart} className="rounded-xl px-3 py-2 text-left text-sm" style={{ background: C.blush, border: '1px solid ' + C.line }} title="Открыть корзину">
+              <div style={{ color: C.stone }}>Корзина</div>
+              <div className="mt-0.5 font-semibold" style={{ color: C.wine }}>
+                {cartOrder && cartOrder.item_count > 0
+                  ? `${fmtKZT(client.cart_sum ?? 0)} · ${cartOrder.item_count} поз`
+                  : 'пусто'}
+              </div>
+            </button>
+          </div>
+
+          <div className="mt-3">
+            <div className="mb-1 text-xs font-semibold" style={{ color: C.stone }}>Заказы</div>
+            {orders.length === 0 ? (
+              <div className="rounded-lg px-3 py-3 text-sm" style={{ background: C.bg, color: C.stone }}>Оформленных заказов нет</div>
+            ) : (
+              <div className="divide-y overflow-hidden rounded-xl" style={{ borderColor: C.line, border: '1px solid ' + C.line }}>
+                {orders.map((o) => (
+                  <button key={o.id} onClick={() => onOpenOrder(o.id)}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-black/[0.02]">
+                    <span>
+                      <span className="font-medium" style={{ color: C.ink }}>№ {o.id}</span>
+                      <span className="ml-2" style={{ color: C.stone }}>{ORDER_ST_RU[o.status] ?? o.status}</span>
+                      {o.payment_status === 'unpaid' && <span className="ml-2" style={{ color: C.amber }}>· не оплачен</span>}
+                    </span>
+                    <span className="text-right">
+                      <span className="font-semibold" style={{ color: C.ink }}>{fmtKZT(Number(o.total) || 0)}</span>
+                      <span className="ml-2" style={{ color: C.stone }}>{fmtDate(o.created_at)}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
