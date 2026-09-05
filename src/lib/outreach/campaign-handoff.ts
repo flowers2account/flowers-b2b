@@ -24,6 +24,7 @@ import { fetchDialogContext, sendMessage, sendPhoto, type DialogMessage } from '
 import { classifyCampaignIntent, composeCampaignReply, materialAlreadySent, sendWhatIsItBanner } from '@/lib/bot/campaign-bot'
 import { computeNextWindow } from '@/lib/bot/campaign-followup'
 import { SCHOOL_CAMPAIGN_PDF_URL, SCHOOL_CAMPAIGN_IMAGE_URL } from '@/lib/bot/campaign-prompts'
+import { withDealLock } from './deal-lock'
 
 export interface IncomingCampaignMessage {
   text: string
@@ -154,8 +155,19 @@ async function notifyManagerTelegram(
  *
  * Любой сбой ИИ (classifyCampaignIntent вернул null) — тихо останавливаемся, клиенту
  * ничего не уходит (только лог + telegram уже отправлены выше).
+ *
+ * Обёрнут в withDealLock(dealId) — конкурентные входящие одного диалога
+ * обрабатываются последовательно, а не параллельно (см. deal-lock.ts).
  */
 export async function onCampaignContactReplied(
+  dealId: number,
+  phone: string,
+  incoming: IncomingCampaignMessage,
+): Promise<void> {
+  return withDealLock(dealId, () => onCampaignContactRepliedImpl(dealId, phone, incoming))
+}
+
+async function onCampaignContactRepliedImpl(
   dealId: number,
   phone: string,
   incoming: IncomingCampaignMessage,

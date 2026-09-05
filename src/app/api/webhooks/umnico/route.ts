@@ -56,6 +56,24 @@ export async function POST(req: NextRequest) {
   // Сырой payload целиком — чтобы сверить реальные имена полей Umnico с парсером.
   console.log('[umnico webhook] raw:', JSON.stringify(body))
 
+  // ── Дедуп по messageId — В САМОМ НАЧАЛЕ, ДО кампанийных веток (школьной/LAPS) и
+  // до основного бота. Раньше markSeen() стоял только в конце, внутри BOT_ENABLED —
+  // кампанийные пути повторную доставку одного messageId не отсекали вообще.
+  // Гейтим только message.incoming (это единственный тип, где повторная доставка
+  // запускает всю обработку заново). message.outgoing / lead.changed — не трогаем.
+  {
+    const topD = body as Record<string, unknown>
+    const typeD = (topD.type ?? topD.event) as string | undefined
+    if (typeD === 'message.incoming') {
+      const msgD = (topD.message ?? topD.data ?? topD.payload ?? topD) as Record<string, unknown>
+      const midD = pick<string | number>(msgD, 'messageId', 'message_id', 'id')
+      if (midD !== undefined && markSeen(String(midD))) {
+        console.log('[umnico webhook] skip: dedup messageId (early)', String(midD))
+        return NextResponse.json({ ok: true, dedup: true })
+      }
+    }
+  }
+
   // ── Кампании исходящих Umnico (школьная рассылка 1 сентября и т.п.) — НЕЗАВИСИМО от
   // UMNICO_BOT_ENABLED/CHANNEL_POLICY, отдельный конвейер. Сделку в воронке кампании
   // оператор создаёт ВРУЧНУЮ сам сразу после ручного «Написать первым» в Umnico UI —
@@ -219,7 +237,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Дедуп повторных доставок
+    // Дедуп повторных доставок — уже отмечен в ранней проверке в начале POST
+    // (см. выше). Здесь оставлена страховка на случай payload-форм, где type в
+    // начале не распознался как message.incoming, но messageId всё же есть.
     if (messageId !== undefined && markSeen(String(messageId))) {
       console.log('[umnico webhook] skip: dedup messageId', String(messageId))
       return NextResponse.json({ ok: true, dedup: true })

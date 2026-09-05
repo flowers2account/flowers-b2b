@@ -23,6 +23,7 @@ import {
 import { fetchDialogContext, sendMessage, sendPhoto, type DialogMessage } from '@/lib/umnico'
 import { classifyLapsIntent, composeLapsReply, lapsMaterialAlreadySent, type LapsIntent } from '@/lib/bot/laps-bot'
 import { computeNextWindow } from '@/lib/bot/campaign-followup'
+import { withDealLock } from './deal-lock'
 import {
   AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_NEW_LEADS, AMO_LAPS_STATUS_WHATSAPP,
   AMO_LAPS_STATUS_LPR, AMO_LAPS_STATUS_MATERIAL, AMO_LAPS_STATUS_THINKING,
@@ -175,8 +176,19 @@ async function notifyManagerTelegram(dealId: number, phone: string, incoming: In
  * классификация + Gemini-ответ + отправка текстом, и по intent — отправка
  * презентации + ссылки на каталог, переходы стадий, счётчик отказов (тег),
  * терминальное закрытие (143 + followup=999). Любой сбой ИИ — тихо стоп.
+ *
+ * ФИКС Б: обёрнут в withDealLock(dealId) — конкурентные входящие одного диалога
+ * обрабатываются последовательно, а не параллельно (см. deal-lock.ts).
  */
 export async function onLapsContactReplied(
+  dealId: number,
+  phone: string,
+  incoming: IncomingLapsMessage,
+): Promise<void> {
+  return withDealLock(dealId, () => onLapsContactRepliedImpl(dealId, phone, incoming))
+}
+
+async function onLapsContactRepliedImpl(
   dealId: number,
   phone: string,
   incoming: IncomingLapsMessage,
@@ -260,8 +272,11 @@ export async function onLapsContactReplied(
     intent === 'not_lpr' && !alreadySent &&
     (LPR_ROLE_RE.test(incoming.text) || CONTACT_REFUSAL_RE.test(incoming.text))
 
+  // ФИКС А: isTransition тоже гейтится !alreadySent — иначе презентация+каталог
+  // переотправлялись при КАЖДОМ повторном ready_signal / small_talk-после-1-круга
+  // в одном диалоге (инцидент 05.09.2026: клиент получил 4× presentation.pdf).
   const shouldSendFiles =
-    isTransition ||
+    (isTransition && !alreadySent) ||
     (intent === 'has_supplier' && !alreadySent) ||
     (intent === 'agree_send' && !alreadySent) ||
     notLprSendFiles
