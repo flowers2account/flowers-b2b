@@ -8,7 +8,12 @@ const nextConfig: NextConfig = {
   // а outputFileTracingIncludes кладёт его data-файлы в бандл.
   serverExternalPackages: ['pdfkit', 'fontkit'],
   outputFileTracingIncludes: {
-    '/api/**/*': ['./node_modules/pdfkit/js/data/**/*'],
+    '/api/**/*': [
+      './node_modules/pdfkit/js/data/**/*',
+      // локальный индекс КТРУ: search.ts читает его через process.cwd() —
+      // явно кладём в standalone-бандл, иначе на VPS ENOENT (см. /api/ktru/search)
+      './data/enstru/enstru_index.json',
+    ],
   },
   images: {
     remotePatterns: [
