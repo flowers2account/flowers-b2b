@@ -36,11 +36,20 @@ function FeedInner() {
   useEffect(() => {
     if (products.length === 0) return
     let alive = true
+
+    // одна пара (товар × КТРУ) = один запрос к существующему API; если у товара
+    // нет кодов — фолбэк на поиск по названию (q=). Результаты потом дедуп по lotId.
+    const jobs: { p: (typeof products)[number]; qs: string }[] = []
+    for (const p of products) {
+      if (p.ktruCodes?.length) {
+        for (const code of p.ktruCodes) jobs.push({ p, qs: `ktru=${encodeURIComponent(code)}` })
+      } else {
+        jobs.push({ p, qs: `q=${encodeURIComponent(p.name)}` })
+      }
+    }
+
     Promise.all(
-      products.map(async (p) => {
-        const qs = p.ktruCodes?.[0]
-          ? `ktru=${encodeURIComponent(p.ktruCodes[0])}`
-          : `q=${encodeURIComponent(p.name)}`
+      jobs.map(async ({ p, qs }) => {
         try {
           const r = await fetch(`/api/smart-ktru/procurements?${qs}`)
           const j = await r.json()
@@ -70,11 +79,12 @@ function FeedInner() {
     ).then((res) => {
       if (!alive) return
       const all = res.flatMap((x) => x.rows)
+      // дедуп по lotId: один лот может числиться под несколькими КТРУ товара
       const seen = new Set<number>()
       const uniq = all.filter((r) => (seen.has(r.lotId) ? false : (seen.add(r.lotId), true)))
       uniq.sort((a, b) => (a.deadlineDaysLeft ?? 1e9) - (b.deadlineDaysLeft ?? 1e9))
       setRows(uniq)
-      setErrs(res.map((x) => x.err).filter((e): e is string => !!e))
+      setErrs([...new Set(res.map((x) => x.err).filter((e): e is string => !!e))])
     })
     return () => {
       alive = false

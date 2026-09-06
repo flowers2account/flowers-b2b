@@ -11,7 +11,7 @@
     "ktru:test": "node --test tests/ktru-search.test.mjs",
     "ktru:procurement": "node --env-file=.env.local scripts/ktru-procurement.mjs",
     "ktru:spec": "node --env-file=.env.local scripts/ktru-spec.mjs",
-    "smart-ktru:test": "node --test tests/smart-ktru-matching.test.mjs tests/smart-ktru-scoring.test.mjs tests/smart-ktru-extract-schema.test.mjs",
+    "smart-ktru:test": "node --test tests/smart-ktru-matching.test.mjs tests/smart-ktru-scoring.test.mjs tests/smart-ktru-extract-schema.test.mjs tests/ktru-match.test.mjs",
     "smart-ktru:eval": "node --env-file=.env.local scripts/smart-ktru-eval.mjs"
   },
   "dependencies": {
