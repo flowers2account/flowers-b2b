@@ -1,0 +1,235 @@
+/* Smart KTRU — Modernist design system (port из Claude Design handoff styles.css).
+   Всё scoped под .smart-ktru — глобальные стили проекта не затрагиваются.
+   Источник токенов/классов: design_handoff_smart_ktru/styles.css. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap');
+
+.smart-ktru {
+  /* ── роли ── */
+  --color-bg: #f3f2f2;
+  --color-surface: #eae9e9;
+  --color-text: #201e1d;
+  --color-accent: #ec3013;
+  --color-divider: color-mix(in srgb, #201e1d 40%, transparent);
+
+  /* ── нейтральная рампа (общий шаг светлоты) ── */
+  --color-neutral-100: #f8f4f4;
+  --color-neutral-200: #eae7e7;
+  --color-neutral-300: #d7d3d3;
+  --color-neutral-400: #bab6b6;
+  --color-neutral-500: #9b9797;
+  --color-neutral-600: #7d7979;
+  --color-neutral-700: #605d5d;
+  --color-neutral-800: #444141;
+  --color-neutral-900: #2d2b2b;
+
+  /* ── акцентная рампа ── */
+  --color-accent-100: #fff2ef;
+  --color-accent-200: #ffe0d9;
+  --color-accent-300: #ffc4b8;
+  --color-accent-400: #ff9783;
+  --color-accent-500: #ff563c;
+  --color-accent-600: #dd2b0f;
+  --color-accent-700: #ae1800;
+  --color-accent-800: #7c1405;
+  --color-accent-900: #4d170e;
+
+  --font-heading: 'Archivo', system-ui, sans-serif;
+  --font-body: 'Archivo', system-ui, sans-serif;
+  --font-heading-weight: 800;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2d2b2b 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+  min-height: 100vh;
+}
+
+/* ── типографика (только внутри .smart-ktru) ── */
+.smart-ktru h1,
+.smart-ktru h2,
+.smart-ktru h3,
+.smart-ktru h4,
+.smart-ktru h5,
+.smart-ktru h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-2);
+}
+.smart-ktru h1 { font-size: 42px; }
+.smart-ktru h2 { font-size: 32px; }
+.smart-ktru h3 { font-size: 25px; }
+.smart-ktru h4 { font-size: 20px; }
+.smart-ktru h5 { font-size: 16px; }
+.smart-ktru h6 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+.smart-ktru p { margin: 0 0 var(--space-3); }
+.smart-ktru a { color: var(--color-accent); text-underline-offset: 3px; }
+.smart-ktru .text-muted { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.smart-ktru :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.smart-ktru ::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+
+/* ── линейки ── */
+.smart-ktru .hr { height: 2px; border: 0; margin: var(--space-4) 0; background: var(--color-divider); }
+
+/* ── кнопки ── */
+.smart-ktru .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; text-decoration: none;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 14px; line-height: 1.2; color: var(--color-text);
+  background: transparent; border: 1px solid transparent;
+  padding: var(--space-2) calc(var(--space-3) * 1.2);
+  border-radius: var(--radius-md);
+}
+.smart-ktru .btn svg { display: block; }
+.smart-ktru .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.smart-ktru .btn-primary { background: var(--color-accent); color: var(--color-bg); }
+.smart-ktru .btn-primary:hover { background: var(--color-accent-600); }
+.smart-ktru .btn-primary:active { background: var(--color-accent-700); }
+.smart-ktru .btn-secondary { border-color: var(--color-divider); }
+.smart-ktru .btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.smart-ktru .btn-secondary:active { background: color-mix(in srgb, var(--color-text) 14%, transparent); }
+.smart-ktru .btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); }
+.smart-ktru .btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.smart-ktru .btn-ghost:active { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.smart-ktru .btn-icon { width: 36px; height: 36px; padding: 0; }
+.smart-ktru .btn-block { width: 100%; margin-top: var(--space-2); justify-content: flex-start; text-align: left; }
+
+/* ── формы ── */
+.smart-ktru .field > label {
+  display: block; font-size: 12px; margin-bottom: 5px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.smart-ktru .input {
+  width: 100%; min-height: 36px; padding: 6px 10px; font: inherit;
+  font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+}
+.smart-ktru .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.smart-ktru .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+.smart-ktru textarea.input { min-height: 90px; resize: vertical; }
+
+/* ── segmented control ── */
+.smart-ktru .seg {
+  display: inline-flex; flex-wrap: wrap; overflow: hidden;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+}
+.smart-ktru .seg-opt {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; font-size: 13px; cursor: pointer;
+}
+.smart-ktru .seg-opt + .seg-opt { border-left: 1px solid var(--color-divider); }
+.smart-ktru .seg-opt:has(input:checked) { background: var(--color-accent); color: var(--color-bg); }
+.smart-ktru .seg-opt:not(:has(input:checked)):hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.smart-ktru .seg-opt input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+
+/* ── карточки ── */
+.smart-ktru .card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface);
+}
+.smart-ktru .card-kicker { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); }
+.smart-ktru .card-title { font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 17px; line-height: 1.2; }
+.smart-ktru .card-body { margin: 0; font-size: 13px; opacity: 0.8; flex: 1; }
+.smart-ktru .card-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: color-mix(in srgb, var(--color-text) 50%, transparent); }
+.smart-ktru .elev-sm { box-shadow: var(--shadow-sm); }
+.smart-ktru .elev-md { box-shadow: var(--shadow-md); }
+.smart-ktru .elev-lg { box-shadow: var(--shadow-lg); }
+
+/* ── теги ── */
+.smart-ktru .tag {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
+  letter-spacing: 0.02em; padding: 3px 10px; border-radius: calc(var(--radius-md) * 0.75);
+  white-space: nowrap;
+}
+.smart-ktru .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
+.smart-ktru .tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
+.smart-ktru .tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+
+/* ── навигация ── */
+.smart-ktru .nav {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 2px solid var(--color-divider);
+  background: var(--color-bg);
+  position: sticky; top: 0; z-index: 30;
+}
+.smart-ktru .nav-brand {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 18px; margin-right: auto; display: inline-flex; align-items: center; gap: 8px;
+  color: var(--color-text); text-decoration: none;
+}
+.smart-ktru .nav a { color: inherit; text-decoration: none; font-size: 14px; }
+.smart-ktru .nav a:hover,
+.smart-ktru .nav a[aria-current='page'] { color: var(--color-accent); }
+
+/* ── таблицы ── */
+.smart-ktru .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.smart-ktru .table th {
+  text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: var(--space-2); border-bottom: 2px solid var(--color-divider);
+}
+.smart-ktru .table td { padding: var(--space-2); border-bottom: 1px solid var(--color-divider); vertical-align: top; }
+.smart-ktru .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+
+/* ── диалоги ── */
+.smart-ktru .dialog-backdrop {
+  position: fixed; inset: 0; display: grid; place-items: center; padding: var(--space-4);
+  background: color-mix(in srgb, #2d2b2b 50%, transparent); z-index: 50;
+}
+.smart-ktru .dialog {
+  width: min(440px, 100%); display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: var(--shadow-lg);
+}
+.smart-ktru .dialog-title { font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 20px; }
+.smart-ktru .dialog-body { font-size: 14px; opacity: 0.85; }
+.smart-ktru .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* ── совместимость: старый <Panel> (переходный) ── */
+.smart-ktru .skt-panel { background: var(--color-surface); box-shadow: var(--shadow-sm); border-radius: 0; }
+.smart-ktru .skt-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-divider);
+}
+.smart-ktru .skt-panel-body { padding: var(--space-4); }
+
+/* ── источник ТС (монопанель) ── */
+.smart-ktru .skt-src {
+  max-height: 520px; overflow: auto; padding: var(--space-2);
+  border: 1px solid var(--color-divider); background: var(--color-neutral-100);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; line-height: 1.5; white-space: pre-wrap; margin: 0;
+}
+
+/* ── спиннер ── */
+.smart-ktru .spin { animation: skt-spin 1s linear infinite; }
+@keyframes skt-spin { to { transform: rotate(360deg); } }
+
+/* ── адаптив: двухколоночные сетки схлопываются ── */
+@media (max-width: 860px) {
+  .smart-ktru .skt-two-col { grid-template-columns: 1fr !important; }
+  .smart-ktru .skt-deal-header { grid-template-columns: 1fr !important; }
+  .smart-ktru .skt-deal-header dl { border-left: 0 !important; padding-left: 0 !important; }
+}
+.smart-ktru { overflow-x: hidden; }

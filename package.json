@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ktru:search": "node scripts/ktru-search.mjs",
+    "ktru:test": "node --test tests/ktru-search.test.mjs",
+    "ktru:procurement": "node --env-file=.env.local scripts/ktru-procurement.mjs",
+    "ktru:spec": "node --env-file=.env.local scripts/ktru-spec.mjs",
+    "smart-ktru:test": "node --test tests/smart-ktru-matching.test.mjs tests/smart-ktru-scoring.test.mjs tests/smart-ktru-extract-schema.test.mjs",
+    "smart-ktru:eval": "node --env-file=.env.local scripts/smart-ktru-eval.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -27,6 +33,7 @@
     "lucide-react": "^1.8.0",
     "marked": "^18.0.4",
     "next": "16.2.3",
+    "pdf-parse": "^1.1.1",
     "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4",
     "radix-ui": "^1.4.3",
