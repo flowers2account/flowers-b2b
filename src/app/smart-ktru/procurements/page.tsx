@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Check, X, Clock } from 'lucide-react'
 import { useSmartKtru } from '@/lib/smart-ktru/store'
-import { C, Card, VerdictTag, fmtMoney, fmtPct } from '@/components/smart-ktru/kit'
+import { opportunityFromAnalysis } from '@/lib/smart-ktru/opportunity'
+import { C, Card, VerdictTag, fmtMoney } from '@/components/smart-ktru/kit'
 
 interface LotRow {
   lotId: number
@@ -137,6 +138,7 @@ function FeedInner() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {visible.map((l) => {
           const cached = analysisCache[l.lotId]?.result
+          const opp = cached ? opportunityFromAnalysis(cached, l.ktru) : null
           const urgent = l.deadlineDaysLeft != null && l.deadlineDaysLeft <= 3 && !l.deadlinePassed
           return (
             <Card key={l.lotId}>
@@ -145,45 +147,57 @@ function FeedInner() {
                   <div className="card-kicker">{l.productName}</div>
                   <div className="card-title">{l.nameRu ?? 'Лот'}</div>
                 </div>
-                {cached ? (
-                  <VerdictTag verdict={cached.score.verdict} />
+                {opp?.decision ? (
+                  <VerdictTag verdict={opp.decision.verdict} />
                 ) : (
-                  <span className="tag tag-neutral">Анализ доступен</span>
+                  <span className="tag tag-neutral">Анализ не выполнен</span>
                 )}
               </div>
 
               <div className="card-meta">
-                {l.customerNameRu ?? '—'}{l.trdBuyNumberAnno ? ` · ${l.trdBuyNumberAnno}` : ''}
+                {l.customerNameRu ?? '—'} · {l.region ?? 'регион не указан'}
               </div>
               <div className="card-meta">
-                {l.region ?? 'Регион не указан'}{l.ktru ? ` · КТРУ ${l.ktru}` : ''}
+                {l.ktru ? `КТРУ ${l.ktru}` : ''} · {l.count ?? '—'} × {fmtMoney(l.amount)}
               </div>
               <div style={{ fontSize: 13 }}>
-                {fmtMoney(l.amount)} · {l.count ?? '—'} шт ·{' '}
                 <b style={{ color: urgent ? C.accent : undefined }}>
-                  Срок: {l.deadlinePassed ? 'истёк' : l.deadlineDaysLeft != null ? `${l.deadlineDaysLeft} дн.` : '—'}
+                  Срок подачи: {l.deadlinePassed ? 'истёк' : l.deadlineDaysLeft != null ? `${l.deadlineDaysLeft} дн.` : '—'}
                 </b>
               </div>
 
-              {cached && (
-                <div style={{ display: 'flex', gap: 10, borderTop: '1px solid rgba(32,30,29,0.35)', borderBottom: '1px solid rgba(32,30,29,0.35)', padding: '8px 0', alignItems: 'baseline' }}>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
-                    {cached.score.participationIndex}/100
-                  </span>
-                  <span className="text-muted" style={{ fontSize: 13 }}>
-                    Соответствие {cached.match ? `${Math.round(cached.match.ratio * 100)}%` : '—'} · Маржа {fmtPct(cached.economics.marginRatio)}
-                  </span>
+              {opp?.compatibility ? (
+                <div style={{ borderTop: '1px solid rgba(32,30,29,0.35)', borderBottom: '1px solid rgba(32,30,29,0.35)', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
+                      {opp.compatibility.compatibilityPercent}%
+                    </span>
+                    <span className="text-muted" style={{ fontSize: 12 }}>совместимость · индекс {opp.decision?.score}/100</span>
+                  </div>
+                  <div style={{ fontSize: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <span><Check size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.matched} совпадений</span>
+                    <span><X size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.mismatched} несоответствий</span>
+                    <span><Clock size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.pending} требуют проверки</span>
+                    {opp.compatibility.critical > 0 && (
+                      <span style={{ color: C.accent }}><AlertTriangle size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.critical} критич.</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    {opp.economics?.available
+                      ? <>Маржа: <b>{opp.economics.marginPercent}%</b> · Прибыль: <b>{fmtMoney(opp.economics.grossProfit)}</b></>
+                      : <span className="text-muted">{opp.economics?.unavailableReason ?? 'экономика не рассчитана'}</span>}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ borderTop: '1px solid rgba(32,30,29,0.35)', borderBottom: '1px solid rgba(32,30,29,0.35)', padding: '8px 0', fontSize: 13 }} className="text-muted">
+                  Анализ ТЗ не выполнен — совместимость, экономика и рекомендация пока неизвестны.
                 </div>
               )}
-              {cached && cached.score.risks[0] && !/не обнаружено/i.test(cached.score.risks[0]) && (
-                <div style={{ display: 'flex', gap: 6, fontSize: 12 }}>
-                  <AlertTriangle size={13} style={{ flex: 'none' }} /> {cached.score.risks[0]}
-                </div>
-              )}
-              {cached && <p className="text-muted" style={{ fontSize: 13 }}>{cached.score.summary}</p>}
+
+              {opp?.decision && <p className="text-muted" style={{ fontSize: 13 }}>{opp.decision.summary}</p>}
 
               <Link className="btn btn-primary btn-block" href={`/smart-ktru/lot/${l.lotId}?product=${l.productId}&ktru=${l.ktru}`}>
-                {cached ? 'Открыть закупку →' : 'Анализировать закупку →'}
+                {opp ? 'Открыть закупку →' : 'Анализировать ТЗ →'}
               </Link>
             </Card>
           )

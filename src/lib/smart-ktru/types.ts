@@ -10,6 +10,19 @@ export interface ProductCharacteristic {
   value?: string
   /** единица измерения, если применимо: «см», «мм», «л», «шт», … */
   unit?: string
+
+  // ── Product Profile: provenance (все поля опциональны; matching читает только name/value/unit) ──
+  /** откуда взялась характеристика: 'ai' — из анализа ТЗ по КТРУ, 'user' — добавлена вручную */
+  source?: 'ai' | 'user'
+  /** заполнил ли пользователь значение (для matching: false → «нет данных»/pending) */
+  verified?: boolean
+  /** доля ТЗ, где встречалась характеристика (0..1) — только для source:'ai' */
+  confidence?: number
+  /** в скольких ТЗ встретилась / всего проанализировано — только для source:'ai' */
+  frequency?: number
+  totalSpecs?: number
+  /** примеры значений-требований из ТЗ (НЕ значение товара) — только для source:'ai' */
+  examples?: string[]
 }
 
 export interface Product {

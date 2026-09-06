@@ -27,11 +27,19 @@ export interface CachedAnalysis {
   at: string
 }
 
+/** Результат агрегации характеристик по КТРУ (форма зеркалит ktru-characteristics.ts). */
+export interface CachedKtruChars {
+  result: unknown
+  at: string
+}
+
 interface SmartKtruState {
   products: Product[]
   working: WorkingItem[]
   /** кэш реальных результатов анализа по lotId — чтобы feed/повторный вход не гоняли Gemini заново */
   analysisCache: Record<number, CachedAnalysis>
+  /** кэш агрегации характеристик по КТРУ (ключ: `${analyzerVersion}:${code}`) — §12 */
+  ktruCharCache: Record<string, CachedKtruChars>
   _seeded?: boolean
 
   addProduct: (p: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => string
@@ -46,6 +54,9 @@ interface SmartKtruState {
 
   cacheAnalysis: (lotId: number, result: AnalysisResult) => void
   getCachedAnalysis: (lotId: number) => CachedAnalysis | undefined
+
+  cacheKtruChars: (key: string, result: unknown) => void
+  getKtruChars: (key: string) => CachedKtruChars | undefined
 
   /** одноразовый demo-товар (реальный КТРУ, реальный анализ) — чтобы демо открывалось сразу */
   ensureDemoSeed: () => void
@@ -72,6 +83,7 @@ export const useSmartKtru = create<SmartKtruState>()(
       products: [],
       working: [],
       analysisCache: {},
+      ktruCharCache: {},
 
       addProduct: (p) => {
         const id = uid()
@@ -104,6 +116,10 @@ export const useSmartKtru = create<SmartKtruState>()(
         set((s) => ({ analysisCache: { ...s.analysisCache, [lotId]: { result, at: new Date().toISOString() } } })),
       getCachedAnalysis: (lotId) => get().analysisCache[lotId],
 
+      cacheKtruChars: (key, result) =>
+        set((s) => ({ ktruCharCache: { ...s.ktruCharCache, [key]: { result, at: new Date().toISOString() } } })),
+      getKtruChars: (key) => get().ktruCharCache[key],
+
       ensureDemoSeed: () => {
         const s = get()
         if (s._seeded || s.products.length > 0) {
@@ -122,6 +138,7 @@ export const useSmartKtru = create<SmartKtruState>()(
         products: s.products,
         working: s.working,
         analysisCache: s.analysisCache,
+        ktruCharCache: s.ktruCharCache,
         _seeded: s._seeded,
       }),
     },

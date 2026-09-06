@@ -6,10 +6,12 @@ import Link from 'next/link'
 import {
   ArrowLeft, Check, X, Clock, AlertTriangle, CheckCircle2, FileText, Loader2,
   ShieldCheck, ShieldAlert, HelpCircle, Sparkles, Pencil, Flag, Trash2,
-  Bookmark, Share2, ExternalLink, Package,
+  Bookmark, Share2, ExternalLink, Package, FileSearch, RefreshCw,
 } from 'lucide-react'
 import { useSmartKtru } from '@/lib/smart-ktru/store'
-import type { AnalysisResult, MatchRow } from '@/lib/smart-ktru/types'
+import type { AnalysisResult } from '@/lib/smart-ktru/types'
+import { opportunityFromAnalysis, isAnalysisStale } from '@/lib/smart-ktru/opportunity'
+import type { OppRequirementRow } from '@/lib/smart-ktru/opportunity'
 import {
   C, Card, Tabs, BreakdownBar, VerdictTag, Btn, Dialog, Divider,
   fmtMoney, fmtPct, fmtDate,
@@ -36,18 +38,22 @@ const STATUS_META: Record<ReqStatus, { label: string; Icon: typeof Sparkles }> =
 const STAGES = [
   'Получаем техническую спецификацию',
   'Извлекаем требования (AI)',
-  'Сравниваем с вашим товаром',
+  'Сравниваем с профилем товара',
   'Рассчитываем экономику и рейтинг',
 ]
 
-function matchIcon(v: MatchRow['verdict']) {
-  if (v === 'match') return <Check size={15} />
-  if (v === 'mismatch') return <X size={15} />
-  return <Clock size={15} />
+interface LotMeta {
+  nameRu: string | null
+  customerNameRu: string | null
+  region: string | null
+  amount: number | null
+  count: number | null
+  endDate: string | null
+  deadlineDaysLeft: number | null
+  deadlinePassed: boolean
+  trdBuyNumberAnno: string | null
 }
-function matchWord(v: MatchRow['verdict']) {
-  return v === 'match' ? 'Соответствует' : v === 'mismatch' ? 'Не соответствует' : 'Ожидает подтверждения'
-}
+
 
 function LotCardInner() {
   const { lotId: lotIdStr } = useParams<{ lotId: string }>()
@@ -62,6 +68,8 @@ function LotCardInner() {
   const [res, setRes] = useState<AnalysisResult | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [started, setStarted] = useState(false)
+  const [lotMeta, setLotMeta] = useState<LotMeta | null>(null)
   const [stage, setStage] = useState(0)
   const [tab, setTab] = useState<'overview' | 'ts' | 'compare' | 'econ'>('overview')
   const [pkgOpen, setPkgOpen] = useState(false)
@@ -74,6 +82,36 @@ function LotCardInner() {
   const [selReq, setSelReq] = useState<number | null>(null)
 
   const cachedRef = useRef(false)
+
+  // Лёгкие данные закупки для шапки «ещё не анализировали» — без Gemini,
+  // тот же endpoint, что и лента.
+  useEffect(() => {
+    if (!Number.isFinite(lotId) || !ktru) return
+    let alive = true
+    fetch(`/api/smart-ktru/procurements?ktru=${encodeURIComponent(ktru)}&includePassed=1`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive || !j) return
+        const l = (j.lots ?? []).find((x: Record<string, unknown>) => x.lotId === lotId)
+        if (l) {
+          setLotMeta({
+            nameRu: (l.nameRu as string) ?? null,
+            customerNameRu: (l.customerNameRu as string) ?? null,
+            region: (l.region as string) ?? null,
+            amount: (l.amount as number) ?? null,
+            count: (l.count as number) ?? null,
+            endDate: (l.endDate as string) ?? null,
+            deadlineDaysLeft: (l.deadlineDaysLeft as number) ?? null,
+            deadlinePassed: !!l.deadlinePassed,
+            trdBuyNumberAnno: (l.trdBuyNumberAnno as string) ?? null,
+          })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [lotId, ktru])
 
   useEffect(() => {
     if (!product || !Number.isFinite(lotId)) return
@@ -89,6 +127,9 @@ function LotCardInner() {
       return
     }
     cachedRef.current = false
+
+    // §4/§11: анализ ТЗ (Gemini) запускается ТОЛЬКО по кнопке «Анализировать ТЗ»
+    if (!started && reloadKey === 0) return
 
     const timer = setInterval(() => setStage((s) => Math.min(s + 1, STAGES.length - 1)), 2500)
 
@@ -113,7 +154,7 @@ function LotCardInner() {
       clearInterval(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lotId, productId, ktru, reloadKey])
+  }, [lotId, productId, ktru, reloadKey, started])
 
   if (!product) {
     return (
@@ -129,9 +170,60 @@ function LotCardInner() {
   if (err) {
     return (
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <h3>Не удалось завершить анализ</h3>
+        <Link href={`/smart-ktru/procurements${productId ? `?product=${productId}` : ''}`} className="btn btn-ghost" style={{ marginBottom: 16 }}>
+          <ArrowLeft size={14} /> Все закупки
+        </Link>
+        <h3>Не удалось выполнить анализ</h3>
         <p className="text-muted">{err}</p>
+        <p className="text-muted" style={{ fontSize: 12 }}>Профиль товара сохранён — данные не потеряны.</p>
         <Btn variant="primary" onClick={() => setReloadKey((k) => k + 1)}>Повторить</Btn>
+      </div>
+    )
+  }
+
+  const backLink = (
+    <Link
+      href={`/smart-ktru/procurements${productId ? `?product=${productId}` : ''}`}
+      className="btn btn-ghost"
+      style={{ marginBottom: 16 }}
+    >
+      <ArrowLeft size={14} /> Все закупки
+    </Link>
+  )
+
+  // §11: ТЗ ещё не анализировалось — показываем данные закупки + CTA.
+  // (если в кэше есть результат — не мигаем этим экраном, ждём применения res)
+  if (!res && !started && !getCachedAnalysis(lotId)) {
+    const md = lotMeta
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        {backLink}
+        <div className="skt-panel" style={{ padding: 0 }}>
+          <div style={{ padding: 16 }}>
+            <div className="text-muted" style={{ fontSize: 12, letterSpacing: '0.04em' }}>ЗАКУПКА</div>
+            <h2 style={{ margin: '4px 0 10px' }}>{md?.nameRu ?? `Лот ${lotId}`}</h2>
+            <dl style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '4px 12px', fontSize: 13, margin: 0 }}>
+              <dt className="text-muted">Заказчик</dt><dd>{md?.customerNameRu ?? '—'}</dd>
+              <dt className="text-muted">Регион</dt><dd>{md?.region ?? 'не указан'}</dd>
+              <dt className="text-muted">Количество</dt><dd>{md?.count ?? '—'} {md?.count != null ? 'шт' : ''}</dd>
+              <dt className="text-muted">Цена закупки</dt><dd>{fmtMoney(md?.amount)}</dd>
+              <dt className="text-muted">КТРУ</dt><dd style={{ fontFamily: 'ui-monospace, monospace' }}>{ktru || '—'}</dd>
+              <dt className="text-muted">Срок подачи</dt>
+              <dd>{md?.deadlinePassed ? 'срок истёк' : md?.deadlineDaysLeft != null ? `${md.deadlineDaysLeft} дн.` : '—'}</dd>
+            </dl>
+          </div>
+          <Divider />
+          <div style={{ padding: 16 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <FileSearch size={16} /> <b>ТЗ ещё не анализировалось</b>
+            </div>
+            <p className="text-muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
+              Сравнение вашего товара с требованиями, экономика и рекомендация появятся после разбора
+              технической спецификации. Это единственный шаг, использующий AI.
+            </p>
+            <Btn variant="primary" onClick={() => setStarted(true)}>Анализировать ТЗ</Btn>
+          </div>
+        </div>
       </div>
     )
   }
@@ -139,6 +231,7 @@ function LotCardInner() {
   if (!res) {
     return (
       <div style={{ maxWidth: 620, margin: '0 auto', paddingTop: 24 }}>
+        {backLink}
         <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Loader2 className="spin" size={18} /> Анализируем закупку
         </h3>
@@ -164,8 +257,10 @@ function LotCardInner() {
   const s = res.score
   const m = res.match
   const spec = res.spec
+  const opp = opportunityFromAnalysis(res, ktru || null)
   const inWork = isInWork(lotId)
   const urgent = f.deadlineDaysLeft != null && !f.deadlinePassed && f.deadlineDaysLeft <= 3
+  const stale = isAnalysisStale(res.generatedAt, product.updatedAt)
 
   const liveReqs = (spec?.characteristics ?? [])
     .map((r, i) => ({ r, i }))
@@ -174,13 +269,17 @@ function LotCardInner() {
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-      <Link
-        href={`/smart-ktru/procurements${productId ? `?product=${productId}` : ''}`}
-        className="btn btn-ghost"
-        style={{ marginBottom: 16 }}
-      >
-        <ArrowLeft size={14} /> Все закупки
-      </Link>
+      {backLink}
+
+      {stale && (
+        <div className="tag tag-outline" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 10px' }}>
+          <RefreshCw size={13} />
+          Профиль товара изменён после этого анализа.
+          <button className="btn btn-ghost" style={{ paddingInline: 4, fontSize: 12 }} onClick={() => { setStarted(true); setReloadKey((k) => k + 1) }}>
+            Пересчитать соответствие
+          </button>
+        </div>
+      )}
 
       <div
         className="skt-deal-header"
@@ -217,6 +316,36 @@ function LotCardInner() {
             </b>
           </div>
         </dl>
+      </div>
+
+      {/* §16 — «за несколько секунд»: совместимость + экономика одной строкой */}
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'baseline', padding: '12px 0', borderBottom: '1px solid rgba(32,30,29,0.35)' }}>
+        <div>
+          <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 22 }}>
+            {opp.compatibility ? `${opp.compatibility.compatibilityPercent}%` : '—'}
+          </span>{' '}
+          <span className="text-muted" style={{ fontSize: 12 }}>совместимость</span>
+        </div>
+        {opp.compatibility && (
+          <div style={{ fontSize: 13, display: 'flex', gap: 12 }}>
+            <span><Check size={13} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.matched} совпад.</span>
+            <span><X size={13} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.mismatched} несоответ.</span>
+            <span><Clock size={13} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.pending} на проверку</span>
+            {opp.compatibility.critical > 0 && (
+              <span style={{ color: C.accent }}><AlertTriangle size={13} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.critical} критич.</span>
+            )}
+          </div>
+        )}
+        <div style={{ marginLeft: 'auto', fontSize: 13 }}>
+          {opp.economics?.available ? (
+            <>
+              <b>Маржа {opp.economics.marginPercent}%</b>
+              <span className="text-muted"> · прибыль {fmtMoney(opp.economics.grossProfit)}</span>
+            </>
+          ) : (
+            <span className="text-muted">{opp.economics?.unavailableReason ?? 'экономика не рассчитана'}</span>
+          )}
+        </div>
       </div>
 
       <Tabs
@@ -430,27 +559,28 @@ function LotCardInner() {
 
       {tab === 'compare' && (
         <div>
-          <h3>
-            Мой товар ↔ ТС — {m ? `${m.matched} из ${m.matched + m.mismatched}` : 'ТС не разобрана'}
-            {m && m.criticalMismatches > 0
-              ? `, критических несоответствий: ${m.criticalMismatches}`
-              : m ? ', критических несоответствий нет' : ''}
-          </h3>
-          {!m ? (
+          <h3>Соответствие ТЗ · профиль товара ↔ требования</h3>
+          {!opp.compatibility ? (
             <p className="text-muted">Сопоставление недоступно — ТС не разобрана.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
-                <thead>
-                  <tr><th>Требование</th><th>ТС</th><th>Мой товар</th><th>Результат</th></tr>
-                </thead>
-                <tbody>
-                  {m.rows.map((row, i) => (
-                    <FragmentRow key={i} row={row} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
+                Сравнивается сохранённый <b>профиль товара</b> с требованиями ТЗ. Примеры значений из анализа КТРУ
+                в сравнении не участвуют.
+              </p>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table">
+                  <thead>
+                    <tr><th>Требование</th><th>Ваш товар</th><th>Результат</th></tr>
+                  </thead>
+                  <tbody>
+                    {opp.compatibility.rows.map((row, i) => (
+                      <OppRow key={i} row={row} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -492,27 +622,39 @@ function LotCardInner() {
   )
 }
 
-function FragmentRow({ row }: { row: MatchRow }) {
+function OppRow({ row }: { row: OppRequirementRow }) {
+  const icon = row.result === 'match' ? <Check size={15} /> : row.result === 'mismatch' ? <X size={15} /> : <Clock size={15} />
   return (
     <>
       <tr>
         <td>
-          <b>{row.requirement.name}</b>
-          <div className="text-muted" style={{ fontSize: 11 }}>{TYPE_LABEL[row.requirement.requirementType]}</div>
+          <b>{row.name}</b>
+          <div className="text-muted" style={{ fontSize: 11 }}>
+            {TYPE_LABEL[row.requirementType] ?? row.requirementType} · требуется: {row.requirementText}
+          </div>
         </td>
-        <td>{row.requirement.value ?? '—'}{row.requirement.unit ? ` ${row.requirement.unit}` : ''}</td>
-        <td>{row.productValue ?? '—'}{row.productUnit ? ` ${row.productUnit}` : ''}</td>
+        <td>{row.productValue ?? <span className="text-muted">нет данных</span>}</td>
         <td>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {matchIcon(row.verdict)} {matchWord(row.verdict)}
+            {icon} {row.resultLabel}
             {row.critical && <b style={{ color: C.accent }}> · критично</b>}
           </span>
         </td>
       </tr>
-      {(row.verdict === 'mismatch' || row.verdict === 'pending') && (
+      {row.result !== 'match' && (
         <tr>
-          <td colSpan={4} className="text-muted" style={{ fontSize: 12 }}>
-            Объяснение: {row.explanation}
+          <td colSpan={3} className="text-muted" style={{ fontSize: 12 }}>
+            {row.result === 'mismatch' ? (
+              <>Требуется: <b>{row.needed}</b> · у товара: <b>{row.have}</b>. {row.explanation}</>
+            ) : (
+              <>Система не получила достаточно данных для вывода. {row.explanation}</>
+            )}
+            {row.source?.text && (
+              <div style={{ marginTop: 2 }}>
+                Источник требования: <span style={{ fontStyle: 'italic' }}>«{row.source.text.slice(0, 120)}»</span>
+                {row.source.page != null && ` (стр. ${row.source.page})`}
+              </div>
+            )}
           </td>
         </tr>
       )}
@@ -561,10 +703,23 @@ function EconTab({ res }: { res: AnalysisResult }) {
     ].filter((x) => x.pct > 0.5)
   }, [e, rev])
 
+  const noCost = e.directCost == null
+  const noHist = !e.usesHistoricalPrice
+
   return (
     <div className="skt-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
       <div>
         <h3>Экономика</h3>
+        {noCost && (
+          <div className="tag tag-outline" style={{ marginBottom: 10 }}>
+            <AlertTriangle size={11} /> Экономика недоступна — у товара не указана себестоимость
+          </div>
+        )}
+        {!noCost && noHist && (
+          <div className="tag tag-outline" style={{ marginBottom: 10 }}>
+            <AlertTriangle size={11} /> Историческая цена не найдена — расчёт по потолку цены лота
+          </div>
+        )}
         {e.lines.map((ln) => (
           <div key={ln.key} style={{ padding: '8px 0', borderBottom: '1px solid rgba(32,30,29,0.35)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
