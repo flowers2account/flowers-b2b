@@ -26,7 +26,7 @@ import { computeNextWindow } from '@/lib/bot/campaign-followup'
 import { withDealLock } from './deal-lock'
 import {
   AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_NEW_LEADS, AMO_LAPS_STATUS_WHATSAPP,
-  AMO_LAPS_STATUS_LPR, AMO_LAPS_STATUS_MATERIAL, AMO_LAPS_STATUS_THINKING,
+  AMO_LAPS_STATUS_LPR, AMO_LAPS_STATUS_MATERIAL, AMO_LAPS_STATUS_DEMO, AMO_LAPS_STATUS_THINKING,
   AMO_LAPS_STATUS_LOST, LAPS_FOLLOWUP_STOPPED, LAPS_REFUSE_ONCE_TAG,
   LAPS_PRESENTATION_PDF_URL, LAPS_CATALOG_URL, lapsEnabled,
 } from '@/lib/bot/laps-config'
@@ -197,6 +197,26 @@ async function onLapsContactRepliedImpl(
     `[laps-handoff] LAPS: контакт ${phone} ответил (deal=${dealId}, umnico_lead_id=${incoming.umnicoLeadId ?? '—'})`,
   )
 
+  // Состояние сделки читаем ПЕРВЫМ — до Telegram, classify, compose и любых отправок.
+  // Нужно и для гейта «Презентация/демо» ниже, и дальше по коду (стадия + теги отказов).
+  let lead: Record<string, unknown> | null = null
+  try {
+    lead = await getLead(dealId)
+  } catch (e) {
+    console.error('[laps-handoff] getLead failed:', e instanceof Error ? e.message : e)
+  }
+  const currentStatus = Number((lead as { status_id?: unknown })?.status_id) || 0
+
+  // Сделка уже на «Презентация/демо» (86836494) — дальше её ведёт менеджер вручную.
+  // Бот полностью самоустраняется: без Telegram-уведомления, classify, compose, отправок
+  // и переходов стадий. Просто выходим — входящее клиента остаётся в Umnico-инбоксе менеджера.
+  if (currentStatus === AMO_LAPS_STATUS_DEMO) {
+    console.log(
+      `[laps-handoff] skip: сделка ${dealId} на стадии «Презентация/демо» (${AMO_LAPS_STATUS_DEMO}) — бот не вмешивается`,
+    )
+    return
+  }
+
   await notifyManagerTelegram(dealId, phone, incoming)
 
   const { umnicoLeadId, realId } = incoming
@@ -229,14 +249,7 @@ async function onLapsContactRepliedImpl(
   const intent: LapsIntent = classified.intent
   console.log('[laps-handoff] intent:', intent)
 
-  // Состояние сделки — один getLead: стадия (alreadySent) + теги (счётчик отказов).
-  let lead: Record<string, unknown> | null = null
-  try {
-    lead = await getLead(dealId)
-  } catch (e) {
-    console.error('[laps-handoff] getLead failed:', e instanceof Error ? e.message : e)
-  }
-  const currentStatus = Number((lead as { status_id?: unknown })?.status_id) || 0
+  // Стадия сделки и теги уже прочитаны выше (getLead в начале обработки).
   const alreadySent = await lapsMaterialAlreadySent(dealId)
   const refuseSecond = intent === 'refuse' && leadHasTag(lead, LAPS_REFUSE_ONCE_TAG)
   const terminal = intent === 'hostile' || refuseSecond
