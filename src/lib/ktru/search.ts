@@ -2,7 +2,9 @@
 //   text → KtruSearchResult[]
 // Детерминированно, без AI. Индекс — data/enstru/enstru_index.json.
 //
-// Конвейер из четырёх явных стадий (см. README задачи):
+// Конвейер (см. ТЗ):
+//   0. prefilter          — инвертированный индекс: лемма запроса → постинги строк,
+//      объединение → обычно десятки–сотни кандидатов вместо линейного скана ~45k.
 //   1. candidate retrieval — ШИРОКО: имя ИЛИ синоним ИЛИ официальное описание
 //      ИЛИ alias ИЛИ нечёткое имя (опечатка); концепт-КПВЭД как запасной канал.
 //   2. candidate ranking   — ТОЧНО: детерминированный scoreRow по сигналам.
@@ -19,6 +21,8 @@ import { normalizeSearchQuery, tokenize } from './normalize.ts'
 import { ATTRIBUTE_TERMS } from './synonyms.ts'
 import { prepareRow, scoreRow, retrievalSignals } from './scoring.ts'
 import type { PreparedRow } from './scoring.ts'
+import { buildInverted, selectCandidates } from './inverted.ts'
+import type { InvertedIndex } from './inverted.ts'
 
 const DEFAULT_INDEX_PATH = path.join(
   process.cwd(),
@@ -29,6 +33,7 @@ const DEFAULT_INDEX_PATH = path.join(
 
 let cachedIndex: KtruIndexRow[] | null = null
 let cachedPrepared: PreparedRow[] | null = null
+let cachedInverted: InvertedIndex | null = null
 let cachedMaxPlan = 0
 
 /** Загружает индекс из файла (с кэшем). Бросает, если файла нет. */
@@ -45,18 +50,20 @@ export function loadIndex(file: string = DEFAULT_INDEX_PATH): KtruIndexRow[] {
 function getPrepared(index?: KtruIndexRow[]): {
   prepared: PreparedRow[]
   maxPlan: number
+  inverted: InvertedIndex
 } {
   if (index) {
     const prepared = index.map(prepareRow)
     const maxPlan = index.reduce((m, r) => Math.max(m, r.planCount || 0), 0)
-    return { prepared, maxPlan }
+    return { prepared, maxPlan, inverted: buildInverted(prepared) }
   }
   if (!cachedPrepared) {
     const rows = loadIndex()
     cachedPrepared = rows.map(prepareRow)
     cachedMaxPlan = rows.reduce((m, r) => Math.max(m, r.planCount || 0), 0)
+    cachedInverted = buildInverted(cachedPrepared)
   }
-  return { prepared: cachedPrepared, maxPlan: cachedMaxPlan }
+  return { prepared: cachedPrepared, maxPlan: cachedMaxPlan, inverted: cachedInverted! }
 }
 
 /**
@@ -71,15 +78,22 @@ export function searchKtru(
 ): KtruSearchResult[] {
   const limit = options.limit ?? 10
   const minScore = options.minScore ?? 0.05
-  const { prepared, maxPlan } = getPrepared(options.index)
+  const { prepared, maxPlan, inverted } = getPrepared(options.index)
 
   const normalized = normalizeSearchQuery(query)
   const tokens = tokenize(normalized, ATTRIBUTE_TERMS)
   if (!tokens.length) return []
 
-  // ── Stage 1: candidate retrieval (широкий отбор) ──
+  // ── Stage 0: prefilter по инвертированному индексу ──
+  // Кандидаты = объединение постингов по леммам запроса и их синонимам
+  // (+ нечёткий фолбэк по ключам для токенов без точного совпадения).
+  const candidates = selectCandidates(inverted, tokens)
+  if (!candidates.length) return []
+
+  // ── Stage 1: candidate retrieval (тот же retrievalSignals, но только по кандидатам) ──
   const retrieved: { pr: PreparedRow; via: string[] }[] = []
-  for (const pr of prepared) {
+  for (const i of candidates) {
+    const pr = prepared[i]
     const via = retrievalSignals(pr, tokens)
     if (via.length) retrieved.push({ pr, via })
   }
@@ -133,5 +147,6 @@ function dedupe(xs: string[]): string[] {
 export function _resetCache(): void {
   cachedIndex = null
   cachedPrepared = null
+  cachedInverted = null
   cachedMaxPlan = 0
 }
