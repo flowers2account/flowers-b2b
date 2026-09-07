@@ -43,3 +43,10 @@ deploy_vps.key
 
 # Umnico history dumps (содержат PII клиентов — не коммитим)
 /exports/
+
+# KTRU harvest artifacts — крупные и воспроизводимые из скриптов, в git не нужны
+/data/enstru/enstru_core_harvest.json
+/data/enstru/ktru-harvest-full.checkpoint.json
+/data/enstru/ktru-harvest-state.json
+/data/enstru/enstru_full_experimental*.json
+/data/enstru/*.bak

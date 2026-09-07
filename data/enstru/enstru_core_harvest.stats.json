@@ -1,0 +1,3177 @@
+{
+  "generatedAt": "2026-09-07T10:26:30.313Z",
+  "source": "goszakup-v3",
+  "method": "stratified PlnPoint scan (Plans, page=200, after=lastId, id DESC), dedup by RefEnstru.code",
+  "config": {
+    "years": [
+      2024,
+      2025,
+      2026
+    ],
+    "concurrency": 24,
+    "strata": 900,
+    "pagesPerStratum": 14,
+    "targetPoints": 2200000,
+    "budgetSeconds": 5400,
+    "maxRequests": 0,
+    "flushEvery": 300,
+    "resume": false,
+    "testSearch": false,
+    "out": "data/enstru/enstru_core_harvest.json",
+    "statsOut": "data/enstru/enstru_core_harvest.stats.json",
+    "checkpoint": "data/enstru/ktru-harvest-full.checkpoint.json"
+  },
+  "complete": false,
+  "apiHasKtruDictionaryEndpoint": false,
+  "years": [
+    2024,
+    2025,
+    2026
+  ],
+  "planPointsScanned": 2204600,
+  "uniqueKtru": 28904,
+  "uniqueNames": 10314,
+  "apiRequests": 11043,
+  "elapsedSeconds": 1521,
+  "strataDone": 773,
+  "strataTotal": 900,
+  "outputJsonBytes": 17876681,
+  "outputRows": 28904,
+  "fieldCoverage": {
+    "nameRu": 28904,
+    "nameKz": 28904,
+    "descRu": 28904,
+    "descKz": 28904,
+    "nameOnly": 0,
+    "withUnits": 28904,
+    "avgFieldsPopulated": 4
+  },
+  "malformedCodes": 3929,
+  "malformedSamples": [
+    "0",
+    "13.92.29",
+    "26.51.82",
+    "20.41.32",
+    "32.99.11",
+    "17.29.11",
+    "20.20.14",
+    "20.59.52",
+    "43.22.12.335.001.00.0999.000000000000",
+    "10.51.55",
+    "17.22.11",
+    "32.50.50",
+    "23.19.11",
+    "33.20.39.900.001.00.0999.000000000000",
+    "15.20.13",
+    "13.92.21",
+    "17.23.13",
+    "21.20.23",
+    "14.12.30",
+    "28.29.12",
+    "77.40.19",
+    "20.30.22",
+    "62.09.10",
+    "26.20.40",
+    "28.23.23",
+    "28.24.11",
+    "96.09.19",
+    "32.50.13",
+    "27.51.24",
+    "65.12.11",
+    "74.90.20",
+    "32.99.59",
+    "27.32.13",
+    "19.20.21",
+    "25.73.30",
+    "53.20.11",
+    "61.20.42.100.000.00.0777.000000000000",
+    "91.01.12",
+    "61.10.20",
+    "61.10.43"
+  ],
+  "emptyRefEnstru": 0,
+  "plansTotalCountForFilter": 9845115,
+  "plansTotalCountAllYears": 40969277,
+  "discoveryCurve": [
+    {
+      "requests": 50,
+      "points": 3200,
+      "uniqueKtru": 1503,
+      "uniqueNames": 1025,
+      "t": 25
+    },
+    {
+      "requests": 75,
+      "points": 8200,
+      "uniqueKtru": 2725,
+      "uniqueNames": 1639,
+      "t": 26
+    },
+    {
+      "requests": 100,
+      "points": 13200,
+      "uniqueKtru": 3664,
+      "uniqueNames": 2065,
+      "t": 28
+    },
+    {
+      "requests": 125,
+      "points": 18200,
+      "uniqueKtru": 4378,
+      "uniqueNames": 2386,
+      "t": 29
+    },
+    {
+      "requests": 150,
+      "points": 23200,
+      "uniqueKtru": 4966,
+      "uniqueNames": 2617,
+      "t": 31
+    },
+    {
+      "requests": 175,
+      "points": 28200,
+      "uniqueKtru": 5550,
+      "uniqueNames": 2864,
+      "t": 33
+    },
+    {
+      "requests": 200,
+      "points": 33200,
+      "uniqueKtru": 6061,
+      "uniqueNames": 3044,
+      "t": 34
+    },
+    {
+      "requests": 225,
+      "points": 38200,
+      "uniqueKtru": 6492,
+      "uniqueNames": 3194,
+      "t": 35
+    },
+    {
+      "requests": 250,
+      "points": 43200,
+      "uniqueKtru": 6914,
+      "uniqueNames": 3357,
+      "t": 37
+    },
+    {
+      "requests": 275,
+      "points": 48200,
+      "uniqueKtru": 7306,
+      "uniqueNames": 3493,
+      "t": 39
+    },
+    {
+      "requests": 300,
+      "points": 53200,
+      "uniqueKtru": 7654,
+      "uniqueNames": 3615,
+      "t": 40
+    },
+    {
+      "requests": 325,
+      "points": 58200,
+      "uniqueKtru": 7934,
+      "uniqueNames": 3721,
+      "t": 41
+    },
+    {
+      "requests": 350,
+      "points": 63200,
+      "uniqueKtru": 8169,
+      "uniqueNames": 3808,
+      "t": 43
+    },
+    {
+      "requests": 375,
+      "points": 68200,
+      "uniqueKtru": 8530,
+      "uniqueNames": 3929,
+      "t": 45
+    },
+    {
+      "requests": 400,
+      "points": 73200,
+      "uniqueKtru": 8833,
+      "uniqueNames": 4042,
+      "t": 47
+    },
+    {
+      "requests": 425,
+      "points": 78200,
+      "uniqueKtru": 9172,
+      "uniqueNames": 4169,
+      "t": 49
+    },
+    {
+      "requests": 450,
+      "points": 83200,
+      "uniqueKtru": 9486,
+      "uniqueNames": 4283,
+      "t": 50
+    },
+    {
+      "requests": 475,
+      "points": 88200,
+      "uniqueKtru": 9748,
+      "uniqueNames": 4368,
+      "t": 52
+    },
+    {
+      "requests": 500,
+      "points": 93200,
+      "uniqueKtru": 10052,
+      "uniqueNames": 4457,
+      "t": 54
+    },
+    {
+      "requests": 525,
+      "points": 98200,
+      "uniqueKtru": 10338,
+      "uniqueNames": 4571,
+      "t": 56
+    },
+    {
+      "requests": 550,
+      "points": 103200,
+      "uniqueKtru": 10583,
+      "uniqueNames": 4649,
+      "t": 59
+    },
+    {
+      "requests": 575,
+      "points": 108200,
+      "uniqueKtru": 10828,
+      "uniqueNames": 4745,
+      "t": 60
+    },
+    {
+      "requests": 600,
+      "points": 113200,
+      "uniqueKtru": 11021,
+      "uniqueNames": 4817,
+      "t": 62
+    },
+    {
+      "requests": 625,
+      "points": 118200,
+      "uniqueKtru": 11242,
+      "uniqueNames": 4888,
+      "t": 64
+    },
+    {
+      "requests": 650,
+      "points": 123200,
+      "uniqueKtru": 11448,
+      "uniqueNames": 4959,
+      "t": 66
+    },
+    {
+      "requests": 675,
+      "points": 128200,
+      "uniqueKtru": 11637,
+      "uniqueNames": 5011,
+      "t": 68
+    },
+    {
+      "requests": 700,
+      "points": 133200,
+      "uniqueKtru": 11845,
+      "uniqueNames": 5080,
+      "t": 70
+    },
+    {
+      "requests": 725,
+      "points": 138200,
+      "uniqueKtru": 12043,
+      "uniqueNames": 5153,
+      "t": 72
+    },
+    {
+      "requests": 750,
+      "points": 143200,
+      "uniqueKtru": 12244,
+      "uniqueNames": 5221,
+      "t": 74
+    },
+    {
+      "requests": 775,
+      "points": 148200,
+      "uniqueKtru": 12458,
+      "uniqueNames": 5294,
+      "t": 76
+    },
+    {
+      "requests": 800,
+      "points": 153200,
+      "uniqueKtru": 12672,
+      "uniqueNames": 5362,
+      "t": 77
+    },
+    {
+      "requests": 825,
+      "points": 158200,
+      "uniqueKtru": 12863,
+      "uniqueNames": 5425,
+      "t": 79
+    },
+    {
+      "requests": 850,
+      "points": 163200,
+      "uniqueKtru": 13039,
+      "uniqueNames": 5484,
+      "t": 81
+    },
+    {
+      "requests": 875,
+      "points": 168200,
+      "uniqueKtru": 13201,
+      "uniqueNames": 5541,
+      "t": 82
+    },
+    {
+      "requests": 900,
+      "points": 173200,
+      "uniqueKtru": 13360,
+      "uniqueNames": 5597,
+      "t": 84
+    },
+    {
+      "requests": 925,
+      "points": 178200,
+      "uniqueKtru": 13526,
+      "uniqueNames": 5642,
+      "t": 86
+    },
+    {
+      "requests": 950,
+      "points": 183200,
+      "uniqueKtru": 13696,
+      "uniqueNames": 5693,
+      "t": 87
+    },
+    {
+      "requests": 975,
+      "points": 188200,
+      "uniqueKtru": 13867,
+      "uniqueNames": 5753,
+      "t": 89
+    },
+    {
+      "requests": 1000,
+      "points": 193200,
+      "uniqueKtru": 14002,
+      "uniqueNames": 5794,
+      "t": 91
+    },
+    {
+      "requests": 1025,
+      "points": 198200,
+      "uniqueKtru": 14132,
+      "uniqueNames": 5839,
+      "t": 93
+    },
+    {
+      "requests": 1050,
+      "points": 203200,
+      "uniqueKtru": 14267,
+      "uniqueNames": 5884,
+      "t": 94
+    },
+    {
+      "requests": 1075,
+      "points": 208200,
+      "uniqueKtru": 14392,
+      "uniqueNames": 5940,
+      "t": 96
+    },
+    {
+      "requests": 1100,
+      "points": 213200,
+      "uniqueKtru": 14513,
+      "uniqueNames": 5981,
+      "t": 98
+    },
+    {
+      "requests": 1125,
+      "points": 218200,
+      "uniqueKtru": 14667,
+      "uniqueNames": 6034,
+      "t": 100
+    },
+    {
+      "requests": 1150,
+      "points": 223200,
+      "uniqueKtru": 14797,
+      "uniqueNames": 6078,
+      "t": 102
+    },
+    {
+      "requests": 1175,
+      "points": 228200,
+      "uniqueKtru": 14916,
+      "uniqueNames": 6118,
+      "t": 103
+    },
+    {
+      "requests": 1200,
+      "points": 233200,
+      "uniqueKtru": 15033,
+      "uniqueNames": 6157,
+      "t": 105
+    },
+    {
+      "requests": 1225,
+      "points": 238200,
+      "uniqueKtru": 15147,
+      "uniqueNames": 6194,
+      "t": 107
+    },
+    {
+      "requests": 1250,
+      "points": 243200,
+      "uniqueKtru": 15270,
+      "uniqueNames": 6236,
+      "t": 109
+    },
+    {
+      "requests": 1275,
+      "points": 248200,
+      "uniqueKtru": 15396,
+      "uniqueNames": 6278,
+      "t": 111
+    },
+    {
+      "requests": 1300,
+      "points": 253200,
+      "uniqueKtru": 15506,
+      "uniqueNames": 6322,
+      "t": 112
+    },
+    {
+      "requests": 1325,
+      "points": 258200,
+      "uniqueKtru": 15647,
+      "uniqueNames": 6370,
+      "t": 114
+    },
+    {
+      "requests": 1350,
+      "points": 263200,
+      "uniqueKtru": 15761,
+      "uniqueNames": 6412,
+      "t": 116
+    },
+    {
+      "requests": 1375,
+      "points": 268200,
+      "uniqueKtru": 15875,
+      "uniqueNames": 6446,
+      "t": 118
+    },
+    {
+      "requests": 1400,
+      "points": 273200,
+      "uniqueKtru": 15952,
+      "uniqueNames": 6471,
+      "t": 119
+    },
+    {
+      "requests": 1425,
+      "points": 278200,
+      "uniqueKtru": 16021,
+      "uniqueNames": 6493,
+      "t": 122
+    },
+    {
+      "requests": 1450,
+      "points": 283200,
+      "uniqueKtru": 16101,
+      "uniqueNames": 6515,
+      "t": 123
+    },
+    {
+      "requests": 1475,
+      "points": 288200,
+      "uniqueKtru": 16214,
+      "uniqueNames": 6564,
+      "t": 125
+    },
+    {
+      "requests": 1500,
+      "points": 293200,
+      "uniqueKtru": 16283,
+      "uniqueNames": 6587,
+      "t": 127
+    },
+    {
+      "requests": 1525,
+      "points": 298200,
+      "uniqueKtru": 16367,
+      "uniqueNames": 6614,
+      "t": 128
+    },
+    {
+      "requests": 1550,
+      "points": 303200,
+      "uniqueKtru": 16444,
+      "uniqueNames": 6643,
+      "t": 130
+    },
+    {
+      "requests": 1575,
+      "points": 308200,
+      "uniqueKtru": 16504,
+      "uniqueNames": 6669,
+      "t": 132
+    },
+    {
+      "requests": 1600,
+      "points": 313200,
+      "uniqueKtru": 16552,
+      "uniqueNames": 6681,
+      "t": 134
+    },
+    {
+      "requests": 1625,
+      "points": 318200,
+      "uniqueKtru": 16602,
+      "uniqueNames": 6696,
+      "t": 136
+    },
+    {
+      "requests": 1650,
+      "points": 323200,
+      "uniqueKtru": 16657,
+      "uniqueNames": 6715,
+      "t": 138
+    },
+    {
+      "requests": 1675,
+      "points": 328200,
+      "uniqueKtru": 16733,
+      "uniqueNames": 6742,
+      "t": 140
+    },
+    {
+      "requests": 1700,
+      "points": 333200,
+      "uniqueKtru": 16794,
+      "uniqueNames": 6761,
+      "t": 141
+    },
+    {
+      "requests": 1725,
+      "points": 338200,
+      "uniqueKtru": 16849,
+      "uniqueNames": 6782,
+      "t": 143
+    },
+    {
+      "requests": 1750,
+      "points": 343200,
+      "uniqueKtru": 16909,
+      "uniqueNames": 6809,
+      "t": 144
+    },
+    {
+      "requests": 1775,
+      "points": 348200,
+      "uniqueKtru": 16963,
+      "uniqueNames": 6826,
+      "t": 146
+    },
+    {
+      "requests": 1800,
+      "points": 353200,
+      "uniqueKtru": 17012,
+      "uniqueNames": 6843,
+      "t": 148
+    },
+    {
+      "requests": 1825,
+      "points": 358200,
+      "uniqueKtru": 17095,
+      "uniqueNames": 6881,
+      "t": 149
+    },
+    {
+      "requests": 1850,
+      "points": 363200,
+      "uniqueKtru": 17140,
+      "uniqueNames": 6904,
+      "t": 152
+    },
+    {
+      "requests": 1875,
+      "points": 368200,
+      "uniqueKtru": 17203,
+      "uniqueNames": 6933,
+      "t": 154
+    },
+    {
+      "requests": 1900,
+      "points": 373200,
+      "uniqueKtru": 17268,
+      "uniqueNames": 6957,
+      "t": 156
+    },
+    {
+      "requests": 1925,
+      "points": 378200,
+      "uniqueKtru": 17344,
+      "uniqueNames": 6982,
+      "t": 158
+    },
+    {
+      "requests": 1950,
+      "points": 383200,
+      "uniqueKtru": 17398,
+      "uniqueNames": 7008,
+      "t": 159
+    },
+    {
+      "requests": 1975,
+      "points": 388200,
+      "uniqueKtru": 17444,
+      "uniqueNames": 7022,
+      "t": 161
+    },
+    {
+      "requests": 2000,
+      "points": 393200,
+      "uniqueKtru": 17481,
+      "uniqueNames": 7029,
+      "t": 162
+    },
+    {
+      "requests": 2025,
+      "points": 398200,
+      "uniqueKtru": 17528,
+      "uniqueNames": 7044,
+      "t": 164
+    },
+    {
+      "requests": 2050,
+      "points": 403200,
+      "uniqueKtru": 17588,
+      "uniqueNames": 7064,
+      "t": 165
+    },
+    {
+      "requests": 2075,
+      "points": 408200,
+      "uniqueKtru": 17631,
+      "uniqueNames": 7080,
+      "t": 167
+    },
+    {
+      "requests": 2100,
+      "points": 413200,
+      "uniqueKtru": 17720,
+      "uniqueNames": 7105,
+      "t": 168
+    },
+    {
+      "requests": 2125,
+      "points": 418200,
+      "uniqueKtru": 17786,
+      "uniqueNames": 7126,
+      "t": 170
+    },
+    {
+      "requests": 2150,
+      "points": 423200,
+      "uniqueKtru": 17849,
+      "uniqueNames": 7140,
+      "t": 171
+    },
+    {
+      "requests": 2175,
+      "points": 428200,
+      "uniqueKtru": 17918,
+      "uniqueNames": 7160,
+      "t": 173
+    },
+    {
+      "requests": 2200,
+      "points": 433200,
+      "uniqueKtru": 17985,
+      "uniqueNames": 7181,
+      "t": 174
+    },
+    {
+      "requests": 2225,
+      "points": 438200,
+      "uniqueKtru": 18020,
+      "uniqueNames": 7197,
+      "t": 176
+    },
+    {
+      "requests": 2250,
+      "points": 443200,
+      "uniqueKtru": 18074,
+      "uniqueNames": 7215,
+      "t": 177
+    },
+    {
+      "requests": 2275,
+      "points": 448200,
+      "uniqueKtru": 18138,
+      "uniqueNames": 7237,
+      "t": 179
+    },
+    {
+      "requests": 2300,
+      "points": 453200,
+      "uniqueKtru": 18188,
+      "uniqueNames": 7250,
+      "t": 180
+    },
+    {
+      "requests": 2325,
+      "points": 458200,
+      "uniqueKtru": 18223,
+      "uniqueNames": 7267,
+      "t": 181
+    },
+    {
+      "requests": 2350,
+      "points": 463200,
+      "uniqueKtru": 18286,
+      "uniqueNames": 7291,
+      "t": 183
+    },
+    {
+      "requests": 2375,
+      "points": 468200,
+      "uniqueKtru": 18374,
+      "uniqueNames": 7322,
+      "t": 184
+    },
+    {
+      "requests": 2400,
+      "points": 473200,
+      "uniqueKtru": 18443,
+      "uniqueNames": 7345,
+      "t": 189
+    },
+    {
+      "requests": 2425,
+      "points": 478200,
+      "uniqueKtru": 18524,
+      "uniqueNames": 7370,
+      "t": 194
+    },
+    {
+      "requests": 2450,
+      "points": 483200,
+      "uniqueKtru": 18578,
+      "uniqueNames": 7388,
+      "t": 196
+    },
+    {
+      "requests": 2475,
+      "points": 488200,
+      "uniqueKtru": 18639,
+      "uniqueNames": 7407,
+      "t": 198
+    },
+    {
+      "requests": 2500,
+      "points": 493200,
+      "uniqueKtru": 18702,
+      "uniqueNames": 7427,
+      "t": 199
+    },
+    {
+      "requests": 2525,
+      "points": 498200,
+      "uniqueKtru": 18743,
+      "uniqueNames": 7443,
+      "t": 201
+    },
+    {
+      "requests": 2550,
+      "points": 503200,
+      "uniqueKtru": 18807,
+      "uniqueNames": 7466,
+      "t": 202
+    },
+    {
+      "requests": 2575,
+      "points": 508200,
+      "uniqueKtru": 18864,
+      "uniqueNames": 7486,
+      "t": 204
+    },
+    {
+      "requests": 2600,
+      "points": 513200,
+      "uniqueKtru": 18926,
+      "uniqueNames": 7495,
+      "t": 206
+    },
+    {
+      "requests": 2625,
+      "points": 518200,
+      "uniqueKtru": 18993,
+      "uniqueNames": 7510,
+      "t": 208
+    },
+    {
+      "requests": 2650,
+      "points": 523200,
+      "uniqueKtru": 19047,
+      "uniqueNames": 7531,
+      "t": 209
+    },
+    {
+      "requests": 2675,
+      "points": 528200,
+      "uniqueKtru": 19099,
+      "uniqueNames": 7546,
+      "t": 211
+    },
+    {
+      "requests": 2700,
+      "points": 533200,
+      "uniqueKtru": 19156,
+      "uniqueNames": 7562,
+      "t": 213
+    },
+    {
+      "requests": 2725,
+      "points": 538200,
+      "uniqueKtru": 19229,
+      "uniqueNames": 7585,
+      "t": 214
+    },
+    {
+      "requests": 2750,
+      "points": 543200,
+      "uniqueKtru": 19278,
+      "uniqueNames": 7602,
+      "t": 216
+    },
+    {
+      "requests": 2775,
+      "points": 548200,
+      "uniqueKtru": 19340,
+      "uniqueNames": 7624,
+      "t": 218
+    },
+    {
+      "requests": 2800,
+      "points": 553200,
+      "uniqueKtru": 19407,
+      "uniqueNames": 7647,
+      "t": 219
+    },
+    {
+      "requests": 2825,
+      "points": 558200,
+      "uniqueKtru": 19463,
+      "uniqueNames": 7661,
+      "t": 221
+    },
+    {
+      "requests": 2850,
+      "points": 563200,
+      "uniqueKtru": 19535,
+      "uniqueNames": 7681,
+      "t": 222
+    },
+    {
+      "requests": 2875,
+      "points": 568200,
+      "uniqueKtru": 19625,
+      "uniqueNames": 7707,
+      "t": 224
+    },
+    {
+      "requests": 2900,
+      "points": 573200,
+      "uniqueKtru": 19714,
+      "uniqueNames": 7742,
+      "t": 225
+    },
+    {
+      "requests": 2925,
+      "points": 578200,
+      "uniqueKtru": 19772,
+      "uniqueNames": 7763,
+      "t": 227
+    },
+    {
+      "requests": 2950,
+      "points": 583200,
+      "uniqueKtru": 19837,
+      "uniqueNames": 7776,
+      "t": 229
+    },
+    {
+      "requests": 2975,
+      "points": 588200,
+      "uniqueKtru": 19883,
+      "uniqueNames": 7792,
+      "t": 231
+    },
+    {
+      "requests": 3000,
+      "points": 593200,
+      "uniqueKtru": 19943,
+      "uniqueNames": 7815,
+      "t": 233
+    },
+    {
+      "requests": 3025,
+      "points": 598200,
+      "uniqueKtru": 20001,
+      "uniqueNames": 7835,
+      "t": 234
+    },
+    {
+      "requests": 3050,
+      "points": 603200,
+      "uniqueKtru": 20054,
+      "uniqueNames": 7851,
+      "t": 237
+    },
+    {
+      "requests": 3075,
+      "points": 608200,
+      "uniqueKtru": 20114,
+      "uniqueNames": 7872,
+      "t": 240
+    },
+    {
+      "requests": 3100,
+      "points": 613200,
+      "uniqueKtru": 20164,
+      "uniqueNames": 7887,
+      "t": 241
+    },
+    {
+      "requests": 3125,
+      "points": 618200,
+      "uniqueKtru": 20219,
+      "uniqueNames": 7902,
+      "t": 243
+    },
+    {
+      "requests": 3150,
+      "points": 623200,
+      "uniqueKtru": 20281,
+      "uniqueNames": 7919,
+      "t": 245
+    },
+    {
+      "requests": 3175,
+      "points": 628200,
+      "uniqueKtru": 20343,
+      "uniqueNames": 7943,
+      "t": 247
+    },
+    {
+      "requests": 3200,
+      "points": 633200,
+      "uniqueKtru": 20401,
+      "uniqueNames": 7964,
+      "t": 248
+    },
+    {
+      "requests": 3225,
+      "points": 638200,
+      "uniqueKtru": 20475,
+      "uniqueNames": 7995,
+      "t": 250
+    },
+    {
+      "requests": 3250,
+      "points": 643200,
+      "uniqueKtru": 20550,
+      "uniqueNames": 8022,
+      "t": 252
+    },
+    {
+      "requests": 3275,
+      "points": 648200,
+      "uniqueKtru": 20610,
+      "uniqueNames": 8041,
+      "t": 253
+    },
+    {
+      "requests": 3300,
+      "points": 653200,
+      "uniqueKtru": 20671,
+      "uniqueNames": 8055,
+      "t": 255
+    },
+    {
+      "requests": 3325,
+      "points": 658200,
+      "uniqueKtru": 20733,
+      "uniqueNames": 8073,
+      "t": 260
+    },
+    {
+      "requests": 3350,
+      "points": 663200,
+      "uniqueKtru": 20783,
+      "uniqueNames": 8090,
+      "t": 263
+    },
+    {
+      "requests": 3375,
+      "points": 668200,
+      "uniqueKtru": 20840,
+      "uniqueNames": 8113,
+      "t": 266
+    },
+    {
+      "requests": 3400,
+      "points": 673200,
+      "uniqueKtru": 20889,
+      "uniqueNames": 8128,
+      "t": 270
+    },
+    {
+      "requests": 3425,
+      "points": 678200,
+      "uniqueKtru": 20955,
+      "uniqueNames": 8145,
+      "t": 273
+    },
+    {
+      "requests": 3450,
+      "points": 683200,
+      "uniqueKtru": 21025,
+      "uniqueNames": 8167,
+      "t": 278
+    },
+    {
+      "requests": 3475,
+      "points": 688200,
+      "uniqueKtru": 21085,
+      "uniqueNames": 8180,
+      "t": 280
+    },
+    {
+      "requests": 3500,
+      "points": 693200,
+      "uniqueKtru": 21146,
+      "uniqueNames": 8195,
+      "t": 285
+    },
+    {
+      "requests": 3525,
+      "points": 698200,
+      "uniqueKtru": 21205,
+      "uniqueNames": 8209,
+      "t": 288
+    },
+    {
+      "requests": 3550,
+      "points": 703200,
+      "uniqueKtru": 21256,
+      "uniqueNames": 8225,
+      "t": 292
+    },
+    {
+      "requests": 3575,
+      "points": 708200,
+      "uniqueKtru": 21304,
+      "uniqueNames": 8240,
+      "t": 295
+    },
+    {
+      "requests": 3600,
+      "points": 713200,
+      "uniqueKtru": 21354,
+      "uniqueNames": 8252,
+      "t": 298
+    },
+    {
+      "requests": 3625,
+      "points": 718200,
+      "uniqueKtru": 21419,
+      "uniqueNames": 8275,
+      "t": 300
+    },
+    {
+      "requests": 3650,
+      "points": 723200,
+      "uniqueKtru": 21478,
+      "uniqueNames": 8294,
+      "t": 303
+    },
+    {
+      "requests": 3675,
+      "points": 728200,
+      "uniqueKtru": 21542,
+      "uniqueNames": 8316,
+      "t": 306
+    },
+    {
+      "requests": 3700,
+      "points": 733200,
+      "uniqueKtru": 21594,
+      "uniqueNames": 8336,
+      "t": 309
+    },
+    {
+      "requests": 3725,
+      "points": 738200,
+      "uniqueKtru": 21640,
+      "uniqueNames": 8351,
+      "t": 312
+    },
+    {
+      "requests": 3750,
+      "points": 743200,
+      "uniqueKtru": 21688,
+      "uniqueNames": 8365,
+      "t": 315
+    },
+    {
+      "requests": 3775,
+      "points": 748200,
+      "uniqueKtru": 21741,
+      "uniqueNames": 8378,
+      "t": 317
+    },
+    {
+      "requests": 3800,
+      "points": 753200,
+      "uniqueKtru": 21786,
+      "uniqueNames": 8391,
+      "t": 320
+    },
+    {
+      "requests": 3825,
+      "points": 758200,
+      "uniqueKtru": 21863,
+      "uniqueNames": 8413,
+      "t": 323
+    },
+    {
+      "requests": 3850,
+      "points": 763200,
+      "uniqueKtru": 21920,
+      "uniqueNames": 8424,
+      "t": 325
+    },
+    {
+      "requests": 3875,
+      "points": 768200,
+      "uniqueKtru": 21975,
+      "uniqueNames": 8441,
+      "t": 328
+    },
+    {
+      "requests": 3900,
+      "points": 773200,
+      "uniqueKtru": 22034,
+      "uniqueNames": 8461,
+      "t": 332
+    },
+    {
+      "requests": 3925,
+      "points": 778200,
+      "uniqueKtru": 22100,
+      "uniqueNames": 8477,
+      "t": 335
+    },
+    {
+      "requests": 3950,
+      "points": 783200,
+      "uniqueKtru": 22148,
+      "uniqueNames": 8490,
+      "t": 339
+    },
+    {
+      "requests": 3975,
+      "points": 788200,
+      "uniqueKtru": 22209,
+      "uniqueNames": 8508,
+      "t": 342
+    },
+    {
+      "requests": 4000,
+      "points": 793200,
+      "uniqueKtru": 22256,
+      "uniqueNames": 8517,
+      "t": 344
+    },
+    {
+      "requests": 4025,
+      "points": 798200,
+      "uniqueKtru": 22336,
+      "uniqueNames": 8534,
+      "t": 347
+    },
+    {
+      "requests": 4050,
+      "points": 803200,
+      "uniqueKtru": 22400,
+      "uniqueNames": 8551,
+      "t": 351
+    },
+    {
+      "requests": 4075,
+      "points": 808200,
+      "uniqueKtru": 22455,
+      "uniqueNames": 8561,
+      "t": 361
+    },
+    {
+      "requests": 4100,
+      "points": 813200,
+      "uniqueKtru": 22510,
+      "uniqueNames": 8575,
+      "t": 363
+    },
+    {
+      "requests": 4125,
+      "points": 818200,
+      "uniqueKtru": 22564,
+      "uniqueNames": 8589,
+      "t": 367
+    },
+    {
+      "requests": 4150,
+      "points": 823200,
+      "uniqueKtru": 22614,
+      "uniqueNames": 8610,
+      "t": 371
+    },
+    {
+      "requests": 4175,
+      "points": 828200,
+      "uniqueKtru": 22663,
+      "uniqueNames": 8621,
+      "t": 375
+    },
+    {
+      "requests": 4200,
+      "points": 833200,
+      "uniqueKtru": 22703,
+      "uniqueNames": 8631,
+      "t": 379
+    },
+    {
+      "requests": 4225,
+      "points": 838200,
+      "uniqueKtru": 22744,
+      "uniqueNames": 8643,
+      "t": 382
+    },
+    {
+      "requests": 4250,
+      "points": 843200,
+      "uniqueKtru": 22793,
+      "uniqueNames": 8656,
+      "t": 385
+    },
+    {
+      "requests": 4275,
+      "points": 848200,
+      "uniqueKtru": 22843,
+      "uniqueNames": 8672,
+      "t": 390
+    },
+    {
+      "requests": 4300,
+      "points": 853200,
+      "uniqueKtru": 22903,
+      "uniqueNames": 8688,
+      "t": 393
+    },
+    {
+      "requests": 4325,
+      "points": 858200,
+      "uniqueKtru": 22952,
+      "uniqueNames": 8702,
+      "t": 397
+    },
+    {
+      "requests": 4350,
+      "points": 863200,
+      "uniqueKtru": 23030,
+      "uniqueNames": 8719,
+      "t": 400
+    },
+    {
+      "requests": 4375,
+      "points": 868200,
+      "uniqueKtru": 23069,
+      "uniqueNames": 8729,
+      "t": 404
+    },
+    {
+      "requests": 4400,
+      "points": 873200,
+      "uniqueKtru": 23124,
+      "uniqueNames": 8745,
+      "t": 408
+    },
+    {
+      "requests": 4425,
+      "points": 878200,
+      "uniqueKtru": 23187,
+      "uniqueNames": 8760,
+      "t": 412
+    },
+    {
+      "requests": 4450,
+      "points": 883200,
+      "uniqueKtru": 23228,
+      "uniqueNames": 8774,
+      "t": 416
+    },
+    {
+      "requests": 4475,
+      "points": 888200,
+      "uniqueKtru": 23268,
+      "uniqueNames": 8782,
+      "t": 419
+    },
+    {
+      "requests": 4500,
+      "points": 893200,
+      "uniqueKtru": 23310,
+      "uniqueNames": 8793,
+      "t": 422
+    },
+    {
+      "requests": 4525,
+      "points": 898200,
+      "uniqueKtru": 23360,
+      "uniqueNames": 8806,
+      "t": 425
+    },
+    {
+      "requests": 4550,
+      "points": 903200,
+      "uniqueKtru": 23402,
+      "uniqueNames": 8819,
+      "t": 429
+    },
+    {
+      "requests": 4575,
+      "points": 908200,
+      "uniqueKtru": 23460,
+      "uniqueNames": 8834,
+      "t": 433
+    },
+    {
+      "requests": 4600,
+      "points": 913200,
+      "uniqueKtru": 23503,
+      "uniqueNames": 8844,
+      "t": 437
+    },
+    {
+      "requests": 4625,
+      "points": 918200,
+      "uniqueKtru": 23549,
+      "uniqueNames": 8862,
+      "t": 440
+    },
+    {
+      "requests": 4650,
+      "points": 923200,
+      "uniqueKtru": 23598,
+      "uniqueNames": 8871,
+      "t": 443
+    },
+    {
+      "requests": 4675,
+      "points": 928200,
+      "uniqueKtru": 23654,
+      "uniqueNames": 8885,
+      "t": 446
+    },
+    {
+      "requests": 4700,
+      "points": 933200,
+      "uniqueKtru": 23701,
+      "uniqueNames": 8895,
+      "t": 452
+    },
+    {
+      "requests": 4725,
+      "points": 938200,
+      "uniqueKtru": 23729,
+      "uniqueNames": 8901,
+      "t": 455
+    },
+    {
+      "requests": 4750,
+      "points": 943200,
+      "uniqueKtru": 23773,
+      "uniqueNames": 8915,
+      "t": 458
+    },
+    {
+      "requests": 4775,
+      "points": 948200,
+      "uniqueKtru": 23808,
+      "uniqueNames": 8923,
+      "t": 462
+    },
+    {
+      "requests": 4800,
+      "points": 953200,
+      "uniqueKtru": 23832,
+      "uniqueNames": 8929,
+      "t": 465
+    },
+    {
+      "requests": 4825,
+      "points": 958200,
+      "uniqueKtru": 23880,
+      "uniqueNames": 8939,
+      "t": 470
+    },
+    {
+      "requests": 4850,
+      "points": 963200,
+      "uniqueKtru": 23921,
+      "uniqueNames": 8949,
+      "t": 474
+    },
+    {
+      "requests": 4875,
+      "points": 968200,
+      "uniqueKtru": 23955,
+      "uniqueNames": 8959,
+      "t": 478
+    },
+    {
+      "requests": 4900,
+      "points": 973200,
+      "uniqueKtru": 23990,
+      "uniqueNames": 8970,
+      "t": 482
+    },
+    {
+      "requests": 4925,
+      "points": 978200,
+      "uniqueKtru": 24037,
+      "uniqueNames": 8984,
+      "t": 486
+    },
+    {
+      "requests": 4950,
+      "points": 983200,
+      "uniqueKtru": 24064,
+      "uniqueNames": 8987,
+      "t": 489
+    },
+    {
+      "requests": 4975,
+      "points": 988200,
+      "uniqueKtru": 24100,
+      "uniqueNames": 8995,
+      "t": 493
+    },
+    {
+      "requests": 5000,
+      "points": 993200,
+      "uniqueKtru": 24128,
+      "uniqueNames": 9005,
+      "t": 497
+    },
+    {
+      "requests": 5025,
+      "points": 998200,
+      "uniqueKtru": 24155,
+      "uniqueNames": 9010,
+      "t": 501
+    },
+    {
+      "requests": 5050,
+      "points": 1003200,
+      "uniqueKtru": 24194,
+      "uniqueNames": 9021,
+      "t": 504
+    },
+    {
+      "requests": 5075,
+      "points": 1008200,
+      "uniqueKtru": 24222,
+      "uniqueNames": 9031,
+      "t": 508
+    },
+    {
+      "requests": 5100,
+      "points": 1013200,
+      "uniqueKtru": 24249,
+      "uniqueNames": 9037,
+      "t": 512
+    },
+    {
+      "requests": 5125,
+      "points": 1018200,
+      "uniqueKtru": 24280,
+      "uniqueNames": 9042,
+      "t": 515
+    },
+    {
+      "requests": 5150,
+      "points": 1023200,
+      "uniqueKtru": 24313,
+      "uniqueNames": 9057,
+      "t": 518
+    },
+    {
+      "requests": 5175,
+      "points": 1028200,
+      "uniqueKtru": 24344,
+      "uniqueNames": 9066,
+      "t": 522
+    },
+    {
+      "requests": 5200,
+      "points": 1033200,
+      "uniqueKtru": 24367,
+      "uniqueNames": 9072,
+      "t": 527
+    },
+    {
+      "requests": 5225,
+      "points": 1038200,
+      "uniqueKtru": 24395,
+      "uniqueNames": 9081,
+      "t": 530
+    },
+    {
+      "requests": 5250,
+      "points": 1043200,
+      "uniqueKtru": 24430,
+      "uniqueNames": 9085,
+      "t": 535
+    },
+    {
+      "requests": 5275,
+      "points": 1048200,
+      "uniqueKtru": 24451,
+      "uniqueNames": 9091,
+      "t": 539
+    },
+    {
+      "requests": 5300,
+      "points": 1053200,
+      "uniqueKtru": 24472,
+      "uniqueNames": 9097,
+      "t": 543
+    },
+    {
+      "requests": 5325,
+      "points": 1058200,
+      "uniqueKtru": 24489,
+      "uniqueNames": 9104,
+      "t": 546
+    },
+    {
+      "requests": 5350,
+      "points": 1063200,
+      "uniqueKtru": 24520,
+      "uniqueNames": 9114,
+      "t": 551
+    },
+    {
+      "requests": 5375,
+      "points": 1068200,
+      "uniqueKtru": 24529,
+      "uniqueNames": 9116,
+      "t": 556
+    },
+    {
+      "requests": 5400,
+      "points": 1073200,
+      "uniqueKtru": 24555,
+      "uniqueNames": 9123,
+      "t": 560
+    },
+    {
+      "requests": 5425,
+      "points": 1078200,
+      "uniqueKtru": 24579,
+      "uniqueNames": 9130,
+      "t": 565
+    },
+    {
+      "requests": 5450,
+      "points": 1083200,
+      "uniqueKtru": 24608,
+      "uniqueNames": 9136,
+      "t": 570
+    },
+    {
+      "requests": 5475,
+      "points": 1088200,
+      "uniqueKtru": 24642,
+      "uniqueNames": 9145,
+      "t": 575
+    },
+    {
+      "requests": 5500,
+      "points": 1093200,
+      "uniqueKtru": 24659,
+      "uniqueNames": 9150,
+      "t": 580
+    },
+    {
+      "requests": 5525,
+      "points": 1098200,
+      "uniqueKtru": 24675,
+      "uniqueNames": 9154,
+      "t": 584
+    },
+    {
+      "requests": 5550,
+      "points": 1103200,
+      "uniqueKtru": 24691,
+      "uniqueNames": 9159,
+      "t": 589
+    },
+    {
+      "requests": 5575,
+      "points": 1108200,
+      "uniqueKtru": 24709,
+      "uniqueNames": 9164,
+      "t": 593
+    },
+    {
+      "requests": 5600,
+      "points": 1113200,
+      "uniqueKtru": 24724,
+      "uniqueNames": 9169,
+      "t": 598
+    },
+    {
+      "requests": 5625,
+      "points": 1118200,
+      "uniqueKtru": 24737,
+      "uniqueNames": 9172,
+      "t": 601
+    },
+    {
+      "requests": 5650,
+      "points": 1123200,
+      "uniqueKtru": 24758,
+      "uniqueNames": 9176,
+      "t": 606
+    },
+    {
+      "requests": 5675,
+      "points": 1128200,
+      "uniqueKtru": 24779,
+      "uniqueNames": 9181,
+      "t": 611
+    },
+    {
+      "requests": 5700,
+      "points": 1133200,
+      "uniqueKtru": 24793,
+      "uniqueNames": 9183,
+      "t": 615
+    },
+    {
+      "requests": 5725,
+      "points": 1138200,
+      "uniqueKtru": 24805,
+      "uniqueNames": 9187,
+      "t": 619
+    },
+    {
+      "requests": 5750,
+      "points": 1143200,
+      "uniqueKtru": 24824,
+      "uniqueNames": 9194,
+      "t": 623
+    },
+    {
+      "requests": 5775,
+      "points": 1148200,
+      "uniqueKtru": 24839,
+      "uniqueNames": 9203,
+      "t": 627
+    },
+    {
+      "requests": 5800,
+      "points": 1153200,
+      "uniqueKtru": 24861,
+      "uniqueNames": 9209,
+      "t": 631
+    },
+    {
+      "requests": 5825,
+      "points": 1158200,
+      "uniqueKtru": 24892,
+      "uniqueNames": 9220,
+      "t": 635
+    },
+    {
+      "requests": 5850,
+      "points": 1163200,
+      "uniqueKtru": 24902,
+      "uniqueNames": 9220,
+      "t": 640
+    },
+    {
+      "requests": 5875,
+      "points": 1168200,
+      "uniqueKtru": 24924,
+      "uniqueNames": 9229,
+      "t": 643
+    },
+    {
+      "requests": 5900,
+      "points": 1173200,
+      "uniqueKtru": 24944,
+      "uniqueNames": 9233,
+      "t": 647
+    },
+    {
+      "requests": 5925,
+      "points": 1178200,
+      "uniqueKtru": 24966,
+      "uniqueNames": 9241,
+      "t": 651
+    },
+    {
+      "requests": 5950,
+      "points": 1183200,
+      "uniqueKtru": 24986,
+      "uniqueNames": 9247,
+      "t": 657
+    },
+    {
+      "requests": 5975,
+      "points": 1188200,
+      "uniqueKtru": 25005,
+      "uniqueNames": 9252,
+      "t": 668
+    },
+    {
+      "requests": 6000,
+      "points": 1193200,
+      "uniqueKtru": 25026,
+      "uniqueNames": 9258,
+      "t": 673
+    },
+    {
+      "requests": 6025,
+      "points": 1198200,
+      "uniqueKtru": 25044,
+      "uniqueNames": 9265,
+      "t": 678
+    },
+    {
+      "requests": 6050,
+      "points": 1203200,
+      "uniqueKtru": 25057,
+      "uniqueNames": 9266,
+      "t": 682
+    },
+    {
+      "requests": 6075,
+      "points": 1208200,
+      "uniqueKtru": 25082,
+      "uniqueNames": 9275,
+      "t": 687
+    },
+    {
+      "requests": 6100,
+      "points": 1213200,
+      "uniqueKtru": 25098,
+      "uniqueNames": 9279,
+      "t": 691
+    },
+    {
+      "requests": 6125,
+      "points": 1218200,
+      "uniqueKtru": 25121,
+      "uniqueNames": 9286,
+      "t": 695
+    },
+    {
+      "requests": 6150,
+      "points": 1223200,
+      "uniqueKtru": 25144,
+      "uniqueNames": 9293,
+      "t": 699
+    },
+    {
+      "requests": 6175,
+      "points": 1228200,
+      "uniqueKtru": 25173,
+      "uniqueNames": 9303,
+      "t": 706
+    },
+    {
+      "requests": 6200,
+      "points": 1233200,
+      "uniqueKtru": 25184,
+      "uniqueNames": 9307,
+      "t": 710
+    },
+    {
+      "requests": 6225,
+      "points": 1238200,
+      "uniqueKtru": 25198,
+      "uniqueNames": 9311,
+      "t": 715
+    },
+    {
+      "requests": 6250,
+      "points": 1243200,
+      "uniqueKtru": 25215,
+      "uniqueNames": 9316,
+      "t": 719
+    },
+    {
+      "requests": 6275,
+      "points": 1248200,
+      "uniqueKtru": 25224,
+      "uniqueNames": 9317,
+      "t": 723
+    },
+    {
+      "requests": 6300,
+      "points": 1253200,
+      "uniqueKtru": 25252,
+      "uniqueNames": 9326,
+      "t": 727
+    },
+    {
+      "requests": 6325,
+      "points": 1258200,
+      "uniqueKtru": 25264,
+      "uniqueNames": 9330,
+      "t": 730
+    },
+    {
+      "requests": 6350,
+      "points": 1263200,
+      "uniqueKtru": 25278,
+      "uniqueNames": 9334,
+      "t": 735
+    },
+    {
+      "requests": 6375,
+      "points": 1268200,
+      "uniqueKtru": 25299,
+      "uniqueNames": 9339,
+      "t": 739
+    },
+    {
+      "requests": 6400,
+      "points": 1273200,
+      "uniqueKtru": 25315,
+      "uniqueNames": 9344,
+      "t": 743
+    },
+    {
+      "requests": 6425,
+      "points": 1278200,
+      "uniqueKtru": 25327,
+      "uniqueNames": 9351,
+      "t": 747
+    },
+    {
+      "requests": 6450,
+      "points": 1283200,
+      "uniqueKtru": 25358,
+      "uniqueNames": 9362,
+      "t": 753
+    },
+    {
+      "requests": 6475,
+      "points": 1288200,
+      "uniqueKtru": 25385,
+      "uniqueNames": 9371,
+      "t": 757
+    },
+    {
+      "requests": 6500,
+      "points": 1293200,
+      "uniqueKtru": 25405,
+      "uniqueNames": 9374,
+      "t": 762
+    },
+    {
+      "requests": 6525,
+      "points": 1298200,
+      "uniqueKtru": 25428,
+      "uniqueNames": 9382,
+      "t": 766
+    },
+    {
+      "requests": 6550,
+      "points": 1303200,
+      "uniqueKtru": 25454,
+      "uniqueNames": 9389,
+      "t": 770
+    },
+    {
+      "requests": 6575,
+      "points": 1308200,
+      "uniqueKtru": 25478,
+      "uniqueNames": 9394,
+      "t": 774
+    },
+    {
+      "requests": 6600,
+      "points": 1313200,
+      "uniqueKtru": 25500,
+      "uniqueNames": 9399,
+      "t": 779
+    },
+    {
+      "requests": 6625,
+      "points": 1318200,
+      "uniqueKtru": 25522,
+      "uniqueNames": 9404,
+      "t": 782
+    },
+    {
+      "requests": 6650,
+      "points": 1323200,
+      "uniqueKtru": 25551,
+      "uniqueNames": 9412,
+      "t": 786
+    },
+    {
+      "requests": 6675,
+      "points": 1328200,
+      "uniqueKtru": 25566,
+      "uniqueNames": 9414,
+      "t": 790
+    },
+    {
+      "requests": 6700,
+      "points": 1333200,
+      "uniqueKtru": 25595,
+      "uniqueNames": 9421,
+      "t": 794
+    },
+    {
+      "requests": 6725,
+      "points": 1338200,
+      "uniqueKtru": 25621,
+      "uniqueNames": 9426,
+      "t": 798
+    },
+    {
+      "requests": 6750,
+      "points": 1343200,
+      "uniqueKtru": 25642,
+      "uniqueNames": 9431,
+      "t": 801
+    },
+    {
+      "requests": 6775,
+      "points": 1348200,
+      "uniqueKtru": 25670,
+      "uniqueNames": 9438,
+      "t": 805
+    },
+    {
+      "requests": 6800,
+      "points": 1353200,
+      "uniqueKtru": 25688,
+      "uniqueNames": 9446,
+      "t": 810
+    },
+    {
+      "requests": 6825,
+      "points": 1358200,
+      "uniqueKtru": 25707,
+      "uniqueNames": 9452,
+      "t": 814
+    },
+    {
+      "requests": 6850,
+      "points": 1363200,
+      "uniqueKtru": 25731,
+      "uniqueNames": 9460,
+      "t": 819
+    },
+    {
+      "requests": 6875,
+      "points": 1368200,
+      "uniqueKtru": 25760,
+      "uniqueNames": 9468,
+      "t": 822
+    },
+    {
+      "requests": 6900,
+      "points": 1373200,
+      "uniqueKtru": 25788,
+      "uniqueNames": 9476,
+      "t": 826
+    },
+    {
+      "requests": 6925,
+      "points": 1378200,
+      "uniqueKtru": 25799,
+      "uniqueNames": 9483,
+      "t": 829
+    },
+    {
+      "requests": 6950,
+      "points": 1383200,
+      "uniqueKtru": 25819,
+      "uniqueNames": 9491,
+      "t": 834
+    },
+    {
+      "requests": 6975,
+      "points": 1388200,
+      "uniqueKtru": 25842,
+      "uniqueNames": 9497,
+      "t": 838
+    },
+    {
+      "requests": 7000,
+      "points": 1393200,
+      "uniqueKtru": 25863,
+      "uniqueNames": 9505,
+      "t": 843
+    },
+    {
+      "requests": 7025,
+      "points": 1398200,
+      "uniqueKtru": 25882,
+      "uniqueNames": 9510,
+      "t": 846
+    },
+    {
+      "requests": 7050,
+      "points": 1403200,
+      "uniqueKtru": 25908,
+      "uniqueNames": 9522,
+      "t": 850
+    },
+    {
+      "requests": 7075,
+      "points": 1408200,
+      "uniqueKtru": 25926,
+      "uniqueNames": 9528,
+      "t": 855
+    },
+    {
+      "requests": 7100,
+      "points": 1413200,
+      "uniqueKtru": 25951,
+      "uniqueNames": 9536,
+      "t": 858
+    },
+    {
+      "requests": 7125,
+      "points": 1418200,
+      "uniqueKtru": 25973,
+      "uniqueNames": 9540,
+      "t": 862
+    },
+    {
+      "requests": 7150,
+      "points": 1423200,
+      "uniqueKtru": 26006,
+      "uniqueNames": 9548,
+      "t": 867
+    },
+    {
+      "requests": 7175,
+      "points": 1428200,
+      "uniqueKtru": 26023,
+      "uniqueNames": 9550,
+      "t": 870
+    },
+    {
+      "requests": 7200,
+      "points": 1433200,
+      "uniqueKtru": 26048,
+      "uniqueNames": 9555,
+      "t": 874
+    },
+    {
+      "requests": 7225,
+      "points": 1438200,
+      "uniqueKtru": 26081,
+      "uniqueNames": 9561,
+      "t": 879
+    },
+    {
+      "requests": 7250,
+      "points": 1443200,
+      "uniqueKtru": 26095,
+      "uniqueNames": 9564,
+      "t": 883
+    },
+    {
+      "requests": 7275,
+      "points": 1448200,
+      "uniqueKtru": 26114,
+      "uniqueNames": 9569,
+      "t": 887
+    },
+    {
+      "requests": 7300,
+      "points": 1453200,
+      "uniqueKtru": 26138,
+      "uniqueNames": 9571,
+      "t": 892
+    },
+    {
+      "requests": 7325,
+      "points": 1458200,
+      "uniqueKtru": 26162,
+      "uniqueNames": 9579,
+      "t": 896
+    },
+    {
+      "requests": 7350,
+      "points": 1463200,
+      "uniqueKtru": 26189,
+      "uniqueNames": 9582,
+      "t": 900
+    },
+    {
+      "requests": 7375,
+      "points": 1468200,
+      "uniqueKtru": 26211,
+      "uniqueNames": 9587,
+      "t": 904
+    },
+    {
+      "requests": 7400,
+      "points": 1473200,
+      "uniqueKtru": 26236,
+      "uniqueNames": 9594,
+      "t": 908
+    },
+    {
+      "requests": 7425,
+      "points": 1478200,
+      "uniqueKtru": 26256,
+      "uniqueNames": 9599,
+      "t": 913
+    },
+    {
+      "requests": 7450,
+      "points": 1483200,
+      "uniqueKtru": 26282,
+      "uniqueNames": 9609,
+      "t": 917
+    },
+    {
+      "requests": 7475,
+      "points": 1488200,
+      "uniqueKtru": 26317,
+      "uniqueNames": 9619,
+      "t": 920
+    },
+    {
+      "requests": 7500,
+      "points": 1493200,
+      "uniqueKtru": 26341,
+      "uniqueNames": 9624,
+      "t": 924
+    },
+    {
+      "requests": 7525,
+      "points": 1498200,
+      "uniqueKtru": 26359,
+      "uniqueNames": 9626,
+      "t": 928
+    },
+    {
+      "requests": 7550,
+      "points": 1503200,
+      "uniqueKtru": 26380,
+      "uniqueNames": 9634,
+      "t": 931
+    },
+    {
+      "requests": 7575,
+      "points": 1508200,
+      "uniqueKtru": 26397,
+      "uniqueNames": 9640,
+      "t": 936
+    },
+    {
+      "requests": 7600,
+      "points": 1513200,
+      "uniqueKtru": 26415,
+      "uniqueNames": 9647,
+      "t": 940
+    },
+    {
+      "requests": 7625,
+      "points": 1518200,
+      "uniqueKtru": 26441,
+      "uniqueNames": 9654,
+      "t": 944
+    },
+    {
+      "requests": 7650,
+      "points": 1523200,
+      "uniqueKtru": 26466,
+      "uniqueNames": 9660,
+      "t": 948
+    },
+    {
+      "requests": 7675,
+      "points": 1528200,
+      "uniqueKtru": 26479,
+      "uniqueNames": 9664,
+      "t": 952
+    },
+    {
+      "requests": 7700,
+      "points": 1533200,
+      "uniqueKtru": 26506,
+      "uniqueNames": 9675,
+      "t": 955
+    },
+    {
+      "requests": 7725,
+      "points": 1538200,
+      "uniqueKtru": 26535,
+      "uniqueNames": 9681,
+      "t": 960
+    },
+    {
+      "requests": 7750,
+      "points": 1543200,
+      "uniqueKtru": 26555,
+      "uniqueNames": 9687,
+      "t": 964
+    },
+    {
+      "requests": 7775,
+      "points": 1548200,
+      "uniqueKtru": 26580,
+      "uniqueNames": 9689,
+      "t": 968
+    },
+    {
+      "requests": 7800,
+      "points": 1553200,
+      "uniqueKtru": 26612,
+      "uniqueNames": 9691,
+      "t": 972
+    },
+    {
+      "requests": 7825,
+      "points": 1558200,
+      "uniqueKtru": 26632,
+      "uniqueNames": 9696,
+      "t": 976
+    },
+    {
+      "requests": 7850,
+      "points": 1563200,
+      "uniqueKtru": 26655,
+      "uniqueNames": 9701,
+      "t": 980
+    },
+    {
+      "requests": 7875,
+      "points": 1568200,
+      "uniqueKtru": 26677,
+      "uniqueNames": 9706,
+      "t": 983
+    },
+    {
+      "requests": 7900,
+      "points": 1573200,
+      "uniqueKtru": 26699,
+      "uniqueNames": 9713,
+      "t": 987
+    },
+    {
+      "requests": 7925,
+      "points": 1578200,
+      "uniqueKtru": 26723,
+      "uniqueNames": 9718,
+      "t": 990
+    },
+    {
+      "requests": 7950,
+      "points": 1583200,
+      "uniqueKtru": 26740,
+      "uniqueNames": 9721,
+      "t": 994
+    },
+    {
+      "requests": 7975,
+      "points": 1588200,
+      "uniqueKtru": 26762,
+      "uniqueNames": 9731,
+      "t": 997
+    },
+    {
+      "requests": 8000,
+      "points": 1593200,
+      "uniqueKtru": 26781,
+      "uniqueNames": 9735,
+      "t": 1002
+    },
+    {
+      "requests": 8025,
+      "points": 1598200,
+      "uniqueKtru": 26807,
+      "uniqueNames": 9738,
+      "t": 1006
+    },
+    {
+      "requests": 8050,
+      "points": 1603200,
+      "uniqueKtru": 26827,
+      "uniqueNames": 9742,
+      "t": 1010
+    },
+    {
+      "requests": 8075,
+      "points": 1608200,
+      "uniqueKtru": 26855,
+      "uniqueNames": 9745,
+      "t": 1014
+    },
+    {
+      "requests": 8100,
+      "points": 1613200,
+      "uniqueKtru": 26879,
+      "uniqueNames": 9751,
+      "t": 1017
+    },
+    {
+      "requests": 8125,
+      "points": 1618200,
+      "uniqueKtru": 26916,
+      "uniqueNames": 9760,
+      "t": 1022
+    },
+    {
+      "requests": 8150,
+      "points": 1623200,
+      "uniqueKtru": 26943,
+      "uniqueNames": 9764,
+      "t": 1026
+    },
+    {
+      "requests": 8175,
+      "points": 1628200,
+      "uniqueKtru": 26976,
+      "uniqueNames": 9773,
+      "t": 1030
+    },
+    {
+      "requests": 8200,
+      "points": 1633200,
+      "uniqueKtru": 27004,
+      "uniqueNames": 9785,
+      "t": 1034
+    },
+    {
+      "requests": 8225,
+      "points": 1638200,
+      "uniqueKtru": 27029,
+      "uniqueNames": 9792,
+      "t": 1038
+    },
+    {
+      "requests": 8250,
+      "points": 1643200,
+      "uniqueKtru": 27056,
+      "uniqueNames": 9798,
+      "t": 1041
+    },
+    {
+      "requests": 8275,
+      "points": 1648200,
+      "uniqueKtru": 27080,
+      "uniqueNames": 9808,
+      "t": 1046
+    },
+    {
+      "requests": 8300,
+      "points": 1653200,
+      "uniqueKtru": 27106,
+      "uniqueNames": 9816,
+      "t": 1050
+    },
+    {
+      "requests": 8325,
+      "points": 1658200,
+      "uniqueKtru": 27142,
+      "uniqueNames": 9828,
+      "t": 1055
+    },
+    {
+      "requests": 8350,
+      "points": 1663200,
+      "uniqueKtru": 27160,
+      "uniqueNames": 9832,
+      "t": 1058
+    },
+    {
+      "requests": 8375,
+      "points": 1668200,
+      "uniqueKtru": 27187,
+      "uniqueNames": 9840,
+      "t": 1062
+    },
+    {
+      "requests": 8400,
+      "points": 1673200,
+      "uniqueKtru": 27203,
+      "uniqueNames": 9846,
+      "t": 1065
+    },
+    {
+      "requests": 8425,
+      "points": 1678200,
+      "uniqueKtru": 27231,
+      "uniqueNames": 9851,
+      "t": 1068
+    },
+    {
+      "requests": 8450,
+      "points": 1683200,
+      "uniqueKtru": 27267,
+      "uniqueNames": 9865,
+      "t": 1072
+    },
+    {
+      "requests": 8475,
+      "points": 1688200,
+      "uniqueKtru": 27299,
+      "uniqueNames": 9875,
+      "t": 1076
+    },
+    {
+      "requests": 8500,
+      "points": 1693200,
+      "uniqueKtru": 27321,
+      "uniqueNames": 9882,
+      "t": 1080
+    },
+    {
+      "requests": 8525,
+      "points": 1698200,
+      "uniqueKtru": 27344,
+      "uniqueNames": 9887,
+      "t": 1085
+    },
+    {
+      "requests": 8550,
+      "points": 1703200,
+      "uniqueKtru": 27381,
+      "uniqueNames": 9896,
+      "t": 1089
+    },
+    {
+      "requests": 8575,
+      "points": 1708200,
+      "uniqueKtru": 27402,
+      "uniqueNames": 9903,
+      "t": 1093
+    },
+    {
+      "requests": 8600,
+      "points": 1713200,
+      "uniqueKtru": 27436,
+      "uniqueNames": 9912,
+      "t": 1097
+    },
+    {
+      "requests": 8625,
+      "points": 1718200,
+      "uniqueKtru": 27453,
+      "uniqueNames": 9915,
+      "t": 1101
+    },
+    {
+      "requests": 8650,
+      "points": 1723200,
+      "uniqueKtru": 27477,
+      "uniqueNames": 9920,
+      "t": 1105
+    },
+    {
+      "requests": 8675,
+      "points": 1728200,
+      "uniqueKtru": 27500,
+      "uniqueNames": 9927,
+      "t": 1110
+    },
+    {
+      "requests": 8700,
+      "points": 1733200,
+      "uniqueKtru": 27520,
+      "uniqueNames": 9932,
+      "t": 1113
+    },
+    {
+      "requests": 8725,
+      "points": 1738200,
+      "uniqueKtru": 27540,
+      "uniqueNames": 9938,
+      "t": 1118
+    },
+    {
+      "requests": 8750,
+      "points": 1743200,
+      "uniqueKtru": 27561,
+      "uniqueNames": 9942,
+      "t": 1122
+    },
+    {
+      "requests": 8775,
+      "points": 1748200,
+      "uniqueKtru": 27582,
+      "uniqueNames": 9947,
+      "t": 1126
+    },
+    {
+      "requests": 8800,
+      "points": 1753200,
+      "uniqueKtru": 27610,
+      "uniqueNames": 9952,
+      "t": 1130
+    },
+    {
+      "requests": 8825,
+      "points": 1758200,
+      "uniqueKtru": 27631,
+      "uniqueNames": 9959,
+      "t": 1135
+    },
+    {
+      "requests": 8850,
+      "points": 1763200,
+      "uniqueKtru": 27659,
+      "uniqueNames": 9964,
+      "t": 1139
+    },
+    {
+      "requests": 8875,
+      "points": 1768200,
+      "uniqueKtru": 27689,
+      "uniqueNames": 9969,
+      "t": 1143
+    },
+    {
+      "requests": 8900,
+      "points": 1773200,
+      "uniqueKtru": 27715,
+      "uniqueNames": 9972,
+      "t": 1149
+    },
+    {
+      "requests": 8925,
+      "points": 1778200,
+      "uniqueKtru": 27728,
+      "uniqueNames": 9977,
+      "t": 1154
+    },
+    {
+      "requests": 8950,
+      "points": 1783200,
+      "uniqueKtru": 27746,
+      "uniqueNames": 9982,
+      "t": 1159
+    },
+    {
+      "requests": 8975,
+      "points": 1788200,
+      "uniqueKtru": 27768,
+      "uniqueNames": 9990,
+      "t": 1165
+    },
+    {
+      "requests": 9000,
+      "points": 1793200,
+      "uniqueKtru": 27780,
+      "uniqueNames": 9993,
+      "t": 1170
+    },
+    {
+      "requests": 9025,
+      "points": 1798200,
+      "uniqueKtru": 27810,
+      "uniqueNames": 10003,
+      "t": 1174
+    },
+    {
+      "requests": 9050,
+      "points": 1803200,
+      "uniqueKtru": 27826,
+      "uniqueNames": 10007,
+      "t": 1179
+    },
+    {
+      "requests": 9075,
+      "points": 1808200,
+      "uniqueKtru": 27843,
+      "uniqueNames": 10010,
+      "t": 1183
+    },
+    {
+      "requests": 9100,
+      "points": 1813200,
+      "uniqueKtru": 27858,
+      "uniqueNames": 10013,
+      "t": 1188
+    },
+    {
+      "requests": 9125,
+      "points": 1818200,
+      "uniqueKtru": 27875,
+      "uniqueNames": 10015,
+      "t": 1193
+    },
+    {
+      "requests": 9150,
+      "points": 1823200,
+      "uniqueKtru": 27888,
+      "uniqueNames": 10016,
+      "t": 1197
+    },
+    {
+      "requests": 9175,
+      "points": 1828200,
+      "uniqueKtru": 27905,
+      "uniqueNames": 10023,
+      "t": 1203
+    },
+    {
+      "requests": 9200,
+      "points": 1833200,
+      "uniqueKtru": 27930,
+      "uniqueNames": 10029,
+      "t": 1206
+    },
+    {
+      "requests": 9225,
+      "points": 1838200,
+      "uniqueKtru": 27948,
+      "uniqueNames": 10036,
+      "t": 1211
+    },
+    {
+      "requests": 9250,
+      "points": 1843200,
+      "uniqueKtru": 27976,
+      "uniqueNames": 10044,
+      "t": 1216
+    },
+    {
+      "requests": 9275,
+      "points": 1848200,
+      "uniqueKtru": 27998,
+      "uniqueNames": 10046,
+      "t": 1221
+    },
+    {
+      "requests": 9300,
+      "points": 1853200,
+      "uniqueKtru": 28016,
+      "uniqueNames": 10054,
+      "t": 1224
+    },
+    {
+      "requests": 9325,
+      "points": 1856400,
+      "uniqueKtru": 28027,
+      "uniqueNames": 10057,
+      "t": 1231
+    },
+    {
+      "requests": 9350,
+      "points": 1861400,
+      "uniqueKtru": 28053,
+      "uniqueNames": 10064,
+      "t": 1235
+    },
+    {
+      "requests": 9375,
+      "points": 1866400,
+      "uniqueKtru": 28075,
+      "uniqueNames": 10074,
+      "t": 1238
+    },
+    {
+      "requests": 9400,
+      "points": 1871400,
+      "uniqueKtru": 28092,
+      "uniqueNames": 10081,
+      "t": 1243
+    },
+    {
+      "requests": 9425,
+      "points": 1876400,
+      "uniqueKtru": 28114,
+      "uniqueNames": 10087,
+      "t": 1246
+    },
+    {
+      "requests": 9450,
+      "points": 1881400,
+      "uniqueKtru": 28135,
+      "uniqueNames": 10095,
+      "t": 1250
+    },
+    {
+      "requests": 9475,
+      "points": 1886400,
+      "uniqueKtru": 28148,
+      "uniqueNames": 10098,
+      "t": 1253
+    },
+    {
+      "requests": 9500,
+      "points": 1891400,
+      "uniqueKtru": 28170,
+      "uniqueNames": 10103,
+      "t": 1258
+    },
+    {
+      "requests": 9525,
+      "points": 1896400,
+      "uniqueKtru": 28179,
+      "uniqueNames": 10105,
+      "t": 1262
+    },
+    {
+      "requests": 9550,
+      "points": 1901400,
+      "uniqueKtru": 28204,
+      "uniqueNames": 10113,
+      "t": 1267
+    },
+    {
+      "requests": 9575,
+      "points": 1906400,
+      "uniqueKtru": 28220,
+      "uniqueNames": 10115,
+      "t": 1271
+    },
+    {
+      "requests": 9600,
+      "points": 1911400,
+      "uniqueKtru": 28240,
+      "uniqueNames": 10123,
+      "t": 1275
+    },
+    {
+      "requests": 9625,
+      "points": 1916400,
+      "uniqueKtru": 28254,
+      "uniqueNames": 10126,
+      "t": 1279
+    },
+    {
+      "requests": 9650,
+      "points": 1921400,
+      "uniqueKtru": 28269,
+      "uniqueNames": 10127,
+      "t": 1284
+    },
+    {
+      "requests": 9675,
+      "points": 1926400,
+      "uniqueKtru": 28286,
+      "uniqueNames": 10132,
+      "t": 1289
+    },
+    {
+      "requests": 9700,
+      "points": 1931400,
+      "uniqueKtru": 28298,
+      "uniqueNames": 10135,
+      "t": 1292
+    },
+    {
+      "requests": 9725,
+      "points": 1936400,
+      "uniqueKtru": 28319,
+      "uniqueNames": 10138,
+      "t": 1297
+    },
+    {
+      "requests": 9750,
+      "points": 1941400,
+      "uniqueKtru": 28329,
+      "uniqueNames": 10143,
+      "t": 1302
+    },
+    {
+      "requests": 9775,
+      "points": 1946400,
+      "uniqueKtru": 28342,
+      "uniqueNames": 10147,
+      "t": 1306
+    },
+    {
+      "requests": 9800,
+      "points": 1951400,
+      "uniqueKtru": 28352,
+      "uniqueNames": 10150,
+      "t": 1310
+    },
+    {
+      "requests": 9825,
+      "points": 1956400,
+      "uniqueKtru": 28364,
+      "uniqueNames": 10152,
+      "t": 1314
+    },
+    {
+      "requests": 9850,
+      "points": 1961400,
+      "uniqueKtru": 28376,
+      "uniqueNames": 10157,
+      "t": 1320
+    },
+    {
+      "requests": 9875,
+      "points": 1966400,
+      "uniqueKtru": 28386,
+      "uniqueNames": 10160,
+      "t": 1324
+    },
+    {
+      "requests": 9900,
+      "points": 1971400,
+      "uniqueKtru": 28396,
+      "uniqueNames": 10162,
+      "t": 1328
+    },
+    {
+      "requests": 9925,
+      "points": 1976400,
+      "uniqueKtru": 28403,
+      "uniqueNames": 10164,
+      "t": 1332
+    },
+    {
+      "requests": 9950,
+      "points": 1981400,
+      "uniqueKtru": 28415,
+      "uniqueNames": 10168,
+      "t": 1336
+    },
+    {
+      "requests": 9975,
+      "points": 1986400,
+      "uniqueKtru": 28428,
+      "uniqueNames": 10171,
+      "t": 1341
+    },
+    {
+      "requests": 10000,
+      "points": 1991400,
+      "uniqueKtru": 28433,
+      "uniqueNames": 10172,
+      "t": 1344
+    },
+    {
+      "requests": 10025,
+      "points": 1996400,
+      "uniqueKtru": 28445,
+      "uniqueNames": 10176,
+      "t": 1348
+    },
+    {
+      "requests": 10050,
+      "points": 2001400,
+      "uniqueKtru": 28454,
+      "uniqueNames": 10180,
+      "t": 1353
+    },
+    {
+      "requests": 10075,
+      "points": 2006400,
+      "uniqueKtru": 28464,
+      "uniqueNames": 10186,
+      "t": 1356
+    },
+    {
+      "requests": 10100,
+      "points": 2011400,
+      "uniqueKtru": 28473,
+      "uniqueNames": 10190,
+      "t": 1361
+    },
+    {
+      "requests": 10125,
+      "points": 2016400,
+      "uniqueKtru": 28485,
+      "uniqueNames": 10192,
+      "t": 1365
+    },
+    {
+      "requests": 10150,
+      "points": 2021400,
+      "uniqueKtru": 28491,
+      "uniqueNames": 10194,
+      "t": 1369
+    },
+    {
+      "requests": 10175,
+      "points": 2026400,
+      "uniqueKtru": 28502,
+      "uniqueNames": 10195,
+      "t": 1373
+    },
+    {
+      "requests": 10200,
+      "points": 2031400,
+      "uniqueKtru": 28510,
+      "uniqueNames": 10199,
+      "t": 1377
+    },
+    {
+      "requests": 10225,
+      "points": 2036400,
+      "uniqueKtru": 28524,
+      "uniqueNames": 10206,
+      "t": 1382
+    },
+    {
+      "requests": 10250,
+      "points": 2041400,
+      "uniqueKtru": 28534,
+      "uniqueNames": 10211,
+      "t": 1385
+    },
+    {
+      "requests": 10275,
+      "points": 2046400,
+      "uniqueKtru": 28542,
+      "uniqueNames": 10212,
+      "t": 1391
+    },
+    {
+      "requests": 10300,
+      "points": 2051400,
+      "uniqueKtru": 28553,
+      "uniqueNames": 10213,
+      "t": 1395
+    },
+    {
+      "requests": 10325,
+      "points": 2056400,
+      "uniqueKtru": 28562,
+      "uniqueNames": 10217,
+      "t": 1398
+    },
+    {
+      "requests": 10350,
+      "points": 2061400,
+      "uniqueKtru": 28571,
+      "uniqueNames": 10223,
+      "t": 1403
+    },
+    {
+      "requests": 10375,
+      "points": 2066400,
+      "uniqueKtru": 28579,
+      "uniqueNames": 10227,
+      "t": 1406
+    },
+    {
+      "requests": 10400,
+      "points": 2071400,
+      "uniqueKtru": 28582,
+      "uniqueNames": 10228,
+      "t": 1410
+    },
+    {
+      "requests": 10425,
+      "points": 2076400,
+      "uniqueKtru": 28587,
+      "uniqueNames": 10229,
+      "t": 1414
+    },
+    {
+      "requests": 10450,
+      "points": 2081400,
+      "uniqueKtru": 28596,
+      "uniqueNames": 10232,
+      "t": 1419
+    },
+    {
+      "requests": 10475,
+      "points": 2086400,
+      "uniqueKtru": 28605,
+      "uniqueNames": 10235,
+      "t": 1424
+    },
+    {
+      "requests": 10500,
+      "points": 2091400,
+      "uniqueKtru": 28616,
+      "uniqueNames": 10239,
+      "t": 1428
+    },
+    {
+      "requests": 10525,
+      "points": 2096400,
+      "uniqueKtru": 28630,
+      "uniqueNames": 10239,
+      "t": 1432
+    },
+    {
+      "requests": 10550,
+      "points": 2101400,
+      "uniqueKtru": 28636,
+      "uniqueNames": 10240,
+      "t": 1437
+    },
+    {
+      "requests": 10575,
+      "points": 2106400,
+      "uniqueKtru": 28648,
+      "uniqueNames": 10244,
+      "t": 1441
+    },
+    {
+      "requests": 10600,
+      "points": 2111400,
+      "uniqueKtru": 28660,
+      "uniqueNames": 10247,
+      "t": 1445
+    },
+    {
+      "requests": 10625,
+      "points": 2116400,
+      "uniqueKtru": 28675,
+      "uniqueNames": 10251,
+      "t": 1449
+    },
+    {
+      "requests": 10650,
+      "points": 2121400,
+      "uniqueKtru": 28686,
+      "uniqueNames": 10253,
+      "t": 1453
+    },
+    {
+      "requests": 10675,
+      "points": 2126400,
+      "uniqueKtru": 28694,
+      "uniqueNames": 10253,
+      "t": 1457
+    },
+    {
+      "requests": 10700,
+      "points": 2131400,
+      "uniqueKtru": 28705,
+      "uniqueNames": 10255,
+      "t": 1462
+    },
+    {
+      "requests": 10725,
+      "points": 2136400,
+      "uniqueKtru": 28716,
+      "uniqueNames": 10260,
+      "t": 1465
+    },
+    {
+      "requests": 10750,
+      "points": 2141400,
+      "uniqueKtru": 28744,
+      "uniqueNames": 10266,
+      "t": 1469
+    },
+    {
+      "requests": 10775,
+      "points": 2146400,
+      "uniqueKtru": 28758,
+      "uniqueNames": 10273,
+      "t": 1472
+    },
+    {
+      "requests": 10800,
+      "points": 2151400,
+      "uniqueKtru": 28769,
+      "uniqueNames": 10278,
+      "t": 1476
+    },
+    {
+      "requests": 10825,
+      "points": 2156400,
+      "uniqueKtru": 28780,
+      "uniqueNames": 10281,
+      "t": 1480
+    },
+    {
+      "requests": 10850,
+      "points": 2161400,
+      "uniqueKtru": 28789,
+      "uniqueNames": 10284,
+      "t": 1484
+    },
+    {
+      "requests": 10875,
+      "points": 2166400,
+      "uniqueKtru": 28797,
+      "uniqueNames": 10288,
+      "t": 1488
+    },
+    {
+      "requests": 10900,
+      "points": 2171400,
+      "uniqueKtru": 28809,
+      "uniqueNames": 10291,
+      "t": 1493
+    },
+    {
+      "requests": 10925,
+      "points": 2176400,
+      "uniqueKtru": 28826,
+      "uniqueNames": 10293,
+      "t": 1499
+    },
+    {
+      "requests": 10950,
+      "points": 2181400,
+      "uniqueKtru": 28845,
+      "uniqueNames": 10298,
+      "t": 1502
+    },
+    {
+      "requests": 10975,
+      "points": 2186400,
+      "uniqueKtru": 28861,
+      "uniqueNames": 10302,
+      "t": 1505
+    },
+    {
+      "requests": 11000,
+      "points": 2191400,
+      "uniqueKtru": 28881,
+      "uniqueNames": 10307,
+      "t": 1508
+    },
+    {
+      "requests": 11025,
+      "points": 2196400,
+      "uniqueKtru": 28889,
+      "uniqueNames": 10309,
+      "t": 1512
+    }
+  ]
+}
