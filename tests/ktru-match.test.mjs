@@ -73,10 +73,20 @@ test('Тест 6: непонятный запрос «товар для сада
 })
 
 test('нерелевантные запросы вне домена → confident=false (нет ложных срабатываний)', () => {
-  for (const q of ['мебель офисная', 'медицинский расходник', 'перчатки нитриловые', 'бензин', 'услуги охраны']) {
+  // NB: «перчатки» больше НЕ вне домена — коды перчаток намыты в индекс из планов
+  // (scripts/ktru-harvest.mjs), см. позитивный тест ниже.
+  for (const q of ['мебель офисная', 'медицинский расходник', 'бензин', 'услуги охраны', 'огнетушитель порошковый']) {
     const { results, confident } = matchKtru(q, [])
     assert.equal(confident, false, `${q}: не должно быть уверенного КТРУ, получили ${codes(results)}`)
   }
+})
+
+test('расходка вне цветочного домена: «Перчатки нитриловые» → несколько реальных КТРУ', () => {
+  const { results, confident } = matchKtru('Перчатки нитриловые', [])
+  assert.ok(confident, 'перчатки должны находиться уверенно')
+  assert.ok(results.length >= 2, `ожидали несколько кандидатов: ${codes(results)}`)
+  assert.ok(results.every((r) => /перчатк/i.test(r.name)))
+  assert.equal(results[0].code.slice(0, 6), '221960', `топ: ${results[0].code}`)
 })
 
 test('форма результата: code/name/score/confidence/reason', () => {

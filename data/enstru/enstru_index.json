@@ -1,8 +1,8 @@
 {
- "generated": "2026-09-04T18:49:54.229Z",
- "source": "goszakup ows v3 GraphQL — harvested via Lots->pointList->Plans over ~70 domain terms; filtered to relevant КПВЭД classes + keyword whitelist; planCount/yearCounts via Plans(refEnstruCode[,plnPointYear])",
- "disclaimer": "Partial index (assortment-focused, expanded). nameRu = raw KTRU name; descExample is one buyer's free-text, NOT an authoritative attribute. yearCounts = exact count of plan points per year (additive metadata; not used by the current scoring algorithm, which only reads planCount).",
- "count": 75,
+ "generated": "2026-09-07T04:48:14.914Z",
+ "source": "goszakup ows v3 GraphQL — Plans.PlnPoint + relation RefEnstru (authoritative code/nameRu/nameKz/descRu). Flower-domain rows harvested earlier; general rows via scripts/ktru-harvest.mjs seed terms.",
+ "disclaimer": "Partial index. Every code was returned by the live API for a real plan point — no synthetic codes. descRu/descKz come from RefEnstru; descExample is one buyer’s free text.",
+ "count": 148,
  "rows": [
   {
    "code": "011921.110.000000",
@@ -1107,6 +1107,975 @@
    "source": "goszakup"
   },
   {
+   "code": "139213.500.000001",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "столовая, из ткани",
+   "descRu": "столовая, из ткани",
+   "descKz": "асхана, матадан",
+   "kpvedClass": "139213",
+   "kpvedGroup": "500",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "5111",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 765,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139214.900.010007",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "кухонная, из ткани",
+   "descRu": "кухонная, из ткани",
+   "descKz": "асүйлік, матадан",
+   "kpvedClass": "139214",
+   "kpvedGroup": "900",
+   "kpvedPosition": "010007",
+   "units": [
+    "704",
+    "796",
+    "778",
+    "5111",
+    "736"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 762,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139221.300.000000",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "продуктовый, из хлопчатобумажный ткани",
+   "descRu": "продуктовый, из хлопчатобумажный ткани",
+   "descKz": "өнімдік, мақта матадан",
+   "kpvedClass": "139221",
+   "kpvedGroup": "300",
+   "kpvedPosition": "000000",
+   "units": [
+    "796",
+    "736"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 456,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139221.300.000001",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "технический, из хлопчатобумажный ткани",
+   "descRu": "технический, из хлопчатобумажный ткани",
+   "descKz": "техникалық, мақта матадан",
+   "kpvedClass": "139221",
+   "kpvedGroup": "300",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "778",
+    "736",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2025,
+    2026
+   ],
+   "planCount": 2472,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139221.900.000001",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "технический, из джутовой ткани",
+   "descRu": "технический, из джутовой ткани",
+   "descKz": "техникалық, кендір матадан жасалған",
+   "kpvedClass": "139221",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000001",
+   "units": [
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 645,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139221.900.000003",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "технический, из огнеупорных тканей",
+   "descRu": "технический, из огнеупорных тканей",
+   "descKz": "техникалық, өртке төзімді матадан жасалған",
+   "kpvedClass": "139221",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000003",
+   "units": [
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 212,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139224.300.000000",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "спальный, брезентово-нейлоновый",
+   "descRu": "спальный, брезентово-нейлоновый",
+   "descKz": "жатын, брезентті-нейлондық",
+   "kpvedClass": "139224",
+   "kpvedGroup": "300",
+   "kpvedPosition": "000000",
+   "units": [
+    "839",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 1008,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139229.800.000001",
+   "nameRu": "Бахилы",
+   "nameKz": "Бахила",
+   "descExample": "одноразовые, из нетканого материала",
+   "descRu": "одноразовые, из нетканого материала",
+   "descKz": "бір реттік, тоқылмаған материалдан жасалған",
+   "kpvedClass": "139229",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "715",
+    "778",
+    "5111",
+    "879"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Бахилы"
+   ],
+   "years": [
+    2025,
+    2026
+   ],
+   "planCount": 1282,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139229.800.000002",
+   "nameRu": "Бахилы",
+   "nameKz": "Бахила",
+   "descExample": "одноразовые, из полиэтилена",
+   "descRu": "одноразовые, из полиэтилена",
+   "descKz": "бір реттік, полиэтиленнен",
+   "kpvedClass": "139229",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000002",
+   "units": [
+    "715",
+    "778",
+    "5111",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Бахилы"
+   ],
+   "years": [
+    2025,
+    2026
+   ],
+   "planCount": 1822,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139229.990.000001",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "техническая, из ткани",
+   "descRu": "техническая, из ткани",
+   "descKz": "техникалық, матадан",
+   "kpvedClass": "139229",
+   "kpvedGroup": "990",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "778",
+    "736",
+    "006",
+    "5111"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 1247,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139229.990.000002",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "антистатическая, нетканая",
+   "descRu": "антистатическая, нетканая",
+   "descKz": "антистатикалық, тоқымалы емес",
+   "kpvedClass": "139229",
+   "kpvedGroup": "990",
+   "kpvedPosition": "000002",
+   "units": [
+    "778",
+    "796",
+    "736",
+    "5111"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2188,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139229.990.000061",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "многоразовая",
+   "descRu": "многоразовая",
+   "descKz": "көп реттік",
+   "kpvedClass": "139229",
+   "kpvedGroup": "990",
+   "kpvedPosition": "000061",
+   "units": [
+    "796",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 1023,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139510.700.000000",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "техническая, из микрофибры",
+   "descRu": "техническая, из микрофибры",
+   "descKz": "техникалық, микрофибрадан",
+   "kpvedClass": "139510",
+   "kpvedGroup": "700",
+   "kpvedPosition": "000000",
+   "units": [
+    "796",
+    "778",
+    "5111",
+    "839",
+    "704",
+    "736",
+    "5114"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 11660,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "139510.700.000001",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "техническая, холстопрошивная",
+   "descRu": "техническая, холстопрошивная",
+   "descKz": "техникалық, жайғақтап тігілген",
+   "kpvedClass": "139510",
+   "kpvedGroup": "700",
+   "kpvedPosition": "000001",
+   "units": [
+    "736",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 271,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141230.110.000008",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "мужской, для защиты от воды, из ткани",
+   "descRu": "мужской, для защиты от воды, из ткани",
+   "descKz": "ерлер, судан қорғау үшін, матадан",
+   "kpvedClass": "141230",
+   "kpvedGroup": "110",
+   "kpvedPosition": "000008",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 557,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141230.110.000009",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "мужской, медицинский, из ткани",
+   "descRu": "мужской, медицинский, из ткани",
+   "descKz": "ерлер, медициналық, матадан",
+   "kpvedClass": "141230",
+   "kpvedGroup": "110",
+   "kpvedPosition": "000009",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 1713,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141230.110.000010",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "мужской, для сферы обслуживания, из ткани",
+   "descRu": "мужской, для сферы обслуживания, из ткани",
+   "descKz": "ерлер, қызмет көрсету саласы үшін, матадан",
+   "kpvedClass": "141230",
+   "kpvedGroup": "110",
+   "kpvedPosition": "000010",
+   "units": [
+    "839",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 750,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141230.110.000011",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "мужской, для защиты от общих производственных загрязнений и механических воздействий, из ткани",
+   "descRu": "мужской, для защиты от общих производственных загрязнений и механических воздействий, из ткани",
+   "descKz": "ерлер, жалпы өндірістік ластан және механикалық әсерлерден қорғау үшін, матадан",
+   "kpvedClass": "141230",
+   "kpvedGroup": "110",
+   "kpvedPosition": "000011",
+   "units": [
+    "839",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 873,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141230.210.000000",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "женский, для защиты от химических веществ, из ткани",
+   "descRu": "женский, для защиты от химических веществ, из ткани",
+   "descKz": "әйелдердікі, химиялық заттардан қорғау үшін, матадан",
+   "kpvedClass": "141230",
+   "kpvedGroup": "210",
+   "kpvedPosition": "000000",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 433,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141230.290.000014",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "женский, для сферы обслуживания, из ткани",
+   "descRu": "женский, для сферы обслуживания, из ткани",
+   "descKz": "әйелдердікі, қызмет көрсету саласы үшін, матадан",
+   "kpvedClass": "141230",
+   "kpvedGroup": "290",
+   "kpvedPosition": "000014",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 4385,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141230.290.000016",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "женский, для защиты от общих производственных загрязнений и механических воздействий, из ткани",
+   "descRu": "женский, для защиты от общих производственных загрязнений и механических воздействий, из ткани",
+   "descKz": "әйелдердікі, жалпы өндірістік ластан және механикалық әсерлерден қорғау үшін, матадан",
+   "kpvedClass": "141230",
+   "kpvedGroup": "290",
+   "kpvedPosition": "000016",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2134,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141414.490.000001",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "женский, повседневный, из трикотажа",
+   "descRu": "женский, повседневный, из трикотажа",
+   "descKz": "әйелдердікі, күнделікті, трикотаждан",
+   "kpvedClass": "141414",
+   "kpvedGroup": "490",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 491,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141422.490.000000",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "мужской, повседневный, из ткани",
+   "descRu": "мужской, повседневный, из ткани",
+   "descKz": "ерлер, күнделікті, матадан",
+   "kpvedClass": "141422",
+   "kpvedGroup": "490",
+   "kpvedPosition": "000000",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 359,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141424.410.000001",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "для девочек, повседневный, из ткани",
+   "descRu": "для девочек, повседневный, из ткани",
+   "descKz": "қыздарға арналған, күнделікті, матадан",
+   "kpvedClass": "141424",
+   "kpvedGroup": "410",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 419,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141424.490.000000",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "женский, повседневный, из ткани",
+   "descRu": "женский, повседневный, из ткани",
+   "descKz": "әйелдердікі, күнделікті, матадан",
+   "kpvedClass": "141424",
+   "kpvedGroup": "490",
+   "kpvedPosition": "000000",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 1834,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141913.100.010000",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "для защиты рук, из латекса на трикотажной основе",
+   "descRu": "для защиты рук, из латекса на трикотажной основе",
+   "descKz": "қолды қорғауға арналған, латекстен трикотаж негізінде",
+   "kpvedClass": "141913",
+   "kpvedGroup": "100",
+   "kpvedPosition": "010000",
+   "units": [
+    "715",
+    "778",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2304,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141913.100.010006",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "для защиты рук, трикотажные с точечным покрытием поливинилхлорида",
+   "descRu": "для защиты рук, трикотажные с точечным покрытием поливинилхлорида",
+   "descKz": "қолды қорғауға арналған, поливинилхлоридтің нүктелі жабыны бар трикотаж",
+   "kpvedClass": "141913",
+   "kpvedGroup": "100",
+   "kpvedPosition": "010006",
+   "units": [
+    "796",
+    "715"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2903,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141913.200.010001",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "для защиты рук, из трикотажа",
+   "descRu": "для защиты рук, из трикотажа",
+   "descKz": "қолды қорғауға арналған, трикотаждан",
+   "kpvedClass": "141913",
+   "kpvedGroup": "200",
+   "kpvedPosition": "010001",
+   "units": [
+    "715",
+    "796",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 3694,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141922.290.000014",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "женский, медицинский, из ткани",
+   "descRu": "женский, медицинский, из ткани",
+   "descKz": "әйелдердікі, медициналық, матадан",
+   "kpvedClass": "141922",
+   "kpvedGroup": "290",
+   "kpvedPosition": "000014",
+   "units": [
+    "796",
+    "839",
+    "5114",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 4075,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141922.290.000015",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "женский, госпитальный, из ткани",
+   "descRu": "женский, госпитальный, из ткани",
+   "descKz": "әйелдердікі, госпитальды, матадан",
+   "kpvedClass": "141922",
+   "kpvedGroup": "290",
+   "kpvedPosition": "000015",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 1165,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141923.700.000002",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "повседневные, из ткани",
+   "descRu": "повседневные, из ткани",
+   "descKz": "күнделікті, матадан",
+   "kpvedClass": "141923",
+   "kpvedGroup": "700",
+   "kpvedPosition": "000002",
+   "units": [
+    "715",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2002,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141923.700.000009",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "для защиты рук, из ткани",
+   "descRu": "для защиты рук, из ткани",
+   "descKz": "қолды қорғауға арналған, матадан",
+   "kpvedClass": "141923",
+   "kpvedGroup": "700",
+   "kpvedPosition": "000009",
+   "units": [
+    "715",
+    "796",
+    "778",
+    "018"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 13787,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141932.350.000014",
+   "nameRu": "Халат",
+   "nameKz": "Халат",
+   "descExample": "универсальный, медицинский, одноразовый",
+   "descRu": "универсальный, медицинский, одноразовый",
+   "descKz": "әмбебап, медициналық, бір реттік",
+   "kpvedClass": "141932",
+   "kpvedGroup": "350",
+   "kpvedPosition": "000014",
+   "units": [
+    "796",
+    "778",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Халат"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2866,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "141932.350.000020",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "одноразовая",
+   "descRu": "одноразовая",
+   "descKz": "бір реттік",
+   "kpvedClass": "141932",
+   "kpvedGroup": "350",
+   "kpvedPosition": "000020",
+   "units": [
+    "796",
+    "778",
+    "5111",
+    "704",
+    "715"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 21063,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "152021.000.000000",
+   "nameRu": "Бахилы",
+   "nameKz": "Бахила",
+   "descExample": "спортивные, из смешаного материала",
+   "descRu": "спортивные, из смешаного материала",
+   "descKz": "спорттық, аралас материалдан жасалған",
+   "kpvedClass": "152021",
+   "kpvedGroup": "000",
+   "kpvedPosition": "000000",
+   "units": [
+    "715",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Бахилы"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 120,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "152032.990.000000",
+   "nameRu": "Бахилы",
+   "nameKz": "Бахила",
+   "descExample": "одноразовые, из полиэтилена",
+   "descRu": "одноразовые, из полиэтилена",
+   "descKz": "бір реттік, полиэтиленнен",
+   "kpvedClass": "152032",
+   "kpvedGroup": "990",
+   "kpvedPosition": "000000",
+   "units": [
+    "796",
+    "715",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Бахилы"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 5548,
+   "source": "goszakup:harvest"
+  },
+  {
    "code": "162925.700.000000",
    "nameRu": "Корзина",
    "nameKz": "Кәрзеңке",
@@ -1174,6 +2143,35 @@
    },
    "planCount": 520,
    "source": "goszakup"
+  },
+  {
+   "code": "171220.900.000004",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "бумажная, гигиеническая",
+   "descRu": "бумажная, гигиеническая",
+   "descKz": "қағаздан, гигиеналық",
+   "kpvedClass": "171220",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000004",
+   "units": [
+    "778",
+    "796",
+    "5111",
+    "736",
+    "006"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 8471,
+   "source": "goszakup:harvest"
   },
   {
    "code": "171241.500.000000",
@@ -1332,6 +2330,35 @@
    },
    "planCount": 669,
    "source": "goszakup"
+  },
+  {
+   "code": "172211.500.000004",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "бумажная, столовая",
+   "descRu": "бумажная, столовая",
+   "descKz": "қағаздан, асхана",
+   "kpvedClass": "172211",
+   "kpvedGroup": "500",
+   "kpvedPosition": "000004",
+   "units": [
+    "796",
+    "778",
+    "5111",
+    "736"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2025,
+    2026
+   ],
+   "planCount": 6789,
+   "source": "goszakup:harvest"
   },
   {
    "code": "172312.500.000001",
@@ -1729,6 +2756,131 @@
    "source": "goszakup"
   },
   {
+   "code": "204131.590.000000",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "обезжиривающая",
+   "descRu": "обезжиривающая",
+   "descKz": "майсыздандыратын",
+   "kpvedClass": "204131",
+   "kpvedGroup": "590",
+   "kpvedPosition": "000000",
+   "units": [
+    "018",
+    "796",
+    "778",
+    "5111",
+    "736",
+    "006"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 796,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "204131.590.000001",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "чистящая",
+   "descRu": "чистящая",
+   "descKz": "тазалаушы",
+   "kpvedClass": "204131",
+   "kpvedGroup": "590",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "006",
+    "778",
+    "736",
+    "704",
+    "5111",
+    "715",
+    "881",
+    "018"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 6836,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "212024.900.000007",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "стерильная, двухслойная, марлевая",
+   "descRu": "стерильная, двухслойная, марлевая",
+   "descKz": "зарарсыздандырылған, екі қабатты, ләкелік",
+   "kpvedClass": "212024",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000007",
+   "units": [
+    "778",
+    "796",
+    "704",
+    "5111",
+    "006",
+    "839",
+    "881"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2401,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "212024.900.000008",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "стерильная, дезинфицирующая, одноразовая",
+   "descRu": "стерильная, дезинфицирующая, одноразовая",
+   "descKz": "зарарсыздандырылған, залалсыздандыратын, бір реттік",
+   "kpvedClass": "212024",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000008",
+   "units": [
+    "881",
+    "796",
+    "778",
+    "5111",
+    "736",
+    "872",
+    "006"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 10804,
+   "source": "goszakup:harvest"
+  },
+  {
    "code": "221930.500.000000",
    "nameRu": "Шланг поливочный",
    "nameKz": "Суаратын құбыршегі",
@@ -1809,6 +2961,393 @@
    "source": "goszakup"
   },
   {
+   "code": "221960.300.010000",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "одноразовые, латексные, стерильные",
+   "descRu": "одноразовые, латексные, стерильные",
+   "descKz": "бір реттік, латексті, стерильді",
+   "kpvedClass": "221960",
+   "kpvedGroup": "300",
+   "kpvedPosition": "010000",
+   "units": [
+    "715",
+    "778",
+    "796",
+    "5111"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 6370,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "221960.300.010002",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "одноразовые, нитриловые стерильные",
+   "descRu": "одноразовые, нитриловые стерильные",
+   "descKz": "бір реттік, нитрилді стерильді",
+   "kpvedClass": "221960",
+   "kpvedGroup": "300",
+   "kpvedPosition": "010002",
+   "units": [
+    "5111",
+    "778",
+    "715",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 1893,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "221960.500.010000",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "для защиты рук, из латекса без тканевой основы",
+   "descRu": "для защиты рук, из латекса без тканевой основы",
+   "descKz": "қолды қорғауға арналған, латекстен жасалған мата негізі жоқ",
+   "kpvedClass": "221960",
+   "kpvedGroup": "500",
+   "kpvedPosition": "010000",
+   "units": [
+    "715",
+    "796",
+    "778",
+    "872"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 26228,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "221960.500.010001",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "для защиты рук, нитриловые, маслобензостойкие без тканевой основы",
+   "descRu": "для защиты рук, нитриловые, маслобензостойкие без тканевой основы",
+   "descKz": "қолды қорғауға арналған, нитрилді, мата негізі жоқ май-бензинге төзімді",
+   "kpvedClass": "221960",
+   "kpvedGroup": "500",
+   "kpvedPosition": "010001",
+   "units": [
+    "715",
+    "778",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2078,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "221960.500.010002",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "одноразовые, нитриловые, нестерильные",
+   "descRu": "одноразовые, нитриловые, нестерильные",
+   "descKz": "бір реттік, нитрилді, стерильді емес",
+   "kpvedClass": "221960",
+   "kpvedGroup": "500",
+   "kpvedPosition": "010002",
+   "units": [
+    "715",
+    "778",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 3153,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "221960.500.010004",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "одноразовые, латексные, нестерильные",
+   "descRu": "одноразовые, латексные, нестерильные",
+   "descKz": "бір реттік, латексті, стерильді емес",
+   "kpvedClass": "221960",
+   "kpvedGroup": "500",
+   "kpvedPosition": "010004",
+   "units": [
+    "715",
+    "778",
+    "5111",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 7350,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "221960.590.000000",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "одноразовые, витриловые",
+   "descRu": "одноразовые, витриловые",
+   "descKz": "бір реттік, витрилді",
+   "kpvedClass": "221960",
+   "kpvedGroup": "590",
+   "kpvedPosition": "000000",
+   "units": [
+    "5111",
+    "715",
+    "778",
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 3183,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222211.900.000002",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "для мусора, полиэтиленовый",
+   "descRu": "для мусора, полиэтиленовый",
+   "descKz": "қоқысқа арналған, полиэтиленді",
+   "kpvedClass": "222211",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000002",
+   "units": [
+    "796",
+    "736",
+    "778",
+    "5111",
+    "839",
+    "879"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 23897,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222211.900.000003",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "технический, полиэтиленовый",
+   "descRu": "технический, полиэтиленовый",
+   "descKz": "техникалық, полиэтиленді",
+   "kpvedClass": "222211",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000003",
+   "units": [
+    "839",
+    "796",
+    "736"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2189,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222211.900.000004",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "для мусора, полиэтиленовый",
+   "descRu": "для мусора, полиэтиленовый",
+   "descKz": "қоқысқа арналған, полиэтиленді",
+   "kpvedClass": "222211",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000004",
+   "units": [
+    "736",
+    "796",
+    "778",
+    "5111"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 6037,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222212.900.000002",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "продуктовый, полипропиленовый",
+   "descRu": "продуктовый, полипропиленовый",
+   "descKz": "өнімдік, полипропиленді",
+   "kpvedClass": "222212",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000002",
+   "units": [
+    "796",
+    "736"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2047,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222212.900.000003",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "для хранения, транспортировки сыпучих грузов, полипропиленовый",
+   "descRu": "для хранения, транспортировки сыпучих грузов, полипропиленовый",
+   "descKz": "сусымалы жүктерді сақтау, тасымалдау үшін, полипропиленді",
+   "kpvedClass": "222212",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000003",
+   "units": [
+    "796",
+    "5111",
+    "736",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 4286,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222212.900.000004",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "посылочный, полипропиленовый",
+   "descRu": "посылочный, полипропиленовый",
+   "descKz": "жөнелтпелі, полипропиленді",
+   "kpvedClass": "222212",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000004",
+   "units": [
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 765,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222910.000.000007",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "одноразовые, полиэтиленовые",
+   "descRu": "одноразовые, полиэтиленовые",
+   "descKz": "бір реттік, полиэтиленді",
+   "kpvedClass": "222910",
+   "kpvedGroup": "000",
+   "kpvedPosition": "000007",
+   "units": [
+    "715",
+    "796",
+    "5111",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2025,
+    2026
+   ],
+   "planCount": 4914,
+   "source": "goszakup:harvest"
+  },
+  {
    "code": "222923.200.000002",
    "nameRu": "Лейка",
    "nameKz": "Құман",
@@ -1879,6 +3418,66 @@
    },
    "planCount": 1649,
    "source": "goszakup"
+  },
+  {
+   "code": "222929.500.000016",
+   "nameRu": "Бахилы",
+   "nameKz": "Бахила",
+   "descExample": "одноразовые, из полиэтилена",
+   "descRu": "одноразовые, из полиэтилена",
+   "descKz": "бір реттік, полиэтиленнен",
+   "kpvedClass": "222929",
+   "kpvedGroup": "500",
+   "kpvedPosition": "000016",
+   "units": [
+    "796",
+    "736",
+    "778",
+    "715",
+    "5111",
+    "704",
+    "839",
+    "006"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Бахилы"
+   ],
+   "years": [
+    2025,
+    2026
+   ],
+   "planCount": 2510,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "222929.500.000017",
+   "nameRu": "Бахилы",
+   "nameKz": "Бахила",
+   "descExample": "производственные, из пластика",
+   "descRu": "производственные, из пластика",
+   "descKz": "өндірістік, пластиктен жасалған",
+   "kpvedClass": "222929",
+   "kpvedGroup": "500",
+   "kpvedPosition": "000017",
+   "units": [
+    "715",
+    "796",
+    "5111"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Бахилы"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 24,
+   "source": "goszakup:harvest"
   },
   {
    "code": "222929.900.000114",
@@ -2523,6 +4122,33 @@
    "source": "goszakup"
   },
   {
+   "code": "259912.400.000001",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "кондитерский",
+   "descRu": "кондитерский",
+   "descKz": "кондитерлі",
+   "kpvedClass": "259912",
+   "kpvedGroup": "400",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "704",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 370,
+   "source": "goszakup:harvest"
+  },
+  {
    "code": "259912.400.000099",
    "nameRu": "Подставка",
    "nameKz": "Тіреуіш",
@@ -2549,6 +4175,31 @@
    },
    "planCount": 75,
    "source": "goszakup"
+  },
+  {
+   "code": "282982.550.000018",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "для фильтр-пресса",
+   "descRu": "для фильтр-пресса",
+   "descKz": "сүзгі-пресс үшін",
+   "kpvedClass": "282982",
+   "kpvedGroup": "550",
+   "kpvedPosition": "000018",
+   "units": [
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 176,
+   "source": "goszakup:harvest"
   },
   {
    "code": "283060.100.000003",
@@ -2724,6 +4375,350 @@
    },
    "planCount": 1150,
    "source": "goszakup"
+  },
+  {
+   "code": "323013.000.000006",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "водолазная",
+   "descRu": "водолазная",
+   "descKz": "сүңгуір",
+   "kpvedClass": "323013",
+   "kpvedGroup": "000",
+   "kpvedPosition": "000006",
+   "units": [
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 113,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325013.630.000003",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "для забора крови",
+   "descRu": "для забора крови",
+   "descKz": "қан жинауға арналған",
+   "kpvedClass": "325013",
+   "kpvedGroup": "630",
+   "kpvedPosition": "000003",
+   "units": [
+    "796",
+    "839"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 200,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325021.800.000004",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "кислородная, детская",
+   "descRu": "кислородная, детская",
+   "descKz": "оттегілік, балалар",
+   "kpvedClass": "325021",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000004",
+   "units": [
+    "796",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 288,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325021.800.000005",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "кислородная, взрослая",
+   "descRu": "кислородная, взрослая",
+   "descKz": "оттегілік, ересек",
+   "kpvedClass": "325021",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000005",
+   "units": [
+    "796",
+    "778",
+    "980",
+    "5111"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 988,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325021.800.000006",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "анестезиологическая",
+   "descRu": "анестезиологическая",
+   "descKz": "медициналық",
+   "kpvedClass": "325021",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000006",
+   "units": [
+    "796",
+    "778",
+    "715"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 11908,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325021.800.000007",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "ингаляционная",
+   "descRu": "ингаляционная",
+   "descKz": "ингалияциялық",
+   "kpvedClass": "325021",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000007",
+   "units": [
+    "796",
+    "778",
+    "839",
+    "5111"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 575,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325021.800.000011",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "для летчика",
+   "descRu": "для летчика",
+   "descKz": "ұшқыштарға арналған",
+   "kpvedClass": "325021",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000011",
+   "units": [
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 18,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325021.800.000028",
+   "nameRu": "Мешок",
+   "nameKz": "Қап",
+   "descExample": "для ручного искусственного дыхания, в комплекте",
+   "descRu": "для ручного искусственного дыхания, в комплекте",
+   "descKz": "қолмен жасанды тыныс алу үшін, жиынтықта",
+   "kpvedClass": "325021",
+   "kpvedGroup": "800",
+   "kpvedPosition": "000028",
+   "units": [
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Мешок"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 797,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "325050.300.000001",
+   "nameRu": "Салфетка",
+   "nameKz": "Майлық",
+   "descExample": "бумажная, медицинская",
+   "descRu": "бумажная, медицинская",
+   "descKz": "қағаздан, медициналық",
+   "kpvedClass": "325050",
+   "kpvedGroup": "300",
+   "kpvedPosition": "000001",
+   "units": [
+    "796",
+    "778",
+    "736"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Салфетка"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 652,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "329911.300.000000",
+   "nameRu": "Перчатки",
+   "nameKz": "Қолғаптар",
+   "descExample": "для защиты рук, кожаные",
+   "descRu": "для защиты рук, кожаные",
+   "descKz": "қолды қорғауға арналған, былғарыдан жасалған",
+   "kpvedClass": "329911",
+   "kpvedGroup": "300",
+   "kpvedPosition": "000000",
+   "units": [
+    "715",
+    "796",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Перчатки"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 5648,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "329911.900.000008",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "сварочная",
+   "descRu": "сварочная",
+   "descKz": "дәнекерлеуші",
+   "kpvedClass": "329911",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000008",
+   "units": [
+    "796",
+    "839",
+    "778"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 3145,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "329911.900.000009",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "панорамная",
+   "descRu": "панорамная",
+   "descKz": "көріністік",
+   "kpvedClass": "329911",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000009",
+   "units": [
+    "796"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 142,
+   "source": "goszakup:harvest"
+  },
+  {
+   "code": "329911.900.000045",
+   "nameRu": "Маска",
+   "nameKz": "Бетперде",
+   "descExample": "для защиты лица, полнолицевая",
+   "descRu": "для защиты лица, полнолицевая",
+   "descKz": "бетті қорғау үшін",
+   "kpvedClass": "329911",
+   "kpvedGroup": "900",
+   "kpvedPosition": "000045",
+   "units": [
+    "796",
+    "778",
+    "5111",
+    "166"
+   ],
+   "subjectTypes": [
+    1
+   ],
+   "seenVia": [
+    "Маска"
+   ],
+   "years": [
+    2026
+   ],
+   "planCount": 2218,
+   "source": "goszakup:harvest"
   },
   {
    "code": "329959.500.000002",
