@@ -56,6 +56,13 @@ export const LAPS_FOLLOWUP_STOPPED = 999
 // подряд-отказов, БЕЗ новых кастомных полей — используем лёгкую метку-тег).
 export const LAPS_REFUSE_ONCE_TAG = 'laps-refuse-1'
 
+// Тег на сделке = «есть входящее от клиента, полученное вне рабочих часов
+// (09:00–18:30 Almaty) — ответить реактивно при первом проходе крона в рабочее
+// время». Ставит laps-handoff, снимает laps-handoff после успешной отправки
+// (или runLapsPendingReplyTick). Как laps-refuse-1 — лёгкая метка вместо нового
+// кастомного поля; «не раньше 09:00» задаёт само расписание крона (09:45 Almaty).
+export const LAPS_REPLY_PENDING_TAG = 'laps-reply-pending'
+
 // Kill-switch: весь LAPS-конвейер (ответы + фоллоу-ап) работает ТОЛЬКО при
 // LAPS_CAMPAIGN_ENABLED === 'true'. По умолчанию ВЫКЛ — как UMNICO_BOT_ENABLED
 // и CAMPAIGN_FOLLOWUP_ENABLED, чтобы холодный бот не начал отвечать/слать файлы

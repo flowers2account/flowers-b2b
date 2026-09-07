@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runCampaignFollowupTick } from '@/lib/bot/campaign-followup'
 import { runLapsFollowupTick } from '@/lib/bot/laps-followup'
+import { runLapsPendingReplyTick } from '@/lib/bot/laps-pending-reply'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,13 +22,24 @@ export async function GET(req: NextRequest) {
 
   try {
     const school = await runCampaignFollowupTick()
+
+    // Отложенные «на утро» реактивные ответы LAPS (входящие вне 09:00–18:30 Almaty).
+    // Идёт ПЕРЕД follow-up-тиком: живой ответ клиенту приоритетнее напоминания, и
+    // он может увести сделку со стадии follow-up.
+    let lapsPending: { answered: number; skipped: number } = { answered: 0, skipped: 0 }
+    try {
+      lapsPending = await runLapsPendingReplyTick()
+    } catch (e) {
+      console.error('[cron/campaign-followup] laps pending-reply tick failed:', e)
+    }
+
     let laps: { sent: number; skipped: number } = { sent: 0, skipped: 0 }
     try {
       laps = await runLapsFollowupTick()
     } catch (e) {
       console.error('[cron/campaign-followup] laps tick failed:', e)
     }
-    return NextResponse.json({ success: true, school, laps, timestamp: new Date().toISOString() })
+    return NextResponse.json({ success: true, school, lapsPending, laps, timestamp: new Date().toISOString() })
   } catch (error) {
     console.error('[cron/campaign-followup]', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

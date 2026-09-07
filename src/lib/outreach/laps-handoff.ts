@@ -17,18 +17,19 @@
 import { sendMessage as sendTelegramMessage } from '@/lib/telegram-manager/client'
 import {
   findLeadByPhoneInPipeline, patchLeadStage, patchLeadFields, getLead, leadFieldValue,
-  addLeadTags,
+  addLeadTags, removeLeadTags,
   CF_CAMPAIGN_NEXT_FOLLOWUP, CF_CAMPAIGN_FOLLOWUP_COUNT, CF_CAMPAIGN_UMNICO_REF,
 } from '@/lib/amo'
 import { fetchDialogContext, sendMessage, sendPhoto, type DialogMessage } from '@/lib/umnico'
 import { classifyLapsIntent, composeLapsReply, lapsMaterialAlreadySent, type LapsIntent } from '@/lib/bot/laps-bot'
 import { computeNextWindow } from '@/lib/bot/campaign-followup'
+import { isWithinLapsReplyHours } from '@/lib/bot/laps-hours'
 import { withDealLock } from './deal-lock'
 import { scheduleDebouncedProcessing } from './message-debounce'
 import {
   AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_NEW_LEADS, AMO_LAPS_STATUS_WHATSAPP,
   AMO_LAPS_STATUS_LPR, AMO_LAPS_STATUS_MATERIAL, AMO_LAPS_STATUS_DEMO, AMO_LAPS_STATUS_THINKING,
-  AMO_LAPS_STATUS_LOST, LAPS_FOLLOWUP_STOPPED, LAPS_REFUSE_ONCE_TAG,
+  AMO_LAPS_STATUS_LOST, LAPS_FOLLOWUP_STOPPED, LAPS_REFUSE_ONCE_TAG, LAPS_REPLY_PENDING_TAG,
   LAPS_PRESENTATION_PDF_URL, LAPS_CATALOG_URL, lapsEnabled,
 } from '@/lib/bot/laps-config'
 
@@ -69,12 +70,27 @@ export async function tryHandleLapsReply(
     return null
   }
   if (!found) return null
+  const dealId = found.leadId
+
+  // Рабочее время реактивных ответов — 09:00–18:30 Almaty. Вне окна: НЕ отвечаем
+  // сразу и НЕ теряем — вешаем тег laps-reply-pending; проход крона
+  // /api/cron/campaign-followup в рабочее время (09:45 Almaty) ответит на
+  // актуальную историю (runLapsPendingReplyTick). Тег переживает деплой/pm2
+  // reload — in-memory setTimeout дебаунса нет.
+  if (!isWithinLapsReplyHours()) {
+    try {
+      await addLeadTags(dealId, [LAPS_REPLY_PENDING_TAG])
+      console.log(`[laps-handoff] входящее вне рабочих часов (09:00–18:30 Almaty) — ответ отложен, сделка ${dealId} помечена ${LAPS_REPLY_PENDING_TAG}`)
+    } catch (e) {
+      console.error('[laps-handoff] не удалось поставить тег отложенного ответа:', e instanceof Error ? e.message : e)
+    }
+    return dealId
+  }
 
   // Дебаунс: не отвечаем сразу — ждём паузу в burst'е и обрабатываем один раз на
   // объединённый контекст (message-debounce.ts). onLapsContactReplied уже обёрнут
   // в withDealLock — оба механизма сохранены. Webhook возвращает 200, не дожидаясь
   // обработки (она уходит в фон после ответа Umnico).
-  const dealId = found.leadId
   scheduleDebouncedProcessing(dealId, () => onLapsContactReplied(dealId, phone, incoming))
   return dealId
 }
@@ -223,6 +239,20 @@ async function onLapsContactRepliedImpl(
     return
   }
 
+  // Рабочее время (страховка на границе 18:30 и на путь крона): если дебаунс
+  // догорел уже вне окна — не отвечаем сейчас, вешаем тег, крон ответит утром.
+  // Крон (runLapsPendingReplyTick) вызывает нас только в рабочее время, поэтому
+  // здесь он гейт проходит.
+  if (!isWithinLapsReplyHours()) {
+    try {
+      await addLeadTags(dealId, [LAPS_REPLY_PENDING_TAG])
+      console.log(`[laps-handoff] обработка вне рабочих часов (09:00–18:30 Almaty) — ответ отложен, сделка ${dealId} помечена ${LAPS_REPLY_PENDING_TAG}`)
+    } catch (e) {
+      console.error('[laps-handoff] не удалось поставить тег отложенного ответа:', e instanceof Error ? e.message : e)
+    }
+    return
+  }
+
   await notifyManagerTelegram(dealId, phone, incoming)
 
   const { umnicoLeadId, realId } = incoming
@@ -281,6 +311,15 @@ async function onLapsContactRepliedImpl(
   const sent = await sendMessage(umnicoLeadId, reply)
   console.log('[laps-handoff] sendMessage:', sent ? 'ok' : 'failed')
   if (!sent) return
+
+  // Реактивный ответ ушёл — снять метку отложенного ответа, если была (сделку
+  // мог поставить в очередь ночной вебхук, а разгрёб её либо крон, либо этот же
+  // проход по более позднему сообщению в рабочее время).
+  if (leadHasTag(lead, LAPS_REPLY_PENDING_TAG)) {
+    removeLeadTags(dealId, [LAPS_REPLY_PENDING_TAG]).catch((e) =>
+      console.error('[laps-handoff] не удалось снять тег отложенного ответа:', e instanceof Error ? e.message : e),
+    )
+  }
 
   // ── Решения по отправке файлов ──────────────────────────────────────────────
   // «Переход к делу»: ready_signal ЛИБО small_talk после первого круга (в истории

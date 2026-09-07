@@ -452,6 +452,23 @@ export async function addLeadTags(leadId: number, tags: string[]): Promise<void>
   })
 }
 
+// Снять теги с лида, сохранив остальные (PATCH _embedded.tags заменяет весь набор).
+// Нечего снимать → PATCH не отправляем.
+export async function removeLeadTags(leadId: number, tags: string[]): Promise<void> {
+  if (!tags.length) return
+  const lead = await getLead(leadId)
+  const existing: string[] = (lead?._embedded?.tags ?? [])
+    .map((t: { name?: string }) => t.name)
+    .filter((n: unknown): n is string => Boolean(n))
+  const drop = new Set(tags)
+  const kept = existing.filter((name) => !drop.has(name))
+  if (kept.length === existing.length) return
+  await amoFetch(`/leads/${leadId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ _embedded: { tags: kept.map((name) => ({ name })) } }),
+  })
+}
+
 // ── Notes ─────────────────────────────────────────────────────────────────────
 
 export async function addNote(leadId: number, text: string): Promise<void> {
