@@ -24,6 +24,7 @@ import { fetchDialogContext, sendMessage, sendPhoto, type DialogMessage } from '
 import { classifyLapsIntent, composeLapsReply, lapsMaterialAlreadySent, type LapsIntent } from '@/lib/bot/laps-bot'
 import { computeNextWindow } from '@/lib/bot/campaign-followup'
 import { withDealLock } from './deal-lock'
+import { scheduleDebouncedProcessing } from './message-debounce'
 import {
   AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_NEW_LEADS, AMO_LAPS_STATUS_WHATSAPP,
   AMO_LAPS_STATUS_LPR, AMO_LAPS_STATUS_MATERIAL, AMO_LAPS_STATUS_DEMO, AMO_LAPS_STATUS_THINKING,
@@ -69,8 +70,13 @@ export async function tryHandleLapsReply(
   }
   if (!found) return null
 
-  await onLapsContactReplied(found.leadId, phone, incoming)
-  return found.leadId
+  // Дебаунс: не отвечаем сразу — ждём паузу в burst'е и обрабатываем один раз на
+  // объединённый контекст (message-debounce.ts). onLapsContactReplied уже обёрнут
+  // в withDealLock — оба механизма сохранены. Webhook возвращает 200, не дожидаясь
+  // обработки (она уходит в фон после ответа Umnico).
+  const dealId = found.leadId
+  scheduleDebouncedProcessing(dealId, () => onLapsContactReplied(dealId, phone, incoming))
+  return dealId
 }
 
 // ── Исходящее (ручное «Написать первым») ─────────────────────────────────────

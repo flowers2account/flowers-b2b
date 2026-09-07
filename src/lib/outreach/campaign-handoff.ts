@@ -25,6 +25,7 @@ import { classifyCampaignIntent, composeCampaignReply, materialAlreadySent, send
 import { computeNextWindow } from '@/lib/bot/campaign-followup'
 import { SCHOOL_CAMPAIGN_PDF_URL, SCHOOL_CAMPAIGN_IMAGE_URL } from '@/lib/bot/campaign-prompts'
 import { withDealLock } from './deal-lock'
+import { scheduleDebouncedProcessing } from './message-debounce'
 
 export interface IncomingCampaignMessage {
   text: string
@@ -60,8 +61,13 @@ export async function tryHandleCampaignReply(
   }
   if (!found) return null
 
-  await onCampaignContactReplied(found.leadId, phone, incoming)
-  return found.leadId
+  // Дебаунс burst-сообщений (message-debounce.ts): ждём паузу и обрабатываем один
+  // раз на объединённый контекст. onCampaignContactReplied уже обёрнут в
+  // withDealLock — оба механизма сохранены. Webhook отвечает 200 сразу, обработка
+  // уходит в фон.
+  const dealId = found.leadId
+  scheduleDebouncedProcessing(dealId, () => onCampaignContactReplied(dealId, phone, incoming))
+  return dealId
 }
 
 /**
