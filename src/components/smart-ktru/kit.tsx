@@ -185,26 +185,24 @@ export function Dialog({
 
 /* ── Nav (структура handoff: brand+landmark слева, ссылки справа) ── */
 
-const NAV = [
+const NAV: { href: string; label: string; exact?: boolean }[] = [
+  { href: '/smart-ktru', label: 'Обзор', exact: true },
   { href: '/smart-ktru/products', label: 'Мои товары' },
-  { href: '/smart-ktru/procurements', label: 'Закупки' },
+  { href: '/smart-ktru/procurements', label: 'Возможности' },
   { href: '/smart-ktru/work', label: 'В работе' },
-  { href: '/smart-ktru/digest', label: 'Дайджест' },
 ]
 
 export function SmartKtruNav() {
   const path = usePathname()
-  const workCount = useSmartKtru((s) =>
-    s.working.filter((w) => w.status === 'work' || w.status === 'submitted').length,
-  )
+  const workCount = useSmartKtru((s) => s.working.length)
   return (
     <nav className="nav">
-      <Link href="/smart-ktru/products" className="nav-brand">
+      <Link href="/smart-ktru" className="nav-brand">
         <Landmark size={18} />
         Smart KTRU
       </Link>
       {NAV.map((n) => {
-        const active = path.startsWith(n.href)
+        const active = n.exact ? path === n.href : path.startsWith(n.href)
         const label =
           n.href === '/smart-ktru/work' && workCount > 0 ? `${n.label} (${workCount})` : n.label
         return (

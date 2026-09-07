@@ -3,10 +3,9 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, Check, X, Clock } from 'lucide-react'
 import { useSmartKtru } from '@/lib/smart-ktru/store'
-import { opportunityFromAnalysis } from '@/lib/smart-ktru/opportunity'
-import { C, Card, VerdictTag, fmtMoney } from '@/components/smart-ktru/kit'
+import { opportunityFromAnalysis, opportunityFromLot, type OpportunitySummary } from '@/lib/smart-ktru/opportunity'
+import { C, VerdictTag, fmtMoney } from '@/components/smart-ktru/kit'
 
 interface LotRow {
   lotId: number
@@ -17,29 +16,44 @@ interface LotRow {
   amount: number | null
   count: number | null
   customerNameRu: string | null
-  trdBuyNumberAnno: string | null
   region: string | null
   endDate: string | null
   deadlineDaysLeft: number | null
   deadlinePassed: boolean
 }
 
+type StatusFilter = 'all' | 'fits' | 'review' | 'profit' | 'urgent'
+type SortKey = 'best' | 'profit' | 'deadline'
+
+const FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: 'all', label: 'Все' },
+  { id: 'fits', label: 'Подходят' },
+  { id: 'review', label: 'Проверить' },
+  { id: 'profit', label: 'Есть прибыль' },
+  { id: 'urgent', label: 'Срочно' },
+]
+const SORTS: { id: SortKey; label: string }[] = [
+  { id: 'best', label: 'Лучшие' },
+  { id: 'profit', label: 'Больше прибыли' },
+  { id: 'deadline', label: 'Скорее заканчиваются' },
+]
+
 function FeedInner() {
   const params = useSearchParams()
   const preselect = params.get('product')
+  const fParam = params.get('f') as StatusFilter | null
   const products = useSmartKtru((s) => s.products)
   const analysisCache = useSmartKtru((s) => s.analysisCache)
 
   const [rows, setRows] = useState<LotRow[] | null>(null)
-  const [filter, setFilter] = useState<string>(preselect ?? 'all')
+  const [productFilter, setProductFilter] = useState<string>(preselect ?? 'all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(fParam && FILTERS.some((f) => f.id === fParam) ? fParam : 'all')
+  const [sort, setSort] = useState<SortKey>('best')
   const [errs, setErrs] = useState<string[]>([])
 
   useEffect(() => {
     if (products.length === 0) return
     let alive = true
-
-    // одна пара (товар × КТРУ) = один запрос к существующему API; если у товара
-    // нет кодов — фолбэк на поиск по названию (q=). Результаты потом дедуп по lotId.
     const jobs: { p: (typeof products)[number]; qs: string }[] = []
     for (const p of products) {
       if (p.ktruCodes?.length) {
@@ -48,7 +62,6 @@ function FeedInner() {
         jobs.push({ p, qs: `q=${encodeURIComponent(p.name)}` })
       }
     }
-
     Promise.all(
       jobs.map(async ({ p, qs }) => {
         try {
@@ -66,7 +79,6 @@ function FeedInner() {
               amount: (l.amount as number | null) ?? null,
               count: (l.count as number | null) ?? null,
               customerNameRu: (l.customerNameRu as string | null) ?? null,
-              trdBuyNumberAnno: (l.trdBuyNumberAnno as string | null) ?? null,
               region: (l.region as string | null) ?? null,
               endDate: (l.endDate as string | null) ?? null,
               deadlineDaysLeft: (l.deadlineDaysLeft as number | null) ?? null,
@@ -80,27 +92,57 @@ function FeedInner() {
     ).then((res) => {
       if (!alive) return
       const all = res.flatMap((x) => x.rows)
-      // дедуп по lotId: один лот может числиться под несколькими КТРУ товара
       const seen = new Set<number>()
       const uniq = all.filter((r) => (seen.has(r.lotId) ? false : (seen.add(r.lotId), true)))
-      uniq.sort((a, b) => (a.deadlineDaysLeft ?? 1e9) - (b.deadlineDaysLeft ?? 1e9))
       setRows(uniq)
       setErrs([...new Set(res.map((x) => x.err).filter((e): e is string => !!e))])
     })
-    return () => {
-      alive = false
-    }
+    return () => { alive = false }
   }, [products])
 
-  const visible = useMemo(
-    () => (rows ?? []).filter((r) => filter === 'all' || r.productId === filter),
-    [rows, filter],
-  )
+  // строка → Opportunity (из кэша анализа, если есть)
+  const opps = useMemo(() => {
+    return (rows ?? []).map((l) => {
+      const cached = analysisCache[l.lotId]?.result
+      const opp: OpportunitySummary = cached
+        ? opportunityFromAnalysis(cached, l.ktru)
+        : opportunityFromLot({
+            lotId: l.lotId, nameRu: l.nameRu, customerNameRu: l.customerNameRu, region: l.region,
+            count: l.count, amount: l.amount, endDate: l.endDate,
+            deadlineDaysLeft: l.deadlineDaysLeft, deadlinePassed: l.deadlinePassed, ktru: l.ktru,
+          })
+      return { l, opp }
+    })
+  }, [rows, analysisCache])
+
+  const kpi = useMemo(() => {
+    const an = opps.filter((x) => x.opp.decision)
+    return {
+      all: opps.length,
+      fits: an.filter((x) => x.opp.decision!.verdict === 'recommend').length,
+      review: an.filter((x) => x.opp.decision!.verdict === 'consider').length,
+      no: an.filter((x) => ['unlikely', 'unsuitable'].includes(x.opp.decision!.verdict)).length,
+    }
+  }, [opps])
+
+  const visible = useMemo(() => {
+    let arr = opps.filter(({ l }) => productFilter === 'all' || l.productId === productFilter)
+    if (statusFilter === 'fits') arr = arr.filter(({ opp }) => opp.decision?.verdict === 'recommend')
+    else if (statusFilter === 'review') arr = arr.filter(({ opp }) => opp.decision?.verdict === 'consider')
+    else if (statusFilter === 'profit') arr = arr.filter(({ opp }) => opp.economics?.available && (opp.economics.grossProfit ?? 0) > 0)
+    else if (statusFilter === 'urgent') arr = arr.filter(({ l }) => !l.deadlinePassed && l.deadlineDaysLeft != null && l.deadlineDaysLeft <= 5)
+
+    const s = [...arr]
+    if (sort === 'best') s.sort((a, b) => (b.opp.compatibility?.compatibilityPercent ?? b.opp.decision?.score ?? -1) - (a.opp.compatibility?.compatibilityPercent ?? a.opp.decision?.score ?? -1))
+    else if (sort === 'profit') s.sort((a, b) => (b.opp.economics?.grossProfit ?? -1) - (a.opp.economics?.grossProfit ?? -1))
+    else if (sort === 'deadline') s.sort((a, b) => (a.l.deadlineDaysLeft ?? 1e9) - (b.l.deadlineDaysLeft ?? 1e9))
+    return s
+  }, [opps, productFilter, statusFilter, sort])
 
   if (products.length === 0) {
     return (
-      <div>
-        <h1>Закупки</h1>
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+        <h1>Возможности</h1>
         <p className="text-muted">
           Сначала добавьте товар на странице <Link href="/smart-ktru/products">«Мои товары»</Link>.
         </p>
@@ -109,97 +151,125 @@ function FeedInner() {
   }
 
   return (
-    <div>
-      <h1>Закупки</h1>
-      <p className="text-muted">Живые государственные закупки, подходящие под ваши товары по КТРУ.</p>
+    <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+      <h1 style={{ marginBottom: 24 }}>Возможности</h1>
 
-      <div className="seg" style={{ marginBottom: 16 }}>
-        <label className="seg-opt">
-          <input type="radio" name="feed" checked={filter === 'all'} onChange={() => setFilter('all')} />
-          Все
-        </label>
-        {products.map((p) => (
-          <label key={p.id} className="seg-opt">
-            <input type="radio" name="feed" checked={filter === p.id} onChange={() => setFilter(p.id)} />
-            {p.name}
-          </label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }} className="skt-four-col">
+        {([['Все', kpi.all], ['Подходят', kpi.fits], ['Проверить', kpi.review], ['Не подходят', kpi.no]] as const).map(([label, v]) => (
+          <div key={label} className="card elev-sm">
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 30, lineHeight: 1 }}>{rows == null ? '…' : v}</div>
+            <div style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-neutral-700)', marginTop: 0 }}>{label}</div>
+          </div>
         ))}
       </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              className={`btn ${statusFilter === f.id ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setStatusFilter(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="seg">
+          {SORTS.map((so) => (
+            <label key={so.id} className="seg-opt">
+              <input type="radio" name="sort" checked={sort === so.id} onChange={() => setSort(so.id)} />
+              {so.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {products.length > 1 && (
+        <div className="seg" style={{ marginBottom: 16 }}>
+          <label className="seg-opt">
+            <input type="radio" name="feedp" checked={productFilter === 'all'} onChange={() => setProductFilter('all')} />
+            Все товары
+          </label>
+          {products.map((p) => (
+            <label key={p.id} className="seg-opt">
+              <input type="radio" name="feedp" checked={productFilter === p.id} onChange={() => setProductFilter(p.id)} />
+              {p.name}
+            </label>
+          ))}
+        </div>
+      )}
 
       {errs.map((e, i) => (
         <div key={i} className="text-muted" style={{ fontSize: 12, marginBottom: 6 }}>{e}</div>
       ))}
-
       {rows === null && <p className="text-muted">Ищу живые закупки по КТРУ…</p>}
       {rows !== null && visible.length === 0 && (
-        <p className="text-muted">Живых закупок по этому фильтру сейчас нет.</p>
+        <p className="text-muted">По этому фильтру закупок сейчас нет.</p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {visible.map((l) => {
-          const cached = analysisCache[l.lotId]?.result
-          const opp = cached ? opportunityFromAnalysis(cached, l.ktru) : null
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        {visible.map(({ l, opp }) => {
           const urgent = l.deadlineDaysLeft != null && l.deadlineDaysLeft <= 3 && !l.deadlinePassed
+          const pct = opp.compatibility?.compatibilityPercent ?? null
           return (
-            <Card key={l.lotId}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-                <div>
-                  <div className="card-kicker">{l.productName}</div>
-                  <div className="card-title">{l.nameRu ?? 'Лот'}</div>
-                </div>
-                {opp?.decision ? (
-                  <VerdictTag verdict={opp.decision.verdict} />
-                ) : (
-                  <span className="tag tag-neutral">Анализ не выполнен</span>
-                )}
+            <div key={l.lotId} className="card elev-sm" style={{ gap: 10 }}>
+              <div>
+                <div className="card-kicker">{l.productName}</div>
+                <div className="card-title">{l.nameRu ?? 'Лот'}</div>
+                <div className="card-meta">{l.customerNameRu ?? '—'}{l.region ? ` · ${l.region}` : ''}</div>
               </div>
 
-              <div className="card-meta">
-                {l.customerNameRu ?? '—'} · {l.region ?? 'регион не указан'}
-              </div>
-              <div className="card-meta">
-                {l.ktru ? `КТРУ ${l.ktru}` : ''} · {l.count ?? '—'} × {fmtMoney(l.amount)}
-              </div>
-              <div style={{ fontSize: 13 }}>
-                <b style={{ color: urgent ? C.accent : undefined }}>
-                  Срок подачи: {l.deadlinePassed ? 'истёк' : l.deadlineDaysLeft != null ? `${l.deadlineDaysLeft} дн.` : '—'}
-                </b>
-              </div>
-
-              {opp?.compatibility ? (
-                <div style={{ borderTop: '1px solid rgba(32,30,29,0.35)', borderBottom: '1px solid rgba(32,30,29,0.35)', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
-                      {opp.compatibility.compatibilityPercent}%
-                    </span>
-                    <span className="text-muted" style={{ fontSize: 12 }}>совместимость · индекс {opp.decision?.score}/100</span>
-                  </div>
-                  <div style={{ fontSize: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <span><Check size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.matched} совпадений</span>
-                    <span><X size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.mismatched} несоответствий</span>
-                    <span><Clock size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.pending} требуют проверки</span>
-                    {opp.compatibility.critical > 0 && (
-                      <span style={{ color: C.accent }}><AlertTriangle size={12} style={{ verticalAlign: '-2px' }} /> {opp.compatibility.critical} критич.</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 13 }}>
-                    {opp.economics?.available
-                      ? <>Маржа: <b>{opp.economics.marginPercent}%</b> · Прибыль: <b>{fmtMoney(opp.economics.grossProfit)}</b></>
-                      : <span className="text-muted">{opp.economics?.unavailableReason ?? 'экономика не рассчитана'}</span>}
+              {pct != null ? (
+                <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: 40, lineHeight: 1 }}>{pct}%</div>
+                  <div style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-neutral-700)' }}>Совместимость</div>
+                  <div style={{ height: 12, background: 'var(--color-neutral-200)', overflow: 'hidden', marginTop: 8 }}>
+                    <div style={{ height: '100%', background: 'var(--color-accent)', width: `${pct}%` }} />
                   </div>
                 </div>
               ) : (
-                <div style={{ borderTop: '1px solid rgba(32,30,29,0.35)', borderBottom: '1px solid rgba(32,30,29,0.35)', padding: '8px 0', fontSize: 13 }} className="text-muted">
-                  Анализ ТЗ не выполнен — совместимость, экономика и рекомендация пока неизвестны.
+                <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 13 }} className="text-muted">Анализ ТЗ не выполнен</div>
+              )}
+
+              {opp.compatibility && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 14, fontSize: 13 }}>
+                  <span>✓ {opp.compatibility.matched}</span>
+                  <span>✗ {opp.compatibility.mismatched}</span>
+                  <span>? {opp.compatibility.pending}</span>
+                  {opp.compatibility.critical > 0 && <span style={{ color: C.accent }}>⚠ {opp.compatibility.critical}</span>}
                 </div>
               )}
 
-              {opp?.decision && <p className="text-muted" style={{ fontSize: 13 }}>{opp.decision.summary}</p>}
+              <div className="hr" />
 
-              <Link className="btn btn-primary btn-block" href={`/smart-ktru/lot/${l.lotId}?product=${l.productId}&ktru=${l.ktru}`}>
-                {opp ? 'Открыть закупку →' : 'Анализировать ТЗ →'}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, gap: 8 }}>
+                <div>
+                  <div className="text-muted" style={{ fontSize: 11 }}>Цена закупки</div>
+                  <b>{fmtMoney(l.amount)}</b>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div className="text-muted" style={{ fontSize: 11 }}>Прибыль / маржа</div>
+                  {opp.economics?.available
+                    ? <b>{fmtMoney(opp.economics.grossProfit)} · {opp.economics.marginPercent}%</b>
+                    : <span className="text-muted">—</span>}
+                </div>
+              </div>
+
+              <div className="text-muted" style={{ fontSize: 12, textAlign: 'center' }}>
+                <b style={{ color: urgent ? C.accent : undefined }}>
+                  {l.deadlinePassed ? 'срок подачи истёк' : l.deadlineDaysLeft != null ? `${l.deadlineDaysLeft} дн. до подачи` : 'срок —'}
+                </b>
+              </div>
+
+              <Link
+                className={`btn btn-block ${opp.decision ? 'btn-secondary' : 'btn-primary'}`}
+                style={{ textAlign: 'center', justifyContent: 'center' }}
+                href={`/smart-ktru/lot/${l.lotId}?product=${l.productId}&ktru=${l.ktru}`}
+              >
+                {opp.decision ? <><VerdictTag verdict={opp.decision.verdict} /> →</> : 'Анализировать ТЗ →'}
               </Link>
-            </Card>
+            </div>
           )
         })}
       </div>

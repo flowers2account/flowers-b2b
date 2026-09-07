@@ -20,6 +20,16 @@ export interface WorkingItem {
   marginRatio: number | null
   addedAt: string
   status: 'work' | 'submitted' | 'won' | 'lost' | 'declined'
+  /** колонка канбана «В работе»: проверить → готовимся → участвуем */
+  kanbanStage?: 'review' | 'prep' | 'bidding'
+}
+
+export const KANBAN_STAGES = ['review', 'prep', 'bidding'] as const
+export type KanbanStage = (typeof KANBAN_STAGES)[number]
+export const KANBAN_TITLES: Record<KanbanStage, string> = {
+  review: 'Проверить',
+  prep: 'Готовимся',
+  bidding: 'Участвуем',
 }
 
 export interface CachedAnalysis {
@@ -50,6 +60,7 @@ interface SmartKtruState {
   toWork: (item: Omit<WorkingItem, 'addedAt' | 'status'>) => void
   fromWork: (lotId: number) => void
   setWorkStatus: (lotId: number, status: WorkingItem['status']) => void
+  moveWorkStage: (lotId: number, dir: -1 | 1) => void
   isInWork: (lotId: number) => boolean
 
   cacheAnalysis: (lotId: number, result: AnalysisResult) => void
@@ -110,6 +121,15 @@ export const useSmartKtru = create<SmartKtruState>()(
       fromWork: (lotId) => set((s) => ({ working: s.working.filter((w) => w.lotId !== lotId) })),
       setWorkStatus: (lotId, status) =>
         set((s) => ({ working: s.working.map((w) => (w.lotId === lotId ? { ...w, status } : w)) })),
+      moveWorkStage: (lotId, dir) =>
+        set((s) => ({
+          working: s.working.map((w) => {
+            if (w.lotId !== lotId) return w
+            const cur = KANBAN_STAGES.indexOf((w.kanbanStage ?? 'review') as KanbanStage)
+            const next = Math.max(0, Math.min(KANBAN_STAGES.length - 1, cur + dir))
+            return { ...w, kanbanStage: KANBAN_STAGES[next] }
+          }),
+        })),
       isInWork: (lotId) => get().working.some((w) => w.lotId === lotId),
 
       cacheAnalysis: (lotId, result) =>

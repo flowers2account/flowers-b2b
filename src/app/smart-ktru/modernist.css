@@ -226,10 +226,15 @@
 .smart-ktru .spin { animation: skt-spin 1s linear infinite; }
 @keyframes skt-spin { to { transform: rotate(360deg); } }
 
-/* ── адаптив: двухколоночные сетки схлопываются ── */
+/* ── адаптив: многоколоночные сетки схлопываются ── */
 @media (max-width: 860px) {
   .smart-ktru .skt-two-col { grid-template-columns: 1fr !important; }
+  .smart-ktru .skt-three-col { grid-template-columns: 1fr !important; }
+  .smart-ktru .skt-four-col { grid-template-columns: 1fr 1fr !important; }
   .smart-ktru .skt-deal-header { grid-template-columns: 1fr !important; }
   .smart-ktru .skt-deal-header dl { border-left: 0 !important; padding-left: 0 !important; }
+}
+@media (max-width: 520px) {
+  .smart-ktru .skt-four-col { grid-template-columns: 1fr !important; }
 }
 .smart-ktru { overflow-x: hidden; }

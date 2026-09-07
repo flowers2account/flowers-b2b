@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Loader2, Check, Wand2, ChevronDown, ChevronRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, Trash2, Loader2, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useSmartKtru, emptyChar } from '@/lib/smart-ktru/store'
 import type { ProductCharacteristic } from '@/lib/smart-ktru/types'
 import { toProfileCharacteristics, type ProfileRowInput } from '@/lib/smart-ktru/product-profile'
-import { Btn, Card, Dialog, Field } from '@/components/smart-ktru/kit'
+import { Btn, Dialog, Field, fmtMoney } from '@/components/smart-ktru/kit'
 
 const PRESET: ProductCharacteristic[] = [
   { name: 'Материал', value: '' },
-  { name: 'Диаметр', value: '', unit: 'см' },
+  { name: 'Объём', value: '', unit: 'л' },
   { name: 'Цвет', value: '' },
 ]
 
@@ -22,10 +23,6 @@ interface KtruMatch {
   score: number
   confidence: MatchConfidence
   reason: string
-}
-const CONF_LABEL: Record<MatchConfidence, string> = {
-  high: 'высокое совпадение',
-  medium: 'возможное совпадение',
 }
 
 // зеркало src/lib/smart-ktru/ktru-characteristics.ts
@@ -86,11 +83,26 @@ function charToEdit(c: ProductCharacteristic): EditChar {
   }
 }
 
-/** Карточка товара: клик по названию открывает профиль; счётчик закупок по КТРУ. */
+const fmtMln = (n: number) => '₸ ' + (n / 1e6).toFixed(1).replace('.0', '') + ' млн'
+
+/* ─────────────── UI-хелперы Modernist (радиус 0, монохром + один акцент) ─────────────── */
+function Bar({ pct, color = 'var(--color-accent)', h = 8 }: { pct: number; color?: string; h?: number }) {
+  return (
+    <div style={{ height: h, background: 'var(--color-neutral-200)', overflow: 'hidden' }}>
+      <div style={{ height: '100%', background: color, width: `${Math.max(0, Math.min(100, pct))}%` }} />
+    </div>
+  )
+}
+function BigNum({ children, size = 40 }: { children: ReactNode; size?: number }) {
+  return <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 400, lineHeight: 1, fontSize: size }}>{children}</div>
+}
+
+/** Карточка товара с визуальными показателями рынка (handoff «Мои товары»). */
 function ProductCard({ id, onOpen }: { id: string; onOpen: (id: string) => void }) {
   const p = useSmartKtru((s) => s.products.find((x) => x.id === id))
+  const analysisCache = useSmartKtru((s) => s.analysisCache)
   const removeProduct = useSmartKtru((s) => s.removeProduct)
-  const [count, setCount] = useState<number | null>(null)
+  const [mkt, setMkt] = useState<{ liveLots: number; volume: number; lotIds: number[] } | null>(null)
 
   useEffect(() => {
     if (!p) return
@@ -100,22 +112,45 @@ function ProductCard({ id, onOpen }: { id: string; onOpen: (id: string) => void 
       : `q=${encodeURIComponent(p.name)}`
     fetch(`/api/smart-ktru/procurements?${qs}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => alive && setCount(j?.counts?.liveLots ?? j?.counts?.activeLots ?? 0))
-      .catch(() => alive && setCount(0))
-    return () => {
-      alive = false
-    }
+      .then((j) => {
+        if (!alive) return
+        const lots: { lotId: number; amount?: number }[] = j?.lots ?? []
+        setMkt({
+          liveLots: j?.counts?.liveLots ?? lots.length,
+          volume: lots.reduce((a, l) => a + (l.amount ?? 0), 0),
+          lotIds: lots.map((l) => l.lotId),
+        })
+      })
+      .catch(() => alive && setMkt({ liveLots: 0, volume: 0, lotIds: [] }))
+    return () => { alive = false }
   }, [p])
 
   if (!p) return null
+
   const filled = p.characteristics.filter((c) => (c.value ?? '').trim()).length
-  const summary = p.characteristics
-    .filter((c) => (c.value ?? '').trim())
-    .map((c) => `${c.name} ${c.value}${c.unit ? ' ' + c.unit : ''}`)
-    .join(' · ')
+  // средняя «востребованность» характеристик профиля (frequency / totalSpecs)
+  const withFreq = p.characteristics.filter((c) => c.frequency != null && c.totalSpecs)
+  const specPct = withFreq.length
+    ? Math.round((withFreq.reduce((a, c) => a + (c.frequency! / c.totalSpecs!), 0) / withFreq.length) * 100)
+    : 0
+
+  // подходят / проверить по проанализированным закупкам этого товара
+  let fits = 0, review = 0
+  for (const lotId of mkt?.lotIds ?? []) {
+    const v = analysisCache[lotId]?.result?.score?.verdict
+    if (v === 'recommend') fits++
+    else if (v === 'consider') review++
+  }
+
+  const volLabel = mkt == null ? '…' : mkt.volume >= 1e6 ? `₸ ${(mkt.volume / 1e6).toFixed(1).replace('.0', '')} млн` : fmtMoney(mkt.volume)
 
   return (
-    <Card kicker={(p.category || 'Товар').toUpperCase()}>
+    <div className="card elev-sm" style={{ gap: 10 }}>
+      {p.ktruCodes?.[0] && (
+        <span className="tag tag-outline" style={{ alignSelf: 'flex-start', fontFamily: 'ui-monospace, monospace' }}>
+          КТРУ {p.ktruCodes[0]}
+        </span>
+      )}
       <button
         className="card-title"
         style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
@@ -123,241 +158,61 @@ function ProductCard({ id, onOpen }: { id: string; onOpen: (id: string) => void 
       >
         {p.name}
       </button>
-      <p className="card-body">{summary || `${p.characteristics.length} характеристик — значения не заполнены`}</p>
-      <div className="hr" style={{ margin: '4px 0' }} />
-      <div className="card-meta">
-        {p.costPerUnit != null
-          ? `Себестоимость: ${p.costPerUnit.toLocaleString('ru-RU')} ₸ / ${p.saleUnit || 'шт'}`
-          : 'Себестоимость не указана'}
-        {p.ktruCodes?.length ? ` · КТРУ ${p.ktruCodes.join(', ')}` : ''}
+
+      <div style={{ height: 12, background: 'var(--color-neutral-200)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', background: 'var(--color-accent)', width: `${specPct}%` }} />
       </div>
       <div className="card-meta">
-        Профиль: {filled} из {p.characteristics.length} характеристик заполнено
-        {count == null ? '' : ` · ${count} подходящих закупок`}
+        {p.characteristics.length} характеристик отслеживаются · заполнено {filled}
       </div>
+
+      <div style={{ fontSize: 14 }}>
+        <b>{mkt == null ? '…' : mkt.liveLots}</b> возможностей · <b>{volLabel}</b> объём спроса
+      </div>
+      {(fits > 0 || review > 0) && (
+        <div style={{ display: 'flex', gap: 16 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 26, lineHeight: 1 }}>{fits}</div>
+            <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-neutral-700)' }}>Подходит</div>
+          </div>
+          <div>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 26, lineHeight: 1 }}>{review}</div>
+            <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-neutral-700)' }}>Проверить</div>
+          </div>
+        </div>
+      )}
+
+      <div className="card-meta">
+        {p.costPerUnit != null ? `Себестоимость: ${p.costPerUnit.toLocaleString('ru-RU')} ₸ / ${p.saleUnit || 'шт'}` : 'Себестоимость не указана'}
+      </div>
+
       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
         <button className="btn btn-secondary btn-block" onClick={() => onOpen(p.id)}>Открыть профиль</button>
-        <Link className="btn btn-ghost" href={`/smart-ktru/procurements?product=${p.id}`}>Закупки →</Link>
+        <Link className="btn btn-ghost" href={`/smart-ktru/procurements?product=${p.id}`}>Возможности →</Link>
         <button className="btn btn-ghost btn-icon" aria-label="Удалить" onClick={() => removeProduct(p.id)}>
           <Trash2 size={15} />
         </button>
       </div>
-    </Card>
+    </div>
   )
 }
 
-const STEPS = ['Товар', 'КТРУ', 'Характеристики']
-const LOADING_STEPS = [
-  'Находим подходящие закупки',
-  'Проверяем наличие ТЗ',
-  'Анализируем документы',
-  'Выделяем повторяющиеся характеристики',
-]
-
 export default function ProductsPage() {
   const products = useSmartKtru((s) => s.products)
-  const addProduct = useSmartKtru((s) => s.addProduct)
   const ensureDemoSeed = useSmartKtru((s) => s.ensureDemoSeed)
-  const cacheKtruChars = useSmartKtru((s) => s.cacheKtruChars)
-  const getKtruChars = useSmartKtru((s) => s.getKtruChars)
 
-  const [open, setOpen] = useState(false)
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
-
-  const [name, setName] = useState('')
-  const [category, setCategory] = useState('')
-  const [cost, setCost] = useState('')
-  const [unit, setUnit] = useState('шт')
-  const [chars, setChars] = useState<EditChar[]>([])
-
-  // --- Auto KTRU Match ---
-  const [ktruCodes, setKtruCodes] = useState<string[]>([])
-  const [ktruNames, setKtruNames] = useState<Record<string, string>>({})
-  const [matches, setMatches] = useState<KtruMatch[] | null>(null)
-  const [matching, setMatching] = useState(false)
-  const [matchError, setMatchError] = useState(false)
-  const [confident, setConfident] = useState(true)
-  const [manualMode, setManualMode] = useState(false)
-  const [manualCode, setManualCode] = useState('')
-
-  // --- Шаг 3: характеристики из реальных ТЗ ---
-  const [charLoading, setCharLoading] = useState(false)
-  const [charError, setCharError] = useState(false)
-  const [charResult, setCharResult] = useState<KtruCharsResult | null>(null)
-  const [charForCode, setCharForCode] = useState<string | null>(null)
-  const [skippedAuto, setSkippedAuto] = useState(false)
-  const [showAdditional, setShowAdditional] = useState(false)
-  const [openSrc, setOpenSrc] = useState<number | null>(null)
 
   useEffect(() => {
     ensureDemoSeed()
   }, [ensureDemoSeed])
 
-  async function runMatch() {
-    if (!name.trim() || matching) return
-    setMatching(true)
-    setMatchError(false)
-    setMatches(null)
-    try {
-      const r = await fetch('/api/smart-ktru/ktru-match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          characteristics: chars
-            .filter((c) => c.name.trim() || (c.value ?? '').trim())
-            .map((c) => ({ name: c.name, value: c.value, unit: c.unit })),
-        }),
-      })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j?.error ?? 'match failed')
-      setMatches(j.results ?? [])
-      setConfident(!!j.confident)
-    } catch {
-      setMatchError(true)
-      setMatches(null)
-    } finally {
-      setMatching(false)
-    }
-  }
-
-  function pickKtru(code: string, nameRu?: string) {
-    setKtruCodes((cs) => (cs.includes(code) ? cs : [...cs, code]))
-    if (nameRu) setKtruNames((m) => ({ ...m, [code]: nameRu }))
-  }
-  function dropKtru(code: string) {
-    setKtruCodes((cs) => cs.filter((c) => c !== code))
-  }
-  function addManual() {
-    const code = manualCode.trim()
-    if (!code) return
-    pickKtru(code)
-    setManualCode('')
-  }
-
-  /** Разложить результат агрегации в редактируемый список характеристик (значения пустые — §3). */
-  function seedCharsFromResult(res: KtruCharsResult) {
-    const rows: EditChar[] = res.characteristics.map((a) => ({
-      name: a.name,
-      value: '',
-      unit: a.unit ?? '',
-      _level: a.level,
-      _freq: a.frequency,
-      _total: a.totalSpecs,
-      _confidence: a.confidence,
-      _examples: a.examples,
-      _rawNames: a.rawNames,
-    }))
-    setChars(rows)
-    setShowAdditional(false)
-  }
-
-  async function analyzeKtruChars(force = false) {
-    const code = ktruCodes[0]
-    if (!code) return
-    const key = `${ANALYZER_VERSION}:${code}`
-    setSkippedAuto(false)
-
-    if (!force) {
-      const cached = getKtruChars(key)
-      if (cached?.result) {
-        const res = cached.result as KtruCharsResult
-        setCharResult(res)
-        setCharForCode(code)
-        setCharError(false)
-        seedCharsFromResult(res)
-        return
-      }
-    }
-
-    setCharLoading(true)
-    setCharError(false)
-    setCharResult(null)
-    try {
-      const r = await fetch('/api/smart-ktru/ktru-characteristics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ktruCodes }),
-      })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j?.error ?? 'char analysis failed')
-      const res = j as KtruCharsResult
-      setCharResult(res)
-      setCharForCode(code)
-      cacheKtruChars(key, res)
-      seedCharsFromResult(res)
-    } catch {
-      setCharError(true) // введённые данные (chars) не трогаем — §15
-    } finally {
-      setCharLoading(false)
-    }
-  }
-
-  function continueWithoutAuto() {
-    setSkippedAuto(true)
-    setCharError(false)
-    setCharResult(null)
-    setCharForCode(ktruCodes[0] ?? null)
-    if (chars.length === 0) setChars(PRESET.map((c) => ({ ...c, _level: 'custom' as const })))
-  }
-
-  // при входе на шаг 3 — запустить анализ (или взять из кэша), но не пере-запускать
-  useEffect(() => {
-    if (step !== 3) return
-    const code = ktruCodes[0]
-    if (!code) return
-    if (charForCode === code && (charResult || charError || skippedAuto)) return
-    void analyzeKtruChars()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, ktruCodes])
-
-  function reset() {
-    setStep(1)
-    setName(''); setCategory(''); setCost(''); setUnit('шт')
-    setChars([])
-    setKtruCodes([]); setKtruNames({}); setMatches(null); setMatching(false)
-    setMatchError(false); setConfident(true); setManualMode(false); setManualCode('')
-    setCharLoading(false); setCharError(false); setCharResult(null); setCharForCode(null)
-    setSkippedAuto(false); setShowAdditional(false); setOpenSrc(null)
-  }
-  function closeDialog() {
-    setOpen(false)
-    reset()
-  }
-  function save() {
-    if (!name.trim() || !cost.trim()) return
-    addProduct({
-      name: name.trim(),
-      category: category.trim() || undefined,
-      costPerUnit: Number(cost),
-      saleUnit: unit.trim() || 'шт',
-      ktruCodes: ktruCodes.length ? ktruCodes : undefined,
-      characteristics: toProfileCharacteristics(chars.map(editToInput)),
-    })
-    closeDialog()
-  }
-
-  const step1ok = !!name.trim() && !!cost.trim()
-  const mainRows = chars.map((c, i) => ({ c, i })).filter(({ c }) => c._level !== 'additional')
-  const addRows = chars.map((c, i) => ({ c, i })).filter(({ c }) => c._level === 'additional')
-
-  const setRow = (i: number, patch: Partial<EditChar>) =>
-    setChars((cs) => cs.map((x, j) => (j === i ? { ...x, ...patch } : x)))
-  const delRow = (i: number) => setChars((cs) => cs.filter((_, j) => j !== i))
-
-  const analyzedText = charResult
-    ? charResult.analyzedSpecs > 0
-      ? `По ${charResult.analyzedSpecs} из ${charResult.specsAvailable} доступных ТЗ`
-      : 'Доступных технических спецификаций не найдено'
-    : null
-  const noSpecs = !charLoading && !charError && charResult != null && charResult.analyzedSpecs === 0
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Мои товары</h1>
-        <Btn variant="primary" onClick={() => { reset(); setOpen(true) }}>
+        <Btn variant="primary" onClick={() => setWizardOpen(true)}>
           <Plus size={15} /> Добавить товар
         </Btn>
       </div>
@@ -374,266 +229,565 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {detailId && (
-        <ProductDetailDialog id={detailId} onClose={() => setDetailId(null)} />
+      {detailId && <ProductDetailDialog id={detailId} onClose={() => setDetailId(null)} />}
+
+      {wizardOpen && (
+        <AddProductWizard
+          onClose={() => setWizardOpen(false)}
+          onOpenProfile={(id) => { setWizardOpen(false); setDetailId(id) }}
+        />
       )}
+    </div>
+  )
+}
 
-      {open && (
-        <Dialog
-          title="Новый товар"
-          onClose={closeDialog}
-          actions={
-            <>
-              {step > 1 && (
-                <button className="btn btn-secondary" onClick={() => setStep((s) => (s === 3 ? 2 : 1))}>
-                  ← Назад
-                </button>
-              )}
-              {step === 1 && (
-                <button className="btn btn-primary" disabled={!step1ok} onClick={() => setStep(2)}>
-                  Далее →
-                </button>
-              )}
-              {step === 2 && (
-                <button className="btn btn-primary" disabled={ktruCodes.length === 0} onClick={() => setStep(3)}>
-                  Продолжить →
-                </button>
-              )}
-              {step === 3 && (
-                <button className="btn btn-primary" disabled={!step1ok} onClick={save}>
-                  Сохранить товар
-                </button>
-              )}
-              <button className="btn btn-ghost" onClick={closeDialog}>Отмена</button>
-            </>
-          }
-        >
-          {/* индикатор шагов */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 14, fontSize: 12 }}>
-            {STEPS.map((label, idx) => {
-              const n = idx + 1
-              const active = n === step
-              const done = n < step
-              return (
-                <span key={label} style={{ display: 'flex', gap: 5, alignItems: 'center', color: active ? '#ec3013' : done ? '#201e1d' : 'rgba(32,30,29,0.5)' }}>
-                  <b>{String(n).padStart(2, '0')}</b> {label}
-                </span>
-              )
-            })}
+/* ─────────────────────────── Полноэкранный мастер добавления товара ─────────────────────────── */
+
+const WIZ_STEPS = ['01 Товар', '02 КТРУ', '03 Рынок', '04 Характеристики', '05 Готово']
+
+function AddProductWizard({
+  onClose,
+  onOpenProfile,
+}: {
+  onClose: () => void
+  onOpenProfile: (id: string) => void
+}) {
+  const router = useRouter()
+  const addProduct = useSmartKtru((s) => s.addProduct)
+  const cacheKtruChars = useSmartKtru((s) => s.cacheKtruChars)
+  const getKtruChars = useSmartKtru((s) => s.getKtruChars)
+
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+
+  // ── шаг 2: КТРУ ──
+  const [ktruCands, setKtruCands] = useState<KtruMatch[] | null>(null)
+  const [ktruLoading, setKtruLoading] = useState(false)
+  const [ktruError, setKtruError] = useState(false)
+  const [ktruConfident, setKtruConfident] = useState(true)
+  const [selCode, setSelCode] = useState('')
+  const [manualMode, setManualMode] = useState(false)
+  const [manualCode, setManualCode] = useState('')
+
+  // ── шаг 3: рынок ──
+  const [chLoading, setChLoading] = useState(false)
+  const [chError, setChError] = useState(false)
+  const [chResult, setChResult] = useState<KtruCharsResult | null>(null)
+  const [showMore3, setShowMore3] = useState(false)
+
+  // ── шаг 4: характеристики ──
+  const [rows, setRows] = useState<EditChar[]>([])
+  const [showMore4, setShowMore4] = useState(false)
+
+  // ── шаг 5: готово ──
+  const [savedId, setSavedId] = useState('')
+  const [doneLoading, setDoneLoading] = useState(false)
+  const [doneStats, setDoneStats] = useState<{ liveLots: number; volume: number } | null>(null)
+
+  async function goStep2() {
+    if (!name.trim()) return
+    setStep(2)
+    setKtruLoading(true); setKtruError(false); setKtruCands(null)
+    try {
+      const r = await fetch('/api/smart-ktru/ktru-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), characteristics: [] }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j?.error ?? 'match failed')
+      const results: KtruMatch[] = j.results ?? []
+      setKtruCands(results)
+      setKtruConfident(!!j.confident)
+      if (results[0]) setSelCode(results[0].code)
+      else setManualMode(true)
+    } catch {
+      setKtruError(true)
+    } finally {
+      setKtruLoading(false)
+    }
+  }
+
+  function addManualCode() {
+    const c = manualCode.trim()
+    if (!c) return
+    setSelCode(c); setManualMode(false); setManualCode('')
+  }
+
+  function seedRows(res: KtruCharsResult) {
+    setRows(
+      res.characteristics.map((a) => ({
+        name: a.name,
+        value: '',
+        unit: a.unit ?? '',
+        _level: a.level,
+        _freq: a.frequency,
+        _total: a.totalSpecs,
+        _confidence: a.confidence,
+        _examples: a.examples,
+        _rawNames: a.rawNames,
+      })),
+    )
+    setShowMore3(false)
+    setShowMore4(false)
+  }
+
+  async function goStep3() {
+    if (!selCode) return
+    setStep(3)
+    const key = `${ANALYZER_VERSION}:${selCode}`
+    const cached = getKtruChars(key)
+    if (cached?.result) {
+      const res = cached.result as KtruCharsResult
+      setChResult(res); setChError(false); seedRows(res)
+      return
+    }
+    setChLoading(true); setChError(false); setChResult(null)
+    try {
+      const r = await fetch('/api/smart-ktru/ktru-characteristics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ktruCodes: [selCode] }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j?.error ?? 'char analysis failed')
+      const res = j as KtruCharsResult
+      setChResult(res); cacheKtruChars(key, res); seedRows(res)
+    } catch {
+      setChError(true)
+      if (rows.length === 0) setRows(PRESET.map((c) => ({ ...c, _level: 'custom' as const })))
+    } finally {
+      setChLoading(false)
+    }
+  }
+
+  function fillManuallyToStep4() {
+    setChError(false)
+    if (rows.length === 0) setRows(PRESET.map((c) => ({ ...c, _level: 'custom' as const })))
+    setStep(4)
+  }
+
+  const setRow = (i: number, patch: Partial<EditChar>) =>
+    setRows((cs) => cs.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  const delRow = (i: number) => setRows((cs) => cs.filter((_, j) => j !== i))
+  const addCustom = () =>
+    setRows((cs) => [...cs, { name: 'Новая характеристика', value: '', _level: 'custom' }])
+
+  function saveProduct() {
+    if (!name.trim()) return
+    const id = addProduct({
+      name: name.trim(),
+      category: undefined,
+      costPerUnit: undefined,
+      saleUnit: 'шт',
+      ktruCodes: selCode ? [selCode] : undefined,
+      characteristics: toProfileCharacteristics(rows.map(editToInput)),
+    })
+    setSavedId(id)
+    setStep(5)
+    setDoneLoading(true)
+    fetch(`/api/smart-ktru/procurements?ktru=${encodeURIComponent(selCode)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j) { setDoneStats(null); return }
+        const live = j.counts?.liveLots ?? (j.lots?.length ?? 0)
+        const volume = ((j.lots ?? []) as { amount?: number }[]).reduce((a, l) => a + (l.amount ?? 0), 0)
+        setDoneStats({ liveLots: live, volume })
+      })
+      .catch(() => setDoneStats(null))
+      .finally(() => setDoneLoading(false))
+  }
+
+  const mainRows = rows.map((c, i) => ({ c, i })).filter(({ c }) => c._level !== 'additional')
+  const addRows = rows.map((c, i) => ({ c, i })).filter(({ c }) => c._level === 'additional')
+
+  const studied = chResult?.analyzedSpecs ?? 0
+  const mainAgg = (chResult?.characteristics ?? []).filter((c) => c.level === 'main')
+  const addAgg = (chResult?.characteristics ?? []).filter((c) => c.level === 'additional')
+  const noSpecs = chResult != null && chResult.analyzedSpecs === 0
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'var(--color-bg)', overflow: 'auto' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div className="text-muted" style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Добавление товара
           </div>
+          <button className="btn btn-icon btn-ghost" aria-label="Закрыть" onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
 
-          {/* ── Шаг 1: Товар ── */}
-          {step === 1 && (
-            <div style={{ display: 'grid', gap: 12 }}>
-              <Field label="Название товара">
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Горшок пластиковый для цветов" autoFocus />
-              </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <Field label="Себестоимость, ₸">
-                  <input className="input" inputMode="numeric" value={cost} onChange={(e) => setCost(e.target.value.replace(/[^\d]/g, ''))} placeholder="125" />
-                </Field>
-                <Field label="Ед. измерения">
-                  <input className="input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="шт" />
-                </Field>
-                <Field label="Категория">
-                  <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Горшки" />
-                </Field>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 32, fontSize: 13 }}>
+          {WIZ_STEPS.map((label, idx) => {
+            const n = idx + 1
+            return (
+              <div
+                key={label}
+                style={{
+                  fontWeight: n === step ? 700 : 400,
+                  color:
+                    n === step
+                      ? 'var(--color-text)'
+                      : n < step
+                        ? 'var(--color-neutral-600)'
+                        : 'var(--color-neutral-400)',
+                }}
+              >
+                {label}
               </div>
-              <p className="text-muted" style={{ fontSize: 12 }}>
-                На следующем шаге система подберёт КТРУ по названию.
+            )
+          })}
+        </div>
+
+        {/* ── Шаг 1: Товар ── */}
+        {step === 1 && (
+          <div>
+            <h1>Что вы продаёте?</h1>
+            <p className="text-muted">Напишите название товара. Остальное система поможет определить автоматически.</p>
+            <div className="field">
+              <input
+                className="input"
+                style={{ fontSize: 18, padding: 14 }}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Например: горшок пластиковый для цветов"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) goStep2() }}
+              />
+            </div>
+            <div className="field">
+              <label>Можно добавить описание</label>
+              <textarea
+                className="input"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Размер, материал, назначение и другие известные параметры"
+              />
+            </div>
+            <button className="btn btn-primary" disabled={!name.trim()} onClick={goStep2}>Продолжить →</button>
+          </div>
+        )}
+
+        {/* ── Шаг 2: КТРУ ── */}
+        {step === 2 && (
+          <div>
+            <h1>К какому товару относится ваш продукт?</h1>
+            <p className="text-muted">Мы подобрали варианты по реальному классификатору КТРУ. Выберите наиболее подходящий.</p>
+
+            {ktruLoading && (
+              <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+                <Loader2 size={15} className="spin" /> Подбираем КТРУ…
               </p>
-            </div>
-          )}
+            )}
 
-          {/* ── Шаг 2: КТРУ ── */}
-          {step === 2 && (
-            <div>
-              {ktruCodes.length > 0 && (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <b style={{ fontSize: 13 }}>Выбрано КТРУ: {ktruCodes.length}</b>
-                    <button className="btn btn-ghost" style={{ fontSize: 12, paddingInline: 0 }} disabled={!name.trim() || matching} onClick={runMatch} title="Показать кандидатов заново — текущий выбор сохранится">
-                      Изменить выбор
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
-                    {ktruCodes.map((code) => (
-                      <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, border: '1px solid rgba(32,30,29,0.35)', padding: '6px 8px' }}>
-                        <Check size={13} style={{ flex: 'none' }} />
-                        <b style={{ fontFamily: 'ui-monospace, monospace' }}>{code}</b>
-                        {ktruNames[code] ? <span className="text-muted">{ktruNames[code]}</span> : null}
-                        <button className="btn btn-ghost btn-icon" style={{ marginLeft: 'auto' }} aria-label="Убрать КТРУ" onClick={() => dropKtru(code)}>
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button className="btn btn-secondary" disabled={!name.trim() || matching} onClick={runMatch}>
-                  {matching ? <Loader2 size={13} className="spin" /> : <Wand2 size={13} />}
-                  {matching ? ' Подбираем КТРУ…' : ktruCodes.length ? ' Подобрать ещё' : ' Подобрать КТРУ'}
-                </button>
-                <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => setManualMode((v) => !v)}>
-                  {manualMode ? 'скрыть ручной ввод' : 'Ввести КТРУ вручную'}
-                </button>
+            {ktruError && !ktruLoading && (
+              <div style={{ fontSize: 14 }}>
+                <p>Не удалось подобрать КТРУ.</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-secondary" onClick={goStep2}>Повторить</button>
+                  <button className="btn btn-ghost" onClick={() => { setManualMode(true); setKtruError(false) }}>Ввести код вручную</button>
+                </div>
               </div>
+            )}
 
-              {manualMode && (
-                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <input className="input" value={manualCode} onChange={(e) => setManualCode(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addManual() } }}
-                    placeholder="222929.900.000114" />
-                  <button className="btn btn-secondary" onClick={addManual} disabled={!manualCode.trim()}>Добавить</button>
-                </div>
-              )}
-
-              {matching && <p className="text-muted" style={{ fontSize: 13, marginTop: 10 }}>Подбираем КТРУ…</p>}
-
-              {matchError && !matching && (
-                <div style={{ marginTop: 10, fontSize: 13 }}>
-                  <p style={{ margin: '0 0 6px' }}>Не удалось подобрать КТРУ.</p>
-                  <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={runMatch}>Повторить</button>
-                </div>
-              )}
-
-              {matches !== null && !matching && !matchError && (
-                <div style={{ marginTop: 10 }}>
-                  {matches.length === 0 || !confident ? (
-                    <p className="text-muted" style={{ fontSize: 13 }}>
-                      Подходящий КТРУ не найден. Попробуйте уточнить название товара или ввести код вручную.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="text-muted" style={{ fontSize: 12, marginBottom: 6 }}>Подходящие КТРУ:</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {matches.map((m) => {
-                          const chosen = ktruCodes.includes(m.code)
-                          return (
-                            <div key={m.code} style={{ border: `1px solid ${chosen ? '#ec3013' : 'rgba(32,30,29,0.35)'}`, background: chosen ? '#fff2ef' : undefined, padding: '8px 10px', fontSize: 13 }}>
-                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                                {chosen ? <Check size={13} style={{ flex: 'none', color: '#ec3013' }} /> : <span style={{ width: 13, flex: 'none' }} />}
-                                <b style={{ fontFamily: 'ui-monospace, monospace' }}>{m.code}</b>
-                                <span>{m.name}</span>
-                                <span className="text-muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
-                                  {Math.round(m.score * 100)}% совпадение · {CONF_LABEL[m.confidence]}
-                                </span>
-                              </div>
-                              <div className="text-muted" style={{ fontSize: 12, marginTop: 2 }}>{m.reason}</div>
-                              <button className={`btn ${chosen ? 'btn-ghost' : 'btn-secondary'}`} style={{ fontSize: 12, marginTop: 6 }}
-                                onClick={() => (chosen ? dropKtru(m.code) : pickKtru(m.code, m.name))}>
-                                {chosen ? '✓ выбрано — убрать' : 'Выбрать'}
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Шаг 3: Характеристики → Product Profile ── */}
-          {step === 3 && (
-            <div>
-              <h3 style={{ margin: '0 0 4px' }}>Характеристики</h3>
-
-              {/* §16 — по какому КТРУ */}
-              <div className="text-muted" style={{ fontSize: 12, marginBottom: 4 }}>
-                {ktruCodes.length > 1 ? 'Основной КТРУ' : 'Характеристики сформированы по КТРУ'}:{' '}
-                <b style={{ fontFamily: 'ui-monospace, monospace' }}>{ktruCodes[0]}</b>
-                {ktruCodes.length > 1 && ' · остальные коды в анализе не объединяются'}
-              </div>
-
-              {charLoading && (
-                <div style={{ fontSize: 13 }}>
-                  <p style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
-                    <Loader2 size={15} className="spin" /> Анализируем технические спецификации
+            {!ktruLoading && !ktruError && ktruCands != null && (
+              <>
+                {ktruCands.length === 0 && !ktruConfident && (
+                  <p className="text-muted" style={{ fontSize: 13 }}>
+                    Подходящий КТРУ не найден. Уточните название товара или введите код вручную.
                   </p>
-                  <ol style={{ margin: 0, paddingLeft: 20, color: 'rgba(32,30,29,0.6)' }}>
-                    {LOADING_STEPS.map((s) => <li key={s} style={{ marginBottom: 2 }}>{s}</li>)}
-                  </ol>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                  {ktruCands.map((k, i) => {
+                    const pct = Math.round(k.score * 100)
+                    const sel = selCode === k.code
+                    return (
+                      <div
+                        key={k.code}
+                        className="card elev-sm"
+                        style={{ border: `2px solid ${sel ? 'var(--color-accent)' : 'transparent'}`, cursor: 'pointer' }}
+                        onClick={() => setSelCode(k.code)}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div className="card-title">{k.name}</div>
+                            <div className="card-meta" style={{ fontFamily: 'ui-monospace, monospace' }}>{k.code}</div>
+                          </div>
+                          <div style={{ textAlign: 'right', flex: 'none' }}>
+                            <BigNum size={28}>{pct}%</BigNum>
+                            <div className="text-muted" style={{ fontSize: 11 }}>
+                              {i === 0 ? 'Наиболее подходящий' : 'Возможный вариант'}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 8 }}><Bar pct={pct} /></div>
+                        <p className="card-body" style={{ marginBottom: 0 }}>{k.reason}</p>
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
+              </>
+            )}
 
-              {charError && !charLoading && (
-                <div style={{ fontSize: 13, margin: '10px 0' }}>
-                  <p style={{ margin: '0 0 6px' }}>Не удалось проанализировать технические спецификации.</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => analyzeKtruChars(true)}>Повторить</button>
-                    <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={continueWithoutAuto}>Продолжить без автоподбора</button>
-                  </div>
-                  <p className="text-muted" style={{ fontSize: 12, marginTop: 6 }}>Введённые значения не потеряны.</p>
+            {manualMode && (
+              <div className="field">
+                <label>Код КТРУ</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    className="input"
+                    value={manualCode}
+                    onChange={(e) => setManualCode(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addManualCode() } }}
+                    placeholder="222929.900.000114"
+                  />
+                  <button className="btn btn-secondary" onClick={addManualCode} disabled={!manualCode.trim()}>Выбрать</button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {noSpecs && !skippedAuto && (
-                <div style={{ fontSize: 13, margin: '10px 0' }}>
-                  <p style={{ margin: '0 0 6px' }}>Для выбранного КТРУ пока не удалось найти доступные технические спецификации.</p>
-                  <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={continueWithoutAuto}>Продолжить без автоподбора</button>
+            {selCode && manualMode && (
+              <p className="text-muted" style={{ fontSize: 13 }}>
+                Выбран код: <b style={{ fontFamily: 'ui-monospace, monospace' }}>{selCode}</b>
+              </p>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" disabled={!selCode || ktruLoading} onClick={goStep3}>Выбрать и продолжить →</button>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 13 }}
+                onClick={() => { setStep(1); setKtruCands(null); setSelCode(''); setManualMode(false); setKtruError(false) }}
+              >
+                Не подходит ни один
+              </button>
+              {!manualMode && (
+                <button className="btn btn-ghost" style={{ fontSize: 13 }} onClick={() => setManualMode(true)}>
+                  Ввести код вручную
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Шаг 3: Рынок ── */}
+        {step === 3 && (
+          <div>
+            {chLoading && (
+              <>
+                <h1>Изучаем реальные закупки</h1>
+                <p className="text-muted">Смотрим, что государственные заказчики требуют от этого товара.</p>
+                <div style={{ maxWidth: 320 }}><Bar pct={60} h={14} /></div>
+              </>
+            )}
+
+            {chError && !chLoading && (
+              <>
+                <h1>Не удалось изучить закупки</h1>
+                <p className="text-muted">Не получилось разобрать технические спецификации по этому КТРУ.</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-secondary" onClick={goStep3}>Повторить</button>
+                  <button className="btn btn-ghost" onClick={fillManuallyToStep4}>Заполнить характеристики вручную →</button>
                 </div>
-              )}
+              </>
+            )}
 
-              {!charLoading && !charError && !noSpecs && (
-                <>
-                  {charResult && charResult.analyzedSpecs > 0 && (
-                    <p className="text-muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>
-                      Система изучила {charResult.analyzedSpecs} технических спецификаций и выделила характеристики,
-                      которые чаще всего требуются заказчиками. {analyzedText}.
-                    </p>
-                  )}
-                  {skippedAuto && (
-                    <p className="text-muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>
-                      Автоподбор пропущен — заполните характеристики вручную.
-                    </p>
-                  )}
+            {!chLoading && !chError && chResult != null && (
+              <>
+                <h1>Что требуют от этого товара</h1>
+                {noSpecs ? (
+                  <p className="text-muted">
+                    По этому КТРУ пока не удалось найти доступные технические спецификации. Заполните
+                    характеристики вручную на следующем шаге.
+                  </p>
+                ) : (
+                  <p className="text-muted">
+                    Мы изучили {studied} {studied === 1 ? 'реальную закупку' : studied < 5 ? 'реальные закупки' : 'реальных закупок'}.
+                  </p>
+                )}
 
-                  {mainRows.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 8 }}>ОСНОВНЫЕ</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {mainRows.map(({ c, i }) => (
-                          <CharRow key={i} c={c} i={i} prominent openSrc={openSrc} setOpenSrc={setOpenSrc} setRow={setRow} delRow={delRow} />
+                {mainAgg.length > 0 && (
+                  <>
+                    <h4>Основные — {mainAgg.length}</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                      {mainAgg.map((c) => (
+                        <div key={c.name}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
+                            <span>{c.name}</span>
+                            <b>{c.frequency} из {c.totalSpecs}</b>
+                          </div>
+                          <Bar pct={Math.round((c.frequency / Math.max(1, c.totalSpecs)) * 100)} h={14} />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {addAgg.length > 0 && (
+                  <>
+                    <button className="btn btn-ghost" style={{ paddingInline: 0 }} onClick={() => setShowMore3((v) => !v)}>
+                      {showMore3 ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Дополнительные — {addAgg.length}
+                    </button>
+                    {showMore3 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                        {addAgg.map((c) => (
+                          <div key={c.name}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
+                              <span>{c.name}</span>
+                              <b>{c.frequency} из {c.totalSpecs}</b>
+                            </div>
+                            <Bar pct={Math.round((c.frequency / Math.max(1, c.totalSpecs)) * 100)} h={14} />
+                          </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </>
+                )}
 
-                  {addRows.length > 0 && (
-                    <div style={{ marginBottom: 12 }}>
-                      <button className="btn btn-ghost" style={{ fontSize: 12, paddingInline: 0, fontWeight: 700, letterSpacing: '0.04em' }} onClick={() => setShowAdditional((v) => !v)}>
-                        {showAdditional ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                        ДОПОЛНИТЕЛЬНЫЕ ({addRows.length})
-                      </button>
-                      {showAdditional && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-                          {addRows.map(({ c, i }) => (
-                            <CharRow key={i} c={c} i={i} openSrc={openSrc} setOpenSrc={setOpenSrc} setRow={setRow} delRow={delRow} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <button className="btn btn-ghost" style={{ paddingInline: 0, fontSize: 12 }}
-                    onClick={() => setChars((cs) => [...cs, { ...emptyChar(), _level: 'custom' }])}>
-                    <Plus size={12} /> Добавить характеристику
-                  </button>
-
-                  <p className="text-muted" style={{ fontSize: 12, marginTop: 10 }}>
-                    Значения вводите сами — примеры из ТЗ показывают, что требует рынок, а не ваш товар.
-                    Заполнять всё необязательно.
+                {mainAgg.length > 0 && (
+                  <p style={{ marginTop: 24 }}>
+                    Чтобы участвовать в большинстве закупок этого типа, важно указать {mainAgg.length} основных характеристик.
                   </p>
-                </>
-              )}
+                )}
+                <button className="btn btn-primary" onClick={() => setStep(4)}>Заполнить характеристики →</button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Шаг 4: Характеристики ── */}
+        {step === 4 && (
+          <div>
+            <h1>Характеристики вашего товара</h1>
+            <p className="text-muted">
+              Укажите данные вашего товара. Система использует их, чтобы проверить подходящие закупки.
+              Примеры из закупок — это требования рынка, а не значение вашего товара. Заполнять всё необязательно.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
+              {mainRows.map(({ c, i }) => (
+                <WizCharField key={i} c={c} onChange={(v) => setRow(i, { value: v })} onLabelChange={(v) => setRow(i, { name: v })} onRemove={() => delRow(i)} />
+              ))}
             </div>
-          )}
-        </Dialog>
+
+            {addRows.length > 0 && (
+              <>
+                <button className="btn btn-ghost" style={{ paddingInline: 0 }} onClick={() => setShowMore4((v) => !v)}>
+                  {showMore4 ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Дополнительные характеристики — {addRows.length}
+                </button>
+                {showMore4 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+                    {addRows.map(({ c, i }) => (
+                      <WizCharField key={i} c={c} onChange={(v) => setRow(i, { value: v })} onLabelChange={(v) => setRow(i, { name: v })} onRemove={() => delRow(i)} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={addCustom}>
+              <Plus size={14} /> Добавить характеристику
+            </button>
+
+            <div style={{ marginTop: 24 }}>
+              <button className="btn btn-primary" onClick={saveProduct}>Сохранить товар →</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Шаг 5: Готово ── */}
+        {step === 5 && (
+          <div>
+            <h1>Товар готов</h1>
+            <p className="text-muted">Теперь система может искать закупки, которые подходят вашему товару.</p>
+
+            <div className="card elev-sm" style={{ marginBottom: 24 }}>
+              <div className="card-title">{name.trim()}</div>
+              <div className="card-meta" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                {selCode ? `КТРУ ${selCode}` : 'КТРУ не выбран'}
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <BigNum size={64}>{doneLoading ? '…' : (doneStats?.liveLots ?? 0)}</BigNum>
+              <div className="text-muted" style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 2 }}>
+                живых закупок найдено
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 8 }}><Bar pct={doneStats && doneStats.liveLots > 0 ? 100 : 0} h={20} /></div>
+            <p className="text-muted" style={{ fontSize: 13, marginBottom: 24 }}>
+              Разбор соответствия по каждой закупке — при её открытии (запускается вручную, не массово).
+            </p>
+
+            {doneStats != null && doneStats.volume > 0 && (
+              <div className="card elev-sm" style={{ marginBottom: 32 }}>
+                <div className="text-muted" style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  Потенциальный объём
+                </div>
+                <div className="card-title" style={{ fontSize: 22 }}>{fmtMln(doneStats.volume)}</div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => { onClose(); router.push(`/smart-ktru/procurements?product=${savedId}`) }}
+              >
+                Смотреть возможности →
+              </button>
+              <button className="btn btn-ghost" onClick={() => onOpenProfile(savedId)}>Открыть профиль товара</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Поле характеристики на шаге 4: имя + частотность + подсказка «что в закупках» + значение. */
+function WizCharField({
+  c, onChange, onLabelChange, onRemove,
+}: {
+  c: EditChar
+  onChange: (v: string) => void
+  onLabelChange: (v: string) => void
+  onRemove: () => void
+}) {
+  const custom = c._level === 'custom'
+  const freqLabel = c._freq != null && c._total != null ? `${c._freq} из ${c._total}` : 'добавлено вручную'
+  const hint = (c._examples ?? []).slice(0, 3).join(' · ') || c.unit || '—'
+  return (
+    <div className="card elev-sm" style={{ gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, gap: 8, flexWrap: 'wrap' }}>
+        {custom ? (
+          <input
+            className="input"
+            style={{ fontWeight: 600, border: 'none', padding: 0, height: 'auto' }}
+            value={c.name}
+            onChange={(e) => onLabelChange(e.target.value)}
+          />
+        ) : (
+          <span><b>{c.name}</b></span>
+        )}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+          <span className="text-muted">{freqLabel}</span>
+          <button className="btn btn-ghost btn-icon" aria-label="Убрать" onClick={onRemove}>
+            <Trash2 size={13} />
+          </button>
+        </span>
+      </div>
+      {!custom && (
+        <div className="text-muted" style={{ fontSize: 12 }}>Что указано в закупках: {hint}</div>
       )}
+      <input
+        className="input"
+        value={c.value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Введите значение или оставьте пустым"
+      />
     </div>
   )
 }

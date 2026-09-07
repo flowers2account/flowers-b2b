@@ -281,6 +281,29 @@ function LotCardInner() {
         </div>
       )}
 
+      {/* decision-first: СТОИТ / ПРОВЕРИТЬ / НЕ СТОИТ */}
+      <div style={{ textAlign: 'center', padding: '24px 0' }}>
+        <div className="text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 12 }}>Стоит участвовать?</div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 52, lineHeight: 1, margin: '6px 0' }}>
+          {s.verdict === 'recommend' ? '✓ Стоит' : s.verdict === 'consider' ? '? Проверить' : '× Не стоит'}
+        </div>
+        <div style={{ fontSize: 15, marginBottom: 8 }}>{f.nameRu ?? 'Лот'} · {f.customerNameRu ?? '—'}</div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 34, lineHeight: 1 }}>
+          {opp.compatibility ? `${opp.compatibility.compatibilityPercent}%` : `${s.participationIndex}`}
+        </div>
+        <div className="text-muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {opp.compatibility ? 'Совместимость' : 'Индекс участия'}
+        </div>
+        <div style={{ maxWidth: 420, margin: '10px auto 0', height: 12, background: 'var(--color-neutral-200)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', background: 'var(--color-accent)', width: `${opp.compatibility?.compatibilityPercent ?? s.participationIndex}%` }} />
+        </div>
+        {s.risks[0] && !/не обнаружено/i.test(s.risks[0]) && (
+          <p className="text-muted" style={{ fontSize: 13, maxWidth: '56ch', margin: '12px auto 0', display: 'flex', gap: 6, justifyContent: 'center' }}>
+            <AlertTriangle size={14} style={{ flex: 'none', marginTop: 2 }} /> {s.risks[0]}
+          </p>
+        )}
+      </div>
+
       <div
         className="skt-deal-header"
         style={{
@@ -352,10 +375,10 @@ function LotCardInner() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: 'overview', label: 'Обзор' },
-          { id: 'ts', label: 'Разбор ТС' },
-          { id: 'compare', label: 'Сравнение' },
-          { id: 'econ', label: 'Экономика' },
+          { id: 'overview', label: 'ОБЗОР' },
+          { id: 'compare', label: 'СРАВНЕНИЕ' },
+          { id: 'econ', label: 'ДЕНЬГИ' },
+          { id: 'ts', label: 'ТЗ' },
         ]}
       />
 

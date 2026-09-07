@@ -77,6 +77,9 @@ export interface OppDecision {
 export interface OpportunitySummary {
   state: OpportunityState
 
+  /** товар, для которого считалась возможность (только для state:'analyzed') */
+  productId: string | null
+
   // ── Закупка ──
   lotId: number
   buyId: number | null
@@ -191,6 +194,7 @@ export function opportunityFromAnalysis(res: AnalysisResult, ktruCode?: string |
   const f = res.facts
   return {
     state: 'analyzed',
+    productId: res.productId ?? null,
     lotId: f.lotId,
     buyId: f.buyId,
     lotNumber: f.lotNumber,
@@ -237,6 +241,7 @@ export interface RawLotForOpportunity {
 export function opportunityFromLot(l: RawLotForOpportunity): OpportunitySummary {
   return {
     state: 'not-analyzed',
+    productId: null,
     lotId: l.lotId,
     buyId: l.buyId ?? null,
     lotNumber: null,
