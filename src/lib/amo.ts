@@ -138,11 +138,57 @@ function isMissingAmoEntity(status: number, body: string): boolean {
   return identifiesEntity && identifiesMissing && !isPayloadValidation
 }
 
+// ── Клиентский троттлинг запросов к amoCRM REST v4 ──────────────────────────
+// amoCRM лимитирует аккаунт до 7 запросов/сек; превышение → блокировка аккаунта
+// (инцидент 07.09.2026, снят поддержкой). Держим запас: не больше _amoRate.max
+// запросов в скользящее окно _amoRate.windowMs. Процесс один (pm2 instances:1),
+// поэтому простого in-memory ограничителя достаточно; при рестарте сбрасывается —
+// не критично. Точка врезки — amoFetch(): через неё идут ВСЕ вызовы v4 (grep по
+// репозиторию подтверждает — прямых fetch к tropinvladislav1.amocrm.ru/api/v4 в
+// обход нет). amoJo Chats API (amojo.amocrm.ru, src/lib/amo-chat/*) — отдельный
+// сервис с отдельными лимитами, сюда не относится.
+export const _amoRate = { max: 5, windowMs: 1000 }
+const _amoRecent: number[] = []          // таймстампы недавно отправленных запросов
+let _amoGate: Promise<void> = Promise.resolve()  // сериализует расчёт слота (FIFO)
+
+async function acquireAmoRateSlot(): Promise<void> {
+  // N конкурентных вызовов не должны увидеть один и тот же «свободно» и пробить
+  // окно: каждый ждёт завершения предыдущего расчёта, затем считает свой слот.
+  const prev = _amoGate
+  let release!: () => void
+  _amoGate = new Promise<void>((r) => { release = r })
+  try {
+    await prev.catch(() => {})
+    const startedAt = Date.now()
+    for (;;) {
+      const now = Date.now()
+      while (_amoRecent.length && now - _amoRecent[0] >= _amoRate.windowMs) _amoRecent.shift()
+      if (_amoRecent.length < _amoRate.max) {
+        _amoRecent.push(now)
+        const waited = now - startedAt
+        if (waited >= 500) {
+          console.log(
+            `[amo] троттлинг: запрос ждал ${waited} мс в очереди ` +
+            `(окно ${_amoRecent.length}/${_amoRate.max} за ${_amoRate.windowMs} мс)`,
+          )
+        }
+        return
+      }
+      // ждём, пока самый старый запрос выйдет из окна (async, без busy-wait)
+      const waitMs = _amoRate.windowMs - (now - _amoRecent[0]) + 1
+      await new Promise((r) => setTimeout(r, waitMs))
+    }
+  } finally {
+    release()
+  }
+}
+
 async function amoFetch(
   path: string,
   opts: RequestInit = {},
   attempt = 0
 ): Promise<Response> {
+  await acquireAmoRateSlot()
   const res = await fetch(`${BASE}${path}`, {
     ...opts,
     headers: {
