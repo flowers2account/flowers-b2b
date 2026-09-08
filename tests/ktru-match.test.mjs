@@ -72,10 +72,29 @@ test('Тест 6: непонятный запрос «товар для сада
   assert.equal(results.length, 0)
 })
 
-test('нерелевантные запросы вне домена → confident=false (нет ложных срабатываний)', () => {
-  for (const q of ['мебель офисная', 'медицинский расходник', 'перчатки нитриловые', 'бензин', 'услуги охраны']) {
+test('мусорные запросы → confident=false, results пуст', () => {
+  // После core-индекса (2024–2026, ~29k КТРУ) «вне домена» — это уже не мебель/
+  // кабель, а бессмыслица без товарного концепта.
+  for (const q of ['абвгд еёжз', 'zzzzz qwerty', 'лорем ипсум долор', '??? !!!']) {
     const { results, confident } = matchKtru(q, [])
     assert.equal(confident, false, `${q}: не должно быть уверенного КТРУ, получили ${codes(results)}`)
+    assert.equal(results.length, 0, `${q}: results должен быть пуст`)
+  }
+})
+
+test('core-индекс: не-цветочные товары находятся уверенно', () => {
+  const cases = [
+    { q: 'Перчатки нитриловые', head: '221960' },
+    { q: 'Кабель ВВГ', re: /кабель/i },
+    { q: 'Ноутбук', re: /ноутбук/i },
+    { q: 'Цемент', re: /цемент/i },
+  ]
+  for (const c of cases) {
+    const { results, confident } = matchKtru(c.q, [])
+    assert.ok(confident, `${c.q}: ожидали confident=true`)
+    assert.ok(results.length >= 1, `${c.q}: нет кандидатов`)
+    if (c.head) assert.equal(results[0].code.slice(0, 6), c.head, `${c.q}: топ ${results[0].code}`)
+    if (c.re) assert.ok(c.re.test(results[0].name), `${c.q}: топ «${results[0].name}»`)
   }
 })
 

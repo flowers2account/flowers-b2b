@@ -11,6 +11,12 @@ export interface KtruIndexRow {
   nameKz: string
   /** Пример краткой характеристики из позиции плана — НЕ атрибут КТРУ, справочно */
   descExample: string
+  /** Официальное описание КТРУ из справочника RefEnstru (ru) — отличает однофамильцев */
+  descRu?: string
+  /** Официальное описание КТРУ из справочника RefEnstru (kz) */
+  descKz?: string
+  /** Курируемые синонимы/разговорные формулировки конкретно этой позиции */
+  aliases?: string[]
   /** Первые 6 цифр кода = класс СКП ВЭД (КПВЭД) */
   kpvedClass: string
   /** Цифры 8–10 кода = группа */
@@ -45,13 +51,21 @@ export interface KtruSignals {
   context: number
   /** F — штраф за конфликт характеристик (пластиковый vs керамический и т.п.) */
   negative: number
+  /** G — уточняющие слова запроса найдены в официальном описании КТРУ (descRu/descKz) */
+  desc: number
+  /** H — нечёткое совпадение с наименованием (опечатки) */
+  fuzzy: number
 }
 
 export interface KtruSearchResult {
   code: string
   nameRu: string
+  /** Официальное описание КТРУ (RefEnstru) — для UI: чем кандидаты отличаются */
+  descRu?: string
   /** Итоговая оценка 0..1, детерминированная */
   score: number
+  /** Как кандидат попал в выдачу: name | synonym | desc | fuzzy | kpved */
+  retrievedVia: string[]
   /** Человекочитаемые причины, почему запись найдена и как оценена */
   reasons: string[]
   signals: KtruSignals

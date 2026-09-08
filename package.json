@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "ktru:search": "node scripts/ktru-search.mjs",
-    "ktru:test": "node --test tests/ktru-search.test.mjs",
+    "ktru:test": "node --test tests/ktru-search.test.mjs tests/ktru-inverted.test.mjs",
     "ktru:procurement": "node --env-file=.env.local scripts/ktru-procurement.mjs",
     "ktru:spec": "node --env-file=.env.local scripts/ktru-spec.mjs",
     "smart-ktru:test": "node --test tests/smart-ktru-matching.test.mjs tests/smart-ktru-scoring.test.mjs tests/smart-ktru-extract-schema.test.mjs tests/ktru-match.test.mjs tests/ktru-characteristics.test.mjs tests/product-profile.test.mjs tests/opportunity.test.mjs",
