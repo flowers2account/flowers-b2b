@@ -248,6 +248,19 @@ export async function sendPhoto(
 export interface DialogMessage {
   role: 'client' | 'bot' | 'manager'
   text: string
+  /** Момент сообщения (epoch ms), если Umnico вернул datetime. Нужен catch-up-
+   *  проверке «давности последнего сообщения» (laps-catchup.ts). */
+  ts?: number
+}
+
+// datetime из истории Umnico бывает числом (epoch ms) или ISO-строкой.
+function toEpochMs(v: unknown): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string') {
+    const n = Date.parse(v)
+    if (!Number.isNaN(n)) return n
+  }
+  return undefined
 }
 
 /**
@@ -299,7 +312,10 @@ export async function fetchDialogContext(
       else if (botUserId && sender !== undefined && String(sender) === String(botUserId)) role = 'bot'
       else role = 'manager'
 
-      parsed.push({ role, text })
+      const ts = toEpochMs(
+        m.datetime ?? m.createdAt ?? m.created_at ?? m.timestamp ?? inner.datetime ?? inner.timestamp,
+      )
+      parsed.push(ts !== undefined ? { role, text, ts } : { role, text })
     }
 
     // История пагинируется cursor'ом → первая страница = самые свежие (newest-first).

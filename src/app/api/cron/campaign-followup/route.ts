@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { runCampaignFollowupTick } from '@/lib/bot/campaign-followup'
 import { runLapsFollowupTick } from '@/lib/bot/laps-followup'
 import { runLapsPendingReplyTick } from '@/lib/bot/laps-pending-reply'
+import { runLapsCatchupTick } from '@/lib/bot/laps-catchup'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,13 +34,24 @@ export async function GET(req: NextRequest) {
       console.error('[cron/campaign-followup] laps pending-reply tick failed:', e)
     }
 
+    // Catch-up «зависших» LAPS-сделок (последнее слово за клиентом >15 мин, ответа
+    // не было — по любой причине). Идёт ПОСЛЕ pending-reply (тот уже разгрёб ночную
+    // очередь), ПЕРЕД follow-up (переигранный ответ может увести сделку со стадии
+    // follow-up). Отдельный, более частый crontab (каждые 15 мин в рабочее окно).
+    let lapsCatchup: { checked: number; caught: number; skipped: number } = { checked: 0, caught: 0, skipped: 0 }
+    try {
+      lapsCatchup = await runLapsCatchupTick()
+    } catch (e) {
+      console.error('[cron/campaign-followup] laps catchup tick failed:', e)
+    }
+
     let laps: { sent: number; skipped: number } = { sent: 0, skipped: 0 }
     try {
       laps = await runLapsFollowupTick()
     } catch (e) {
       console.error('[cron/campaign-followup] laps tick failed:', e)
     }
-    return NextResponse.json({ success: true, school, lapsPending, laps, timestamp: new Date().toISOString() })
+    return NextResponse.json({ success: true, school, lapsPending, lapsCatchup, laps, timestamp: new Date().toISOString() })
   } catch (error) {
     console.error('[cron/campaign-followup]', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
