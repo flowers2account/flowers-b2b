@@ -9,6 +9,7 @@ import { getHistoricalContractPrice } from './history.ts'
 import { computeEconomics } from './economics.ts'
 import { computeParticipationScore } from './scoring.ts'
 import { lotStatusLabel, tradeMethodLabel, regionLabel } from './refs.ts'
+import { primaryKtruCode } from './types.ts'
 import type { Product, AnalysisResult, LotFacts, ExtractedSpecification, MatchResult } from './types.ts'
 
 export interface AnalyzeInput {
@@ -109,7 +110,7 @@ export async function analyzeLot(inp: AnalyzeInput): Promise<AnalysisResult> {
   }
 
   // ── историческая цена / конкуренция ──
-  const ktru = inp.ktruCode ?? inp.product.ktruCodes?.[0] ?? null
+  const ktru = inp.ktruCode ?? primaryKtruCode(inp.product) ?? null
   let historical = null as Awaited<ReturnType<typeof getHistoricalContractPrice>>
   if (ktru) {
     try {

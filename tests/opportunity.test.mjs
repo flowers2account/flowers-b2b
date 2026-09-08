@@ -46,7 +46,7 @@ function makeAnalysis({ product, reqs, historicalUnitPrice = null }) {
 
 const P = (chars, cost = 125) => ({
   id: 'p1', name: 'Горшок пластиковый', category: 'Горшки', costPerUnit: cost, saleUnit: 'шт',
-  ktruCodes: ['222929.900.000114'],
+  ktru: [{ code: '222929.900.000114', role: 'primary', source: 'system', createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
   characteristics: toProfileCharacteristics(chars),
   createdAt: '2026-01-01', updatedAt: '2026-01-05',
 })

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSmartKtru } from '@/lib/smart-ktru/store'
+import { primaryKtruCode } from '@/lib/smart-ktru/types'
 import { Card, VerdictTag, fmtMoney } from '@/components/smart-ktru/kit'
 
 interface Row {
@@ -23,7 +24,8 @@ export default function DigestPage() {
     let alive = true
     Promise.all(
       products.map(async (p): Promise<Row> => {
-        const qs = p.ktruCodes?.[0] ? `ktru=${encodeURIComponent(p.ktruCodes[0])}` : `q=${encodeURIComponent(p.name)}`
+        const code = primaryKtruCode(p)
+        const qs = code ? `ktru=${encodeURIComponent(code)}` : `q=${encodeURIComponent(p.name)}`
         try {
           const r = await fetch(`/api/smart-ktru/procurements?${qs}`)
           const j = await r.json()

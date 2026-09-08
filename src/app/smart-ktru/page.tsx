@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Sparkles, Clock } from 'lucide-react'
 import { useSmartKtru } from '@/lib/smart-ktru/store'
+import { primaryKtruCode } from '@/lib/smart-ktru/types'
 import { opportunityFromAnalysis } from '@/lib/smart-ktru/opportunity'
 import { VerdictTag, fmtMoney } from '@/components/smart-ktru/kit'
 
@@ -58,7 +59,7 @@ export default function OverviewPage() {
     let alive = true
     Promise.all(
       products.map(async (p): Promise<ProdAgg> => {
-        const code = p.ktruCodes?.[0]
+        const code = primaryKtruCode(p)
         const qs = code ? `ktru=${encodeURIComponent(code)}` : `q=${encodeURIComponent(p.name)}`
         try {
           const r = await fetch(`/api/smart-ktru/procurements?${qs}`)
@@ -83,7 +84,8 @@ export default function OverviewPage() {
   // проанализированные закупки — только реальные результаты из кэша
   const analyzed = useMemo(
     () => Object.values(analysisCache).map((c) => {
-      const code = products.find((p) => p.id === c.result.productId)?.ktruCodes?.[0] ?? null
+      const pr = products.find((p) => p.id === c.result.productId)
+      const code = pr ? primaryKtruCode(pr) ?? null : null
       return opportunityFromAnalysis(c.result, code)
     }),
     [analysisCache, products],
