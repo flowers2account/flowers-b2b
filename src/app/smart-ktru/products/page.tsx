@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Loader2, X, ChevronDown, ChevronRight } from 'lucide-react'
-import { useSmartKtru, emptyChar } from '@/lib/smart-ktru/store'
-import type { ProductCharacteristic } from '@/lib/smart-ktru/types'
+import { Plus, Trash2, Loader2, X, ChevronDown, ChevronRight, Star, FolderPlus, Tags } from 'lucide-react'
+import { useSmartKtru, emptyChar, type KtruSelection } from '@/lib/smart-ktru/store'
+import type { ProductCharacteristic, ProductKtruRole } from '@/lib/smart-ktru/types'
+import { primaryKtruCode } from '@/lib/smart-ktru/types'
+import { setKtruList } from '@/lib/smart-ktru/ktru-profile'
 import { toProfileCharacteristics, type ProfileRowInput } from '@/lib/smart-ktru/product-profile'
 import { Btn, Dialog, Field, fmtMoney } from '@/components/smart-ktru/kit'
 
@@ -85,6 +87,139 @@ function charToEdit(c: ProductCharacteristic): EditChar {
 
 const fmtMln = (n: number) => '₸ ' + (n / 1e6).toFixed(1).replace('.0', '') + ' млн'
 
+const ROLE_LABEL: Record<ProductKtruRole, string> = { primary: 'Основной', alternative: 'Альтернативный' }
+
+/** {codes[], primaryCode} → KtruSelection[] (primary первым). */
+function toSelection(codes: string[], primaryCode: string): KtruSelection[] {
+  const uniq = [...new Set(codes.filter(Boolean))]
+  const prim = uniq.includes(primaryCode) ? primaryCode : uniq[0]
+  return uniq.map((c) => ({ code: c, role: (c === prim ? 'primary' : 'alternative') as ProductKtruRole }))
+}
+
+/* ─────────── Общий диалог мультиподбора КТРУ (профиль товара + КТРУ группы) ─────────── */
+function KtruPicker({
+  title, query, initialCodes = [], initialPrimary = '', onConfirm, onClose,
+}: {
+  title: string
+  query: string
+  initialCodes?: string[]
+  initialPrimary?: string
+  onConfirm: (sel: { codes: string[]; primaryCode: string }) => void
+  onClose: () => void
+}) {
+  const [cands, setCands] = useState<KtruMatch[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [checked, setChecked] = useState<Set<string>>(new Set(initialCodes))
+  const [primary, setPrimary] = useState(initialPrimary || initialCodes[0] || '')
+  const [manual, setManual] = useState('')
+  const [names, setNames] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/smart-ktru/ktru-match', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: query.trim(), characteristics: [] }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive) return
+        const results: KtruMatch[] = j?.results ?? []
+        setCands(results)
+        setNames((n) => { const m = { ...n }; for (const r of results) m[r.code] = r.name; return m })
+        setChecked((c) => {
+          if (c.size > 0 || results.length === 0) return c
+          const next = new Set([results[0].code]); return next
+        })
+        setPrimary((p) => p || results[0]?.code || '')
+      })
+      .catch(() => alive && setCands([]))
+      .finally(() => alive && setLoading(false))
+    return () => { alive = false }
+  }, [query])
+
+  const toggle = (code: string) =>
+    setChecked((c) => {
+      const n = new Set(c)
+      if (n.has(code)) { n.delete(code); if (primary === code) setPrimary([...n][0] ?? '') }
+      else { n.add(code); if (!primary) setPrimary(code) }
+      return n
+    })
+
+  const addManual = () => {
+    const c = manual.trim()
+    if (!c) return
+    setChecked((s) => new Set(s).add(c))
+    if (!primary) setPrimary(c)
+    setManual('')
+  }
+
+  const rows = [
+    ...(cands ?? []).map((k) => ({ code: k.code, name: k.name, score: k.score })),
+    ...[...checked].filter((c) => !(cands ?? []).some((k) => k.code === c)).map((c) => ({ code: c, name: names[c] ?? '', score: null as number | null })),
+  ]
+
+  return (
+    <Dialog
+      title={title}
+      onClose={onClose}
+      actions={
+        <>
+          <button
+            className="btn btn-primary"
+            disabled={checked.size === 0}
+            onClick={() => onConfirm({ codes: [...checked], primaryCode: primary || [...checked][0] })}
+          >
+            Сохранить ({checked.size})
+          </button>
+          <button className="btn btn-ghost" onClick={onClose}>Отмена</button>
+        </>
+      }
+    >
+      <div style={{ display: 'grid', gap: 10 }}>
+        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          Отметьте подходящие КТРУ. Звёздочкой — основной (наиболее предпочтительный).
+        </p>
+        {loading && <p style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><Loader2 size={14} className="spin" /> Подбираем…</p>}
+        {rows.map((r) => {
+          const on = checked.has(r.code)
+          return (
+            <div key={r.code} className="card elev-sm" style={{ gap: 6, border: `2px solid ${on ? 'var(--color-accent)' : 'transparent'}` }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' }}>
+                <input type="checkbox" checked={on} onChange={() => toggle(r.code)} style={{ marginTop: 3 }} />
+                <span style={{ minWidth: 0 }}>
+                  <span className="card-title" style={{ fontSize: 14 }}>{r.name || '—'}</span>
+                  <span className="card-meta" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                    {r.code}{r.score != null ? ` · ${Math.round(r.score * 100)}%` : ' · вручную'}
+                  </span>
+                </span>
+              </label>
+              {on && (
+                <button
+                  className={`btn btn-ghost ${primary === r.code ? '' : 'text-muted'}`}
+                  style={{ alignSelf: 'flex-start', fontSize: 12, paddingInline: 0, gap: 4 }}
+                  onClick={() => setPrimary(r.code)}
+                >
+                  <Star size={13} fill={primary === r.code ? 'currentColor' : 'none'} />
+                  {primary === r.code ? 'Основной' : 'Сделать основным'}
+                </button>
+              )}
+            </div>
+          )
+        })}
+        <div className="field" style={{ marginTop: 4 }}>
+          <label>Добавить код вручную</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="input" value={manual} placeholder="222929.900.000114"
+              onChange={(e) => setManual(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addManual() } }} />
+            <button className="btn btn-secondary" onClick={addManual} disabled={!manual.trim()}>Добавить</button>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
 /* ─────────────── UI-хелперы Modernist (радиус 0, монохром + один акцент) ─────────────── */
 function Bar({ pct, color = 'var(--color-accent)', h = 8 }: { pct: number; color?: string; h?: number }) {
   return (
@@ -98,8 +233,16 @@ function BigNum({ children, size = 40 }: { children: ReactNode; size?: number })
 }
 
 /** Карточка товара с визуальными показателями рынка (handoff «Мои товары»). */
-function ProductCard({ id, onOpen }: { id: string; onOpen: (id: string) => void }) {
+function ProductCard({
+  id, onOpen, selected, onToggleSelect,
+}: {
+  id: string
+  onOpen: (id: string) => void
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
+}) {
   const p = useSmartKtru((s) => s.products.find((x) => x.id === id))
+  const group = useSmartKtru((s) => (p?.groupId ? s.groups.find((g) => g.id === p.groupId) : undefined))
   const analysisCache = useSmartKtru((s) => s.analysisCache)
   const removeProduct = useSmartKtru((s) => s.removeProduct)
   const [mkt, setMkt] = useState<{ liveLots: number; volume: number; lotIds: number[] } | null>(null)
@@ -107,9 +250,8 @@ function ProductCard({ id, onOpen }: { id: string; onOpen: (id: string) => void 
   useEffect(() => {
     if (!p) return
     let alive = true
-    const qs = p.ktruCodes?.[0]
-      ? `ktru=${encodeURIComponent(p.ktruCodes[0])}`
-      : `q=${encodeURIComponent(p.name)}`
+    const code = primaryKtruCode(p)
+    const qs = code ? `ktru=${encodeURIComponent(code)}` : `q=${encodeURIComponent(p.name)}`
     fetch(`/api/smart-ktru/procurements?${qs}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
@@ -144,13 +286,22 @@ function ProductCard({ id, onOpen }: { id: string; onOpen: (id: string) => void 
 
   const volLabel = mkt == null ? '…' : mkt.volume >= 1e6 ? `₸ ${(mkt.volume / 1e6).toFixed(1).replace('.0', '')} млн` : fmtMoney(mkt.volume)
 
+  const primary = primaryKtruCode(p)
+  const altCount = p.ktru.length - (primary ? 1 : 0)
+
   return (
-    <div className="card elev-sm" style={{ gap: 10 }}>
-      {p.ktruCodes?.[0] && (
-        <span className="tag tag-outline" style={{ alignSelf: 'flex-start', fontFamily: 'ui-monospace, monospace' }}>
-          КТРУ {p.ktruCodes[0]}
-        </span>
-      )}
+    <div className="card elev-sm" style={{ gap: 10, border: `2px solid ${selected ? 'var(--color-accent)' : 'transparent'}` }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        {onToggleSelect && (
+          <input type="checkbox" checked={!!selected} onChange={() => onToggleSelect(p.id)} aria-label="Выбрать товар" />
+        )}
+        {primary && (
+          <span className="tag tag-outline" style={{ fontFamily: 'ui-monospace, monospace' }}>
+            КТРУ {primary}{altCount > 0 ? ` +${altCount}` : ''}
+          </span>
+        )}
+        {group && <span className="tag tag-accent">{group.name}</span>}
+      </div>
       <button
         className="card-title"
         style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
@@ -199,14 +350,33 @@ function ProductCard({ id, onOpen }: { id: string; onOpen: (id: string) => void 
 
 export default function ProductsPage() {
   const products = useSmartKtru((s) => s.products)
+  const groups = useSmartKtru((s) => s.groups)
   const ensureDemoSeed = useSmartKtru((s) => s.ensureDemoSeed)
+  const createGroupWithProducts = useSmartKtru((s) => s.createGroupWithProducts)
+  const assignProductsToGroup = useSmartKtru((s) => s.assignProductsToGroup)
+  const setGroupKtru = useSmartKtru((s) => s.setGroupKtru)
 
   const [wizardOpen, setWizardOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [groupDialog, setGroupDialog] = useState<null | 'create' | 'ktru' | 'ktru-pick'>(null)
+  const [groupName, setGroupName] = useState('')
+  const [targetGroupId, setTargetGroupId] = useState('')
 
-  useEffect(() => {
-    ensureDemoSeed()
-  }, [ensureDemoSeed])
+  useEffect(() => { ensureDemoSeed() }, [ensureDemoSeed])
+
+  const toggleSel = (id: string) =>
+    setSelectedIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const clearSel = () => setSelectedIds(new Set())
+  const selCount = selectedIds.size
+  const selNames = products.filter((p) => selectedIds.has(p.id)).map((p) => p.name)
+
+  const doCreateGroup = () => {
+    const name = groupName.trim()
+    if (!name || selCount === 0) return
+    createGroupWithProducts(name, [...selectedIds])
+    setGroupName(''); setGroupDialog(null); clearSel()
+  }
 
   return (
     <div>
@@ -221,12 +391,99 @@ export default function ProductsPage() {
       </p>
       <div className="hr" />
 
+      {selCount > 0 && (
+        <div
+          className="card elev-sm"
+          style={{ position: 'sticky', top: 8, zIndex: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}
+        >
+          <b>{selCount} выбрано</b>
+          <button className="btn btn-secondary" onClick={() => { setGroupName(selNames[0]?.split(' ').slice(0, 2).join(' ') ?? ''); setGroupDialog('create') }}>
+            <FolderPlus size={14} /> Объединить в группу
+          </button>
+          <button
+            className="btn btn-secondary"
+            disabled={groups.length === 0}
+            title={groups.length === 0 ? 'Сначала создайте группу' : undefined}
+            onClick={() => { setTargetGroupId(groups[0]?.id ?? ''); setGroupDialog('ktru') }}
+          >
+            <Tags size={14} /> Назначить КТРУ группе
+          </button>
+          <button className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={clearSel}>Снять выбор</button>
+        </div>
+      )}
+
       {products.length === 0 ? (
         <p className="text-muted">Пока нет товаров. Нажмите «Добавить товар».</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-          {products.map((p) => <ProductCard key={p.id} id={p.id} onOpen={setDetailId} />)}
+          {products.map((p) => (
+            <ProductCard key={p.id} id={p.id} onOpen={setDetailId} selected={selectedIds.has(p.id)} onToggleSelect={toggleSel} />
+          ))}
         </div>
+      )}
+
+      {groupDialog === 'create' && (
+        <Dialog
+          title="Новая товарная группа"
+          onClose={() => setGroupDialog(null)}
+          actions={
+            <>
+              <button className="btn btn-primary" disabled={!groupName.trim()} onClick={doCreateGroup}>
+                Создать и добавить {selCount} товаров
+              </button>
+              <button className="btn btn-ghost" onClick={() => setGroupDialog(null)}>Отмена</button>
+            </>
+          }
+        >
+          <Field label="Название группы">
+            <input className="input" value={groupName} autoFocus onChange={(e) => setGroupName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') doCreateGroup() }} placeholder="Горшки пластиковые" />
+          </Field>
+          <p className="text-muted" style={{ fontSize: 12 }}>
+            Выбранные товары получат эту группу. Сами товары не меняются — общий КТРУ-профиль задаётся отдельно.
+          </p>
+        </Dialog>
+      )}
+
+      {groupDialog === 'ktru' && (
+        <Dialog
+          title="Назначить КТРУ группе"
+          onClose={() => setGroupDialog(null)}
+          actions={<button className="btn btn-ghost" onClick={() => setGroupDialog(null)}>Закрыть</button>}
+        >
+          <Field label="Группа">
+            <select className="input" value={targetGroupId} onChange={(e) => setTargetGroupId(e.target.value)}>
+              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </Field>
+          <p className="text-muted" style={{ fontSize: 12 }}>
+            Выбранные {selCount} товаров будут закреплены за этой группой, и все товары группы будут использовать её КТРУ-профиль.
+          </p>
+          <button
+            className="btn btn-primary"
+            disabled={!targetGroupId}
+            onClick={() => {
+              if (selCount > 0 && targetGroupId) assignProductsToGroup([...selectedIds], targetGroupId)
+              setGroupDialog('ktru-pick')
+            }}
+          >
+            Закрепить товары и выбрать КТРУ →
+          </button>
+        </Dialog>
+      )}
+
+      {groupDialog === 'ktru-pick' && (
+        <KtruPicker
+          title={`КТРУ группы «${groups.find((g) => g.id === targetGroupId)?.name ?? ''}»`}
+          query={selNames[0] ?? groups.find((g) => g.id === targetGroupId)?.name ?? ''}
+          initialCodes={(groups.find((g) => g.id === targetGroupId)?.ktru ?? []).map((k) => k.code)}
+          initialPrimary={(groups.find((g) => g.id === targetGroupId)?.ktru ?? []).find((k) => k.role === 'primary')?.code ?? ''}
+          onClose={() => { setGroupDialog(null); clearSel() }}
+          onConfirm={({ codes, primaryCode }) => {
+            setGroupKtru(targetGroupId, toSelection(codes, primaryCode))
+            setGroupDialog(null); clearSel()
+          }}
+        />
       )}
 
       {detailId && <ProductDetailDialog id={detailId} onClose={() => setDetailId(null)} />}
@@ -266,9 +523,12 @@ function AddProductWizard({
   const [ktruLoading, setKtruLoading] = useState(false)
   const [ktruError, setKtruError] = useState(false)
   const [ktruConfident, setKtruConfident] = useState(true)
-  const [selCode, setSelCode] = useState('')
+  const [selCode, setSelCode] = useState('') // основной КТРУ
+  const [altCodes, setAltCodes] = useState<string[]>([]) // альтернативные КТРУ
   const [manualMode, setManualMode] = useState(false)
   const [manualCode, setManualCode] = useState('')
+  const toggleAlt = (code: string) =>
+    setAltCodes((a) => (a.includes(code) ? a.filter((c) => c !== code) : [...a, code]))
 
   // ── шаг 3: рынок ──
   const [chLoading, setChLoading] = useState(false)
@@ -312,7 +572,9 @@ function AddProductWizard({
   function addManualCode() {
     const c = manualCode.trim()
     if (!c) return
-    setSelCode(c); setManualMode(false); setManualCode('')
+    if (!selCode) setSelCode(c)
+    else toggleAlt(c)
+    setManualMode(false); setManualCode('')
   }
 
   function seedRows(res: KtruCharsResult) {
@@ -376,12 +638,13 @@ function AddProductWizard({
 
   function saveProduct() {
     if (!name.trim()) return
+    const codes = [selCode, ...altCodes].filter(Boolean)
     const id = addProduct({
       name: name.trim(),
       category: undefined,
       costPerUnit: undefined,
       saleUnit: 'шт',
-      ktruCodes: selCode ? [selCode] : undefined,
+      ktru: setKtruList(toSelection(codes, selCode), 'suggested'),
       characteristics: toProfileCharacteristics(rows.map(editToInput)),
     })
     setSavedId(id)
@@ -500,22 +763,40 @@ function AddProductWizard({
                     Подходящий КТРУ не найден. Уточните название товара или введите код вручную.
                   </p>
                 )}
+                <p className="text-muted" style={{ fontSize: 13 }}>
+                  Отметьте все подходящие КТРУ. Один — основной (по нему считается рынок и характеристики),
+                  остальные — альтернативные варианты поиска закупок.
+                </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
                   {ktruCands.map((k, i) => {
                     const pct = Math.round(k.score * 100)
-                    const sel = selCode === k.code
+                    const isPrimary = selCode === k.code
+                    const isAlt = altCodes.includes(k.code)
+                    const on = isPrimary || isAlt
                     return (
                       <div
                         key={k.code}
                         className="card elev-sm"
-                        style={{ border: `2px solid ${sel ? 'var(--color-accent)' : 'transparent'}`, cursor: 'pointer' }}
-                        onClick={() => setSelCode(k.code)}
+                        style={{ border: `2px solid ${on ? 'var(--color-accent)' : 'transparent'}` }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                          <div style={{ minWidth: 0 }}>
-                            <div className="card-title">{k.name}</div>
-                            <div className="card-meta" style={{ fontFamily: 'ui-monospace, monospace' }}>{k.code}</div>
-                          </div>
+                          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', minWidth: 0, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              style={{ marginTop: 4 }}
+                              onChange={() => {
+                                if (isPrimary) { setSelCode(altCodes[0] ?? ''); setAltCodes((a) => a.filter((c) => c !== k.code)) }
+                                else if (isAlt) toggleAlt(k.code)
+                                else if (!selCode) setSelCode(k.code)
+                                else toggleAlt(k.code)
+                              }}
+                            />
+                            <span style={{ minWidth: 0 }}>
+                              <span className="card-title">{k.name}</span>
+                              <span className="card-meta" style={{ fontFamily: 'ui-monospace, monospace' }}>{k.code}</span>
+                            </span>
+                          </label>
                           <div style={{ textAlign: 'right', flex: 'none' }}>
                             <BigNum size={28}>{pct}%</BigNum>
                             <div className="text-muted" style={{ fontSize: 11 }}>
@@ -525,6 +806,16 @@ function AddProductWizard({
                         </div>
                         <div style={{ marginTop: 8 }}><Bar pct={pct} /></div>
                         <p className="card-body" style={{ marginBottom: 0 }}>{k.reason}</p>
+                        {on && (
+                          <button
+                            className={`btn btn-ghost ${isPrimary ? '' : 'text-muted'}`}
+                            style={{ alignSelf: 'flex-start', fontSize: 12, paddingInline: 0, gap: 4 }}
+                            onClick={() => { setAltCodes((a) => [...a.filter((c) => c !== k.code), ...(selCode && selCode !== k.code ? [selCode] : [])]); setSelCode(k.code) }}
+                          >
+                            <Star size={13} fill={isPrimary ? 'currentColor' : 'none'} />
+                            {isPrimary ? 'Основной' : 'Сделать основным'}
+                          </button>
+                        )}
                       </div>
                     )
                   })}
@@ -559,7 +850,7 @@ function AddProductWizard({
               <button
                 className="btn btn-ghost"
                 style={{ fontSize: 13 }}
-                onClick={() => { setStep(1); setKtruCands(null); setSelCode(''); setManualMode(false); setKtruError(false) }}
+                onClick={() => { setStep(1); setKtruCands(null); setSelCode(''); setAltCodes([]); setManualMode(false); setKtruError(false) }}
               >
                 Не подходит ни один
               </button>
@@ -706,7 +997,7 @@ function AddProductWizard({
             <div className="card elev-sm" style={{ marginBottom: 24 }}>
               <div className="card-title">{name.trim()}</div>
               <div className="card-meta" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                {selCode ? `КТРУ ${selCode}` : 'КТРУ не выбран'}
+                {selCode ? `КТРУ ${selCode}${altCodes.length ? ` + ещё ${altCodes.length}` : ''}` : 'КТРУ не выбран'}
               </div>
             </div>
 
@@ -851,7 +1142,12 @@ function CharRow({
 /** Профиль сохранённого товара: правка полей и характеристик БЕЗ повторного анализа ТЗ. */
 function ProductDetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const product = useSmartKtru((s) => s.products.find((p) => p.id === id))
+  const group = useSmartKtru((s) => (product?.groupId ? s.groups.find((g) => g.id === product.groupId) : undefined))
   const updateProduct = useSmartKtru((s) => s.updateProduct)
+  const setProductKtru = useSmartKtru((s) => s.setProductKtru)
+  const addProductKtru = useSmartKtru((s) => s.addProductKtru)
+  const removeProductKtru = useSmartKtru((s) => s.removeProductKtru)
+  const setPrimaryKtru = useSmartKtru((s) => s.setPrimaryKtru)
 
   const [name, setName] = useState(product?.name ?? '')
   const [category, setCategory] = useState(product?.category ?? '')
@@ -859,8 +1155,10 @@ function ProductDetailDialog({ id, onClose }: { id: string; onClose: () => void 
   const [unit, setUnit] = useState(product?.saleUnit ?? 'шт')
   const [rows, setRows] = useState<EditChar[]>(() => (product?.characteristics ?? []).map(charToEdit))
   const [openSrc, setOpenSrc] = useState<number | null>(null)
+  const [pickKtru, setPickKtru] = useState(false)
+  const [manualKtru, setManualKtru] = useState('')
 
-  const ktruCodes = product?.ktruCodes ?? []
+  const ktru = product?.ktru ?? []
   const initialChars = useMemo(() => (product?.characteristics ?? []).map(charToEdit), [product?.characteristics])
   useEffect(() => { setRows(initialChars) }, [initialChars])
 
@@ -911,10 +1209,58 @@ function ProductDetailDialog({ id, onClose }: { id: string; onClose: () => void 
           </Field>
         </div>
 
-        {ktruCodes.length > 0 && (
-          <div className="text-muted" style={{ fontSize: 12 }}>
-            КТРУ: {ktruCodes.map((c) => <b key={c} style={{ fontFamily: 'ui-monospace, monospace', marginRight: 8 }}>{c}</b>)}
+        {/* ── КТРУ товара: основной + альтернативные ── */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 8 }}>КТРУ</div>
+          {ktru.length === 0 && <p className="text-muted" style={{ fontSize: 12, margin: '0 0 8px' }}>КТРУ ещё не выбраны.</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[...ktru].sort((a, b) => (a.role === 'primary' ? -1 : b.role === 'primary' ? 1 : 0)).map((k) => (
+              <div key={k.code} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexWrap: 'wrap' }}>
+                <span className={`tag ${k.role === 'primary' ? 'tag-accent' : 'tag-outline'}`} style={{ minWidth: 96, justifyContent: 'center' }}>
+                  {ROLE_LABEL[k.role]}
+                </span>
+                <b style={{ fontFamily: 'ui-monospace, monospace' }}>{k.code}</b>
+                {k.role !== 'primary' && (
+                  <button className="btn btn-ghost" style={{ fontSize: 11, paddingInline: 0, gap: 3 }} onClick={() => setPrimaryKtru(id, k.code)}>
+                    <Star size={12} /> сделать основным
+                  </button>
+                )}
+                <button className="btn btn-ghost btn-icon" aria-label="Убрать КТРУ" title="Убрать КТРУ"
+                  disabled={k.role === 'primary' && ktru.length > 1}
+                  onClick={() => removeProductKtru(id, k.code)}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
           </div>
+          {group && (group.ktru?.length ?? 0) > 0 && (
+            <p className="text-muted" style={{ fontSize: 11, margin: '8px 0 0' }}>
+              + наследуется от группы «{group.name}»: {group.ktru.map((k) => k.code).join(', ')}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+            <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => setPickKtru(true)}>Подобрать КТРУ</button>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input className="input" style={{ width: 170, fontSize: 12 }} value={manualKtru} placeholder="код вручную"
+                onChange={(e) => setManualKtru(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && manualKtru.trim()) { addProductKtru(id, manualKtru.trim(), ktru.length === 0 ? 'primary' : 'alternative'); setManualKtru('') } }} />
+              <button className="btn btn-ghost btn-icon" aria-label="Добавить КТРУ" disabled={!manualKtru.trim()}
+                onClick={() => { addProductKtru(id, manualKtru.trim(), ktru.length === 0 ? 'primary' : 'alternative'); setManualKtru('') }}>
+                <Plus size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {pickKtru && (
+          <KtruPicker
+            title="Подобрать КТРУ для товара"
+            query={name || product.name}
+            initialCodes={ktru.map((k) => k.code)}
+            initialPrimary={ktru.find((k) => k.role === 'primary')?.code ?? ''}
+            onClose={() => setPickKtru(false)}
+            onConfirm={({ codes, primaryCode }) => { setProductKtru(id, toSelection(codes, primaryCode)); setPickKtru(false) }}
+          />
         )}
 
         <div>

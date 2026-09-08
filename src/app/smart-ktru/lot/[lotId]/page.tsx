@@ -9,6 +9,7 @@ import {
   Bookmark, Share2, ExternalLink, Package, FileSearch, RefreshCw,
 } from 'lucide-react'
 import { useSmartKtru } from '@/lib/smart-ktru/store'
+import { effectiveKtruProfile } from '@/lib/smart-ktru/ktru-profile'
 import type { AnalysisResult } from '@/lib/smart-ktru/types'
 import { opportunityFromAnalysis, isAnalysisStale } from '@/lib/smart-ktru/opportunity'
 import type { OppRequirementRow } from '@/lib/smart-ktru/opportunity'
@@ -64,6 +65,17 @@ function LotCardInner() {
 
   const { getProduct, toWork, fromWork, isInWork, cacheAnalysis, getCachedAnalysis } = useSmartKtru()
   const product = getProduct(productId)
+  const allProducts = useSmartKtru((s) => s.products)
+  const allGroups = useSmartKtru((s) => s.groups)
+
+  // §12: сколько товаров подходят этой закупке по КТРУ + роль кода в профиле
+  const ktruMatch = useMemo(() => {
+    if (!ktru) return null
+    const grpOf = (p: (typeof allProducts)[number]) => (p.groupId ? allGroups.find((g) => g.id === p.groupId) : undefined)
+    const matched = allProducts.filter((p) => effectiveKtruProfile(p, grpOf(p)).all.some((e) => e.code === ktru))
+    const role = product ? effectiveKtruProfile(product, grpOf(product)).all.find((e) => e.code === ktru) ?? null : null
+    return { matched, total: allProducts.length, role }
+  }, [ktru, allProducts, allGroups, product])
 
   const [res, setRes] = useState<AnalysisResult | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -207,10 +219,28 @@ function LotCardInner() {
               <dt className="text-muted">Регион</dt><dd>{md?.region ?? 'не указан'}</dd>
               <dt className="text-muted">Количество</dt><dd>{md?.count ?? '—'} {md?.count != null ? 'шт' : ''}</dd>
               <dt className="text-muted">Цена закупки</dt><dd>{fmtMoney(md?.amount)}</dd>
-              <dt className="text-muted">КТРУ</dt><dd style={{ fontFamily: 'ui-monospace, monospace' }}>{ktru || '—'}</dd>
+              <dt className="text-muted">КТРУ</dt>
+              <dd style={{ fontFamily: 'ui-monospace, monospace' }}>
+                {ktru || '—'}
+                {ktruMatch?.role && (
+                  <span style={{ fontFamily: 'inherit' }} className="text-muted">
+                    {' '}— {ktruMatch.role.origin === 'group' ? 'КТРУ группы, ' : ''}
+                    {ktruMatch.role.role === 'primary' ? 'основной' : 'альтернативный'} в профиле
+                  </span>
+                )}
+              </dd>
               <dt className="text-muted">Срок подачи</dt>
               <dd>{md?.deadlinePassed ? 'срок истёк' : md?.deadlineDaysLeft != null ? `${md.deadlineDaysLeft} дн.` : '—'}</dd>
             </dl>
+            {ktruMatch && ktruMatch.matched.length > 0 && (
+              <div style={{ marginTop: 12, fontSize: 13 }}>
+                <b>Соответствие:</b> подходят {ktruMatch.matched.length} из {ktruMatch.total} ваших товаров
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  {ktruMatch.matched.slice(0, 8).map((p) => p.name).join(', ')}
+                  {ktruMatch.matched.length > 8 ? ` и ещё ${ktruMatch.matched.length - 8}` : ''}
+                </div>
+              </div>
+            )}
           </div>
           <Divider />
           <div style={{ padding: 16 }}>

@@ -25,6 +25,25 @@ export interface ProductCharacteristic {
   examples?: string[]
 }
 
+// ─────────────────────── Multi-KTRU: связь товар↔КТРУ ───────────────────────
+// Форма будущей таблицы product_ktru (id/product_id опущены — запись живёт
+// в массиве Product.ktru; code уникален в пределах товара).
+
+export type ProductKtruRole = 'primary' | 'alternative'
+/** откуда взялась привязка КТРУ */
+export type ProductKtruSource = 'user' | 'suggested' | 'imported' | 'system'
+
+export interface ProductKtru {
+  /** код ЕНС ТРУ, уникален в пределах товара */
+  code: string
+  role: ProductKtruRole
+  /** 0..1 — уверенность подбора (для source:'suggested') */
+  confidence?: number
+  source: ProductKtruSource
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Product {
   id: string
   name: string
@@ -36,10 +55,107 @@ export interface Product {
   saleUnit?: string
   /** произвольные характеристики — универсальны для сопоставления с любой ТС */
   characteristics: ProductCharacteristic[]
-  /** подтверждённые/предложенные коды КТРУ */
-  ktruCodes?: string[]
+  /** коды КТРУ товара с ролью/источником: 0..N, ≤1 primary. Мигрировано из ktruCodes[] */
+  ktru: ProductKtru[]
+  /** id товарной группы, если товар в неё входит (одна группа на товар) */
+  groupId?: string
   createdAt: string
   updatedAt: string
+}
+
+/** primary-код товара (или первый доступный, или undefined) — замена p.ktruCodes?.[0] */
+export function primaryKtruCode(p: Pick<Product, 'ktru'>): string | undefined {
+  const arr = p.ktru ?? []
+  return (arr.find((k) => k.role === 'primary') ?? arr[0])?.code
+}
+
+/** все коды КТРУ товара (primary первым) — замена p.ktruCodes */
+export function productKtruCodes(p: Pick<Product, 'ktru'>): string[] {
+  const arr = [...(p.ktru ?? [])].sort((a, b) => (a.role === 'primary' ? -1 : b.role === 'primary' ? 1 : 0))
+  return arr.map((k) => k.code)
+}
+
+// ─────────────────────── Товарная группа ───────────────────────
+// Форма будущих таблиц product_groups + product_group_ktru.
+
+export interface ProductGroupKtru {
+  code: string
+  role: ProductKtruRole
+  confidence?: number
+  source: ProductKtruSource
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProductGroup {
+  id: string
+  name: string
+  description?: string
+  /** KTRU Profile группы — наследуется товарами группы */
+  ktru: ProductGroupKtru[]
+  createdAt: string
+  updatedAt: string
+}
+
+// ─────────────────── Effective KTRU Profile (композиция товар + группа) ───────────────────
+
+export interface EffectiveKtruEntry {
+  code: string
+  role: ProductKtruRole
+  /** откуда пришёл код в итоговом профиле */
+  origin: 'product' | 'group'
+}
+
+export interface EffectiveKtruProfile {
+  primary: EffectiveKtruEntry[]
+  alternatives: EffectiveKtruEntry[]
+  /** primary ∪ alternatives, без дублей кода */
+  all: EffectiveKtruEntry[]
+}
+
+// ─────────────────── Opportunity (вычисляемый aggregation layer, НЕ persist) ───────────────────
+
+export type OpportunityMatchReason =
+  | 'primary_ktru_match'
+  | 'alternative_ktru_match'
+  | 'group_primary_ktru_match'
+  | 'group_alternative_ktru_match'
+  | 'text_match'
+
+export interface ProcurementMatchDetail {
+  code: string
+  role: ProductKtruRole
+  origin: 'product' | 'group'
+  /** товары, у которых этот код в effective-профиле и закупка нашлась по нему */
+  productIds: string[]
+}
+
+export interface OpportunityLotFacts {
+  nameRu: string | null
+  amount: number | null
+  count: number | null
+  customerNameRu: string | null
+  region: string | null
+  endDate: string | null
+  deadlineDaysLeft: number | null
+  deadlinePassed: boolean
+  trdBuyNumberAnno: string | null
+}
+
+export interface ProcurementOpportunity {
+  lotId: number
+  buyId: number | null
+  lot: OpportunityLotFacts
+  /** коды, по которым закупка вообще нашлась */
+  procurementKtruCodes: string[]
+  /** ВСЕ подходящие товары (закупка показывается один раз, задача #11/#15/#16) */
+  matchedProductIds: string[]
+  matchedProductGroupIds: string[]
+  matchedKtru: ProcurementMatchDetail[]
+  /** 0..1, детерминированный */
+  matchScore: number
+  matchReasons: OpportunityMatchReason[]
+  generatedAt: string
 }
 
 // ─────────────────────── Извлечённая ТС (AI) ───────────────────────
