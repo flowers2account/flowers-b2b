@@ -71,6 +71,25 @@ export function lapsEnabled(): boolean {
   return process.env.LAPS_CAMPAIGN_ENABLED === 'true'
 }
 
+// ── Пер-сделочный выключатель автобота ──────────────────────────────────────
+// Чекбокс на сделке amoCRM «LAPS: автобот вкл» (создан 09.09.2026). Opt-in:
+// бот отвечает/шлёт файлы/двигает стадии/фоллоу-апит ТОЛЬКО по сделкам, где
+// галка взведена, И при мастер-выключателе LAPS_CAMPAIGN_ENABLED='true'.
+// Захват umnico ref (tryCaptureLapsRefFromOutgoing) намеренно НЕ гейтится этим —
+// ref пишется на всех LAPS-сделках, чтобы при постановке галки фоллоу-ап
+// заработал сразу.
+export const CF_LAPS_AUTOBOT = 1691361
+
+// lead — сырой объект сделки amoCRM (custom_fields_values). Галки нет / false /
+// поле отсутствует → false. Checkbox в API отдаётся как value:true/false.
+export function lapsAutobotOn(lead: unknown): boolean {
+  const cfv = (lead as { custom_fields_values?: Array<{ field_id?: number; values?: Array<{ value?: unknown }> }> } | null)
+    ?.custom_fields_values
+  const f = (cfv ?? []).find((x) => x?.field_id === CF_LAPS_AUTOBOT)
+  const raw = f?.values?.[0]?.value
+  return raw === true || raw === 'true' || raw === 1 || raw === '1'
+}
+
 // Материалы кампании. Файл презентации владелец добавит отдельно в
 // public/campaign/laps-2gis/ — этот модуль только ссылается по пути.
 export const LAPS_PRESENTATION_PDF_URL = 'https://uralskflowers.kz/campaign/laps-2gis/presentation.pdf'

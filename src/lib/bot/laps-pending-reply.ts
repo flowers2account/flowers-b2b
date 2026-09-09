@@ -21,7 +21,7 @@ import {
 import { fetchDialogContext, type DialogMessage } from '@/lib/umnico'
 import { parseUmnicoRef } from './campaign-followup'
 import { isWithinLapsReplyHours } from './laps-hours'
-import { AMO_LAPS_PIPELINE_ID, LAPS_REPLY_PENDING_TAG, lapsEnabled } from './laps-config'
+import { AMO_LAPS_PIPELINE_ID, LAPS_REPLY_PENDING_TAG, lapsEnabled, lapsAutobotOn } from './laps-config'
 import { onLapsContactReplied } from '@/lib/outreach/laps-handoff'
 
 function leadTagNames(lead: AmoLeadRaw): string[] {
@@ -60,7 +60,9 @@ export async function runLapsPendingReplyTick(now: Date = new Date()): Promise<T
     return { answered: 0, skipped: 0 }
   }
 
-  const queued = leads.filter((l) => leadTagNames(l).includes(LAPS_REPLY_PENDING_TAG))
+  const queued = leads.filter(
+    (l) => leadTagNames(l).includes(LAPS_REPLY_PENDING_TAG) && lapsAutobotOn(l),
+  )
   let answered = 0
   let skipped = 0
 

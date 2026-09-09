@@ -21,7 +21,7 @@ import {
 import { fetchDialogContext, sendMessage, type DialogMessage } from '@/lib/umnico'
 import { computeNextWindow, isWithinSendWindow, parseUmnicoRef } from './campaign-followup'
 import {
-  AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_WHATSAPP, AMO_LAPS_STATUS_MATERIAL, lapsEnabled,
+  AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_WHATSAPP, AMO_LAPS_STATUS_MATERIAL, lapsEnabled, lapsAutobotOn,
 } from './laps-config'
 import {
   LAPS_FOLLOWUP_PROMPT, LAPS_FOLLOWUP_NO_REPLY_BASE, LAPS_FOLLOWUP_ATTEMPT_1,
@@ -147,6 +147,8 @@ export async function runLapsFollowupTick(now: Date = new Date()): Promise<TickR
 /** true — если по этой сделке отправлен follow-up (счётчик увеличен). */
 async function processLapsFollowupLead(lead: AmoLeadRaw, now: Date): Promise<boolean> {
   const leadId = lead.id
+  // Пер-сделочный выключатель: фоллоу-апим только сделки с галкой «LAPS: автобот вкл».
+  if (!lapsAutobotOn(lead)) return false
   // Follow-up LAPS работает на «сообщение в ватсап» и «Материалы отправлены».
   const stage = stageKeyForLapsStatus(Number(lead.status_id))
   if (!stage) return false

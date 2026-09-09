@@ -30,7 +30,7 @@ import {
   AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_NEW_LEADS, AMO_LAPS_STATUS_WHATSAPP,
   AMO_LAPS_STATUS_LPR, AMO_LAPS_STATUS_MATERIAL, AMO_LAPS_STATUS_DEMO, AMO_LAPS_STATUS_THINKING,
   AMO_LAPS_STATUS_LOST, LAPS_FOLLOWUP_STOPPED, LAPS_REFUSE_ONCE_TAG, LAPS_REPLY_PENDING_TAG,
-  LAPS_PRESENTATION_PDF_URL, LAPS_CATALOG_URL, lapsEnabled,
+  LAPS_PRESENTATION_PDF_URL, LAPS_CATALOG_URL, lapsEnabled, lapsAutobotOn,
 } from '@/lib/bot/laps-config'
 
 const AMO_SUBDOMAIN = 'tropinvladislav1'
@@ -71,6 +71,20 @@ export async function tryHandleLapsReply(
   }
   if (!found) return null
   const dealId = found.leadId
+
+  // Пер-сделочный выключатель: бот отвечает только по сделкам с галкой
+  // «LAPS: автобот вкл» (CF 1691361). Без неё — молчим, диалог целиком у
+  // оператора (outreach-capture ниже по вебхуку всё равно отработает).
+  let gateLead: Record<string, unknown> | null = null
+  try {
+    gateLead = await getLead(dealId)
+  } catch (e) {
+    console.error('[laps-handoff] getLead (autobot-гейт) failed:', e instanceof Error ? e.message : e)
+  }
+  if (!lapsAutobotOn(gateLead)) {
+    console.log(`[laps-handoff] сделка ${dealId}: галка «LAPS: автобот вкл» не стоит — бот не вмешивается`)
+    return null
+  }
 
   // Рабочее время реактивных ответов — 09:00–18:30 Almaty. Вне окна: НЕ отвечаем
   // сразу и НЕ теряем — вешаем тег laps-reply-pending; проход крона
@@ -236,6 +250,13 @@ async function onLapsContactRepliedImpl(
     console.log(
       `[laps-handoff] skip: сделка ${dealId} на стадии «Презентация/демо» (${AMO_LAPS_STATUS_DEMO}) — бот не вмешивается`,
     )
+    return
+  }
+
+  // Пер-сделочный выключатель (страховка для пути крона — он зовёт нас напрямую;
+  // и на случай, если галку сняли между дебаунсом и обработкой).
+  if (!lapsAutobotOn(lead)) {
+    console.log(`[laps-handoff] сделка ${dealId}: галка «LAPS: автобот вкл» снята — обработка прекращена`)
     return
   }
 

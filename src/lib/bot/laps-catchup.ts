@@ -20,7 +20,7 @@ import { isWithinLapsReplyHours } from './laps-hours'
 import {
   AMO_LAPS_PIPELINE_ID, AMO_LAPS_STATUS_DEMO, AMO_LAPS_STATUS_WON, AMO_LAPS_STATUS_LOST,
   AMO_LAPS_STATUS_WHATSAPP, AMO_LAPS_STATUS_LPR, AMO_LAPS_STATUS_MATERIAL, AMO_LAPS_STATUS_THINKING,
-  lapsEnabled,
+  lapsEnabled, lapsAutobotOn,
 } from './laps-config'
 import { onLapsContactReplied } from '@/lib/outreach/laps-handoff'
 
@@ -73,6 +73,8 @@ export async function runLapsCatchupTick(now: Date = new Date()): Promise<Catchu
   let skipped = 0
 
   for (const lead of leads) {
+    // Пер-сделочный выключатель: переигрываем только сделки с галкой «LAPS: автобот вкл».
+    if (!lapsAutobotOn(lead)) continue
     const statusId = Number(lead.status_id)
     if (EXCLUDED_STAGES.has(statusId)) continue
 
