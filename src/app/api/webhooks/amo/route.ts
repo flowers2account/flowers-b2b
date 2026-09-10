@@ -51,6 +51,19 @@ export async function POST(req: NextRequest) {
   }
   if (leadIds.size === 0) return NextResponse.json({ ok: true })
 
+  // Отвечаем amoCRM 200 СРАЗУ, обработку уводим в фон. Таймаут вебхука amoCRM
+  // короткий; getLead() внутри может стоять в очереди клиентского троттлинга
+  // amoCRM (src/lib/amo.ts, 5 req/сек) под нагрузкой крона/пачки правок оператора —
+  // тогда amoCRM закрывает соединение (nginx 499), ретраит, и после серии сбоев
+  // ОТКЛЮЧАЕТ подписку (инцидент 09.09.2026). Standalone-сервер на VPS живёт долго —
+  // фоновая промис-цепочка доигрывает после ответа.
+  void processLeadEvents([...leadIds]).catch((e) =>
+    console.error('[webhooks/amo] фоновая обработка упала:', e instanceof Error ? e.message : e),
+  )
+  return NextResponse.json({ ok: true })
+}
+
+async function processLeadEvents(leadIds: number[]): Promise<void> {
   const supabase = createAdminClient()
 
   for (const leadId of leadIds) {
@@ -98,7 +111,4 @@ export async function POST(req: NextRequest) {
       console.error(`[webhooks/amo] lead ${leadId} failed:`, err instanceof Error ? err.message : err)
     }
   }
-
-  // amoCRM ждёт 200 — иначе ретраит и шлёт уведомления о сбое
-  return NextResponse.json({ ok: true })
 }
