@@ -288,7 +288,17 @@ export async function syncTradingDay(
         if (row) offerRows.push(row)
         else {
           skippedInvalidOffers += 1
-          log(`пропущен оффер без валидной закупочной цены: offer id=${item.id}, product_id=${item.product_id}`)
+          // Сырые ценовые поля — чтобы по логу сразу было видно, какое поле не смапилось,
+          // не перезаходя на сайт.
+          log(
+            `пропущен оффер без валидной закупочной цены: offer id=${item.id}, product_id=${item.product_id}, ` +
+              `raw=${JSON.stringify({
+                price: item.price,
+                box_price: item.box_price,
+                price_with_discount: item.price_with_discount,
+                box_price_with_discount: item.box_price_with_discount,
+              })}`,
+          )
         }
       }
       await upsertOffers(admin, offerRows)
