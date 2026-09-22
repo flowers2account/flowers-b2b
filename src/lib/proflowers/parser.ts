@@ -178,8 +178,18 @@ async function markStaleOffersUnavailable(
   return data?.length ?? 0
 }
 
-interface RunLogRow {
-  started_at: string
+// Незавершённая (status='running') строка старше этого возраста считается зависшей — процесс,
+// её писавший, судя по всему упал (краш, перезапуск VPS) без шанса записать итог. Такую строку
+// не считаем блокировкой: помечаем error и пускаем новый прогон. 15 минут — с большим запасом
+// над обычными ~1.5–2 мин на полный обход (38–39 страниц), включая ретраи и перелогин.
+export const RUN_STALE_AFTER_MS = 15 * 60 * 1000
+
+export interface RunningSyncRun {
+  id: number
+  startedAt: string
+}
+
+interface RunFinishPatch {
   trading_day_id: number | null
   trading_day_type: string | null
   pages_fetched: number
@@ -188,75 +198,125 @@ interface RunLogRow {
   marked_unavailable: number
   status: 'success' | 'error'
   error: string | null
-  finished_at: string
 }
 
-async function recordRun(admin: AdminClient, row: RunLogRow): Promise<void> {
-  const { error } = await admin.from('pf_sync_runs').insert(row)
-  if (error) throw new Error(`insert pf_sync_runs: ${error.message}`)
+// Строка 'running' пишется В НАЧАЛЕ прогона (а не по завершении) — только так по ней можно
+// проверить занятость до старта нового прогона (см. getRunningSyncRun, использует cron-роут).
+async function startRun(admin: AdminClient, startedAt: string): Promise<number> {
+  const { data, error } = await admin
+    .from('pf_sync_runs')
+    .insert({ started_at: startedAt, status: 'running' })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`insert pf_sync_runs (start): ${error?.message ?? 'нет id в ответе'}`)
+  return (data as { id: number }).id
+}
+
+async function finishRun(admin: AdminClient, runId: number, patch: RunFinishPatch): Promise<void> {
+  const { error } = await admin
+    .from('pf_sync_runs')
+    .update({ ...patch, finished_at: new Date().toISOString() })
+    .eq('id', runId)
+  if (error) throw new Error(`update pf_sync_runs (finish, id=${runId}): ${error.message}`)
+}
+
+/**
+ * Для защиты cron-роута от параллельного запуска: последняя строка со status='running', если
+ * она не протухла (см. RUN_STALE_AFTER_MS). Протухшую помечает error и возвращает null — новый
+ * прогон не блокируется. Использует свой собственный admin-клиент (создаётся внутри функции).
+ */
+export async function getRunningSyncRun(): Promise<RunningSyncRun | null> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('pf_sync_runs')
+    .select('id, started_at')
+    .eq('status', 'running')
+    .order('id', { ascending: false })
+    .limit(1)
+  if (error) throw new Error(`select pf_sync_runs (running): ${error.message}`)
+
+  const row = (data as { id: number; started_at: string }[] | null)?.[0]
+  if (!row) return null
+
+  const ageMs = Date.now() - new Date(row.started_at).getTime()
+  if (ageMs < RUN_STALE_AFTER_MS) return { id: row.id, startedAt: row.started_at }
+
+  await finishRun(admin, row.id, {
+    trading_day_id: null,
+    trading_day_type: null,
+    pages_fetched: 0,
+    offers_upserted: 0,
+    products_upserted: 0,
+    marked_unavailable: 0,
+    status: 'error',
+    error: `протух: status='running' дольше ${Math.round(RUN_STALE_AFTER_MS / 60000)} мин — процесс, видимо, упал без записи итога`,
+  })
+  return null
 }
 
 export async function syncTradingDay(
   log: (message: string) => void = () => {},
 ): Promise<SyncTradingDayResult> {
   const admin = createAdminClient()
-  const client = createProflowersClientFromEnv(log)
   const startedAt = new Date().toISOString()
+  const runId = await startRun(admin, startedAt)
 
-  const activeDays = await client.getActiveTradingDays()
-  if (activeDays.length === 0) {
-    log('нет активных торговых дней — прогон пропущен')
-    await recordRun(admin, {
-      started_at: startedAt,
-      trading_day_id: null,
-      trading_day_type: null,
-      pages_fetched: 0,
-      offers_upserted: 0,
-      products_upserted: 0,
-      marked_unavailable: 0,
-      status: 'success',
-      error: null,
-      finished_at: new Date().toISOString(),
-    })
-    return {
-      status: 'no_active_days',
-      tradingDayIds: [],
-      tradingDayTypes: [],
-      pagesFetched: 0,
-      productsUpserted: 0,
-      offersUpserted: 0,
-      markedUnavailable: 0,
-      skippedInvalidOffers: 0,
-    }
-  }
-  log(`активных дней: ${activeDays.length} (${activeDays.map((d) => `${d.id}:${d.type}`).join(', ')})`)
-
-  // Стаб-строки по данным /trading-days/ — гарантируют, что день есть в БД, даже если в
-  // каталоге на него пока 0 товаров (например, только что открывшийся preorder).
-  await upsertTradingDays(
-    admin,
-    activeDays.map((day) => ({
-      pf_id: day.id,
-      type: day.type,
-      date: day.dateTimeNormalized ?? null,
-      name: day.name ?? null,
-      nomenclature_name: null,
-      is_active: true,
-      synced_at: startedAt,
-    })),
-  )
-
-  const processedDayIds = new Set<number>(activeDays.map((d) => d.id))
-  const processedDayTypeById = new Map<number, string>(activeDays.map((d) => [d.id, d.type]))
+  const processedDayIds = new Set<number>()
+  const processedDayTypeById = new Map<number, string>()
   const productPfIdsSeen = new Set<number>()
-
   let pagesFetched = 0
   let offersUpserted = 0
   let skippedInvalidOffers = 0
-  let page = 1
-  let totalPages = 1
 
   try {
+    const client = createProflowersClientFromEnv(log)
+    const activeDays = await client.getActiveTradingDays()
+    if (activeDays.length === 0) {
+      log('нет активных торговых дней — прогон пропущен')
+      await finishRun(admin, runId, {
+        trading_day_id: null,
+        trading_day_type: null,
+        pages_fetched: 0,
+        offers_upserted: 0,
+        products_upserted: 0,
+        marked_unavailable: 0,
+        status: 'success',
+        error: null,
+      })
+      return {
+        status: 'no_active_days',
+        tradingDayIds: [],
+        tradingDayTypes: [],
+        pagesFetched: 0,
+        productsUpserted: 0,
+        offersUpserted: 0,
+        markedUnavailable: 0,
+        skippedInvalidOffers: 0,
+      }
+    }
+    log(`активных дней: ${activeDays.length} (${activeDays.map((d) => `${d.id}:${d.type}`).join(', ')})`)
+    for (const day of activeDays) {
+      processedDayIds.add(day.id)
+      processedDayTypeById.set(day.id, day.type)
+    }
+
+    // Стаб-строки по данным /trading-days/ — гарантируют, что день есть в БД, даже если в
+    // каталоге на него пока 0 товаров (например, только что открывшийся preorder).
+    await upsertTradingDays(
+      admin,
+      activeDays.map((day) => ({
+        pf_id: day.id,
+        type: day.type,
+        date: day.dateTimeNormalized ?? null,
+        name: day.name ?? null,
+        nomenclature_name: null,
+        is_active: true,
+        synced_at: startedAt,
+      })),
+    )
+
+    let page = 1
+    let totalPages = 1
     do {
       const catalogPage = await client.getCatalogPage(page, { ipp: DEFAULT_IPP })
       totalPages = Math.max(1, Math.ceil(catalogPage.pages.total / catalogPage.pages.ipp))
@@ -307,57 +367,54 @@ export async function syncTradingDay(
       log(`страница ${page}/${totalPages}: дней=${dayRowsByPfId.size}, товаров=${productRowsByPfId.size}, офферов=${offerRows.length}`)
       page += 1
     } while (page <= totalPages)
+
+    // Гасим то, что пропало из выдачи — но только для дней, реально обработанных в этом прогоне.
+    let markedUnavailable = 0
+    for (const dayId of processedDayIds) {
+      markedUnavailable += await markStaleOffersUnavailable(admin, dayId, startedAt)
+    }
+
+    const tradingDayIds = [...processedDayIds]
+    await finishRun(admin, runId, {
+      trading_day_id: tradingDayIds.length === 1 ? tradingDayIds[0] : null,
+      trading_day_type: tradingDayIds.length === 1 ? processedDayTypeById.get(tradingDayIds[0]) ?? null : null,
+      pages_fetched: pagesFetched,
+      offers_upserted: offersUpserted,
+      products_upserted: productPfIdsSeen.size,
+      marked_unavailable: markedUnavailable,
+      status: 'success',
+      error: null,
+    })
+
+    log(
+      `готово: страниц=${pagesFetched}, товаров=${productPfIdsSeen.size}, офферов=${offersUpserted}, ` +
+        `погашено=${markedUnavailable}, пропущено=${skippedInvalidOffers}`,
+    )
+
+    return {
+      status: 'success',
+      tradingDayIds,
+      tradingDayTypes: tradingDayIds.map((id) => processedDayTypeById.get(id) ?? ''),
+      pagesFetched,
+      productsUpserted: productPfIdsSeen.size,
+      offersUpserted,
+      markedUnavailable,
+      skippedInvalidOffers,
+    }
   } catch (error) {
     const message = error instanceof ProflowersError ? `${error.kind}: ${error.message}` : String(error)
-    await recordRun(admin, {
-      started_at: startedAt,
-      trading_day_id: processedDayIds.size === 1 ? [...processedDayIds][0] : null,
-      trading_day_type: processedDayIds.size === 1 ? processedDayTypeById.get([...processedDayIds][0]) ?? null : null,
+    const dayIds = [...processedDayIds]
+    await finishRun(admin, runId, {
+      trading_day_id: dayIds.length === 1 ? dayIds[0] : null,
+      trading_day_type: dayIds.length === 1 ? processedDayTypeById.get(dayIds[0]) ?? null : null,
       pages_fetched: pagesFetched,
       offers_upserted: offersUpserted,
       products_upserted: productPfIdsSeen.size,
       marked_unavailable: 0,
       status: 'error',
       error: message,
-      finished_at: new Date().toISOString(),
     })
     throw error
-  }
-
-  // Гасим то, что пропало из выдачи — но только для дней, реально обработанных в этом прогоне.
-  let markedUnavailable = 0
-  for (const dayId of processedDayIds) {
-    markedUnavailable += await markStaleOffersUnavailable(admin, dayId, startedAt)
-  }
-
-  const tradingDayIds = [...processedDayIds]
-  await recordRun(admin, {
-    started_at: startedAt,
-    trading_day_id: tradingDayIds.length === 1 ? tradingDayIds[0] : null,
-    trading_day_type: tradingDayIds.length === 1 ? processedDayTypeById.get(tradingDayIds[0]) ?? null : null,
-    pages_fetched: pagesFetched,
-    offers_upserted: offersUpserted,
-    products_upserted: productPfIdsSeen.size,
-    marked_unavailable: markedUnavailable,
-    status: 'success',
-    error: null,
-    finished_at: new Date().toISOString(),
-  })
-
-  log(
-    `готово: страниц=${pagesFetched}, товаров=${productPfIdsSeen.size}, офферов=${offersUpserted}, ` +
-      `погашено=${markedUnavailable}, пропущено=${skippedInvalidOffers}`,
-  )
-
-  return {
-    status: 'success',
-    tradingDayIds,
-    tradingDayTypes: tradingDayIds.map((id) => processedDayTypeById.get(id) ?? ''),
-    pagesFetched,
-    productsUpserted: productPfIdsSeen.size,
-    offersUpserted,
-    markedUnavailable,
-    skippedInvalidOffers,
   }
 }
 
