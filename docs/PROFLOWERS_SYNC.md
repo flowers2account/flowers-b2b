@@ -68,14 +68,18 @@ Proflowers реально обновляет каталог/открывает �
 `pf_sync_runs.started_at` (когда реально появляются новые офферы/меняются
 цены) и `pf_trading_days.synced_at`.
 
+Кроны на этом VPS работают от `root` (не `deploy`) — root читает
+`.env.production` (chmod 600, владелец `deploy`) в обход прав файла как
+суперпользователь. Логирование — перенаправлением прямо в строке `cron.d`
+(`>> log 2>&1`), как у `flowers-widget-amo-sync`; сам скрипт короткий и
+ничего не пишет в файл самостоятельно.
+
 ### Пример `/etc/cron.d/flowers-pf-sync` (шаблон, реальный файл только на VPS)
 
 ```cron
 # Синк каталога Proflowers (market.proflowers.kz) -> pf_* в Supabase.
 # Расписание временное/консервативное — см. docs/PROFLOWERS_SYNC.md.
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-0 3,6,9,12,15 * * * deploy /usr/local/bin/flowers-pf-sync.sh
+0 3,6,9,12,15 * * * root /usr/local/bin/flowers-pf-sync.sh >> /srv/flowers-b2b/logs/cron-pf-sync.log 2>&1
 ```
 
 ### Пример `/usr/local/bin/flowers-pf-sync.sh` (шаблон, реальный файл только на VPS)
@@ -87,32 +91,16 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 set -uo pipefail
 
 ENV_FILE="/srv/flowers-b2b/shared/.env.production"
-LOG_FILE="/srv/flowers-b2b/logs/cron-pf-sync.log"
-URL="http://127.0.0.1:3000/api/cron/pf-sync"
+CRON_SECRET="$(grep -E '^CRON_SECRET=' "$ENV_FILE" | head -1 | cut -d '=' -f2-)"
 
-RESPONSE_FILE="$(mktemp /tmp/pf-sync-response.XXXXXX.json)"
-trap 'rm -f "$RESPONSE_FILE"' EXIT
+if [ -z "$CRON_SECRET" ]; then
+  echo "ERROR: CRON_SECRET пуст или не найден в $ENV_FILE"
+  exit 1
+fi
 
-{
-  echo "=== $(date -u +%FT%TZ) старт ==="
-
-  CRON_SECRET="$(grep -E '^CRON_SECRET=' "$ENV_FILE" | head -1 | cut -d '=' -f2-)"
-  if [ -z "$CRON_SECRET" ]; then
-    echo "ERROR: CRON_SECRET пуст или не найден в $ENV_FILE"
-    echo "=== $(date -u +%FT%TZ) конец (secret missing) ==="
-    exit 1
-  fi
-
-  HTTP_CODE=$(curl -sS --max-time 300 -o "$RESPONSE_FILE" -w '%{http_code}' \
-    -H "Authorization: Bearer $CRON_SECRET" \
-    "$URL")
-  CURL_EXIT=$?
-
-  echo "HTTP $HTTP_CODE (curl exit $CURL_EXIT)"
-  cat "$RESPONSE_FILE"
-  echo
-  echo "=== $(date -u +%FT%TZ) конец ==="
-} >> "$LOG_FILE" 2>&1
+curl -sS --max-time 300 -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  http://127.0.0.1:3000/api/cron/pf-sync
 ```
 
 ## Известные ограничения
