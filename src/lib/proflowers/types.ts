@@ -16,6 +16,11 @@ export interface PfActiveTradingDay {
   name: string
   dateTimeNormalized?: string
   nomenclatureId?: number
+  // Окно приёма заказов по дню — подтверждено сырым GET /trading-days/ 23.09.2026 (окно
+  // 17-24.09 для дня 8966 совпало с наблюдаемым на сайте). Есть ТОЛЬКО здесь, не в
+  // PfListItemTradingDay — см. предупреждение в parser.ts про стаб-шаг vs per-page upsert.
+  startDateTime?: string
+  stopDateTime?: string
 }
 
 export interface PfTradingDaysResponse {

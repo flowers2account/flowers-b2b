@@ -18,4 +18,8 @@ export type PfCatalogItem = {
   is_box_only: boolean
   client_price: number
   box_client_price: number | null
+  // Категория дня — задел под фильтр на витрине (v2, пока не строим UI: сейчас категория
+  // одна, «Товары декора»). Схема и прокидка готовы, чтобы включить фильтр без новой миграции.
+  nomenclature_id: number | null
+  nomenclature_name: string | null
 }
