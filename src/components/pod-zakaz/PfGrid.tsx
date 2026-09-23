@@ -3,38 +3,38 @@
 import { useMemo, useState } from 'react'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
 import { usePfCart } from '@/lib/pod-zakaz/pf-cart-store'
+import { usePfFilters, type PfSortKey } from '@/lib/pod-zakaz/use-pf-filters'
 import { stepPrice, stepLabel } from '@/lib/pod-zakaz/format'
 import { useIsMobile } from '@/lib/use-mobile'
 import PfProductCard from './PfProductCard'
+import PfFilterPanel from './PfFilterPanel'
 import PfCartPanel from './PfCartPanel'
 
-type SortKey = 'default' | 'price_asc' | 'price_desc' | 'stock'
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+const SORT_OPTIONS: { value: PfSortKey; label: string }[] = [
   { value: 'default', label: 'По умолчанию' },
   { value: 'price_asc', label: 'Цена ↑' },
   { value: 'price_desc', label: 'Цена ↓' },
   { value: 'stock', label: 'По наличию' },
 ]
 
-// Фильтры — v2 по ТЗ (catalogGroupsFlat/filterForm пока не используем). Здесь только сортировка
-// и счётчик, сетка теми же брейкпоинтами, что ProductGrid (3 колонки / 2 на мобильном).
+// Сетка теми же брейкпоинтами, что ProductGrid (3 колонки / 2 на мобильном). Фильтры/сортировка
+// живут в изолированном хуке usePfFilters — не в глобальных сторах основного каталога.
 export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
-  const [sort, setSort] = useState<SortKey>('default')
   const [cartOpen, setCartOpen] = useState(false)
   const { items, setQty } = usePfCart()
   const isMobile = useIsMobile()
+  const {
+    category, setCategory, categories,
+    rawSearch, setRawSearch,
+    selectedColors, toggleColor, colorOptions,
+    selectedCountries, toggleCountry, countryOptions,
+    sort, setSort,
+    filtered,
+    activeFilterCount, hasActiveFilters, resetAll,
+  } = usePfFilters(products)
 
   const qtyByOffer = useMemo(() => new Map(items.map(i => [i.pfOfferId, i.qty])), [items])
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
-
-  const sorted = useMemo(() => {
-    let list = products
-    if (sort === 'price_asc') list = [...list].sort((a, b) => stepPrice(a) - stepPrice(b))
-    else if (sort === 'price_desc') list = [...list].sort((a, b) => stepPrice(b) - stepPrice(a))
-    else if (sort === 'stock') list = [...list].sort((a, b) => b.count_left - a.count_left)
-    return list
-  }, [products, sort])
 
   function handleSetQty(item: PfCatalogItem, qty: number) {
     setQty({
@@ -50,6 +50,23 @@ export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
 
   return (
     <div>
+      <PfFilterPanel
+        category={category}
+        setCategory={setCategory}
+        categories={categories}
+        totalCount={products.length}
+        rawSearch={rawSearch}
+        setRawSearch={setRawSearch}
+        selectedColors={selectedColors}
+        toggleColor={toggleColor}
+        colorOptions={colorOptions}
+        selectedCountries={selectedCountries}
+        toggleCountry={toggleCountry}
+        countryOptions={countryOptions}
+        activeFilterCount={activeFilterCount}
+        onResetAll={resetAll}
+      />
+
       {/* Toolbar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
@@ -57,7 +74,7 @@ export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
       }}>
         <select
           value={sort}
-          onChange={e => setSort(e.target.value as SortKey)}
+          onChange={e => setSort(e.target.value as PfSortKey)}
           style={{
             height: 42, padding: '0 28px 0 12px', border: '1px solid var(--border)',
             borderRadius: 'var(--radius-input)', fontSize: 12.5,
@@ -71,7 +88,7 @@ export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
         </select>
 
         <span style={{ fontFamily: 'var(--font-jetbrains, monospace)', fontSize: 13, color: 'var(--text-mid)' }}>
-          {sorted.length} {(() => { const a = sorted.length % 10, b = sorted.length % 100; if (a === 1 && b !== 11) return 'позиция'; if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return 'позиции'; return 'позиций' })()}
+          {filtered.length} {(() => { const a = filtered.length % 10, b = filtered.length % 100; if (a === 1 && b !== 11) return 'позиция'; if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return 'позиции'; return 'позиций' })()}
         </span>
 
         <button
@@ -99,9 +116,25 @@ export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
 
       {/* Grid */}
       <div style={{ padding: '16px', maxWidth: 1320, margin: '0 auto' }}>
-        {sorted.length === 0 ? (
+        {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-mid)', paddingTop: 64, fontSize: 13 }}>
-            Пока нет доступных позиций — загляните позже.
+            {hasActiveFilters ? (
+              <>
+                <div style={{ marginBottom: 12 }}>Ничего не найдено по выбранным фильтрам.</div>
+                <button
+                  onClick={resetAll}
+                  style={{
+                    padding: '8px 16px', background: 'var(--accent)', color: '#fff', border: 'none',
+                    borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Сбросить фильтры
+                </button>
+              </>
+            ) : (
+              'Пока нет доступных позиций — загляните позже.'
+            )}
           </div>
         ) : (
           <div style={{
@@ -109,7 +142,7 @@ export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
             gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
             gap: isMobile ? 12 : 16,
           }}>
-            {sorted.map(item => (
+            {filtered.map(item => (
               <PfProductCard
                 key={item.pf_offer_id}
                 item={item}
