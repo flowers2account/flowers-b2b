@@ -183,9 +183,10 @@ export async function POST(req: NextRequest) {
 
   const applied = importedIds.length - updateFailures
 
-  // 1С-импорт (строки с source) — это снимок одного источника, НЕ полный срез категории.
-  // categories: [] блокирует finalize на клиенте → деактивация отсутствующих не выполняется,
-  // apply обновляет ТОЛЬКО сматченные позиции.
+  // 1С-импорт (строки с source) — обнуление отсутствующих позиций для 1c-ip/1c-too
+  // уже выполняется автоматически на приёме снимка (см. src/app/api/integrations/1c/stock/route.ts).
+  // categories: [] блокирует finalize на клиенте — этот ручной apply лишь дожимает
+  // строки, не подхваченные авто-применением (например, смапленные позже через alias).
   const is1cImport = rows.some(r => (r as { source?: string | null }).source != null)
 
   return NextResponse.json({

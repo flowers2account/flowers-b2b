@@ -5,8 +5,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
  * Приёмник ПОЛНОГО СНИМКА остатков из 1С → staging `stock_import_rows`.
- * Витрину (`products`) НЕ трогает: данные ложатся в буфер и применяются вручную
- * через /admin/import (маппинг → apply). Пишет service-role клиентом (RLS не мешает).
+ * Сматченные (по code_1c/alias/имени) позиции применяются к витрине (`products`)
+ * АВТОМАТИЧЕСКИ и синхронно для ОБОИХ источников — 1c-ip (accessories) через RPC
+ * `apply_1c_snapshot`, 1c-too (cut/pot) через applyCutPotSnapshot() ниже (та же
+ * логика "зеркала склада", один в один, воспроизведена в TS, т.к. RPC жёстко
+ * заточена под category='accessories'). Несматченные строки остаются в staging
+ * и ждут ручной привязки через /admin/import (маппинг → apply). Пишет
+ * service-role клиентом (RLS не мешает).
  *
  * Авторизация: заголовок `X-Integration-Secret` === env `INTEGRATION_1C_SECRET`.
  *
@@ -16,7 +21,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
  *     items: [{ code_1c: string, name: string, qty: number, price: number, unit?: string }] }
  *
  * category опциональна; без неё file_category=NULL (НЕ дефолт 'cut') —
- * это блокирует категориальную деактивацию (finalize) на стороне apply.
+ * это блокирует категориальную деактивацию (finalize) на стороне ручного apply
+ * (актуально только для несматченных строк — сматченные применяются автоматом здесь).
  */
 
 const SOURCES = new Set(['1c-ip', '1c-too'])
@@ -32,6 +38,147 @@ function chunks<T>(items: T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
   return out
+}
+
+/**
+ * Зеркало склада для cut/pot (1c-too) — то же самое, что делает RPC apply_1c_snapshot
+ * для accessories (1c-ip), но в TS, т.к. сама RPC жёстко заточена под accessories:
+ *   matched (price>0) → qty/price;
+ *   нет в текущем снимке (по code_1c) → qty=0.
+ * is_active НЕ трогаем (готовность карточки к показу — ручной контроль владельца,
+ * см. комментарий в import-xls/apply/route.ts).
+ */
+async function applyCutPotSnapshot(
+  supabase: ReturnType<typeof createAdminClient>,
+  importId: number
+): Promise<Record<string, unknown>> {
+  type Row = { id: number; matched_product_id: number | null; qty: number | string | null; price: number | string | null }
+  const rows: Row[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error } = await supabase
+      .from('stock_import_rows')
+      .select('id, matched_product_id, qty, price')
+      .eq('import_id', importId)
+      .eq('status', 'matched')
+      .order('id')
+      .range(from, from + 999)
+    if (error) throw error
+    if (!page || page.length === 0) break
+    rows.push(...(page as Row[]))
+    if (page.length < 1000) break
+  }
+
+  const updates: Array<{ id: number; qty: number; price: number; rowId: number }> = []
+  for (const r of rows) {
+    if (!r.matched_product_id) continue
+    const qty = Math.round(Number(r.qty))
+    const price = Number(r.price)
+    if (!Number.isFinite(qty) || !Number.isFinite(price) || price <= 0) continue
+    updates.push({ id: r.matched_product_id, qty, price, rowId: r.id })
+  }
+
+  const updateResults = await Promise.allSettled(
+    updates.map(u => supabase.from('products').update({ qty: u.qty, price: u.price }).eq('id', u.id))
+  )
+  let updated = 0
+  let updateFailures = 0
+  const appliedRowIds: number[] = []
+  const ledgerRows: Array<Record<string, unknown>> = []
+  updateResults.forEach((r, i) => {
+    if (r.status === 'fulfilled' && !r.value.error) {
+      updated++
+      appliedRowIds.push(updates[i].rowId)
+      ledgerRows.push({
+        product_id: updates[i].id,
+        action: 'import',
+        quantity: updates[i].qty,
+        qty_before: 0,
+        qty_after: updates[i].qty,
+        reference_type: 'import',
+        created_by: null,
+      })
+    } else {
+      updateFailures++
+    }
+  })
+
+  for (let i = 0; i < ledgerRows.length; i += 500) {
+    await supabase.from('inventory_ledger').insert(ledgerRows.slice(i, i + 500))
+  }
+  for (let i = 0; i < appliedRowIds.length; i += 500) {
+    await supabase.from('stock_import_rows').update({ status: 'applied' }).in('id', appliedRowIds.slice(i, i + 500))
+  }
+
+  // Нет в текущем снимке (по code_1c, price>0) → qty=0. Только cut/pot с заполненным code_1c.
+  const matchedIdsWithPrice = new Set(updates.map(u => u.id))
+  const idsToZero: number[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .in('category', ['cut', 'pot'])
+      .not('code_1c', 'is', null)
+      .gt('qty', 0)
+      .order('id')
+      .range(from, from + 999)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    for (const p of data) if (!matchedIdsWithPrice.has(p.id)) idsToZero.push(p.id)
+    if (data.length < 1000) break
+  }
+  let zeroed = 0
+  for (let i = 0; i < idsToZero.length; i += 500) {
+    const chunk = idsToZero.slice(i, i + 500)
+    const { data, error } = await supabase.from('products').update({ qty: 0 }).in('id', chunk).select('id')
+    if (error) throw error
+    zeroed += data?.length ?? chunk.length
+  }
+
+  return { updated, update_failures: updateFailures, zeroed, applied_rows: appliedRowIds.length }
+}
+
+/** Симметрично zeroUnmatchedCodeLess1cAccessories, но для cut/pot: старые uralsk_1c
+ *  карточки без code_1c (заведены до появления артикула), которых нет в текущем снимке. */
+async function zeroUnmatchedCodeLessCutPot(
+  supabase: ReturnType<typeof createAdminClient>,
+  matchedProductIds: Set<number>
+): Promise<number> {
+  const idsToZero: number[] = []
+
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .eq('source', 'uralsk_1c')
+      .in('category', ['cut', 'pot'])
+      .is('code_1c', null)
+      .gt('qty', 0)
+      .order('id')
+      .range(from, from + 999)
+
+    if (error) throw error
+    if (!data || data.length === 0) break
+
+    for (const product of data) {
+      if (!matchedProductIds.has(product.id)) idsToZero.push(product.id)
+    }
+
+    if (data.length < 1000) break
+  }
+
+  let zeroed = 0
+  for (const ids of chunks(idsToZero, 500)) {
+    const { data, error } = await supabase
+      .from('products')
+      .update({ qty: 0 })
+      .in('id', ids)
+      .select('id')
+
+    if (error) throw error
+    zeroed += data?.length ?? ids.length
+  }
+
+  return zeroed
 }
 
 async function zeroUnmatchedCodeLess1cAccessories(
@@ -234,10 +381,10 @@ export async function POST(req: NextRequest) {
     .not('status', 'in', '(applied,superseded)')
   if (supErr) console.error(`[1c/stock] supersede warn source=${source}:`, supErr.message)
 
-  // 6) Авто-применение к витрине (ТОЛЬКО 1c-ip = расходка). Синхронно, без ручного подтверждения.
+  // 6) Авто-применение к витрине для ОБОИХ источников. Синхронно, без ручного подтверждения.
   //    Зеркало склада: matched(price>0)→qty/price; нет в снимке (по code_1c)→qty=0; price<=0→qty=0.
-  //    Old uralsk_1c accessories without code_1c are also zeroed when they are not matched by this snapshot.
-  //    Не трогает is_active / cut/pot. Ошибка авто-применения НЕ валит приём снимка (он уже сохранён).
+  //    Old uralsk_1c products without code_1c are also zeroed when they are not matched by this snapshot.
+  //    Не трогает is_active. Ошибка авто-применения НЕ валит приём снимка (он уже сохранён).
   let autoApply: Record<string, unknown> | null = null
   if (source === '1c-ip') {
     const { data: applyRes, error: applyErr } = await supabase.rpc('apply_1c_snapshot', { p_import_id: importId })
@@ -255,6 +402,23 @@ export async function POST(req: NextRequest) {
         autoApply = { ...autoApply, orphan_code_null_zero_error: message }
       }
       console.log(`[1c/stock] auto-apply import_id=${importId}:`, JSON.stringify(autoApply))
+    }
+  } else if (source === '1c-too') {
+    try {
+      autoApply = await applyCutPotSnapshot(supabase, importId)
+      try {
+        const orphanCodeNullZeroed = await zeroUnmatchedCodeLessCutPot(supabase, matchedProductIds)
+        autoApply = { ...autoApply, orphan_code_null_zeroed: orphanCodeNullZeroed }
+      } catch (orphanErr) {
+        const message = orphanErr instanceof Error ? orphanErr.message : String(orphanErr)
+        console.error(`[1c/stock] cut/pot code-less orphan zero error import_id=${importId}:`, message)
+        autoApply = { ...autoApply, orphan_code_null_zero_error: message }
+      }
+      console.log(`[1c/stock] auto-apply (cut/pot) import_id=${importId}:`, JSON.stringify(autoApply))
+    } catch (applyErr) {
+      const message = applyErr instanceof Error ? applyErr.message : String(applyErr)
+      console.error(`[1c/stock] cut/pot auto-apply error import_id=${importId}:`, message)
+      autoApply = { error: message }
     }
   }
 
