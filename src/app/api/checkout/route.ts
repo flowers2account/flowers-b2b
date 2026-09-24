@@ -113,10 +113,11 @@ export async function POST(req: NextRequest) {
 
   // Check availability: products.qty minus other clients' reservations
   const reserveErrors: string[] = []
+  let hasPotItem = false
   for (const [productId, wantQty] of qtyByProduct) {
     const { data: product } = await supabase
       .from('products')
-      .select('qty, site_qty')
+      .select('qty, site_qty, category')
       .eq('id', productId)
       .single()
 
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest) {
       reserveErrors.push(`${nameById.get(productId) ?? productId}: товар не найден`)
       continue
     }
+    if ((product as any).category === 'pot') hasPotItem = true
 
     const { data: otherRes } = await supabase
       .from('reservations')
@@ -191,6 +193,16 @@ export async function POST(req: NextRequest) {
   if (discountPct > 0) {
     noteLines.push(`Скидка ${discountPct}% (Уральск): −${(rawTotal - goodsTotal).toLocaleString('ru-RU')} ₸`)
   }
+
+  // Горшечные (category='pot'): оплата картой на checkout НЕ запускается — заказ уходит
+  // менеджеру как заявка, требующая звонка/WhatsApp клиенту ДО оплаты (решение владельца
+  // 24.09.2026). «По счёту» (isInvoice) — отдельный, уже существующий документ-флоу для
+  // юр.лиц, его не трогаем: если клиент выбрал счёт, ведём его как обычно.
+  const isInvoice = payment_method === 'invoice'
+  const isPotConfirmationOrder = hasPotItem && !isInvoice
+  if (isPotConfirmationOrder) {
+    noteLines.unshift('⚠️ ГОРШЕЧНЫЕ — заявка требует подтверждения оператором (звонок/WhatsApp клиенту), оплата не производилась при оформлении')
+  }
   const notes = noteLines.length ? noteLines.join('\n') : null
 
   // Структурные поля доставки/получателя (машинно разбираемые) — параллельно с notes.
@@ -217,7 +229,7 @@ export async function POST(req: NextRequest) {
   // резервирует склад и НЕ синкается в amoCRM как продажа. Заказ становится «реальным»
   // (cart→pending) + появляется в панели + двигается в воронке только при подтверждении
   // оплаты (postlink/ручное/OnlineDuken). epay/card/cash — без изменений (status='pending').
-  const isInvoice = payment_method === 'invoice'
+  // (isInvoice/isPotConfirmationOrder вычислены выше — до notes, т.к. notes от них зависят)
 
   const { data: order, error: orderError } = await supabase
     .from('orders')
@@ -227,7 +239,11 @@ export async function POST(req: NextRequest) {
       total,
       ...structured,
       ...(notes ? { notes } : {}),
-      ...(payment_method ? { payment_method } : {}),
+      // Горшечная заявка: payment_method НЕ фиксируем при создании (клиент реально не
+      // платил) — иначе order выглядел бы как «оплата картой зависла», как обычный
+      // брошенный ePay-платёж (см. разбор от 24.09.2026). Метод оплаты оператор проставит
+      // сам, когда подтвердит заказ с клиентом.
+      ...(payment_method && !isPotConfirmationOrder ? { payment_method } : {}),
     })
     .select()
     .single()
@@ -256,7 +272,9 @@ export async function POST(req: NextRequest) {
     const { syncOrderToAmo, AMO_STATUS_INVOICE_ISSUED } = await import('@/lib/amo')
     await syncOrderToAmo(orderId, isInvoice
       ? { statusId: AMO_STATUS_INVOICE_ISSUED, extraTags: ['Счёт выставлен'] }
-      : {})
+      : isPotConfirmationOrder
+        ? { extraTags: ['Горшечные — требует подтверждения'] }
+        : {})
   } catch (err) {
     console.error('[checkout] amoCRM sync failed:', err instanceof Error ? err.message : err)
   }
@@ -280,6 +298,29 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Горшечная заявка: обычной цепочки postlink (уведомление после оплаты) для этого
+  // заказа НИКОГДА не будет — оплата не запускается. Шлём менеджеру+кладовщику сразу,
+  // с составом заказа и контактами клиента, как договорено с владельцем 24.09.2026.
+  if (isPotConfirmationOrder && process.env.UMNICO_API_TOKEN) {
+    try {
+      const { notifyOrderChain } = await import('@/lib/umnico/client')
+      const { umnicoTemplates } = await import('@/lib/umnico/templates')
+      await notifyOrderChain(
+        umnicoTemplates.newConfirmationOrderToManager({
+          orderId: String(orderId),
+          clientName: clientName || normalizedPhone,
+          clientPhone: normalizedPhone,
+          companyName: companyName ?? undefined,
+          total,
+          items: (items as any[]).map(i => ({ name: i.name, color: i.color ?? null, qty: i.qty, price: i.price })),
+          adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://uralskflowers.kz'}/admin`,
+        })
+      )
+    } catch (err) {
+      console.error('[checkout] pot confirmation notify failed:', err instanceof Error ? err.message : err)
+    }
+  }
+
   // PIN отправляем после успешного создания заказа: оформление не блокируется входом.
   let pinDelivered = false
   if (clientPin) {
@@ -292,13 +333,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Уведомления по заказу НЕ отправляются здесь — только после подтверждения оплаты в /api/payments/postlink
+  // Уведомления менеджеру по обычным заказам (card/epay/cash/invoice) — НЕ здесь, только
+  // после подтверждения оплаты в /api/payments/postlink. Горшечная заявка — исключение,
+  // отправлена выше (isPotConfirmationOrder): для неё postlink никогда не наступит.
 
   const orderAccessToken = createOrderAccessToken({ orderId: Number(orderId), clientId, phone: normalizedPhone })
 
   return NextResponse.json({
     success: true,
     order_id: orderId,
+    pending_confirmation: isPotConfirmationOrder,
     expires_at,
     pin_delivered: pinDelivered,
     order_access_token: orderAccessToken,

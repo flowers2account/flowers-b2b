@@ -41,6 +41,18 @@ interface ClientStatusDetails {
 }
 
 export const umnicoTemplates = {
+  // Горшечные (category='pot') — оплата картой НЕ запускается на checkout, заказ уходит
+  // менеджеру как заявка на подтверждение (звонок/WhatsApp клиенту до оплаты).
+  // См. src/app/api/checkout/route.ts (isPotConfirmationOrder).
+  newConfirmationOrderToManager: (details: OrderDetails): string => {
+    return `🪴 ЗАЯВКА #${details.orderId} — ГОРШЕЧНЫЕ, ТРЕБУЕТ ПОДТВЕРЖДЕНИЯ
+👤 ${details.clientName}${details.companyName ? ` | ${details.companyName}` : ''}
+📞 ${details.clientPhone}${fmtItems(details.items)}
+💰 К оплате: ${details.total.toLocaleString('ru-RU')} ₸
+🔗 ${details.adminUrl}
+⚠️ Оплата НЕ произведена — свяжитесь с клиентом для подтверждения заказа и оплаты.`
+  },
+
   newOrderToManager: (details: OrderDetails): string => {
     // Шлётся ТОЛЬКО после успешной оплаты (postlink) → явно помечаем «ОПЛАЧЕН».
     // «Резерв 30 мин» убран — это логика ДО оплаты, для оплаченного заказа неверна.

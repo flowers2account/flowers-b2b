@@ -69,6 +69,10 @@ export default function CheckoutPage() {
 
   const todayISO = new Date().toISOString().slice(0, 10)
   const sum = total()
+  // Горшечные (category='pot'): оплата картой на checkout не запускается — заявка на
+  // подтверждение (решение владельца 24.09.2026). Хотя бы 1 такой товар в корзине —
+  // правило действует на весь заказ (не разбиваем оформление на 2 корзины).
+  const hasPotItem = items.some(i => i.category === 'pot')
   const isUralsk = method === 'pickup' || (method === 'delivery' && city === 'Уральск')
   // Скидка 1% (Уральск) — только на первый заказ (совпадает с сервером computeOrderTotal).
   const discount = Math.round(sum * (isUralsk && isFirstOrder ? 0.01 : 0))
@@ -101,6 +105,9 @@ export default function CheckoutPage() {
     // «По счёту»: ePay пропускаем, ведём на /order/[id] — там QR-блок для юр.лиц
     skipPayment: () => payMethod === 'invoice',
     onCreated: (orderId) => router.push(`/order/${orderId}`),
+    // Горшечные + «картой»: ePay не запускаем — заказ создан, менеджер уведомлён на
+    // сервере, остаёмся на checkout с экраном «свяжемся для подтверждения».
+    requiresConfirmation: () => hasPotItem && payMethod === 'card',
   })
 
   function validate(): string {
@@ -128,6 +135,25 @@ export default function CheckoutPage() {
             Заказ №{checkout.orderId} создан. Менеджер получил уведомление и свяжется с вами.
             {checkout.payInfo?.cardMask && <><br />💳 {checkout.payInfo.cardMask}
               {checkout.payInfo.amount ? ` · ${fmt(Number(checkout.payInfo.amount))}` : ''}</>}
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Link href="/cabinet" className={s.stateBtn}>Мои заказы</Link>
+            <Link href="/catalog" className={`${s.stateBtn} ${s.ghost}`}>В каталог</Link>
+          </div>
+        </div>
+      </div></main>
+    )
+  }
+  if (checkout.step === 'pendingConfirmation') {
+    return (
+      <main className={s.page}><div className={s.shell}>
+        <div className={s.state}>
+          <div className={s.stateIc}>🪴</div>
+          <div className={s.stateH}>Заявка №{checkout.orderId} принята!</div>
+          <p className={s.stateP}>
+            Товары зарезервированы. Мы свяжемся с вами в WhatsApp или по телефону
+            для подтверждения заказа и оплаты — оплата картой онлайн для горшечных
+            растений пока недоступна.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link href="/cabinet" className={s.stateBtn}>Мои заказы</Link>
@@ -361,7 +387,7 @@ export default function CheckoutPage() {
             <button className={s.payBtn} onClick={handlePay} disabled={checkout.busy}>
               {checkout.busy
                 ? (checkout.step === 'creating' ? 'Создаём заказ…' : 'Ожидаем оплату…')
-                : <>{payMethod === 'invoice' ? 'Оформить заказ' : 'Оплатить заказ'}
+                : <>{payMethod === 'invoice' ? 'Оформить заказ' : hasPotItem ? 'Отправить заявку' : 'Оплатить заказ'}
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                   </>}
             </button>
@@ -371,7 +397,9 @@ export default function CheckoutPage() {
 
             <div className={s.note}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-              <span>Нажимая «Оплатить», вы перейдёте на защищённую оплату Halyk Bank (ePay). Данные карты вводятся на стороне банка.</span>
+              <span>{payMethod === 'card' && hasPotItem
+                ? 'Оплата картой онлайн для горшечных растений пока недоступна — мы свяжемся с вами в WhatsApp или по телефону для подтверждения заказа и оплаты.'
+                : 'Нажимая «Оплатить», вы перейдёте на защищённую оплату Halyk Bank (ePay). Данные карты вводятся на стороне банка.'}</span>
             </div>
           </div>
         </div>

@@ -10,6 +10,9 @@ declare global {
 
 export type CheckoutStep =
   | 'idle' | 'creating' | 'paying' | 'polling' | 'success' | 'failed' | 'timeout'
+  // Горшечные (category='pot'): оплата на checkout не запускается — заказ создан,
+  // менеджер уведомлён, ждём звонка/WhatsApp клиенту для подтверждения.
+  | 'pendingConfirmation'
 
 export interface PaymentInfo {
   cardMask?: string
@@ -37,6 +40,9 @@ interface Options {
   skipPayment?: () => boolean
   /** Колбэк после создания заказа в режиме skipPayment (например, редирект на /order/[id]). */
   onCreated?: (orderId: number) => void
+  /** Горшечные (category='pot') + оплата картой: ePay не запускаем вообще, заказ уходит
+   *  менеджеру как заявка на подтверждение — остаёмся на checkout с шагом 'pendingConfirmation'. */
+  requiresConfirmation?: () => boolean
 }
 
 const epayLoaded = { current: false }  // модульный синглтон — один скрипт на всю сессию
@@ -107,7 +113,7 @@ export async function runPaymentStep(orderId: number): Promise<{
   return { ok: true, invoiceId: widgetConfig.invoiceId, result }
 }
 
-export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extra, skipPayment, onCreated }: Options) {
+export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extra, skipPayment, onCreated, requiresConfirmation }: Options) {
   const [step,       setStep]       = useState<CheckoutStep>('idle')
   const [orderId,    setOrderId]    = useState<number | null>(null)
   const [invoiceId,  setInvoiceId]  = useState<string | null>(null)
@@ -165,6 +171,15 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
         window.sessionStorage.setItem(`order-access:${order_id}`, String(order_access_token))
       }
 
+      // Горшечные + оплата картой: ePay не запускаем вообще, остаёмся на checkout —
+      // заказ уже создан и менеджер уже уведомлён сервером (/api/checkout).
+      if (requiresConfirmation?.()) {
+        onSuccess()              // очистить корзину
+        inFlight.current = false
+        setStep('pendingConfirmation')
+        return
+      }
+
       // Режим «по счёту/QR» (юр.лица): ePay не запускаем — заказ создан, оплата вне виджета.
       if (skipPayment?.()) {
         onSuccess()              // очистить корзину
@@ -201,7 +216,7 @@ export function useOrderCheckout({ items, phone, onAuthRequired, onSuccess, extr
       setStep('failed')
     }
     inFlight.current = false
-  }, [items, phone, onAuthRequired, onSuccess, extra, skipPayment, onCreated])
+  }, [items, phone, onAuthRequired, onSuccess, extra, skipPayment, onCreated, requiresConfirmation])
 
   const retryPayment = useCallback(async () => {
     if (!orderId || inFlight.current) return
