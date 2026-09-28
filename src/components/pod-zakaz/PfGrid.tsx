@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
 import { usePfCart } from '@/lib/pod-zakaz/pf-cart-store'
 import { usePfFilters, type PfSortKey } from '@/lib/pod-zakaz/use-pf-filters'
@@ -19,6 +19,12 @@ const SORT_OPTIONS: { value: PfSortKey; label: string }[] = [
   { value: 'price_desc', label: 'Цена ↓' },
   { value: 'stock', label: 'По наличию' },
 ]
+
+// Пагинация сетки: при ~3000 товарах рендер ВСЕХ карточек разом — не только на клиенте, но и
+// при первом (серверном) рендере страницы (PfGrid клиентский, но Next всё равно строит его
+// HTML на сервере для первой отдачи) — вешал вход на /pod-zakaz на ~3 минуты. Фильтры/фасеты
+// по-прежнему считаются по ВСЕМУ products/filtered — режем только число карточек, уходящих в JSX.
+const GRID_PAGE_SIZE = 60
 
 // Сетка теми же брейкпоинтами, что ProductGrid (3 колонки / 2 на мобильном). Фильтры/сортировка
 // живут в изолированном хуке usePfFilters — не в глобальных сторах основного каталога.
@@ -40,6 +46,13 @@ export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
 
   const qtyByOffer = useMemo(() => new Map(items.map(i => [i.pfOfferId, i.qty])), [items])
   const cartCount = items.reduce((s, i) => s + i.qty, 0)
+
+  const [visibleCount, setVisibleCount] = useState(GRID_PAGE_SIZE)
+  // Смена фильтра/поиска/сортировки — начинаем показ сетки заново с первой порции.
+  useEffect(() => {
+    setVisibleCount(GRID_PAGE_SIZE)
+  }, [category, subcategory, rawSearch, selectedColors, selectedCountries, sort])
+  const visibleItems = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
 
   function handleSetQty(item: PfCatalogItem, qty: number) {
     setQty({
@@ -155,21 +168,38 @@ export default function PfGrid({ products }: { products: PfCatalogItem[] }) {
             )}
           </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
-            gap: isMobile ? 12 : 16,
-          }}>
-            {filtered.map(item => (
-              <PfProductCard
-                key={item.pf_offer_id}
-                item={item}
-                qty={qtyByOffer.get(item.pf_offer_id) ?? 0}
-                onSetQty={(q) => handleSetQty(item, q)}
-                onCardClick={() => openDetail(item.pf_offer_id)}
-              />
-            ))}
-          </div>
+          <>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+              gap: isMobile ? 12 : 16,
+            }}>
+              {visibleItems.map(item => (
+                <PfProductCard
+                  key={item.pf_offer_id}
+                  item={item}
+                  qty={qtyByOffer.get(item.pf_offer_id) ?? 0}
+                  onSetQty={(q) => handleSetQty(item, q)}
+                  onCardClick={() => openDetail(item.pf_offer_id)}
+                />
+              ))}
+            </div>
+
+            {filtered.length > visibleCount && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+                <button
+                  onClick={() => setVisibleCount(v => v + GRID_PAGE_SIZE)}
+                  style={{
+                    padding: '10px 24px', background: '#fff', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-btn)', fontSize: 13, fontWeight: 600,
+                    color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Показать ещё ({filtered.length - visibleCount})
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
