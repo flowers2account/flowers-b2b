@@ -33,7 +33,12 @@ function buildFacet(products: PfCatalogItem[], pick: (p: PfCatalogItem) => strin
 }
 
 export function usePfFilters(products: PfCatalogItem[]) {
-  const [category, setCategory] = useState('') // '' = «Все»
+  const [category, setCategoryRaw] = useState('') // '' = «Все»
+  // Подкатегория (pf_catalog_groups, лист) — ИМЕЕТ СМЫСЛ ТОЛЬКО внутри выбранной категории:
+  // при category='' (Все) список подряд смешал бы листья разных номенклатур («Из керамики» рядом
+  // с «Роза одноголовая») — семантически бессвязно. Поэтому UI (PfFilterPanel) скрывает блок
+  // подкатегорий, пока category не выбрана, а не показывает общий плоский список.
+  const [subcategory, setSubcategory] = useState('') // '' = все подкатегории текущей category
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('') // debounced, используется в фильтрации
   const [selectedColors, setSelectedColors] = useState<string[]>([])
@@ -61,6 +66,19 @@ export function usePfFilters(products: PfCatalogItem[]) {
   const colorOptions = useMemo(() => buildFacet(products, (p) => p.color_name), [products])
   const countryOptions = useMemo(() => buildFacet(products, (p) => p.country), [products])
 
+  // Подкатегории — только среди товаров ТЕКУЩЕЙ category (пусто при category=''). Товары с
+  // group_name=null (ещё не дообойдённый лист) просто не попадают ни в один пункт — buildFacet
+  // их пропускает (pick возвращает null), они остаются видны только при subcategory=''.
+  const subcategoryOptions = useMemo(() => {
+    if (!category) return []
+    return buildFacet(products.filter((p) => p.nomenclature_name === category), (p) => p.group_name)
+  }, [products, category])
+
+  function setCategory(value: string) {
+    setCategoryRaw(value)
+    setSubcategory('') // подкатегория предыдущей category теряет смысл
+  }
+
   function toggleColor(value: string) {
     setSelectedColors((cur) => (cur.includes(value) ? cur.filter((c) => c !== value) : [...cur, value]))
   }
@@ -72,6 +90,7 @@ export function usePfFilters(products: PfCatalogItem[]) {
     const q = search.trim().toLowerCase()
     let list = products.filter((p) => {
       if (category && p.nomenclature_name !== category) return false
+      if (subcategory && p.group_name !== subcategory) return false
       if (q && !p.name.toLowerCase().includes(q)) return false
       if (selectedColors.length > 0 && !(p.color_name && selectedColors.includes(p.color_name))) return false
       if (selectedCountries.length > 0 && !(p.country && selectedCountries.includes(p.country))) return false
@@ -81,14 +100,15 @@ export function usePfFilters(products: PfCatalogItem[]) {
     else if (sort === 'price_desc') list = [...list].sort((a, b) => stepPrice(b) - stepPrice(a))
     else if (sort === 'stock') list = [...list].sort((a, b) => b.count_left - a.count_left)
     return list
-  }, [products, category, search, selectedColors, selectedCountries, sort])
+  }, [products, category, subcategory, search, selectedColors, selectedCountries, sort])
 
   const activeFilterCount =
-    (category ? 1 : 0) + (search ? 1 : 0) + selectedColors.length + selectedCountries.length
+    (category ? 1 : 0) + (subcategory ? 1 : 0) + (search ? 1 : 0) + selectedColors.length + selectedCountries.length
   const hasActiveFilters = activeFilterCount > 0
 
   function resetAll() {
-    setCategory('')
+    setCategoryRaw('')
+    setSubcategory('')
     setRawSearch('')
     setSearch('')
     setSelectedColors([])
@@ -97,6 +117,7 @@ export function usePfFilters(products: PfCatalogItem[]) {
 
   return {
     category, setCategory, categories,
+    subcategory, setSubcategory, subcategoryOptions,
     rawSearch, setRawSearch,
     selectedColors, toggleColor, colorOptions,
     selectedCountries, toggleCountry, countryOptions,

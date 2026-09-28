@@ -1,147 +1,269 @@
 'use client'
 
-import { colorSwatch } from '@/lib/colors'
+import { useState } from 'react'
+import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 import type { PfFacetOption } from '@/lib/pod-zakaz/use-pf-filters'
 
-// Визуальные примитивы — по образцу FilterPanel.tsx (CheckRow/TagChips/CollapsibleGroup) и
-// CategoryTabs.tsx (табы с border-bottom на активной), адаптированы под светлый фон pod-zakaz
-// (у CategoryTabs — тёмный хедер). Токены те же: var(--accent), var(--border), var(--text-mid).
+// Левый сайдбар — примитивы группы (CollapsibleGroup/StaticGroup/Chevron/countBadge) взяты
+// по образцу src/components/catalog/FilterPanel.tsx, адаптированы под плоские (не древовидные)
+// pod-zakaz-фасеты: Цвет (кружки, always-open), Категория и Страна (чекбоксы со счётчиком).
 
 type Props = {
   category: string
   setCategory: (v: string) => void
   categories: PfFacetOption[]
   totalCount: number
-  rawSearch: string
-  setRawSearch: (v: string) => void
+  subcategory: string
+  setSubcategory: (v: string) => void
+  subcategoryOptions: PfFacetOption[]
   selectedColors: string[]
   toggleColor: (v: string) => void
   colorOptions: PfFacetOption[]
   selectedCountries: string[]
   toggleCountry: (v: string) => void
   countryOptions: PfFacetOption[]
-  activeFilterCount: number
   onResetAll: () => void
 }
 
-function CategoryTab({
-  active, label, count, onClick,
-}: { active: boolean; label: string; count: number; onClick: () => void }) {
+function Chevron({ open }: { open: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        flex: 'none', height: 42, padding: '0 14px', background: 'none', border: 'none',
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
-        color: active ? 'var(--accent)' : 'var(--text-mid)',
-        borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-      }}
+    <svg
+      width="10" height="10" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+      style={{ flexShrink: 0, transition: 'transform 0.18s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
     >
-      {label} <span style={{ opacity: 0.6, fontWeight: 500 }}>({count})</span>
-    </button>
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
   )
 }
 
-function ChipToggle({
-  active, label, swatch, onClick,
-}: { active: boolean; label: string; swatch?: string; onClick: () => void }) {
+function CountBadge({ count, active }: { count: number; active: boolean }) {
   return (
-    <button
+    <span style={{
+      fontSize: 10, padding: '2px 7px', borderRadius: 10, fontWeight: 500,
+      flexShrink: 0, marginLeft: 'auto',
+      background: active ? 'rgba(255,255,255,0.22)' : 'var(--bg2)',
+      color: active ? '#fff' : 'var(--text-mid)',
+    }}>
+      {count}
+    </span>
+  )
+}
+
+function CollapsibleGroup({
+  label, children, activeCount = 0, open, onToggle,
+}: {
+  label: string; children: React.ReactNode
+  activeCount?: number; open: boolean; onToggle: () => void
+}) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <button
+        onClick={onToggle}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+          padding: '5px 4px', background: 'none', border: 'none',
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        <Chevron open={open} />
+        <span style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: '#b9aab1',
+          flex: 1, textAlign: 'left',
+        }}>
+          {label}
+        </span>
+        {activeCount > 0 && (
+          <span style={{
+            background: 'var(--accent)', color: '#fff',
+            borderRadius: '50%', width: 16, height: 16, flexShrink: 0,
+            fontSize: 9, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {activeCount}
+          </span>
+        )}
+      </button>
+      {open && <div style={{ marginTop: 2 }}>{children}</div>}
+    </div>
+  )
+}
+
+function StaticGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+        textTransform: 'uppercase', color: '#b9aab1', padding: '5px 4px',
+      }}>
+        {label}
+      </div>
+      <div style={{ marginTop: 2 }}>{children}</div>
+    </div>
+  )
+}
+
+function OptionRow({
+  active, label, count, onClick,
+}: { active: boolean; label: string; count: number; onClick: () => void }) {
+  return (
+    <div
       onClick={onClick}
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 14,
-        fontSize: 11.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
-        background: active ? 'var(--accent)' : '#fff',
-        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-        color: active ? '#fff' : 'var(--text-mid)',
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '5px 8px', fontSize: 12,
+        borderRadius: 'var(--radius-btn)', marginBottom: 1,
+        cursor: 'pointer', transition: 'background 0.12s',
+        background: active ? 'var(--accent)' : undefined,
+        color: active ? '#fff' : 'var(--text)',
+        fontWeight: active ? 600 : 400,
       }}
     >
-      {swatch && (
-        <span style={{
-          width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: swatch,
-          border: `1px solid ${active ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.15)'}`,
-        }} />
-      )}
-      {label}
-    </button>
+      <span style={{ flex: 1 }}>{label}</span>
+      <CountBadge count={count} active={active} />
+    </div>
   )
 }
 
 export default function PfFilterPanel({
   category, setCategory, categories, totalCount,
-  rawSearch, setRawSearch,
+  subcategory, setSubcategory, subcategoryOptions,
   selectedColors, toggleColor, colorOptions,
   selectedCountries, toggleCountry, countryOptions,
-  activeFilterCount, onResetAll,
+  onResetAll,
 }: Props) {
+  const [openCategory, setOpenCategory] = useState(true)
+  const [openSubcategory, setOpenSubcategory] = useState(true)
+  const [openCountry, setOpenCountry] = useState(true)
+
   return (
-    <div style={{ background: '#fff', borderBottom: '1px solid var(--border)' }}>
-      {/* Категория — вкладки, только nomenclature_name (id/тип торгового дня сюда не попадают) */}
-      <div style={{ display: 'flex', gap: 2, overflowX: 'auto', padding: '0 16px', scrollbarWidth: 'thin' }}>
-        <CategoryTab active={category === ''} label="Все" count={totalCount} onClick={() => setCategory('')} />
-        {categories.map((c) => (
-          <CategoryTab
-            key={c.value}
-            active={category === c.value}
-            label={c.value}
-            count={c.count}
-            onClick={() => setCategory(c.value)}
-          />
-        ))}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '14px 14px 0' }}>
+
+        {/* Цвет — кружки, всегда открыт, как в боевом каталоге */}
+        {colorOptions.length > 0 && (
+          <StaticGroup label="Цвет">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 4px 0' }}>
+              {colorOptions.map((c) => {
+                const selected = selectedColors.includes(c.value)
+                return (
+                  <div
+                    key={c.value}
+                    onClick={() => toggleColor(c.value)}
+                    title={`${colorLabel(c.value)} (${c.count})`}
+                    style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      cursor: 'pointer', flexShrink: 0,
+                      background: colorSwatch(c.value),
+                      border: `1.5px solid ${isLightSwatch(c.value) ? '#D0D0D0' : 'rgba(0,0,0,0.12)'}`,
+                      outline: selected ? '2px solid var(--accent)' : 'none',
+                      outlineOffset: 2,
+                      transition: 'opacity 0.2s',
+                    }}
+                  />
+                )
+              })}
+            </div>
+          </StaticGroup>
+        )}
+
+        {/* Категория */}
+        <CollapsibleGroup
+          label="Категория"
+          open={openCategory}
+          onToggle={() => setOpenCategory(v => !v)}
+          activeCount={category ? 1 : 0}
+        >
+          <OptionRow active={category === ''} label="Все" count={totalCount} onClick={() => setCategory('')} />
+          {categories.map((c) => (
+            <OptionRow
+              key={c.value}
+              active={category === c.value}
+              label={c.value}
+              count={c.count}
+              onClick={() => setCategory(c.value)}
+            />
+          ))}
+        </CollapsibleGroup>
+
+        {/* Подкатегория — только внутри выбранной категории (см. use-pf-filters.ts:
+            при «Все» листья разных номенклатур семантически не связаны, список бы не имел
+            смысла). Появляется/исчезает вместе с выбором категории. */}
+        {category && subcategoryOptions.length > 0 && (
+          <CollapsibleGroup
+            label="Подкатегория"
+            open={openSubcategory}
+            onToggle={() => setOpenSubcategory(v => !v)}
+            activeCount={subcategory ? 1 : 0}
+          >
+            <OptionRow
+              active={subcategory === ''}
+              label="Все"
+              count={subcategoryOptions.reduce((s, o) => s + o.count, 0)}
+              onClick={() => setSubcategory('')}
+            />
+            {subcategoryOptions.map((s) => (
+              <OptionRow
+                key={s.value}
+                active={subcategory === s.value}
+                label={s.value}
+                count={s.count}
+                onClick={() => setSubcategory(s.value)}
+              />
+            ))}
+          </CollapsibleGroup>
+        )}
+
+        {/* Страна */}
+        {countryOptions.length > 0 && (
+          <CollapsibleGroup
+            label="Страна"
+            open={openCountry}
+            onToggle={() => setOpenCountry(v => !v)}
+            activeCount={selectedCountries.length}
+          >
+            {countryOptions.map((c) => (
+              <label
+                key={c.value}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '5px 8px', fontSize: 12,
+                  borderRadius: 'var(--radius-btn)', cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox" checked={selectedCountries.includes(c.value)}
+                  onChange={() => toggleCountry(c.value)}
+                  style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                />
+                <span style={{ flex: 1 }}>{c.value}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{c.count}</span>
+              </label>
+            ))}
+          </CollapsibleGroup>
+        )}
+
+        <div style={{ height: 8 }} />
       </div>
 
-      {/* Поиск + цвет + страна */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, padding: '10px 16px' }}>
-        <input
-          value={rawSearch}
-          onChange={(e) => setRawSearch(e.target.value)}
-          placeholder="Поиск по названию…"
+      {/* Sticky reset button */}
+      <div style={{
+        flexShrink: 0, padding: '10px 14px',
+        borderTop: '1px solid var(--border)', background: '#fff',
+      }}>
+        <button
+          onClick={onResetAll}
           style={{
-            height: 38, padding: '0 12px', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-input)', fontSize: 13, fontFamily: 'inherit',
-            minWidth: 200, flex: '1 1 200px',
+            width: '100%', padding: 8,
+            background: '#fff', border: '1px dashed var(--border)',
+            borderRadius: 'var(--radius-btn)',
+            fontSize: 11, color: 'var(--text-mid)', fontWeight: 500,
+            cursor: 'pointer', fontFamily: 'inherit',
           }}
-        />
-
-        {colorOptions.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {colorOptions.map((c) => (
-              <ChipToggle
-                key={c.value}
-                active={selectedColors.includes(c.value)}
-                label={c.value}
-                swatch={colorSwatch(c.value)}
-                onClick={() => toggleColor(c.value)}
-              />
-            ))}
-          </div>
-        )}
-
-        {countryOptions.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {countryOptions.map((c) => (
-              <ChipToggle
-                key={c.value}
-                active={selectedCountries.includes(c.value)}
-                label={c.value}
-                onClick={() => toggleCountry(c.value)}
-              />
-            ))}
-          </div>
-        )}
-
-        {activeFilterCount > 0 && (
-          <button
-            onClick={onResetAll}
-            style={{
-              marginLeft: 'auto', padding: '5px 10px', fontSize: 11, fontWeight: 500,
-              fontFamily: 'inherit', background: 'none', border: '1px dashed var(--border)',
-              borderRadius: 14, color: 'var(--text-mid)', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            Сбросить всё
-          </button>
-        )}
+        >
+          Сбросить фильтры
+        </button>
       </div>
     </div>
   )

@@ -15,9 +15,10 @@ type Props = {
   item: PfCatalogItem
   qty: number // в ступенях (см. stepUnits)
   onSetQty: (nextQty: number) => void
+  onCardClick: () => void
 }
 
-export default function PfProductCard({ item, qty, onSetQty }: Props) {
+export default function PfProductCard({ item, qty, onSetQty, onCardClick }: Props) {
   const [imgError, setImgError] = useState(false)
   const price = stepPrice(item)
   const max = maxSteps(item)
@@ -28,12 +29,14 @@ export default function PfProductCard({ item, qty, onSetQty }: Props) {
 
   return (
     <div
+      onClick={onCardClick}
       style={{
         background: '#fff',
         border: `1px solid ${qty > 0 ? 'var(--accent)' : 'var(--border)'}`,
         borderRadius: 12,
         boxShadow: qty > 0 ? '0 0 0 1px var(--accent)' : 'none',
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        cursor: 'pointer',
       }}
     >
       {/* Фото */}
@@ -69,7 +72,7 @@ export default function PfProductCard({ item, qty, onSetQty }: Props) {
           {dayLabel}{deliveryDate ? ` · поставка ${deliveryDate}` : ''}
         </span>
 
-        {/* Остаток */}
+        {/* Остаток — «N шт в наличии», для коробочных «N кор. в наличии» */}
         <span style={{
           position: 'absolute', bottom: 8, left: 8,
           display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -78,7 +81,9 @@ export default function PfProductCard({ item, qty, onSetQty }: Props) {
           padding: '3px 9px 3px 8px', borderRadius: 'var(--radius-btn)', backdropFilter: 'blur(4px)',
         }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5ED39A', boxShadow: '0 0 0 2px rgba(94,211,154,0.25)', flexShrink: 0 }} />
-          {item.count_left} шт на складе поставщика
+          {item.is_box_only
+            ? `${Math.floor(item.count_left / (item.box_multiplicity || 1))} кор. в наличии`
+            : `${item.count_left} шт в наличии`}
         </span>
       </div>
 
@@ -91,18 +96,21 @@ export default function PfProductCard({ item, qty, onSetQty }: Props) {
           {item.name}
         </div>
 
-        {(item.characteristics || item.color_name || item.country) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-            {swatch && (
-              <span title={colorLabel(item.color_name!)} style={{
-                width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
-                background: swatch,
-                border: `1px solid ${isLightSwatch(item.color_name!) ? '#D0D0D0' : 'rgba(0,0,0,0.15)'}`,
-              }} />
-            )}
-            <span style={{ fontSize: 11, color: 'var(--text-mid)' }}>
-              {[item.characteristics, item.country].filter(Boolean).join(' · ')}
-            </span>
+        {/* Цвет — отдельная строка кружков, как в GridCard (у pf-оффера всегда один цвет) */}
+        {swatch && (
+          <div style={{ display: 'flex', gap: 7, marginTop: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div title={colorLabel(item.color_name!)} style={{
+              width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+              boxShadow: '0 0 0 1px var(--border) inset',
+              background: swatch,
+              border: `1px solid ${isLightSwatch(item.color_name!) ? '#D0D0D0' : 'rgba(0,0,0,0.1)'}`,
+            }} />
+          </div>
+        )}
+
+        {(item.characteristics || item.country) && (
+          <div style={{ marginTop: 2, fontSize: 11, color: 'var(--text-mid)' }}>
+            {[item.characteristics, item.country].filter(Boolean).join(' · ')}
           </div>
         )}
 
@@ -110,49 +118,57 @@ export default function PfProductCard({ item, qty, onSetQty }: Props) {
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: 'var(--font-serif), serif', fontSize: 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
               {price.toLocaleString('ru-RU')} ₸
+              {' '}<span style={{ fontFamily: 'var(--font-golos)', fontSize: 11, fontWeight: 500, color: 'var(--text-mid)' }}>
+                / {item.is_box_only ? 'кор.' : 'шт'}
+              </span>
             </span>
-            <span style={{ fontSize: 10, color: 'var(--text-mid)' }}>{label}</span>
           </div>
-
-          {/* Степпер: шаг = 1 ступень (короб или кратность), max = maxSteps */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)',
-            overflow: 'hidden', marginTop: 8,
-          }}>
-            <button
-              onClick={() => onSetQty(Math.max(0, qty - 1))}
-              disabled={qty === 0}
-              style={{
-                width: 42, height: 40, border: 'none',
-                background: 'var(--bg2)', color: 'var(--accent)',
-                fontSize: 18, fontWeight: 700, cursor: qty === 0 ? 'default' : 'pointer',
-                opacity: qty === 0 ? 0.35 : 1,
-              }}
-            >−</button>
-            <span style={{
-              flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700,
-              padding: '6px 0', fontFamily: 'var(--font-jetbrains, monospace)',
-              borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
-            }}>
-              {qty}
-            </span>
-            <button
-              onClick={() => onSetQty(Math.min(max, qty + 1))}
-              disabled={qty >= max}
-              style={{
-                width: 42, height: 40, border: 'none',
-                background: 'var(--bg2)', color: 'var(--accent)',
-                fontSize: 18, fontWeight: 700, cursor: qty >= max ? 'default' : 'pointer',
-                opacity: qty >= max ? 0.35 : 1,
-              }}
-            >+</button>
-          </div>
-          {max === 0 && (
-            <div style={{ marginTop: 6, fontSize: 10.5, color: '#C62828' }}>
-              {item.is_box_only ? 'Меньше короба не осталось' : 'Нет в наличии'}
-            </div>
+          {(item.is_box_only || item.multiplicity > 1) && (
+            <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 2 }}>{label}</div>
           )}
+
+          {/* Степпер: шаг = 1 ступень (короб или кратность), max = maxSteps.
+              stopPropagation — клик по степперу не должен открывать детальную панель. */}
+          <div onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)',
+              overflow: 'hidden', marginTop: 8,
+            }}>
+              <button
+                onClick={() => onSetQty(Math.max(0, qty - 1))}
+                disabled={qty === 0}
+                style={{
+                  width: 42, height: 40, border: 'none',
+                  background: 'var(--bg2)', color: 'var(--accent)',
+                  fontSize: 18, fontWeight: 700, cursor: qty === 0 ? 'default' : 'pointer',
+                  opacity: qty === 0 ? 0.35 : 1,
+                }}
+              >−</button>
+              <span style={{
+                flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700,
+                padding: '6px 0', fontFamily: 'var(--font-jetbrains, monospace)',
+                borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
+              }}>
+                {qty}
+              </span>
+              <button
+                onClick={() => onSetQty(Math.min(max, qty + 1))}
+                disabled={qty >= max}
+                style={{
+                  width: 42, height: 40, border: 'none',
+                  background: 'var(--bg2)', color: 'var(--accent)',
+                  fontSize: 18, fontWeight: 700, cursor: qty >= max ? 'default' : 'pointer',
+                  opacity: qty >= max ? 0.35 : 1,
+                }}
+              >+</button>
+            </div>
+            {max === 0 && (
+              <div style={{ marginTop: 6, fontSize: 10.5, color: '#C62828' }}>
+                {item.is_box_only ? 'Меньше короба не осталось' : 'Нет в наличии'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

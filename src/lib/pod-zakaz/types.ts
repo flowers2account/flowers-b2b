@@ -18,8 +18,12 @@ export type PfCatalogItem = {
   is_box_only: boolean
   client_price: number
   box_client_price: number | null
-  // Категория дня — задел под фильтр на витрине (v2, пока не строим UI: сейчас категория
-  // одна, «Товары декора»). Схема и прокидка готовы, чтобы включить фильтр без новой миграции.
+  // Категория дня (верхний уровень, ровно одна на активную номенклатуру — «Товары декора»,
+  // «Срезанные цветы»).
   nomenclature_id: number | null
   nomenclature_name: string | null
+  // Подкатегория (лист pf_catalog_groups) — null, если товар ещё не дообойдён
+  // /api/cron/pf-sync-product-groups (см. docs/PROFLOWERS_SYNC.md) или упал его лист.
+  group_id: number | null
+  group_name: string | null
 }
