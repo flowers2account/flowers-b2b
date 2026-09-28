@@ -103,6 +103,46 @@ curl -sS --max-time 300 -w '\nHTTP %{http_code}\n' \
   http://127.0.0.1:3000/api/cron/pf-sync
 ```
 
+### Кроны подкатегорий — `flowers-pf-sync-groups` / `flowers-pf-sync-product-groups`
+
+Ещё НЕ заведены на VPS (28.09.2026) — шаблоны ниже, по образцу `flowers-pf-sync.sh`
+выше. Два отдельных крона (дерево — дёшево, обход листьев — дорого,
+~2-3 мин), второй стартует на 5 мин позже первого: `pf-sync-product-groups`
+читает листья ИЗ уже наполненного `pf_catalog_groups`, дерево должно
+успеть собраться раньше.
+
+```cron
+# /etc/cron.d/flowers-pf-sync-groups
+0 2 * * * root /usr/local/bin/flowers-pf-sync-groups.sh >> /srv/flowers-b2b/logs/cron-pf-sync-groups.log 2>&1
+
+# /etc/cron.d/flowers-pf-sync-product-groups
+5 2 * * * root /usr/local/bin/flowers-pf-sync-product-groups.sh >> /srv/flowers-b2b/logs/cron-pf-sync-product-groups.log 2>&1
+```
+
+```bash
+# /usr/local/bin/flowers-pf-sync-groups.sh
+#!/bin/bash
+set -uo pipefail
+ENV_FILE="/srv/flowers-b2b/shared/.env.production"
+CRON_SECRET="$(grep -E '^CRON_SECRET=' "$ENV_FILE" | head -1 | cut -d '=' -f2-)"
+if [ -z "$CRON_SECRET" ]; then echo "ERROR: CRON_SECRET пуст или не найден в $ENV_FILE"; exit 1; fi
+curl -sS --max-time 60 -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  http://127.0.0.1:3000/api/cron/pf-sync-groups
+```
+
+```bash
+# /usr/local/bin/flowers-pf-sync-product-groups.sh
+#!/bin/bash
+set -uo pipefail
+ENV_FILE="/srv/flowers-b2b/shared/.env.production"
+CRON_SECRET="$(grep -E '^CRON_SECRET=' "$ENV_FILE" | head -1 | cut -d '=' -f2-)"
+if [ -z "$CRON_SECRET" ]; then echo "ERROR: CRON_SECRET пуст или не найден в $ENV_FILE"; exit 1; fi
+curl -sS --max-time 300 -w '\nHTTP %{http_code}\n' \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  http://127.0.0.1:3000/api/cron/pf-sync-product-groups
+```
+
 ## Заявки с витрины «Под заказ» (`pf_orders`/`pf_order_items`)
 
 Оформление на `/pod-zakaz` — модель «заявка менеджеру», не оплата и не автозаказ в
