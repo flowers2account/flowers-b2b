@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
 import { formatDeliveryDate, tradingDayLabel, stepPrice, maxSteps, stepLabel } from '@/lib/pod-zakaz/format'
 import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
@@ -42,12 +41,17 @@ export default function PfProductCard({ item, qty, onSetQty, onCardClick }: Prop
       {/* Фото */}
       <div style={{ aspectRatio: '1 / 0.92', position: 'relative', background: 'var(--accent-light)', overflow: 'hidden' }}>
         {item.image_url && !imgError ? (
-          <Image
-            fill
+          // Обычный <img>, НЕ next/image: фото Proflowers (marketimg.proflowers.kz) шли через
+          // наш сервер-оптимизатор — при 3000+ карточках CDN поставщика таймаутил
+          // ("upstream image response timed out"), страница не открывалась. loading="lazy" —
+          // браузер тянет только видимые, сервер эти фото вообще не трогает.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={item.image_url}
             alt={item.name}
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            style={{ objectFit: 'cover' }}
+            loading="lazy"
+            decoding="async"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             onError={() => setImgError(true)}
           />
         ) : (

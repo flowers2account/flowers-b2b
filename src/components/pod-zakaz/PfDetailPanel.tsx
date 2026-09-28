@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
 import { usePfDetail } from '@/lib/pod-zakaz/pf-detail-store'
 import { usePfCart } from '@/lib/pod-zakaz/pf-cart-store'
@@ -123,7 +122,16 @@ function StateDetail({ item, onClose, onOpenCart }: { item: PfCatalogItem; onClo
       <div style={{ flexShrink: 0, padding: '0 12px' }}>
         <div style={{ aspectRatio: '1/1', background: 'var(--bg2)', overflow: 'hidden', position: 'relative', borderRadius: 12 }}>
           {mainPhoto ? (
-            <Image fill src={mainPhoto} alt={item.name} sizes="(max-width: 768px) 100vw, 33vw" style={{ objectFit: 'contain' }} />
+            // Обычный <img>, НЕ next/image — см. комментарий в PfProductCard.tsx (сервер
+            // захлёбывался, оптимизируя чужие фото Proflowers через свой прокси).
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={mainPhoto}
+              alt={item.name}
+              loading="lazy"
+              decoding="async"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           ) : (
             <div style={{
               width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
