@@ -79,10 +79,28 @@ export interface PfCatalogPages {
   ipp: number
 }
 
+// Дерево подкатегорий (для конкретной номенклатуры активного дня). __children — вложенность,
+// как реально пришло от Proflowers; has_children в catalogGroupsFlat дублирует тот же факт
+// плоским списком (используем __children как источник истины при разборе — надёжнее).
+export interface PfCatalogGroupNode {
+  id: number
+  name: string
+  nomenclature_id?: number
+  product_type?: string
+  __children?: PfCatalogGroupNode[]
+}
+
+export interface PfCatalogGroupFlat {
+  id: number
+  name: string
+  product_type?: string
+  has_children: boolean
+}
+
 export interface PfCatalogResponse {
   list: PfListItem[]
   pages: PfCatalogPages
-  catalogGroups?: unknown
-  catalogGroupsFlat?: unknown
+  catalogGroups?: PfCatalogGroupNode[]
+  catalogGroupsFlat?: PfCatalogGroupFlat[]
   filterForm?: unknown
 }
