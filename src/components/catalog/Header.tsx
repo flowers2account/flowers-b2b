@@ -63,6 +63,7 @@ export default function Header() {
     { href: '/', label: 'О нас' },
     { href: '/categories', label: 'Категории' },
     { href: '/catalog', label: 'Каталог' },
+    { href: '/pod-zakaz', label: 'Под заказ' },
     ...(isAuthed ? [{
       href: isAdminRole ? '/admin/orders' : '/cabinet',
       label: isAdminRole ? 'Заказы' : 'Личный кабинет / Мои заказы',
@@ -335,6 +336,7 @@ export default function Header() {
               { label: 'О нас', href: '/' },
               { label: 'Категории', href: '/categories' },
               { label: 'Каталог', action: goCatalogAll },
+              { label: 'Под заказ', href: '/pod-zakaz' },
               { label: 'Избранное', href: '/favorites', badge: favCount },
               { label: 'Корзина', href: '/cart', badge: cartCount },
               ...(isAuthed && !isAdminRole ? [{ label: 'Личный кабинет', href: '/cabinet' }] : []),

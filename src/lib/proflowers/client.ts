@@ -197,10 +197,20 @@ export class ProflowersClient {
 
   /**
    * Страница каталога. pages.total — общее число товаров (не страниц): страниц ceil(total / ipp).
+   * tradingDayIds/groupIds — необязательные фильтры (trading_days[]/group_ids[]), подтверждены
+   * живым запросом 24.09.2026: group_ids[] реально сужает выдачу до товаров листа подкатегории,
+   * несколько group_ids[] разом сливают товары без метки группы — на каждый лист нужен свой
+   * отдельный запрос (см. docs/PROFLOWERS_SYNC.md).
    */
-  async getCatalogPage(page: number, options: { ipp?: number; referer?: string } = {}): Promise<PfCatalogResponse> {
+  async getCatalogPage(
+    page: number,
+    options: { ipp?: number; referer?: string; tradingDayIds?: number[]; groupIds?: number[] } = {},
+  ): Promise<PfCatalogResponse> {
     const ipp = options.ipp ?? 60
-    const path = `/catalog/products?ipp=${ipp}&page=${page}&sortOrder=ASC&sortBy=promotion`
+    const params = [`ipp=${ipp}`, `page=${page}`, 'sortOrder=ASC', 'sortBy=promotion']
+    for (const id of options.tradingDayIds ?? []) params.push(`trading_days[]=${id}`)
+    for (const id of options.groupIds ?? []) params.push(`group_ids[]=${id}`)
+    const path = `/catalog/products?${params.join('&')}`
     const data = await this.getJson<Partial<PfCatalogResponse>>(path, options.referer)
 
     const total = Number(data?.pages?.total)

@@ -46,11 +46,30 @@ function toInt(value: number | undefined | null): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-interface TradingDayRow {
+// Полная строка — пишет ТОЛЬКО стаб-шаг (из activeTradingDays, до пагинации): start_time/
+// stop_time есть ТОЛЬКО в ответе /trading-days/, в list[].trading_day (per-page) их нет.
+interface TradingDayStubRow {
   pf_id: number
   type: string
   date: string | null
   name: string | null
+  nomenclature_id: number | null
+  nomenclature_name: string | null
+  start_time: string | null
+  stop_time: string | null
+  is_active: boolean
+  synced_at: string
+}
+
+// Уточнение со страницы каталога (per-page upsert, item.trading_day) — БЕЗ start_time/stop_time:
+// их здесь физически нет, включить в payload = занулить то, что записал стаб-шаг (upsert
+// перезаписывает все переданные колонки). nomenclature_id/name — есть и здесь, можно уточнять.
+interface TradingDayRefineRow {
+  pf_id: number
+  type: string
+  date: string | null
+  name: string | null
+  nomenclature_id: number | null
   nomenclature_name: string | null
   is_active: boolean
   synced_at: string
@@ -88,13 +107,14 @@ interface OfferRow {
   last_seen_at: string
 }
 
-function tradingDayRowFromItem(item: PfListItem, now: string): TradingDayRow {
+function tradingDayRowFromItem(item: PfListItem, now: string): TradingDayRefineRow {
   const day = item.trading_day
   return {
     pf_id: day.id,
     type: day.type,
     date: day.normalized_date ?? day.date ?? null,
     name: day.name ?? null,
+    nomenclature_id: day.nomenclature_id ?? null,
     nomenclature_name: day.nomenclature_name ?? null,
     is_active: true,
     synced_at: now,
@@ -142,10 +162,30 @@ function offerRowFromItem(item: PfListItem, now: string): OfferRow | null {
   }
 }
 
-async function upsertTradingDays(admin: AdminClient, rows: TradingDayRow[]): Promise<void> {
+// Generic по форме строки: стаб-шаг пишет TradingDayStubRow (с start_time/stop_time),
+// per-page upsert — TradingDayRefineRow (без них, см. комментарий у типов выше).
+async function upsertTradingDays<T extends { pf_id: number }>(admin: AdminClient, rows: T[]): Promise<void> {
   if (rows.length === 0) return
   const { error } = await admin.from('pf_trading_days').upsert(rows, { onConflict: 'pf_id' })
   if (error) throw new Error(`upsert pf_trading_days: ${error.message}`)
+}
+
+// Честность данных: is_active отражает «был ли день в активном наборе на момент ЭТОГО прогона»
+// (не гейтит витрину — за это отвечает stop_time во вьюхе pf_catalog, см. миграцию
+// 20260923140000). activeIds всегда непусто на месте вызова (ветка «нет активных дней»
+// возвращается раньше и сюда не доходит).
+async function refreshTradingDaysActiveFlag(admin: AdminClient, activeIds: number[]): Promise<void> {
+  const { error: activateError } = await admin
+    .from('pf_trading_days')
+    .update({ is_active: true })
+    .in('pf_id', activeIds)
+  if (activateError) throw new Error(`pf_trading_days is_active=true: ${activateError.message}`)
+
+  const { error: deactivateError } = await admin
+    .from('pf_trading_days')
+    .update({ is_active: false })
+    .not('pf_id', 'in', `(${activeIds.join(',')})`)
+  if (deactivateError) throw new Error(`pf_trading_days is_active=false: ${deactivateError.message}`)
 }
 
 async function upsertProducts(admin: AdminClient, rows: ProductRow[]): Promise<void> {
@@ -301,19 +341,23 @@ export async function syncTradingDay(
     }
 
     // Стаб-строки по данным /trading-days/ — гарантируют, что день есть в БД, даже если в
-    // каталоге на него пока 0 товаров (например, только что открывшийся preorder).
-    await upsertTradingDays(
-      admin,
-      activeDays.map((day) => ({
-        pf_id: day.id,
-        type: day.type,
-        date: day.dateTimeNormalized ?? null,
-        name: day.name ?? null,
-        nomenclature_name: null,
-        is_active: true,
-        synced_at: startedAt,
-      })),
-    )
+    // каталоге на него пока 0 товаров (например, только что открывшийся preorder). Единственное
+    // место, что пишет start_time/stop_time — этих полей нет в list[].trading_day (per-page).
+    // nomenclature_name здесь намеренно null: в activeTradingDays нет плоского текстового поля
+    // с названием (оно спрятано в catalogGroups[].name), уточняется per-page из item.trading_day.
+    const stubRows: TradingDayStubRow[] = activeDays.map((day) => ({
+      pf_id: day.id,
+      type: day.type,
+      date: day.dateTimeNormalized ?? null,
+      name: day.name ?? null,
+      nomenclature_id: day.nomenclatureId ?? null,
+      nomenclature_name: null,
+      start_time: day.startDateTime ?? null,
+      stop_time: day.stopDateTime ?? null,
+      is_active: true,
+      synced_at: startedAt,
+    }))
+    await upsertTradingDays(admin, stubRows)
 
     let page = 1
     let totalPages = 1
@@ -326,7 +370,7 @@ export async function syncTradingDay(
       const items = catalogPage.list
 
       // 1) уникальные торговые дни этой страницы (уточняют стаб данными из товара: nomenclature_name и т.п.)
-      const dayRowsByPfId = new Map<number, TradingDayRow>()
+      const dayRowsByPfId = new Map<number, TradingDayRefineRow>()
       for (const item of items) dayRowsByPfId.set(item.trading_day.id, tradingDayRowFromItem(item, now))
       await upsertTradingDays(admin, [...dayRowsByPfId.values()])
       for (const dayId of dayRowsByPfId.keys()) {
@@ -375,6 +419,8 @@ export async function syncTradingDay(
     }
 
     const tradingDayIds = [...processedDayIds]
+    await refreshTradingDaysActiveFlag(admin, tradingDayIds)
+
     await finishRun(admin, runId, {
       trading_day_id: tradingDayIds.length === 1 ? tradingDayIds[0] : null,
       trading_day_type: tradingDayIds.length === 1 ? processedDayTypeById.get(tradingDayIds[0]) ?? null : null,

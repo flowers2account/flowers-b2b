@@ -47,6 +47,14 @@ const nextConfig: NextConfig = {
         hostname: 'uralskflowers.kz',
       },
       {
+        // Фото каталога Proflowers (раздел «Под заказ», docs/PROFLOWERS_SYNC.md).
+        // TODO: MVP — хотлинк на CDN поставщика. Позже перекладывать фото на свой VPS при
+        // синке (как остальные источники в этом списке) — не грузить чужой CDN и не зависеть
+        // от их хоста.
+        protocol: 'https',
+        hostname: 'marketimg.proflowers.kz',
+      },
+      {
         protocol: 'https',
         hostname: 'www.uralskflowers.kz',
       },
