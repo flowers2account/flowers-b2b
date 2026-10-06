@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
-import { formatDeliveryDate, tradingDayLabel, stepPrice, maxSteps, stepLabel } from '@/lib/pod-zakaz/format'
+import { formatDeliveryDate, tradingDayLabel, stepPrice, unitPrice, maxSteps, stepLabel } from '@/lib/pod-zakaz/format'
 import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 
 // Визуальный клон GridCard (src/components/catalog/ProductGrid.tsx) — те же CSS-переменные
@@ -119,15 +119,28 @@ export default function PfProductCard({ item, qty, onSetQty, onCardClick }: Prop
         )}
 
         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <span style={{ fontFamily: 'var(--font-serif), serif', fontSize: 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
-              {price.toLocaleString('ru-RU')} ₸
-              {' '}<span style={{ fontFamily: 'var(--font-golos)', fontSize: 11, fontWeight: 500, color: 'var(--text-mid)' }}>
-                / {item.is_box_only ? 'кор.' : 'шт'}
+          {item.is_box_only ? (
+            <>
+              {/* «290 ₸/шт · короб 300 шт = 87 000 ₸» — обе цены разом, чтобы не было
+                  путаницы с суммой (короб != цена за штуку, см. format.ts stepPrice()). */}
+              <div style={{ fontSize: 11, color: 'var(--text-mid)' }}>
+                {unitPrice(item).toLocaleString('ru-RU')} ₸/шт
+              </div>
+              <div style={{ fontFamily: 'var(--font-serif), serif', fontSize: 17, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
+                короб {item.box_multiplicity} шт = {price.toLocaleString('ru-RU')} ₸
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <span style={{ fontFamily: 'var(--font-serif), serif', fontSize: 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
+                {price.toLocaleString('ru-RU')} ₸
+                {' '}<span style={{ fontFamily: 'var(--font-golos)', fontSize: 11, fontWeight: 500, color: 'var(--text-mid)' }}>
+                  / шт
+                </span>
               </span>
-            </span>
-          </div>
-          {(item.is_box_only || item.multiplicity > 1) && (
+            </div>
+          )}
+          {(!item.is_box_only && item.multiplicity > 1) && (
             <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 2 }}>{label}</div>
           )}
 
@@ -153,8 +166,10 @@ export default function PfProductCard({ item, qty, onSetQty, onCardClick }: Prop
                 flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700,
                 padding: '6px 0', fontFamily: 'var(--font-jetbrains, monospace)',
                 borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
+                display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4,
               }}>
                 {qty}
+                {item.is_box_only && <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-mid)' }}>кор.</span>}
               </span>
               <button
                 onClick={() => onSetQty(Math.min(max, qty + 1))}
@@ -167,6 +182,9 @@ export default function PfProductCard({ item, qty, onSetQty, onCardClick }: Prop
                 }}
               >+</button>
             </div>
+            {item.is_box_only && (
+              <div style={{ fontSize: 10, color: 'var(--text-mid)', marginTop: 4 }}>{label}</div>
+            )}
             {max === 0 && (
               <div style={{ marginTop: 6, fontSize: 10.5, color: '#C62828' }}>
                 {item.is_box_only ? 'Меньше короба не осталось' : 'Нет в наличии'}

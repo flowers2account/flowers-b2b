@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
 import { usePfDetail } from '@/lib/pod-zakaz/pf-detail-store'
 import { usePfCart } from '@/lib/pod-zakaz/pf-cart-store'
-import { stepPrice, stepLabel, maxSteps, tradingDayLabel, formatDeliveryDate } from '@/lib/pod-zakaz/format'
+import { stepPrice, unitPrice, stepLabel, maxSteps, tradingDayLabel, formatDeliveryDate } from '@/lib/pod-zakaz/format'
 import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 
 // Вёрстка по образцу StateDetail из src/components/catalog/DetailPanel.tsx (галерея/Row/степпер),
@@ -30,12 +30,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
-function Stepper({ qty, max, onDec, onInc }: { qty: number; max: number; onDec: () => void; onInc: () => void }) {
+function Stepper({ qty, max, isBoxOnly, onDec, onInc }: { qty: number; max: number; isBoxOnly?: boolean; onDec: () => void; onInc: () => void }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center',
       border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)',
-      overflow: 'hidden', width: 108,
+      overflow: 'hidden', width: isBoxOnly ? 132 : 108,
     }}>
       <button
         onClick={onDec} disabled={qty === 0}
@@ -47,8 +47,10 @@ function Stepper({ qty, max, onDec, onInc }: { qty: number; max: number; onDec: 
       <span style={{
         flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 700,
         borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)', lineHeight: '32px',
+        display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4,
       }}>
         {qty}
+        {isBoxOnly && <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-mid)' }}>кор.</span>}
       </span>
       <button
         onClick={onInc} disabled={qty >= max}
@@ -196,13 +198,22 @@ function StateDetail({ item, onClose, onOpenCart }: { item: PfCatalogItem; onClo
           {item.country && <Row label="Страна">{item.country}</Row>}
           {item.nomenclature_name && <Row label="Категория">{item.nomenclature_name}</Row>}
 
-          <Row label="Цена">
-            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
-              {price.toLocaleString('ru-RU')} ₸ / {item.is_box_only ? 'кор.' : 'шт'}
-            </span>
-          </Row>
-          {item.is_box_only && (
-            <Row label="В коробке">{item.box_multiplicity} шт</Row>
+          {item.is_box_only ? (
+            <>
+              <Row label="Цена за шт">{unitPrice(item).toLocaleString('ru-RU')} ₸</Row>
+              <Row label="В коробке">{item.box_multiplicity} шт</Row>
+              <Row label="Цена короба">
+                <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                  {price.toLocaleString('ru-RU')} ₸
+                </span>
+              </Row>
+            </>
+          ) : (
+            <Row label="Цена">
+              <span style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                {price.toLocaleString('ru-RU')} ₸ / шт
+              </span>
+            </Row>
           )}
 
           <Row label="Наличие">
@@ -214,7 +225,10 @@ function StateDetail({ item, onClose, onOpenCart }: { item: PfCatalogItem; onClo
 
         {/* Stepper + Cart */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Stepper qty={qty} max={max} onDec={() => commitQty(Math.max(0, qty - 1))} onInc={() => commitQty(Math.min(max, qty + 1))} />
+          <Stepper
+            qty={qty} max={max} isBoxOnly={item.is_box_only}
+            onDec={() => commitQty(Math.max(0, qty - 1))} onInc={() => commitQty(Math.min(max, qty + 1))}
+          />
           <button
             onClick={handleAddToCart}
             disabled={max === 0}
@@ -228,7 +242,11 @@ function StateDetail({ item, onClose, onOpenCart }: { item: PfCatalogItem; onClo
           >
             {max === 0
               ? (item.is_box_only ? 'Меньше короба не осталось' : 'Нет в наличии')
-              : qty > 0 ? `В корзину → ${(price * qty).toLocaleString('ru-RU')} ₸` : '+ В корзину'}
+              : qty === 0
+                ? '+ В корзину'
+                : item.is_box_only
+                  ? `${qty} кор. (${qty * (item.box_multiplicity || 0)} шт) → ${(price * qty).toLocaleString('ru-RU')} ₸`
+                  : `В корзину → ${(price * qty).toLocaleString('ru-RU')} ₸`}
           </button>
         </div>
       </div>

@@ -245,14 +245,26 @@ export default function PfCartPanel({ onClose, products }: { onClose: () => void
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden' }}>
                           <button onClick={() => setQty(it, it.qty - 1)} style={{ width: 26, height: 26, border: 'none', background: 'var(--bg2)', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer' }}>−</button>
-                          <span style={{ width: 28, textAlign: 'center', fontSize: 12, fontWeight: 700 }}>{it.qty}</span>
+                          <span style={{ minWidth: 28, textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '0 2px', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 3 }}>
+                            {it.qty}
+                            {it.isBoxOnly && <span style={{ fontSize: 9, fontWeight: 500, color: 'var(--text-mid)' }}>кор.</span>}
+                          </span>
                           <button onClick={() => setQty(it, Math.min(max, it.qty + 1))} disabled={it.qty >= max} style={{ width: 26, height: 26, border: 'none', background: 'var(--bg2)', color: 'var(--accent)', fontWeight: 700, cursor: it.qty >= max ? 'default' : 'pointer', opacity: it.qty >= max ? 0.35 : 1 }}>+</button>
                         </div>
                         <button onClick={() => remove(it.pfOfferId)} style={{ background: 'none', border: 'none', color: 'var(--text-mid)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>убрать</button>
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-                      {fmt(it.stepPrice * it.qty)}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                      {it.isBoxOnly && live?.box_multiplicity ? (
+                        <>
+                          <div style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--text-mid)' }}>
+                            {it.qty} кор. ({it.qty * live.box_multiplicity} шт)
+                          </div>
+                          {fmt(it.stepPrice * it.qty)}
+                        </>
+                      ) : (
+                        fmt(it.stepPrice * it.qty)
+                      )}
                     </div>
                   </div>
                 )
