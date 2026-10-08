@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
 import { usePfDetail } from '@/lib/pod-zakaz/pf-detail-store'
 import { usePfCart } from '@/lib/pod-zakaz/pf-cart-store'
-import { stepPrice, unitPrice, stepLabel, maxSteps, tradingDayLabel, formatDeliveryDate } from '@/lib/pod-zakaz/format'
+import { stepPrice, unitPrice, stepLabel, maxSteps, tradingDayBadge } from '@/lib/pod-zakaz/format'
 import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 
 // Вёрстка по образцу StateDetail из src/components/catalog/DetailPanel.tsx (галерея/Row/степпер),
@@ -176,8 +176,7 @@ function StateDetail({ item, onClose, onOpenCart }: { item: PfCatalogItem; onClo
             display: 'inline-block', background: 'var(--text)', color: '#fff',
             fontSize: 10.5, fontWeight: 600, padding: '3px 9px', borderRadius: 'var(--radius-btn)',
           }}>
-            {tradingDayLabel(item.trading_day_type)}
-            {item.trading_day_date ? ` · поставка ${formatDeliveryDate(item.trading_day_date)}` : ''}
+            {tradingDayBadge(item)}
           </span>
         </div>
 

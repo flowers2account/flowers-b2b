@@ -17,6 +17,29 @@ export function tradingDayLabel(type: string): string {
   return TRADING_DAY_LABEL[type] ?? type
 }
 
+// «Сегодня» в Asia/Oral, обрезано до даты (без времени) — для сравнения с trading_day_date.
+function todayOral(): Date {
+  const oral = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Oral' }))
+  oral.setHours(0, 0, 0, 0)
+  return oral
+}
+
+// Плашка торгового дня для карточки/панели. trading_day_date — дата ДНЯ Proflowers, не
+// гарантированный срок поставки: приём по дню может быть ещё открыт (товар есть в выдаче),
+// хотя сама дата дня уже прошла (подтверждено 08.10.2026 — у «Срезанные цветы» день назывался
+// «6 октября» 8-го числа). Показывать прошедшую дату как «поставка» — обман клиента. Пока
+// владелец не определит формулу «дата отгрузки + N дней доставки» — прошедшую/сегодняшнюю
+// дату прячем, нейтральный текст «Под заказ» вместо конкретной даты.
+export function tradingDayBadge(item: PfCatalogItem): string {
+  const label = tradingDayLabel(item.trading_day_type)
+  if (!item.trading_day_date) return label
+  const day = new Date(item.trading_day_date)
+  if (Number.isNaN(day.getTime())) return label
+  day.setHours(0, 0, 0, 0)
+  if (day.getTime() <= todayOral().getTime()) return 'Под заказ'
+  return `${label} · поставка ${formatDeliveryDate(item.trading_day_date)}`
+}
+
 // Шаг корзины считаем в «ступенях»: для is_box_only ступень = 1 короб (box_multiplicity шт),
 // иначе ступень = multiplicity шт. Так «нельзя заказать произвольное число штук у коробочного
 // товара» соблюдается на уровне самой единицы измерения количества, а не проверкой постфактум.

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { PfCatalogItem } from '@/lib/pod-zakaz/types'
-import { formatDeliveryDate, tradingDayLabel, stepPrice, unitPrice, maxSteps, stepLabel } from '@/lib/pod-zakaz/format'
+import { tradingDayBadge, stepPrice, unitPrice, maxSteps, stepLabel } from '@/lib/pod-zakaz/format'
 import { colorSwatch, colorLabel, isLightSwatch } from '@/lib/colors'
 
 // Визуальный клон GridCard (src/components/catalog/ProductGrid.tsx) — те же CSS-переменные
@@ -22,8 +22,7 @@ export default function PfProductCard({ item, qty, onSetQty, onCardClick }: Prop
   const price = stepPrice(item)
   const max = maxSteps(item)
   const label = stepLabel(item)
-  const dayLabel = tradingDayLabel(item.trading_day_type)
-  const deliveryDate = formatDeliveryDate(item.trading_day_date)
+  const dayBadge = tradingDayBadge(item)
   const swatch = item.color_name ? colorSwatch(item.color_name) : null
 
   return (
@@ -73,7 +72,7 @@ export default function PfProductCard({ item, qty, onSetQty, onCardClick }: Prop
           fontSize: 10.5, fontWeight: 600, letterSpacing: '0.01em',
           padding: '3px 9px', borderRadius: 'var(--radius-btn)', backdropFilter: 'blur(4px)',
         }}>
-          {dayLabel}{deliveryDate ? ` · поставка ${deliveryDate}` : ''}
+          {dayBadge}
         </span>
 
         {/* Остаток — «N шт в наличии», для коробочных «N кор. в наличии» */}
