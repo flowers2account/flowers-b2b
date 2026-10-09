@@ -34,17 +34,33 @@ export default function PodZakazMarkupPanel() {
   async function load() {
     setLoading(true)
     setError('')
+    // Таймаут на сам fetch — чтобы зависший/недоступный бэкенд не держал форму на
+    // «Загрузка...» вечно: по истечении 15с показываем ошибку, не бесконечный спиннер.
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     try {
-      const res = await fetch('/api/admin/pod-zakaz/markup', { headers: await authHeaders(), cache: 'no-store' })
+      const res = await fetch('/api/admin/pod-zakaz/markup', {
+        headers: await authHeaders(),
+        cache: 'no-store',
+        signal: controller.signal,
+      })
       const data = await res.json().catch(() => null)
-      if (!res.ok) { setError(data?.error || 'Не удалось загрузить наценку'); return }
+      if (!res.ok || !data?.global) {
+        setError(data?.error || 'Не удалось загрузить наценку')
+        return
+      }
       const d = data as MarkupData
       setGlobalPercent(String(d.global.percent))
       setGlobalPlus(String(d.global.plus_amount))
       setCategories(d.categories)
       setCatPercentDraft(Object.fromEntries(d.categories.map(c => [c.nomenclature_id, c.percent === null ? '' : String(c.percent)])))
       setCatPlusDraft(Object.fromEntries(d.categories.map(c => [c.nomenclature_id, c.plus_amount === null ? '' : String(c.plus_amount)])))
+    } catch (e) {
+      setError(e instanceof Error && e.name === 'AbortError'
+        ? 'Сервер не ответил за 15с — обновите страницу или проверьте подключение'
+        : 'Сетевая ошибка при загрузке наценки')
     } finally {
+      clearTimeout(timeoutId)
       setLoading(false)
     }
   }
