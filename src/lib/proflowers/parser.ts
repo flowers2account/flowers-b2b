@@ -345,19 +345,25 @@ export async function syncTradingDay(
     // место, что пишет start_time/stop_time — этих полей нет в list[].trading_day (per-page).
     // nomenclature_name здесь намеренно null: в activeTradingDays нет плоского текстового поля
     // с названием (оно спрятано в catalogGroups[].name), уточняется per-page из item.trading_day.
-    const stubRows: TradingDayStubRow[] = activeDays.map((day) => ({
-      pf_id: day.id,
-      type: day.type,
-      date: day.dateTimeNormalized ?? null,
-      name: day.name ?? null,
-      nomenclature_id: day.nomenclatureId ?? null,
-      nomenclature_name: null,
-      start_time: day.startDateTime ?? null,
-      stop_time: day.stopDateTime ?? null,
-      is_active: true,
-      synced_at: startedAt,
-    }))
-    await upsertTradingDays(admin, stubRows)
+    // Дедуп по pf_id через Map — /trading-days/ иногда отдаёт один и тот же день несколько раз
+    // (по разным номенклатурам/категориям), и upsert с двумя строками одного pf_id в одном
+    // batch падает с "ON CONFLICT DO UPDATE command cannot affect row a second time".
+    const stubRowsByPfId = new Map<number, TradingDayStubRow>()
+    for (const day of activeDays) {
+      stubRowsByPfId.set(day.id, {
+        pf_id: day.id,
+        type: day.type,
+        date: day.dateTimeNormalized ?? null,
+        name: day.name ?? null,
+        nomenclature_id: day.nomenclatureId ?? null,
+        nomenclature_name: null,
+        start_time: day.startDateTime ?? null,
+        stop_time: day.stopDateTime ?? null,
+        is_active: true,
+        synced_at: startedAt,
+      })
+    }
+    await upsertTradingDays(admin, [...stubRowsByPfId.values()])
 
     let page = 1
     let totalPages = 1
